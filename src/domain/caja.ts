@@ -1,0 +1,41 @@
+import type { Asistencia, Pago } from '../db/types';
+
+export interface ResumenCaja {
+  efectivo: number;
+  transferencia: number;
+  tarjeta: number;
+  total: number;
+  cobros: number;
+  anulados: number;
+  porConcepto: { concepto: string; cantidad: number; monto: number }[];
+}
+
+export function resumenCaja(pagos: Pago[]): ResumenCaja {
+  const validos = pagos.filter((p) => !p.anuladoAt && !p.deletedAt);
+  const suma = (m: Pago['metodo']) => validos.filter((p) => p.metodo === m).reduce((s, p) => s + p.monto, 0);
+  const conceptos = new Map<string, { cantidad: number; monto: number }>();
+  for (const p of validos) {
+    const c = conceptos.get(p.concepto) ?? { cantidad: 0, monto: 0 };
+    c.cantidad++;
+    c.monto += p.monto;
+    conceptos.set(p.concepto, c);
+  }
+  const efectivo = suma('efectivo');
+  const transferencia = suma('transferencia');
+  const tarjeta = suma('tarjeta');
+  return {
+    efectivo,
+    transferencia,
+    tarjeta,
+    total: efectivo + transferencia + tarjeta,
+    cobros: validos.length,
+    anulados: pagos.length - validos.length,
+    porConcepto: [...conceptos.entries()]
+      .map(([concepto, v]) => ({ concepto, ...v }))
+      .sort((a, b) => b.monto - a.monto),
+  };
+}
+
+export function asistenciasValidas(a: Asistencia[]): Asistencia[] {
+  return a.filter((x) => !x.anuladaAt && !x.deletedAt);
+}
