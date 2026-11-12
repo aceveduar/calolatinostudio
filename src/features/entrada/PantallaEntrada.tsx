@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal } from 'lucide-react';
 import { colorClase, nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -12,17 +12,30 @@ import { dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
 import { semaforoAlumno } from '../../domain/membresias';
 import { anularAsistencia, cobrarClaseSuelta } from '../../domain/operaciones';
+import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
 import { FormAlumno } from '../alumnos/FormAlumno';
 import { METODOS } from '../alumnos/VenderPlan';
+import { Cuenta } from './Cuenta';
+import { Frecuentes } from './Frecuentes';
 import { HojaEntrada } from './HojaEntrada';
 
-const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const VENTANA_JUNTOS_MS = 8000;
+const normalizar =(s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const capitalizar = (s: string) =>
+  s
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 
 export function PantallaEntrada() {
+  const { usuario } = useSesion();
+  const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
+  const suelta = usePlanes().find((p) => p.activo && p.tipo === 'suelta');
   const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
 
   const [claseId, setClaseId] = useState<ID | null>(null);
@@ -30,17 +43,27 @@ export function PantallaEntrada() {
   const clase: Clase | null = clases.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
 
   const [q, setQ] = useState('');
+  const [vista, setVista] = useState<'llegan' | 'adentro'>('llegan');
   const [alumnoSel, setAlumnoSel] = useState<Alumno | null>(null);
   const [nuevo, setNuevo] = useState(false);
   const [visitante, setVisitante] = useState(false);
+  const [movs, setMovs] = useState<Movimiento[]>([]);
+  const enCurso = useRef(new Set<string>());
+  // Agrupar: toques casi seguidos = pagan juntos (pareja, amigos)
+  const ultimoToque = useRef(0);
+  const yaPagaron = useRef(false);
   const busca = useRef<HTMLInputElement>(null);
 
-  const conteo = useLiveQuery(async () => {
-    const asis = await db.asistencias.where('fecha').equals(hoy()).filter((a) => !a.anuladaAt && !a.deletedAt).toArray();
+  const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).filter((a) => !a.anuladaAt && !a.deletedAt).toArray(), [], []);
+  const conteo = useMemo(() => {
     const m = new Map<ID, number>();
-    for (const a of asis) m.set(a.claseId, (m.get(a.claseId) ?? 0) + 1);
+    for (const a of hoyAsis) m.set(a.claseId, (m.get(a.claseId) ?? 0) + 1);
     return m;
-  }, [], new Map<ID, number>());
+  }, [hoyAsis]);
+  const adentro = useMemo(
+    () => new Set(hoyAsis.filter((a) => a.claseId === clase?.id && a.alumnoId).map((a) => a.alumnoId!)),
+    [hoyAsis, clase?.id],
+  );
 
   const resultados = useMemo(() => {
     const t = normalizar(q.trim());
@@ -52,13 +75,42 @@ export function PantallaEntrada() {
       .slice(0, 8);
   }, [q, alumnos]);
 
-  const cerrarYLimpiar = () => {
-    setAlumnoSel(null);
-    setQ('');
+  /** Ejecuta una acción rápida y la suma a la cuenta abierta. */
+  const rapido = async (llave: string, nombre: string, fn: (c: Clase) => Promise<Resultado>) => {
+    if (!clase) return avisar('Primero elige la clase', 'error');
+    if (enCurso.current.has(llave)) return; // evita doble toque
+    enCurso.current.add(llave);
+    try {
+      const r = await fn(clase);
+      if (r.tipo === 'ya-entro') return avisar(`${nombre.split(' ')[0]} ya está adentro`);
+      if (r.tipo === 'sin-precio') return avisar('Falta el precio de clase suelta (Ajustes → Planes)', 'error');
+      navigator.vibrate?.(25);
+      const ahora = Date.now();
+      const juntos = ahora - ultimoToque.current < VENTANA_JUNTOS_MS && !yaPagaron.current;
+      ultimoToque.current = ahora;
+      yaPagaron.current = false;
+      setMovs((m) => (juntos ? [r.mov, ...m] : [r.mov]));
+      if (q) {
+        setQ('');
+        busca.current?.blur();
+      }
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo registrar', 'error');
+    } finally {
+      enCurso.current.delete(llave);
+    }
   };
 
+  const entrarAlumno = (a: Alumno) =>
+    rapido(a.id, a.nombre, (c) => entradaRapida({ alumnoId: a.id, nombre: a.nombre, clase: c, usuarioId: usuario.id }));
+
+  const cerrarCuenta = useCallback(() => setMovs([]), []);
+
+  const nombreNuevo = capitalizar(q);
+  const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()));
+
   return (
-    <div>
+    <div className={movs.length ? 'pb-72' : undefined}>
       <Encabezado titulo="Entrada" sub={fechaLarga(hoy())} />
 
       {/* Clases del día */}
@@ -90,25 +142,45 @@ export function PantallaEntrada() {
         </button>
       </div>
 
-      {/* Buscador */}
-      <div className="sticky top-0 z-20 bg-ink-50/95 px-4 pt-3 pb-2 backdrop-blur">
-        <div className="relative">
+      {/* Buscador + la "tarjeta" sin nombre */}
+      <div className="sticky top-0 z-20 flex gap-2 bg-ink-50/95 px-4 pt-3 pb-2 backdrop-blur">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-300" size={22} />
           <input
             ref={busca}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
+            }}
             placeholder="¿Quién llegó?"
-            className="h-14 w-full rounded-2xl bg-white pr-12 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+            className="h-14 w-full rounded-2xl bg-white pr-11 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
-            enterKeyHint="search"
+            enterKeyHint="go"
           />
           {q && (
-            <button onClick={() => { setQ(''); busca.current?.focus(); }} className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full p-1.5 text-ink-500 active:bg-ink-100" aria-label="Limpiar">
+            <button
+              onClick={() => {
+                setQ('');
+                busca.current?.focus();
+              }}
+              className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1.5 text-ink-500 active:bg-ink-100"
+              aria-label="Limpiar"
+            >
               <X size={20} />
             </button>
           )}
         </div>
+        {suelta && (
+          <button
+            onClick={() => rapido(crypto.randomUUID(), 'Sin nombre', (c) => entradaSinNombre(c, usuario.id))}
+            className="flex h-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 px-3.5 leading-none text-white shadow-sm shadow-brand-500/30 transition active:scale-95 active:bg-brand-600"
+            aria-label={`Cobrar ${dinero(suelta.precio)} sin nombre`}
+          >
+            <span className="text-lg font-extrabold">+{dinero(suelta.precio)}</span>
+            <span className="mt-0.5 text-[10px] font-semibold text-white/85">sin nombre</span>
+          </button>
+        )}
       </div>
 
       <div className="px-4 pb-6">
@@ -116,31 +188,107 @@ export function PantallaEntrada() {
           <div className="space-y-2 pt-1">
             {resultados.map((a) => {
               const s = semaforoAlumno(estados.get(a.id) ?? []);
+              const entro = adentro.has(a.id);
               return (
-                <Tarjeta key={a.id} onClick={() => setAlumnoSel(a)} className="flex items-center gap-3 p-3">
-                  <Avatar nombre={a.nombre} />
-                  <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
-                  <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>
-                </Tarjeta>
+                <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-white ring-1 ring-ink-100">
+                  <button onClick={() => entrarAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
+                    <Avatar nombre={a.nombre} />
+                    <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
+                    {entro ? (
+                      <Etiqueta tono="ok">Adentro</Etiqueta>
+                    ) : (
+                      <Etiqueta tono={s.tono}>{s.tono === 'sin' && suelta ? `Cobrar ${dinero(suelta.precio)}` : s.texto}</Etiqueta>
+                    )}
+                  </button>
+                  <button onClick={() => setAlumnoSel(a)} className="border-l border-ink-100 px-3 text-ink-500 active:bg-ink-50" aria-label={`Más opciones para ${a.nombre}`}>
+                    <MoreHorizontal size={20} />
+                  </button>
+                </div>
               );
             })}
-            <Tarjeta onClick={() => setNuevo(true)} className="flex items-center gap-3 p-3 text-brand-600">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50">
-                <UserPlus size={20} />
-              </span>
-              <span className="font-semibold">Registrar “{q.trim()}” como alumno nuevo</span>
-            </Tarjeta>
+            {!exacto && (
+              <div className="flex items-stretch overflow-hidden rounded-2xl bg-white ring-1 ring-ink-100">
+                <button
+                  onClick={() => rapido(`nuevo:${nombreNuevo}`, nombreNuevo, (c) => nuevoYCobrar(nombreNuevo, c, usuario.id))}
+                  className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+                    <UserPlus size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-brand-600">Nuevo: {nombreNuevo}</span>
+                    <span className="block text-xs text-ink-500">Se registra y {suelta ? `paga ${dinero(suelta.precio)}` : 'entra'} en un toque</span>
+                  </span>
+                </button>
+                <button onClick={() => setNuevo(true)} className="border-l border-ink-100 px-3 text-xs leading-tight font-semibold text-ink-500 active:bg-ink-50">
+                  Con
+                  <br />
+                  datos
+                </button>
+              </div>
+            )}
           </div>
+        ) : !clase ? (
+          <Vacio icono={<CalendarDays size={40} />} titulo="Hoy no hay clases programadas" texto="Toca “Elegir clase” para registrar entradas en otra clase." />
         ) : (
-          <EnClase clase={clase} onVisitante={() => setVisitante(true)} />
+          <>
+            <div className="mb-3">
+              <Segmentos<'llegan' | 'adentro'>
+                opciones={[
+                  { valor: 'llegan', texto: 'Por llegar' },
+                  { valor: 'adentro', texto: `Adentro · ${conteo.get(clase.id) ?? 0}` },
+                ]}
+                valor={vista}
+                onChange={setVista}
+              />
+            </div>
+            {vista === 'llegan' ? (
+              <>
+                <Frecuentes clase={clase} adentro={adentro} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                <p className="mt-4 px-2 text-center text-xs leading-relaxed text-ink-500">
+                  Toca a quien llegó para cobrar o darle entrada.
+                  <br />
+                  Mantén presionado para más opciones. Si no aparece, búscalo arriba.
+                </p>
+              </>
+            ) : (
+              <EnClase clase={clase} onVisitante={() => setVisitante(true)} />
+            )}
+          </>
         )}
       </div>
 
-      <HojaEntrada alumno={alumnoSel} clase={clase} onCerrar={cerrarYLimpiar} />
+      <Cuenta
+        key={movs[movs.length - 1]?.key}
+        movs={movs}
+        onCerrar={cerrarCuenta}
+        onPagoCon={(b) => (yaPagaron.current = b !== null)}
+        onDeshacer={async (m) => {
+          await deshacer(m);
+          setMovs((x) => x.filter((y) => y.key !== m.key));
+          avisar(`Se deshizo: ${m.nombre}`);
+        }}
+        onTransferencia={async () => {
+          await cambiarMetodo(
+            movs.filter((m) => m.metodo === 'efectivo'),
+            'transferencia',
+          );
+          setMovs((x) => x.map((m) => (m.metodo === 'efectivo' ? { ...m, metodo: 'transferencia' } : m)));
+        }}
+      />
+
+      <HojaEntrada
+        alumno={alumnoSel}
+        clase={clase}
+        onCerrar={() => {
+          setAlumnoSel(null);
+          setQ('');
+        }}
+      />
 
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Alumno nuevo">
         <FormAlumno
-          nombreInicial={q.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+          nombreInicial={nombreNuevo}
           onGuardado={(a) => {
             setNuevo(false);
             setAlumnoSel(a);
@@ -155,42 +303,42 @@ export function PantallaEntrada() {
   );
 }
 
-function EnClase({ clase, onVisitante }: { clase: Clase | null; onVisitante: () => void }) {
+function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void }) {
   const disciplinas = useDisciplinas();
   const avisar = useAvisos();
   const [quitar, setQuitar] = useState<ID | null>(null);
-  const lista = useLiveQuery(async () => {
-    if (!clase) return [];
-    const asis = await db.asistencias
-      .where('[claseId+fecha]')
-      .equals([clase.id, hoy()])
-      .filter((a) => !a.anuladaAt && !a.deletedAt)
-      .toArray();
-    const alumnos = await db.alumnos.bulkGet(asis.map((a) => a.alumnoId ?? ''));
-    const pagos = await db.pagos.bulkGet(asis.map((a) => a.pagoId ?? ''));
-    return asis
-      .map((a, i) => ({ a, nombre: alumnos[i]?.nombre ?? a.nombreVisitante ?? 'Visitante', pago: pagos[i] }))
-      .sort((x, y) => y.a.createdAt - x.a.createdAt);
-  }, [clase?.id], []);
-
-  if (!clase)
-    return <Vacio icono={<CalendarDays size={40} />} titulo="Hoy no hay clases programadas" texto="Toca “Elegir clase” para registrar entradas en otra clase." />;
+  const lista = useLiveQuery(
+    async () => {
+      const asis = await db.asistencias
+        .where('[claseId+fecha]')
+        .equals([clase.id, hoy()])
+        .filter((a) => !a.anuladaAt && !a.deletedAt)
+        .toArray();
+      const alumnos = await db.alumnos.bulkGet(asis.map((a) => a.alumnoId ?? ''));
+      const pagos = await db.pagos.bulkGet(asis.map((a) => a.pagoId ?? ''));
+      return asis
+        .map((a, i) => ({ a, nombre: alumnos[i]?.nombre ?? a.nombreVisitante ?? 'Visitante', pago: pagos[i] }))
+        .sort((x, y) => y.a.createdAt - x.a.createdAt);
+    },
+    [clase.id],
+    [],
+  );
 
   const sel = lista.find((x) => x.a.id === quitar);
 
   return (
-    <div className="pt-2">
+    <div>
       <div className="mb-2 flex items-center justify-between px-1">
         <h2 className="text-xs font-bold tracking-wider text-ink-500 uppercase">
           En {nombreClase(clase, disciplinas)} · {lista.length}
         </h2>
         <button onClick={onVisitante} className="flex items-center gap-1 text-sm font-semibold text-brand-600">
-          <Footprints size={16} /> Visitante
+          <Footprints size={16} /> Visitante con nombre
         </button>
       </div>
       {lista.length === 0 ? (
         <Tarjeta>
-          <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="Busca al alumno por su nombre arriba." />
+          <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="Toca a los alumnos en “Por llegar”." />
         </Tarjeta>
       ) : (
         <Tarjeta className="divide-y divide-ink-100">
@@ -246,7 +394,7 @@ function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () =>
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-500">Para quien viene a probar o no quiere registrarse. Cuenta en caja igual que la tarjeta.</p>
+      <p className="text-sm text-ink-500">Para quien viene a probar y no quiere registrarse. Cuenta en caja igual que la tarjeta.</p>
       <Campo etiqueta="Nombre (opcional)">
         <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Visitante" />
       </Campo>
