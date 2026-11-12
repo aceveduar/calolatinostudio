@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronLeft, ChevronRight, Lock, Receipt, Scale } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, Receipt, RotateCcw, Scale } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas, useMaestros, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { crear } from '../../db/repo';
-import type { Pago } from '../../db/types';
+import type { MetodoPago, Pago } from '../../db/types';
+import { cambiarMetodoPago, restaurarPago } from '../../domain/correcciones';
+import { METODOS } from '../alumnos/VenderPlan';
 import { asistenciasValidas, resumenCaja } from '../../domain/caja';
 import { aCentavos, dinero } from '../../domain/dinero';
 import { fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';
@@ -207,36 +209,75 @@ function Cifra({ etiqueta, valor }: { etiqueta: string; valor: number }) {
   );
 }
 
-function DetallePago({ pago, cobro, anulo, onHecho }: { pago: Pago; cobro?: string; anulo?: string; onHecho: () => void }) {
+const MOTIVOS = ['Se cobró dos veces', 'Persona equivocada', 'Monto equivocado', 'Se le devolvió el dinero'];
+
+export function DetallePago({ pago: inicial, cobro, anulo, onHecho }: { pago: Pago; cobro?: string; anulo?: string; onHecho: () => void }) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
+  const pago = useLiveQuery(() => db.pagos.get(inicial.id), [inicial.id]) ?? inicial;
   const [motivo, setMotivo] = useState('');
   return (
     <div className="space-y-4">
       <Tarjeta className="divide-y divide-ink-100 text-sm">
         <Fila k="Concepto" v={pago.concepto} />
         <Fila k="Monto" v={dinero(pago.monto)} />
-        <Fila k="Método" v={pago.metodo} />
         <Fila k="Cobró" v={`${cobro ?? '—'} · ${horaDe(pago.createdAt)}`} />
         {pago.anuladoAt && <Fila k="Anulado" v={`${anulo ?? '—'} · ${pago.anuladoMotivo ?? ''}`} />}
       </Tarjeta>
-      {!pago.anuladoAt && (
+
+      {pago.anuladoAt ? (
+        <Boton
+          bloque
+          variante="secundario"
+          onClick={async () => {
+            await restaurarPago(pago.id);
+            avisar('Cobro restaurado');
+            onHecho();
+          }}
+        >
+          <RotateCcw size={18} /> Restaurar cobro (se anuló por error)
+        </Boton>
+      ) : (
         <>
-          <Campo etiqueta="Motivo para anular" ayuda="Se quita el cobro y la entrada o el plan que generó. Queda registrado quién lo hizo.">
-            <Entrada value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. se cobró dos veces" />
-          </Campo>
-          <Boton
-            bloque
-            variante="peligro"
-            disabled={motivo.trim().length < 3}
-            onClick={async () => {
-              await anularPago(pago.id, motivo.trim(), usuario.id);
-              avisar('Cobro anulado');
-              onHecho();
-            }}
-          >
-            Anular cobro
-          </Boton>
+          <div>
+            <p className="mb-1.5 px-1 text-sm font-medium text-ink-700">Método de pago</p>
+            <Segmentos<MetodoPago>
+              opciones={METODOS}
+              valor={pago.metodo}
+              onChange={async (m) => {
+                const antes = await cambiarMetodoPago(pago.id, m);
+                avisar(`Método: ${m}`, 'ok', { texto: 'Deshacer', fn: () => cambiarMetodoPago(pago.id, antes).then(() => undefined) });
+              }}
+            />
+          </div>
+          <div className="space-y-2 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100">
+            <p className="text-sm font-medium text-ink-700">Anular cobro</p>
+            <div className="flex flex-wrap gap-2">
+              {MOTIVOS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMotivo(m)}
+                  className={cx('rounded-full px-3 py-1.5 text-sm font-medium ring-1', motivo === m ? 'bg-bad-50 text-bad-600 ring-bad-600/30' : 'ring-ink-100')}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <Entrada value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="u otro motivo…" />
+            <p className="text-xs text-ink-500">Se quita el cobro y la entrada o el plan que generó. Queda registrado quién lo hizo y se puede restaurar.</p>
+            <Boton
+              bloque
+              variante="peligro"
+              disabled={motivo.trim().length < 3}
+              onClick={async () => {
+                await anularPago(pago.id, motivo.trim(), usuario.id);
+                avisar('Cobro anulado', 'ok', { texto: 'Deshacer', fn: () => restaurarPago(pago.id) });
+                onHecho();
+              }}
+            >
+              Anular cobro
+            </Boton>
+          </div>
         </>
       )}
     </div>

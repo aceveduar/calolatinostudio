@@ -1,39 +1,56 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, CalendarPlus, MessageCircle, Pencil, Phone } from 'lucide-react';
-import { nombreClase, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes } from '../../app/datos';
+import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, Phone, Search, UserX } from 'lucide-react';
+import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
-import { Avatar, Boton, Etiqueta, Hoja, Seccion, Tarjeta, Vacio } from '../../components/ui';
+import { useAvisos } from '../../components/avisos';
+import { Avatar, Boton, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import { db } from '../../db/db';
+import type { Alumno, Pago } from '../../db/types';
+import { fusionarAlumnos, resumenAlumno } from '../../domain/correcciones';
 import { dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, textoFechaHora } from '../../domain/fechas';
 import { semaforoAlumno, textoDias } from '../../domain/membresias';
+import { DetallePago } from '../caja/PantallaCaja';
 import { FormAlumno } from './FormAlumno';
 import { VenderPlan } from './VenderPlan';
+
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function FichaAlumno() {
   const { id } = useParams();
   const nav = useNavigate();
+  const avisar = useAvisos();
   const { academia, esDueno } = useSesion();
   const alumno = useLiveQuery(async () => (await db.alumnos.get(id ?? '')) ?? null, [id]);
   const estados = useEstadosDeAlumno(id);
   const planes = usePlanes();
   const clases = useClases();
   const disciplinas = useDisciplinas();
+  const usuarios = useUsuarios();
   const [editar, setEditar] = useState(false);
   const [vender, setVender] = useState(false);
+  const [fusionar, setFusionar] = useState(false);
+  const [pagoSel, setPagoSel] = useState<Pago | null>(null);
 
   const historial = useLiveQuery(async () => {
-    if (!id) return { pagos: [], asistencias: [], totalAsistencias: 0 };
+    if (!id) return { pagos: [], asistencias: [], totalAsistencias: 0, repetidas: [] as { claseId: string; fecha: string }[] };
     const pagos = await db.pagos.where('alumnoId').equals(id).reverse().sortBy('createdAt');
-    const asistencias = await db.asistencias.where('alumnoId').equals(id).filter((a) => !a.anuladaAt).reverse().sortBy('createdAt');
-    return { pagos: pagos.slice(0, 20), asistencias: asistencias.slice(0, 20), totalAsistencias: asistencias.length };
+    const asistencias = await db.asistencias.where('alumnoId').equals(id).filter((a) => !a.anuladaAt && !a.deletedAt).reverse().sortBy('createdAt');
+    const vistos = new Set<string>();
+    const repetidas: { claseId: string; fecha: string }[] = [];
+    for (const a of asistencias) {
+      const k = `${a.claseId}|${a.fecha}`;
+      if (vistos.has(k)) repetidas.push({ claseId: a.claseId, fecha: a.fecha });
+      vistos.add(k);
+    }
+    return { pagos: pagos.slice(0, 20), asistencias: asistencias.slice(0, 20), totalAsistencias: asistencias.length, repetidas };
   }, [id]);
 
   if (alumno === undefined) return null;
-  if (!alumno) return <Vacio titulo="Alumno no encontrado" />;
+  if (!alumno || alumno.deletedAt) return <Vacio titulo="Alumno no encontrado" texto="Puede que se haya fusionado con otro registro." />;
 
   const sem = semaforoAlumno(estados);
   const vigentes = estados.filter((e) => e.vigente || e.membresia.inicio > hoy());
@@ -44,12 +61,32 @@ export function FichaAlumno() {
       ? `Hola ${nombre1}, ¡te esperamos en ${academia.nombre}! 💃🕺`
       : `Hola ${nombre1}, te recordamos que tu plan en ${academia.nombre} está por terminar. ¡Te esperamos!`,
   );
+  const abrirPagoDePlan = async (pagoId: string) => {
+    const p = await db.pagos.get(pagoId);
+    if (p) setPagoSel(p);
+  };
 
   return (
     <div className="px-4 pb-8">
       <button onClick={() => nav(-1)} className="mt-3 -ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
         <ArrowLeft />
       </button>
+
+      {!alumno.activo && (
+        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-sm text-warn-600">
+          <UserX size={18} className="shrink-0" />
+          <span className="flex-1 font-medium">Dado de baja. No aparece en Entrada.</span>
+          <button
+            className="rounded-lg bg-warn-600/15 px-3 py-1.5 font-bold"
+            onClick={async () => {
+              await actualizar('alumnos', alumno.id, { activo: true });
+              avisar(`${nombre1} reactivado`);
+            }}
+          >
+            Reactivar
+          </button>
+        </div>
+      )}
 
       <div className="mt-1 flex items-center gap-4">
         <Avatar nombre={alumno.nombre} tam={64} />
@@ -64,6 +101,12 @@ export function FichaAlumno() {
           <Pencil size={20} />
         </button>
       </div>
+      {historial?.repetidas.map((r) => (
+        <p key={r.claseId + r.fecha} className="mt-3 rounded-2xl bg-warn-50 px-4 py-3 text-sm font-medium text-warn-600">
+          Aparece 2 veces en {nombreClase(clases.find((c) => c.id === r.claseId), disciplinas)} el {fechaCorta(r.fecha)}. Si se cobró doble, toca el pago repetido abajo y
+          anúlalo.
+        </p>
+      ))}
       {alumno.notas && <p className="mt-3 rounded-xl bg-superficie px-4 py-2 text-sm text-ink-700 ring-1 ring-ink-100">{alumno.notas}</p>}
 
       <div className="mt-5 grid grid-cols-2 gap-2">
@@ -92,10 +135,13 @@ export function FichaAlumno() {
         ) : (
           <div className="space-y-2">
             {vigentes.map((e) => (
-              <Tarjeta key={e.membresia.id} className="p-4">
-                <div className="flex items-center justify-between">
+              <Tarjeta key={e.membresia.id} className="p-4" onClick={() => abrirPagoDePlan(e.membresia.pagoId)}>
+                <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold">{planes.find((p) => p.id === e.membresia.planId)?.nombre ?? 'Plan'}</p>
-                  {e.vigente ? <Etiqueta tono={e.diasRestantes <= 3 ? 'pronto' : 'ok'}>{textoDias(e.diasRestantes)}</Etiqueta> : <Etiqueta>Próximo</Etiqueta>}
+                  <span className="flex items-center gap-1">
+                    {e.vigente ? <Etiqueta tono={e.diasRestantes <= 3 ? 'pronto' : 'ok'}>{textoDias(e.diasRestantes)}</Etiqueta> : <Etiqueta>Próximo</Etiqueta>}
+                    <ChevronRight size={16} className="text-ink-300" />
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-ink-500">
                   {fechaCorta(e.membresia.inicio)} – {fechaCorta(e.membresia.fin)}
@@ -103,6 +149,7 @@ export function FichaAlumno() {
                 </p>
               </Tarjeta>
             ))}
+            <p className="px-1 text-xs text-ink-500">¿Se vendió el plan equivocado? Tócalo para anularlo y vende el correcto.</p>
           </div>
         )}
       </Seccion>
@@ -128,36 +175,150 @@ export function FichaAlumno() {
         ) : (
           <Tarjeta className="divide-y divide-ink-100">
             {historial.pagos.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+              <button key={p.id} onClick={() => setPagoSel(p)} className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm active:bg-ink-50">
                 <span className={p.anuladoAt ? 'text-ink-300 line-through' : 'font-medium'}>
                   {p.concepto} <span className="text-ink-500">· {fechaCorta(p.fecha)}</span>
                 </span>
                 <span className={p.anuladoAt ? 'text-ink-300 line-through' : 'font-semibold'}>{dinero(p.monto)}</span>
-              </div>
+              </button>
             ))}
           </Tarjeta>
         )}
       </Seccion>
 
-      {esDueno && (
-        <button
-          className="mt-8 w-full py-3 text-sm font-semibold text-bad-600"
-          onClick={async () => {
-            if (!confirm(`¿Dar de baja a ${alumno.nombre}? Su historial se conserva.`)) return;
-            await actualizar('alumnos', alumno.id, { activo: false });
-            nav('/alumnos');
-          }}
-        >
-          Dar de baja
+      <div className="mt-8 space-y-1">
+        <button className="flex w-full items-center justify-center gap-2 py-3 text-sm font-semibold text-ink-700" onClick={() => setFusionar(true)}>
+          <Combine size={16} /> ¿Está registrado dos veces? Unir registros
         </button>
-      )}
+        {esDueno && alumno.activo && (
+          <button
+            className="w-full py-3 text-sm font-semibold text-bad-600"
+            onClick={async () => {
+              await actualizar('alumnos', alumno.id, { activo: false });
+              avisar(`${nombre1} dado de baja`, 'ok', { texto: 'Deshacer', fn: () => actualizar('alumnos', alumno.id, { activo: true }).then(() => undefined) });
+              nav('/alumnos');
+            }}
+          >
+            Dar de baja
+          </button>
+        )}
+      </div>
 
       <Hoja abierta={editar} onCerrar={() => setEditar(false)} titulo="Editar alumno">
         <FormAlumno alumno={alumno} onGuardado={() => setEditar(false)} />
       </Hoja>
-      <Hoja abierta={vender} onCerrar={() => setVender(false)} titulo={`Vender plan a ${alumno.nombre.split(' ')[0]}`}>
+      <Hoja abierta={vender} onCerrar={() => setVender(false)} titulo={`Vender plan a ${nombre1}`}>
         {vender && <VenderPlan alumno={alumno} estados={estados} onHecho={() => setVender(false)} />}
       </Hoja>
+      <Hoja abierta={!!pagoSel} onCerrar={() => setPagoSel(null)} titulo="Cobro">
+        {pagoSel && (
+          <DetallePago
+            pago={pagoSel}
+            cobro={usuarios.find((u) => u.id === pagoSel.usuarioId)?.nombre}
+            anulo={usuarios.find((u) => u.id === pagoSel.anuladoPor)?.nombre}
+            onHecho={() => setPagoSel(null)}
+          />
+        )}
+      </Hoja>
+      <Hoja abierta={fusionar} onCerrar={() => setFusionar(false)} titulo="Unir registros">
+        {fusionar && (
+          <Fusionar
+            actual={alumno}
+            onHecho={(destino) => {
+              setFusionar(false);
+              nav(`/alumnos/${destino}`, { replace: true });
+            }}
+          />
+        )}
+      </Hoja>
+    </div>
+  );
+}
+
+/** Une dos registros de la misma persona. Se elige cuál se queda; el otro pasa todo su historial. */
+function Fusionar({ actual, onHecho }: { actual: Alumno; onHecho: (destinoId: string) => void }) {
+  const avisar = useAvisos();
+  const alumnos = useAlumnos();
+  const [q, setQ] = useState(actual.nombre.split(' ')[0]);
+  const [otro, setOtro] = useState<Alumno | null>(null);
+  const [quedarse, setQuedarse] = useState<'actual' | 'otro'>('actual');
+  const conteos = useLiveQuery(async () => (otro ? { a: await resumenAlumno(actual.id), b: await resumenAlumno(otro.id) } : null), [actual.id, otro?.id]);
+
+  const candidatos = useMemo(() => {
+    const t = normalizar(q.trim());
+    return alumnos.filter((a) => a.id !== actual.id && (!t || normalizar(a.nombre).includes(t))).slice(0, 8);
+  }, [q, alumnos, actual.id]);
+
+  if (!otro)
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-ink-500">Busca el otro registro de {actual.nombre.split(' ')[0]}:</p>
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-300" size={20} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        {candidatos.map((a) => (
+          <Tarjeta key={a.id} onClick={() => setOtro(a)} className="flex items-center gap-3 p-3">
+            <Avatar nombre={a.nombre} tam={36} />
+            <span className="flex-1 font-semibold">{a.nombre}</span>
+            {!a.activo && <Etiqueta>Baja</Etiqueta>}
+          </Tarjeta>
+        ))}
+      </div>
+    );
+
+  const [queda, sale] = quedarse === 'actual' ? [actual, otro] : [otro, actual];
+  const cSale = quedarse === 'actual' ? conteos?.b : conteos?.a;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-medium text-ink-700">¿Con qué nombre se queda?</p>
+      <div className="space-y-2">
+        {(['actual', 'otro'] as const).map((k) => {
+          const a = k === 'actual' ? actual : otro;
+          const c = k === 'actual' ? conteos?.a : conteos?.b;
+          return (
+            <button
+              key={k}
+              onClick={() => setQuedarse(k)}
+              className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie p-3 text-left ring-1', quedarse === k ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+            >
+              <Avatar nombre={a.nombre} tam={40} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{a.nombre}</span>
+                <span className="block text-xs text-ink-500">{c ? `${c.asistencias} clases · ${c.pagos} pagos · ${c.membresias} planes` : '…'}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="rounded-2xl bg-warn-50 p-3 text-sm text-warn-600">
+        Todo lo de <b>{sale.nombre}</b>
+        {cSale ? ` (${cSale.asistencias} clases, ${cSale.pagos} pagos)` : ''} pasará a <b>{queda.nombre}</b>, y el registro duplicado se retira.
+      </p>
+      <Boton
+        grande
+        bloque
+        onClick={async () => {
+          const repetidas = await fusionarAlumnos(sale.id, queda.id);
+          avisar(
+            repetidas
+              ? `Unidos. Ojo: ${repetidas} entrada${repetidas > 1 ? 's' : ''} repetida${repetidas > 1 ? 's' : ''} el mismo día; revisa sus pagos por si se cobró doble.`
+              : 'Registros unidos',
+            repetidas ? 'error' : 'ok',
+          );
+          onHecho(queda.id);
+        }}
+      >
+        <Combine size={20} /> Unir en {queda.nombre.split(' ')[0]}
+      </Boton>
+      <Boton bloque variante="fantasma" onClick={() => setOtro(null)}>
+        Elegir otro
+      </Boton>
     </div>
   );
 }

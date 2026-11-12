@@ -98,6 +98,16 @@ export function VenderPlan({
       <Campo etiqueta="Monto cobrado" ayuda="Cámbialo solo si hay descuento.">
         <Entrada inputMode="decimal" value={montoTxt ?? aPesosTexto(plan.precio)} onChange={(e) => setMontoTxt(e.target.value)} />
       </Campo>
+      {monto > plan.precio && (
+        <p className="-mt-3 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+          Ojo: {dinero(monto)} es más que el precio del plan ({dinero(plan.precio)}). ¿Se teclearon ceros de más?
+        </p>
+      )}
+      {monto > 0 && monto < plan.precio * 0.5 && (
+        <p className="-mt-3 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+          Descuento de más de la mitad. Revisa que sea correcto.
+        </p>
+      )}
       <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
       <Boton grande bloque onClick={cobrar} disabled={ocupado || monto <= 0}>
         Cobrar {dinero(monto)}

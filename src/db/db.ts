@@ -61,7 +61,9 @@ export class CompasDB extends Dexie {
           .table('clases')
           .toCollection()
           .modify((c: Clase & { maestro?: string }) => {
-            const nombre = (c.maestro ?? '').trim();
+            const crudo = (c.maestro ?? '').trim().replace(/\s+/g, ' ');
+            // "profe luis" → "Profe Luis" (solo si venía todo en minúsculas)
+            const nombre = crudo === crudo.toLowerCase() ? crudo.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : crudo;
             let maestroId: string | null = null;
             if (nombre) {
               const clave = `${c.academiaId}:${nombre.toLowerCase()}`;

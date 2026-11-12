@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -11,13 +11,15 @@ import { claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
 import { semaforoAlumno } from '../../domain/membresias';
-import { anularAsistencia, cobrarClaseSuelta } from '../../domain/operaciones';
+import { cobrarClaseSuelta } from '../../domain/operaciones';
 import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
 import { FormAlumno } from '../alumnos/FormAlumno';
 import { METODOS } from '../alumnos/VenderPlan';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
 import { HojaEntrada } from './HojaEntrada';
+import { CorregirEntrada } from './CorregirEntrada';
+import { parecidos } from '../../domain/correcciones';
 
 const VENTANA_JUNTOS_MS = 8000;
 const normalizar =(s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -118,6 +120,16 @@ export function PantallaEntrada() {
 
   const nombreNuevo = capitalizar(q);
   const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()));
+  // Errores de dedo ("Ana Lopes", "Carlos Ruis"): mostrar parecidos antes de crear un duplicado
+  const similares = useMemo(
+    () => (q.trim() && !exacto ? parecidos(q, alumnos.filter((a) => a.activo && !resultados.includes(a))) : []),
+    [q, exacto, alumnos, resultados],
+  );
+
+  // Prevención: avisar si se cobra en una clase que no es la de ahora
+  const sugerida = claseSugerida(deHoy);
+  const claseRara = clase && sugerida && clase.id !== sugerida.id ? sugerida : null;
+  const claseNoEsHoy = clase && !deHoy.some((c) => c.id === clase.id);
 
   return (
     <div className={movs.length ? 'pb-72' : undefined}>
@@ -160,6 +172,20 @@ export function PantallaEntrada() {
           adentro={conteo.get(clase.id) ?? 0}
           cobrado={cobradoClase}
         />
+      )}
+
+      {clase && (claseNoEsHoy || claseRara) && (
+        <div className="mx-4 mt-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm text-warn-600">
+          <AlertTriangle size={18} className="shrink-0" />
+          <span className="flex-1 font-medium">
+            {claseNoEsHoy ? `${nombreClase(clase, disciplinas)} no es clase de hoy.` : `La clase de ahora es ${nombreClase(claseRara!, disciplinas)}.`}
+          </span>
+          {claseRara && (
+            <button onClick={() => setClaseId(claseRara.id)} className="shrink-0 rounded-lg bg-warn-600/15 px-2.5 py-1 font-bold">
+              Cambiar
+            </button>
+          )}
+        </div>
       )}
 
       {/* Buscador + la "tarjeta" sin nombre */}
@@ -226,6 +252,22 @@ export function PantallaEntrada() {
                 </div>
               );
             })}
+            {similares.length > 0 && (
+              <>
+                <p className="px-1 pt-1 text-xs font-bold tracking-wider text-warn-600 uppercase">¿Es alguno de estos?</p>
+                {similares.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => entrarAlumno(a)}
+                    className="flex w-full items-center gap-3 rounded-2xl bg-warn-50 p-3 text-left ring-1 ring-warn-600/20 active:brightness-95"
+                  >
+                    <Avatar nombre={a.nombre} />
+                    <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
+                    <Etiqueta tono="pronto">Parecido</Etiqueta>
+                  </button>
+                ))}
+              </>
+            )}
             {!exacto && (
               <div className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                 <button
@@ -359,7 +401,6 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado }: { titulo: strin
 
 function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void }) {
   const disciplinas = useDisciplinas();
-  const avisar = useAvisos();
   const [quitar, setQuitar] = useState<ID | null>(null);
   const lista = useLiveQuery(
     async () => {
@@ -407,29 +448,8 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
         </Tarjeta>
       )}
 
-      <Hoja abierta={!!sel} onCerrar={() => setQuitar(null)} titulo={sel?.nombre}>
-        {sel &&
-          (sel.pago ? (
-            <p className="text-ink-700">
-              Esta entrada se cobró ({dinero(sel.pago.monto)}, {sel.pago.metodo}). Para quitarla, anula el cobro en <b>Caja</b> y así el dinero
-              también cuadra.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-ink-700">¿Quitar esta entrada? La clase se le devuelve a su plan.</p>
-              <Boton
-                bloque
-                variante="peligro"
-                onClick={async () => {
-                  await anularAsistencia(sel.a.id);
-                  setQuitar(null);
-                  avisar('Entrada quitada');
-                }}
-              >
-                Quitar entrada
-              </Boton>
-            </div>
-          ))}
+      <Hoja abierta={!!sel} onCerrar={() => setQuitar(null)} titulo="Corregir entrada">
+        {sel && <CorregirEntrada asistencia={sel.a} nombre={sel.nombre} onHecho={() => setQuitar(null)} />}
       </Hoja>
     </div>
   );

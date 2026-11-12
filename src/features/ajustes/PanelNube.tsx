@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
@@ -50,9 +50,7 @@ export function PanelNube() {
         </Tarjeta>
       ) : vinculada ? (
         esDueno && (
-          <Boton bloque variante="fantasma" onClick={() => confirm('¿Desconectar este teléfono de la nube? Los datos locales se conservan.') && void cerrarSesionNube()}>
-            Desconectar de la nube
-          </Boton>
+          <BotonDoble texto="Desconectar de la nube" confirmar="Toca otra vez para desconectar (tus datos se quedan en el teléfono)" onConfirmar={() => void cerrarSesionNube()} />
         )
       ) : esDueno ? (
         <FormVincular />
@@ -62,6 +60,21 @@ export function PanelNube() {
 
       <RespaldoLocal />
     </div>
+  );
+}
+
+/** Acción delicada sin ventanas del sistema: el primer toque arma, el segundo confirma. */
+function BotonDoble({ texto, confirmar, onConfirmar }: { texto: string; confirmar: string; onConfirmar: () => void }) {
+  const [armado, setArmado] = useState(false);
+  useEffect(() => {
+    if (!armado) return;
+    const t = setTimeout(() => setArmado(false), 4000);
+    return () => clearTimeout(t);
+  }, [armado]);
+  return (
+    <Boton bloque variante={armado ? 'peligro' : 'fantasma'} onClick={() => (armado ? onConfirmar() : setArmado(true))}>
+      {armado ? confirmar : texto}
+    </Boton>
   );
 }
 

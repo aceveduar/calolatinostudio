@@ -15,16 +15,18 @@ export function PantallaAlumnos() {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [verBajas, setVerBajas] = useState(false);
+  const bajas = alumnos.filter((a) => !a.activo).length;
   const [nuevo, setNuevo] = useState(false);
 
   const filas = useMemo(() => {
     const t = normalizar(q.trim());
     return alumnos
-      .filter((a) => a.activo)
+      .filter((a) => a.activo !== verBajas)
       .map((a) => ({ a, s: semaforoAlumno(estados.get(a.id) ?? []) }))
       .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || a.telefono.includes(t))
       .filter(({ s }) => filtro === 'todos' || s.tono === filtro);
-  }, [alumnos, estados, q, filtro]);
+  }, [alumnos, estados, q, filtro, verBajas]);
 
   return (
     <div className="px-4 pb-6">
@@ -73,6 +75,11 @@ export function PantallaAlumnos() {
               </button>
             ))}
           </Tarjeta>
+        )}
+        {(bajas > 0 || verBajas) && (
+          <button onClick={() => setVerBajas(!verBajas)} className="mt-4 w-full py-2 text-sm font-semibold text-ink-500">
+            {verBajas ? '← Volver a alumnos activos' : `Ver dados de baja (${bajas})`}
+          </button>
         )}
       </div>
 
