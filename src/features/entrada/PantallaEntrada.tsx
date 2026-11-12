@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal } from 'lucide-react';
-import { colorClase, nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
+import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
@@ -33,6 +33,7 @@ export function PantallaEntrada() {
   const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
+  const maestros = useMaestros();
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const suelta = usePlanes().find((p) => p.activo && p.tipo === 'suelta');
@@ -155,7 +156,7 @@ export function PantallaEntrada() {
         <HeroClase
           titulo={nombreClase(clase, disciplinas)}
           color={colorClase(clase, disciplinas)}
-          detalle={[clase.horaInicio, clase.maestro && `con ${clase.maestro}`].filter(Boolean).join(' · ')}
+          detalle={[clase.horaInicio, nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
           adentro={conteo.get(clase.id) ?? 0}
           cobrado={cobradoClase}
         />

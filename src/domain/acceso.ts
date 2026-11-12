@@ -54,7 +54,7 @@ export async function crearAcademia(p: { nombre: string; duenoNombre: string; pi
     { d: bachata.id, nivel: '0', dias: [2, 4], hora: '19:00' },
   ];
   for (const c of clases) {
-    await crear('clases', { disciplinaId: c.d, nivel: c.nivel, maestro: '', dias: c.dias, horaInicio: c.hora, duracionMin: 60, activo: true });
+    await crear('clases', { disciplinaId: c.d, nivel: c.nivel, maestroId: null, dias: c.dias, horaInicio: c.hora, duracionMin: 60, activo: true });
   }
   return dueno;
 }

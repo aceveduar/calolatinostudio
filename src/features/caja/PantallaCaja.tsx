@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronLeft, ChevronRight, Lock, Receipt, Scale } from 'lucide-react';
-import { nombreClase, useClases, useDisciplinas, useUsuarios } from '../../app/datos';
+import { nombreClase, useClases, useDisciplinas, useMaestros, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { crear } from '../../db/repo';
 import type { Pago } from '../../db/types';
@@ -18,6 +18,7 @@ export function PantallaCaja() {
   const clases = useClases();
   const disciplinas = useDisciplinas();
   const usuarios = useUsuarios();
+  const maestros = useMaestros();
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [corte, setCorte] = useState(false);
 
@@ -43,6 +44,22 @@ export function PantallaCaja() {
     .filter((x) => x.n > 0)
     .sort((a, b) => a.c.horaInicio.localeCompare(b.c.horaInicio));
   const esHoy = fecha === hoy();
+
+  // Por maestro: alumnos en sus clases y lo cobrado por clase suelta en ellas
+  // (las mensualidades no se atribuyen a un maestro porque cubren varias clases)
+  const montoPago = new Map(datos.pagos.filter(({ p }) => !p.anuladoAt).map(({ p }) => [p.id, p.monto]));
+  const acumulado = new Map<string, { nombre: string; clases: Set<string>; alumnos: number; cobrado: number }>();
+  for (const a of datos.asis) {
+    const c = clases.find((x) => x.id === a.claseId);
+    const m = maestros.find((x) => x.id === c?.maestroId);
+    const clave = m?.id ?? 'sin';
+    const fila = acumulado.get(clave) ?? { nombre: m?.nombre ?? 'Sin maestro asignado', clases: new Set<string>(), alumnos: 0, cobrado: 0 };
+    if (c) fila.clases.add(nombreClase(c, disciplinas));
+    fila.alumnos++;
+    fila.cobrado += a.pagoId ? (montoPago.get(a.pagoId) ?? 0) : 0;
+    acumulado.set(clave, fila);
+  }
+  const porMaestro = [...acumulado.values()].sort((a, b) => b.alumnos - a.alumnos);
 
   return (
     <div className="px-4 pb-8">
@@ -105,6 +122,28 @@ export function PantallaCaja() {
                   {nombreClase(c, disciplinas)} <span className="text-sm text-ink-500">{c.horaInicio}</span>
                 </span>
                 <span className="font-bold">{n}</span>
+              </div>
+            ))}
+          </Tarjeta>
+        </Seccion>
+      )}
+
+      {porMaestro.length > 0 && maestros.length > 0 && (
+        <Seccion titulo="Por maestro">
+          <Tarjeta className="divide-y divide-ink-100">
+            {porMaestro.map((m) => (
+              <div key={m.nombre} className="flex items-center gap-3 px-4 py-3">
+                <Avatar nombre={m.nombre} tam={36} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{m.nombre}</span>
+                  <span className="block truncate text-xs text-ink-500">
+                    {[...m.clases].join(', ')} · {m.alumnos} alumno{m.alumnos === 1 ? '' : 's'}
+                  </span>
+                </span>
+                <span className="text-right">
+                  <span className="block font-bold">{dinero(m.cobrado)}</span>
+                  <span className="block text-[11px] text-ink-500">por clase</span>
+                </span>
               </div>
             ))}
           </Tarjeta>

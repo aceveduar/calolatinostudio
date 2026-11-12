@@ -45,12 +45,24 @@ create table if not exists disciplinas (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists maestros (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  nombre text not null,
+  telefono text not null default '',
+  notas text not null default '',
+  activo boolean not null default true,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 create table if not exists clases (
   id uuid primary key,
   academia_id uuid not null references academias(id),
   disciplina_id uuid not null,
   nivel text not null,
-  maestro text not null default '',
+  maestro text not null default '',  -- obsoleto (v1), se conserva por compatibilidad
+  maestro_id uuid,
   dias int[] not null default '{}',
   hora_inicio text not null,
   duracion_min int not null default 60,
@@ -148,6 +160,7 @@ create table if not exists cortes (
 
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
+alter table clases add column if not exists maestro_id uuid;
 
 -- ---------- cursor de sincronización ----------
 create or replace function tocar_server_updated_at() returns trigger
@@ -160,7 +173,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','usuarios','disciplinas','clases','planes','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['academias','usuarios','disciplinas','maestros','clases','planes','alumnos','membresias','pagos','asistencias','cortes'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -186,7 +199,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['usuarios','disciplinas','clases','planes','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['usuarios','disciplinas','maestros','clases','planes','alumnos','membresias','pagos','asistencias','cortes'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;

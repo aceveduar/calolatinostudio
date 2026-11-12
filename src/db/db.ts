@@ -6,6 +6,7 @@ import type {
   Clase,
   Corte,
   Disciplina,
+  Maestro,
   Membresia,
   Meta,
   OutboxItem,
@@ -19,6 +20,7 @@ export class CompasDB extends Dexie {
   academias!: EntityTable<Academia, 'id'>;
   usuarios!: EntityTable<Usuario, 'id'>;
   disciplinas!: EntityTable<Disciplina, 'id'>;
+  maestros!: EntityTable<Maestro, 'id'>;
   clases!: EntityTable<Clase, 'id'>;
   planes!: EntityTable<Plan, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
@@ -45,6 +47,36 @@ export class CompasDB extends Dexie {
       outbox: '++seq, table, id',
       meta: 'key',
     });
+
+    // v2: maestros como catálogo. El texto libre de cada clase se convierte en un maestro.
+    this.version(2)
+      .stores({
+        maestros: 'id, academiaId',
+        clases: 'id, academiaId, disciplinaId, maestroId',
+      })
+      .upgrade(async (tx) => {
+        const ahora = Date.now();
+        const porNombre = new Map<string, string>();
+        await tx
+          .table('clases')
+          .toCollection()
+          .modify((c: Clase & { maestro?: string }) => {
+            const nombre = (c.maestro ?? '').trim();
+            let maestroId: string | null = null;
+            if (nombre) {
+              const clave = `${c.academiaId}:${nombre.toLowerCase()}`;
+              maestroId = porNombre.get(clave) ?? crypto.randomUUID();
+              if (!porNombre.has(clave)) {
+                porNombre.set(clave, maestroId);
+                void tx.table('maestros').add({ id: maestroId, academiaId: c.academiaId, nombre, telefono: '', notas: '', activo: true, createdAt: ahora, updatedAt: ahora, deletedAt: null });
+                void tx.table('outbox').add({ table: 'maestros', id: maestroId, at: ahora });
+              }
+            }
+            c.maestroId = maestroId;
+            c.updatedAt = ahora;
+            void tx.table('outbox').add({ table: 'clases', id: c.id, at: ahora });
+          });
+      });
   }
 }
 

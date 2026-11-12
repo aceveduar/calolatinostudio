@@ -1,7 +1,7 @@
 /** Consultas reactivas: la UI se actualiza sola cuando cambia IndexedDB (también tras sincronizar). */
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import type { Clase, Disciplina, Fecha, ID } from '../db/types';
+import type { Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
 import { hoy } from '../domain/fechas';
 
@@ -9,6 +9,8 @@ const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
 export const useDisciplinas = () => useLiveQuery(() => db.disciplinas.filter(vivo).toArray(), [], []);
 export const usePlanes = () => useLiveQuery(() => db.planes.filter(vivo).toArray(), [], []);
+export const useMaestros = () =>
+  useLiveQuery(async () => (await db.maestros.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], []);
 export const useClases = () => useLiveQuery(() => db.clases.filter(vivo).toArray(), [], []);
 export const useUsuarios = () => useLiveQuery(() => db.usuarios.filter(vivo).toArray(), [], []);
 export const useAlumnos = () =>
@@ -18,6 +20,10 @@ export function nombreClase(c: Clase | undefined, disciplinas: Disciplina[]): st
   if (!c) return 'Clase';
   const d = disciplinas.find((x) => x.id === c.disciplinaId);
   return `${d?.nombre ?? 'Clase'} ${c.nivel}`.trim();
+}
+
+export function nombreMaestro(c: Pick<Clase, 'maestroId'> | undefined, maestros: Maestro[]): string {
+  return maestros.find((m) => m.id === c?.maestroId)?.nombre ?? '';
 }
 
 export function colorClase(c: Clase | undefined, disciplinas: Disciplina[]): string {

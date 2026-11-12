@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
-import { colorClase, nombreClase, useClases, useDisciplinas, usePlanes, useUsuarios } from '../../app/datos';
+import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
-import type { Clase, Disciplina, ID, Plan, Rol, TipoPlan, Usuario } from '../../db/types';
+import type { Clase, Disciplina, ID, Maestro, Plan, Rol, TipoPlan, Usuario } from '../../db/types';
 import { crearUsuario, hashPin } from '../../domain/acceso';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS } from '../../domain/fechas';
@@ -47,10 +47,86 @@ function Catalogo<T extends { id: ID }>({
   );
 }
 
+const NUEVO = '__nuevo__';
+
+// ---------- Maestros ----------
+export function EditorMaestros() {
+  const maestros = useMaestros();
+  const clases = useClases();
+  const disciplinas = useDisciplinas();
+  const suyas = (m: Maestro) => clases.filter((c) => c.maestroId === m.id && c.activo);
+  return (
+    <>
+      <p className="mb-3 text-sm text-ink-500">Da de alta a los maestros y asígnalos a sus clases. Así ves cuántos alumnos y cuánto dinero entra en cada clase de cada maestro.</p>
+      <Catalogo
+        items={maestros}
+        textoNuevo="Nuevo maestro"
+        titulo={(m) => (m ? m.nombre : 'Nuevo maestro')}
+        fila={(m) => (
+          <>
+            <Avatar nombre={m.nombre} tam={40} />
+            <span className={cx('min-w-0 flex-1', !m.activo && 'opacity-40')}>
+              <span className="block truncate font-semibold">{m.nombre}</span>
+              <span className="block truncate text-sm text-ink-500">
+                {suyas(m).map((c) => nombreClase(c, disciplinas)).join(', ') || 'Sin clases asignadas'}
+              </span>
+            </span>
+            {!m.activo && <Etiqueta>Inactivo</Etiqueta>}
+          </>
+        )}
+        form={(m, cerrar) => <FormMaestro maestro={m} clases={m ? suyas(m) : []} disciplinas={disciplinas} onHecho={cerrar} />}
+      />
+    </>
+  );
+}
+
+function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro: Maestro | null; clases: Clase[]; disciplinas: Disciplina[]; onHecho: () => void }) {
+  const avisar = useAvisos();
+  const [nombre, setNombre] = useState(maestro?.nombre ?? '');
+  const [telefono, setTelefono] = useState(maestro?.telefono ?? '');
+  const [notas, setNotas] = useState(maestro?.notas ?? '');
+  const [activo, setActivo] = useState(maestro?.activo ?? true);
+
+  const guardar = async () => {
+    const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: telefono.replace(/\D/g, ''), notas: notas.trim(), activo };
+    if (maestro) await actualizar('maestros', maestro.id, datos);
+    else await crear('maestros', datos);
+    avisar('Maestro guardado');
+    onHecho();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Campo etiqueta="Nombre">
+        <Entrada autoFocus={!maestro} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Profe Luis" />
+      </Campo>
+      <Campo etiqueta="WhatsApp (opcional)">
+        <Entrada type="tel" inputMode="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="10 dígitos" />
+      </Campo>
+      <Campo etiqueta="Notas (opcional)">
+        <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Ej. cobra por clase" />
+      </Campo>
+      {maestro && (
+        <div className="rounded-2xl bg-superficie p-4 text-sm ring-1 ring-ink-100">
+          <p className="font-semibold">Clases que da</p>
+          <p className="mt-1 text-ink-500">
+            {clases.length ? clases.map((c) => `${nombreClase(c, disciplinas)} (${c.dias.map((d) => DIAS_CORTOS[d]).join(' ')} ${c.horaInicio})`).join(' · ') : 'Asígnale clases en “Clases y horarios”.'}
+          </p>
+        </div>
+      )}
+      {maestro && <Interruptor valor={activo} onChange={setActivo} texto="Sigue dando clases" />}
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim()}>
+        Guardar
+      </Boton>
+    </div>
+  );
+}
+
 // ---------- Clases ----------
 export function EditorClases() {
   const clases = useClases();
   const disciplinas = useDisciplinas();
+  const maestros = useMaestros();
   const ordenadas = [...clases].sort((a, b) => nombreClase(a, disciplinas).localeCompare(nombreClase(b, disciplinas)) || a.horaInicio.localeCompare(b.horaInicio));
   return (
     <Catalogo
@@ -64,7 +140,7 @@ export function EditorClases() {
             <span className="block font-semibold">{nombreClase(c, disciplinas)}</span>
             <span className="block text-sm text-ink-500">
               {c.dias.map((d) => DIAS_CORTOS[d]).join(', ') || 'Sin días'} · {c.horaInicio}
-              {c.maestro && ` · ${c.maestro}`}
+              {nombreMaestro(c, maestros) && ` · ${nombreMaestro(c, maestros)}`}
             </span>
           </span>
           {!c.activo && <Etiqueta>Pausada</Etiqueta>}
@@ -79,14 +155,20 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const avisar = useAvisos();
   const [disciplinaId, setDisciplinaId] = useState(clase?.disciplinaId ?? disciplinas[0]?.id ?? '');
   const [nivel, setNivel] = useState(clase?.nivel ?? '');
-  const [maestro, setMaestro] = useState(clase?.maestro ?? '');
+  const maestros = useMaestros().filter((m) => m.activo || m.id === clase?.maestroId);
+  const [maestroId, setMaestroId] = useState<string>(clase?.maestroId ?? '');
+  const [maestroNuevo, setMaestroNuevo] = useState('');
   const [dias, setDias] = useState<number[]>(clase?.dias ?? []);
   const [hora, setHora] = useState(clase?.horaInicio ?? '19:00');
   const [duracion, setDuracion] = useState(String(clase?.duracionMin ?? 60));
   const [activo, setActivo] = useState(clase?.activo ?? true);
 
   const guardar = async () => {
-    const datos = { disciplinaId, nivel: nivel.trim(), maestro: maestro.trim(), dias: [...dias].sort(), horaInicio: hora, duracionMin: Number(duracion) || 60, activo };
+    let idMaestro: ID | null = maestroId && maestroId !== NUEVO ? maestroId : null;
+    if (maestroId === NUEVO && maestroNuevo.trim()) {
+      idMaestro = (await crear('maestros', { nombre: maestroNuevo.trim().replace(/\s+/g, ' '), telefono: '', notas: '', activo: true })).id;
+    }
+    const datos = { disciplinaId, nivel: nivel.trim(), maestroId: idMaestro, dias: [...dias].sort(), horaInicio: hora, duracionMin: Number(duracion) || 60, activo };
     if (clase) await actualizar('clases', clase.id, datos);
     else await crear('clases', datos);
     avisar('Clase guardada');
@@ -131,9 +213,22 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           <Entrada inputMode="numeric" value={duracion} onChange={(e) => setDuracion(e.target.value.replace(/\D/g, ''))} />
         </Campo>
       </div>
-      <Campo etiqueta="Maestro (opcional)">
-        <Entrada value={maestro} onChange={(e) => setMaestro(e.target.value)} />
+      <Campo etiqueta="Maestro">
+        <Selector value={maestroId} onChange={(e) => setMaestroId(e.target.value)}>
+          <option value="">Sin asignar</option>
+          {maestros.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.nombre}
+            </option>
+          ))}
+          <option value={NUEVO}>+ Nuevo maestro…</option>
+        </Selector>
       </Campo>
+      {maestroId === NUEVO && (
+        <Campo etiqueta="Nombre del nuevo maestro">
+          <Entrada autoFocus value={maestroNuevo} onChange={(e) => setMaestroNuevo(e.target.value)} placeholder="Ej. Profe Luis" />
+        </Campo>
+      )}
       <Interruptor valor={activo} onChange={setActivo} texto="Clase activa" />
       <Boton grande bloque onClick={guardar} disabled={!disciplinaId || !dias.length}>
         Guardar

@@ -40,10 +40,19 @@ export interface Disciplina extends Base {
   color: string;
 }
 
+export interface Maestro extends Base {
+  nombre: string;
+  telefono: string;
+  notas: string;
+  activo: boolean;
+}
+
 export interface Clase extends Base {
   disciplinaId: ID;
   nivel: string;
-  maestro: string;
+  maestroId: ID | null;
+  /** @deprecated texto libre de la v1; se migra a `maestroId` */
+  maestro?: string;
   /** 0 = domingo … 6 = sábado */
   dias: number[];
   horaInicio: string; // 'HH:mm'
@@ -138,6 +147,7 @@ export interface TablaMap {
   academias: Academia;
   usuarios: Usuario;
   disciplinas: Disciplina;
+  maestros: Maestro;
   clases: Clase;
   planes: Plan;
   alumnos: Alumno;
@@ -153,6 +163,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'academias',
   'usuarios',
   'disciplinas',
+  'maestros',
   'clases',
   'planes',
   'alumnos',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, ChevronRight, Cloud, Download, LockKeyhole, Music2, Tags, Users, CalendarClock } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Cloud, Download, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
@@ -8,11 +8,12 @@ import { actualizar } from '../../db/repo';
 import { db } from '../../db/db';
 import { SYNC_TABLES } from '../../db/types';
 import { hoy } from '../../domain/fechas';
-import { EditorClases, EditorDisciplinas, EditorPlanes, EditorUsuarios } from './Editores';
+import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorUsuarios } from './Editores';
 import { PanelNube } from './PanelNube';
 
 const SECCIONES = {
   clases: { titulo: 'Clases y horarios', icono: CalendarClock, comp: EditorClases },
+  maestros: { titulo: 'Maestros', icono: GraduationCap, comp: EditorMaestros },
   planes: { titulo: 'Planes y precios', icono: Tags, comp: EditorPlanes },
   disciplinas: { titulo: 'Disciplinas', icono: Music2, comp: EditorDisciplinas },
   usuarios: { titulo: 'Usuarios y PIN', icono: Users, comp: EditorUsuarios },
@@ -40,7 +41,7 @@ export function PantallaAjustes() {
     );
   }
 
-  const visibles: Clave[] = esDueno ? ['clases', 'planes', 'disciplinas', 'usuarios', 'academia', 'nube'] : ['nube'];
+  const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'disciplinas', 'usuarios', 'academia', 'nube'] : ['nube'];
 
   return (
     <div className="px-4 pb-8">
