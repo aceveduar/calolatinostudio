@@ -24,10 +24,10 @@ export function ProveedorAvisos({ children }: { children: ReactNode }) {
           <div
             key={a.id}
             className={`mt-2 flex max-w-md items-center gap-2 rounded-2xl px-4 py-3 text-[15px] font-semibold text-white shadow-lg animate-sube ${
-              a.tipo === 'ok' ? 'bg-ink-900' : 'bg-bad-600'
+              a.tipo === 'ok' ? 'bg-panel' : 'bg-bad-600'
             }`}
           >
-            {a.tipo === 'ok' ? <CheckCircle2 size={20} className="text-ok-50" /> : <AlertCircle size={20} />}
+            {a.tipo === 'ok' ? <CheckCircle2 size={20} className="text-[#7ee2a8]" /> : <AlertCircle size={20} />}
             {a.texto}
           </div>
         ))}

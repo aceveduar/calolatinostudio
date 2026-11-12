@@ -71,10 +71,23 @@ export function PantallaAjustes() {
   );
 }
 
+/** Paleta curada: todos contrastan con texto blanco (≥ 4.5:1), así ningún botón queda ilegible. */
+const COLORES_MARCA = [
+  { hex: '#d6304a', nombre: 'Rojo salsa' },
+  { hex: '#c2185b', nombre: 'Fucsia' },
+  { hex: '#9333ea', nombre: 'Morado' },
+  { hex: '#4f46e5', nombre: 'Índigo' },
+  { hex: '#0369a1', nombre: 'Azul' },
+  { hex: '#0f766e', nombre: 'Turquesa' },
+  { hex: '#b45309', nombre: 'Ámbar' },
+  { hex: '#3f3a4d', nombre: 'Grafito' },
+];
+
 function EditorAcademia() {
   const { academia } = useSesion();
   const avisar = useAvisos();
   const [nombre, setNombre] = useState(academia.nombre);
+  const actual = academia.color ?? COLORES_MARCA[0].hex;
   return (
     <div className="space-y-4">
       <Campo etiqueta="Nombre de la academia">
@@ -90,6 +103,26 @@ function EditorAcademia() {
       >
         Guardar
       </Boton>
+      <Campo etiqueta="Color de la academia" ayuda="Se aplica al instante en toda la app.">
+        <div className="grid grid-cols-4 gap-3">
+          {COLORES_MARCA.map((c) => (
+            <button
+              key={c.hex}
+              type="button"
+              onClick={() => actualizar('academias', academia.id, { color: c.hex })}
+              className="flex flex-col items-center gap-1.5"
+              aria-label={c.nombre}
+              aria-pressed={actual === c.hex}
+            >
+              <span
+                className={`h-12 w-12 rounded-2xl ring-offset-2 ring-offset-ink-50 transition ${actual === c.hex ? 'scale-110 ring-2 ring-ink-900' : ''}`}
+                style={{ background: c.hex }}
+              />
+              <span className="text-[11px] font-medium text-ink-500">{c.nombre}</span>
+            </button>
+          ))}
+        </div>
+      </Campo>
       <RespaldoLocal />
     </div>
   );

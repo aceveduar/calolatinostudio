@@ -108,13 +108,13 @@ function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; e
       onClick={() => !largo.current && onToque()}
       className={cx(
         'relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 transition select-none active:scale-95 [-webkit-touch-callout:none]',
-        entro ? 'bg-ok-50 ring-ok-600/20' : 'bg-white ring-ink-100',
+        entro ? 'bg-ok-50 ring-ok-600/20' : 'bg-superficie ring-ink-100',
       )}
     >
       <span className={cx('relative', entro && 'opacity-50')}>
         <Avatar nombre={alumno.nombre} tam={48} />
         {entro && (
-          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-ok-600 text-white ring-2 ring-ok-50">
+          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 animate-pop items-center justify-center rounded-full bg-ok-600 text-white ring-2 ring-ok-50">
             <Check size={14} strokeWidth={3} />
           </span>
         )}

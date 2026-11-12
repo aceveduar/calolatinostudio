@@ -50,7 +50,7 @@ export function PantallaCaja() {
         <Encabezado titulo="Caja" sub={esHoy ? `Hoy, ${fechaLarga(fecha)}` : fechaLarga(fecha)} />
       </div>
 
-      <div className="mb-4 flex items-center justify-between rounded-2xl bg-white p-1 ring-1 ring-ink-100">
+      <div className="mb-4 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
           <ChevronLeft />
         </button>
@@ -63,7 +63,7 @@ export function PantallaCaja() {
       </div>
 
       {/* Totales */}
-      <div className="rounded-3xl bg-ink-900 p-5 text-white">
+      <div className="rounded-3xl bg-panel p-5 text-white">
         <p className="text-sm text-white/60">Total cobrado</p>
         <p className="mt-1 text-4xl font-extrabold tracking-tight">{dinero(r.total)}</p>
         <div className="mt-4 grid grid-cols-3 gap-3 text-sm">

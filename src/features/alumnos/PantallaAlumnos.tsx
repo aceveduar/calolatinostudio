@@ -46,7 +46,7 @@ export function PantallaAlumnos() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Buscar por nombre o teléfono"
-          className="h-12 w-full rounded-xl bg-white pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
+          className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
       <Segmentos<Filtro>

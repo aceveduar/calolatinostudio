@@ -64,6 +64,15 @@ export function PantallaEntrada() {
     () => new Set(hoyAsis.filter((a) => a.claseId === clase?.id && a.alumnoId).map((a) => a.alumnoId!)),
     [hoyAsis, clase?.id],
   );
+  const pagosHoy = useLiveQuery(
+    async () => new Map((await db.pagos.where('fecha').equals(hoy()).filter((p) => !p.anuladoAt && !p.deletedAt).toArray()).map((p) => [p.id, p.monto])),
+    [],
+    new Map<ID, number>(),
+  );
+  const cobradoClase = useMemo(
+    () => hoyAsis.filter((a) => a.claseId === clase?.id && a.pagoId).reduce((s, a) => s + (pagosHoy.get(a.pagoId!) ?? 0), 0),
+    [hoyAsis, pagosHoy, clase?.id],
+  );
 
   const resultados = useMemo(() => {
     const t = normalizar(q.trim());
@@ -122,7 +131,7 @@ export function PantallaEntrada() {
             <button
               key={c.id}
               onClick={() => setClaseId(c.id)}
-              className={cx('flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-left ring-1 transition', activa ? 'text-white ring-transparent' : 'bg-white ring-ink-100')}
+              className={cx('flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-left ring-1 transition', activa ? 'text-white ring-transparent' : 'bg-superficie ring-ink-100')}
               style={activa ? { background: color } : undefined}
             >
               {!activa && <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />}
@@ -142,6 +151,16 @@ export function PantallaEntrada() {
         </button>
       </div>
 
+      {clase && !q && (
+        <HeroClase
+          titulo={nombreClase(clase, disciplinas)}
+          color={colorClase(clase, disciplinas)}
+          detalle={[clase.horaInicio, clase.maestro && `con ${clase.maestro}`].filter(Boolean).join(' · ')}
+          adentro={conteo.get(clase.id) ?? 0}
+          cobrado={cobradoClase}
+        />
+      )}
+
       {/* Buscador + la "tarjeta" sin nombre */}
       <div className="sticky top-0 z-20 flex gap-2 bg-ink-50/95 px-4 pt-3 pb-2 backdrop-blur">
         <div className="relative min-w-0 flex-1">
@@ -154,7 +173,7 @@ export function PantallaEntrada() {
               if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
             }}
             placeholder="¿Quién llegó?"
-            className="h-14 w-full rounded-2xl bg-white pr-11 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+            className="h-14 w-full rounded-2xl bg-superficie pr-11 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
             enterKeyHint="go"
           />
@@ -190,7 +209,7 @@ export function PantallaEntrada() {
               const s = semaforoAlumno(estados.get(a.id) ?? []);
               const entro = adentro.has(a.id);
               return (
-                <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-white ring-1 ring-ink-100">
+                <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                   <button onClick={() => entrarAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
                     <Avatar nombre={a.nombre} />
                     <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
@@ -207,7 +226,7 @@ export function PantallaEntrada() {
               );
             })}
             {!exacto && (
-              <div className="flex items-stretch overflow-hidden rounded-2xl bg-white ring-1 ring-ink-100">
+              <div className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                 <button
                   onClick={() => rapido(`nuevo:${nombreNuevo}`, nombreNuevo, (c) => nuevoYCobrar(nombreNuevo, c, usuario.id))}
                   className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50"
@@ -299,6 +318,40 @@ export function PantallaEntrada() {
       <Hoja abierta={visitante} onCerrar={() => setVisitante(false)} titulo="Visitante sin registro">
         {visitante && <FormVisitante clase={clase} onHecho={() => setVisitante(false)} />}
       </Hoja>
+    </div>
+  );
+}
+
+/** Tarjeta en vivo de la clase: da sensación de "ambiente" y responde a cada cobro. */
+function HeroClase({ titulo, color, detalle, adentro, cobrado }: { titulo: string; color: string; detalle: string; adentro: number; cobrado: number }) {
+  return (
+    <div className="px-4 pt-3">
+      <div
+        className="relative overflow-hidden rounded-3xl px-5 py-4 text-white shadow-lg"
+        style={{
+          background: `linear-gradient(135deg in oklab, ${color}, color-mix(in oklab, ${color} 55%, #1c1a24))`,
+          boxShadow: `0 12px 28px -12px color-mix(in oklab, ${color} 70%, transparent)`,
+        }}
+      >
+        {/* Anillos decorativos: el "compás" del logo */}
+        <svg className="pointer-events-none absolute -top-10 -right-8 h-44 w-44 opacity-20" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="17" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="70 37" strokeLinecap="round" transform="rotate(-30 32 32)" />
+          <circle cx="32" cy="32" r="27" fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="4 6" />
+        </svg>
+        <div className="relative flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold tracking-wider text-white/75 uppercase">{detalle}</p>
+            <p className="mt-0.5 truncate text-2xl font-extrabold tracking-tight">{titulo}</p>
+            <p className="mt-1 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</p>
+          </div>
+          <div className="text-right">
+            <p key={adentro} className="text-5xl leading-none font-extrabold tracking-tight animate-pop">
+              {adentro}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-white/80">{adentro === 1 ? 'bailarín' : 'bailarines'}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

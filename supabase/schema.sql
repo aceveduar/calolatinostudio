@@ -11,6 +11,7 @@ create table if not exists academias (
   id uuid primary key,
   nombre text not null,
   moneda text not null default 'MXN',
+  color text,
   created_at bigint not null,
   updated_at bigint not null,
   deleted_at bigint,
@@ -144,6 +145,9 @@ create table if not exists cortes (
   created_at bigint not null, updated_at bigint not null, deleted_at bigint,
   server_updated_at timestamptz not null default clock_timestamp()
 );
+
+-- Migraciones (seguras de re-ejecutar)
+alter table academias add column if not exists color text;
 
 -- ---------- cursor de sincronización ----------
 create or replace function tocar_server_updated_at() returns trigger

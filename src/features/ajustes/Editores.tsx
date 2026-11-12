@@ -116,7 +116,7 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
               key={d}
               type="button"
               onClick={() => setDias(dias.includes(d) ? dias.filter((x) => x !== d) : [...dias, d])}
-              className={cx('h-11 rounded-xl text-sm font-semibold ring-1', dias.includes(d) ? 'bg-brand-500 text-white ring-brand-500' : 'bg-white ring-ink-100')}
+              className={cx('h-11 rounded-xl text-sm font-semibold ring-1', dias.includes(d) ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
             >
               {DIAS_CORTOS[d]}
             </button>
@@ -375,10 +375,10 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
 
 function Interruptor({ valor, onChange, texto }: { valor: boolean; onChange: (v: boolean) => void; texto: string }) {
   return (
-    <button type="button" onClick={() => onChange(!valor)} className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-3 ring-1 ring-ink-100">
+    <button type="button" onClick={() => onChange(!valor)} className="flex w-full items-center justify-between rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100">
       <span className="font-medium">{texto}</span>
       <span className={cx('relative h-7 w-12 rounded-full transition', valor ? 'bg-ok-600' : 'bg-ink-300')}>
-        <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all', valor ? 'left-[22px]' : 'left-0.5')} />
+        <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-superficie shadow transition-all', valor ? 'left-[22px]' : 'left-0.5')} />
       </span>
     </button>
   );

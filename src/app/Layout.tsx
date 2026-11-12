@@ -20,7 +20,7 @@ export function Layout() {
       <main className="flex-1 pb-24">
         <Outlet />
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-white/95 pb-safe backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur">
         <div className="mx-auto grid max-w-2xl grid-cols-4">
           {TABS.map(({ to, texto, icono: Icono }) => (
             <NavLink

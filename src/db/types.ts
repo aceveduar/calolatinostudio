@@ -19,6 +19,8 @@ export interface Academia {
   id: ID;
   nombre: string;
   moneda: 'MXN';
+  /** Color de marca elegido por la academia (hex). null = predeterminado */
+  color?: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;

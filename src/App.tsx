@@ -16,6 +16,13 @@ import { iniciarSync } from './sync/engine';
 export default function App() {
   const { estado, abrir, bloquear } = useEstadoApp();
 
+  // El color de la academia pinta toda la app (botones, logo, tonos derivados)
+  const color = estado.fase === 'bloqueada' || estado.fase === 'abierta' ? estado.academia.color : null;
+  useEffect(() => {
+    if (color) document.documentElement.style.setProperty('--marca', color);
+    else document.documentElement.style.removeProperty('--marca');
+  }, [color]);
+
   useEffect(() => {
     iniciarSync();
     void pedirAlmacenamientoPersistente();

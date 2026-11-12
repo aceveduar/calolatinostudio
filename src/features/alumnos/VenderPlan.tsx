@@ -75,7 +75,7 @@ export function VenderPlan({
               setMontoTxt(null);
             }}
             className={cx(
-              'flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left ring-1 transition',
+              'flex w-full items-center justify-between rounded-2xl bg-superficie p-4 text-left ring-1 transition',
               p.id === plan.id ? 'ring-2 ring-brand-500' : 'ring-ink-100',
             )}
           >
@@ -88,7 +88,7 @@ export function VenderPlan({
         ))}
       </div>
 
-      <div className="rounded-2xl bg-white p-4 text-sm ring-1 ring-ink-100">
+      <div className="rounded-2xl bg-superficie p-4 text-sm ring-1 ring-ink-100">
         <p>
           Vigencia: <b>{fechaCorta(inicio)}</b> al <b>{fechaCorta(calcularFin(plan, inicio))}</b>
         </p>

@@ -43,13 +43,13 @@ export function Cuenta({
       style={{ bottom: 'calc(4.4rem + env(safe-area-inset-bottom))' }}
       onPointerDown={toque}
     >
-      <div className="overflow-hidden rounded-3xl bg-ink-900 text-white shadow-2xl shadow-ink-900/30">
+      <div className="overflow-hidden rounded-3xl bg-panel text-white shadow-2xl shadow-black/30">
         <div className="max-h-36 divide-y divide-white/10 overflow-y-auto">
           {movs.map((m) => (
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
-              <Check size={18} className="shrink-0 text-ok-50" />
+              <Check size={18} className="shrink-0 text-[#7ee2a8]" />
               <span className="min-w-0 flex-1 truncate font-semibold">{m.nombre}</span>
-              <span className={cx('text-sm font-bold', !m.monto && 'text-ok-50')}>
+              <span className={cx('text-sm font-bold', !m.monto && 'text-[#7ee2a8]')}>
                 {m.monto ? dinero(m.monto) : 'Plan'}
                 {m.metodo === 'transferencia' && <span className="ml-1 font-normal text-white/60">transf.</span>}
               </span>
@@ -67,7 +67,7 @@ export function Cuenta({
                 {pagoCon ? `Pagó con ${dinero(pagoCon)}` : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
               </span>
               {pagoCon ? (
-                <span className="text-2xl font-extrabold text-ok-50">Cambio {dinero(pagoCon - efectivo)}</span>
+                <span className="text-2xl font-extrabold text-[#7ee2a8]">Cambio {dinero(pagoCon - efectivo)}</span>
               ) : (
                 <span className="text-2xl font-extrabold">{dinero(efectivo)}</span>
               )}
@@ -81,7 +81,7 @@ export function Cuenta({
                     setPagoCon(v);
                     onPagoCon(v);
                   }}
-                  className={cx('h-11 rounded-xl text-[15px] font-bold transition', pagoCon === b ? 'bg-ok-600 text-white' : 'bg-white/10 active:bg-white/20')}
+                  className={cx('h-11 rounded-xl text-[15px] font-bold transition', pagoCon === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
                 >
                   {dinero(b)}
                 </button>
@@ -91,7 +91,7 @@ export function Cuenta({
               <button onClick={onTransferencia} className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-white/70 active:bg-white/10">
                 <ArrowRightLeft size={15} /> Fue transferencia
               </button>
-              <button onClick={onCerrar} className="h-10 flex-1 rounded-xl bg-white text-[15px] font-bold text-ink-900 active:bg-ink-100">
+              <button onClick={onCerrar} className="h-10 flex-1 rounded-xl bg-[#fff] text-[15px] font-bold text-[#1c1a24] active:bg-[#ecebf1]">
                 Listo
               </button>
             </div>
@@ -99,7 +99,7 @@ export function Cuenta({
         ) : (
           <div className="flex items-center justify-between border-t border-white/10 px-4 py-2.5">
             <span className="text-sm text-white/60">{transfer ? `${dinero(transfer)} por transferencia` : 'Sin cobro en efectivo'}</span>
-            <button onClick={onCerrar} className="h-10 rounded-xl bg-white px-5 text-[15px] font-bold text-ink-900 active:bg-ink-100">
+            <button onClick={onCerrar} className="h-10 rounded-xl bg-[#fff] px-5 text-[15px] font-bold text-[#1c1a24] active:bg-[#ecebf1]">
               Listo
             </button>
           </div>

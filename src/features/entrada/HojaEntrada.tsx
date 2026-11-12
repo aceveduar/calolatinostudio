@@ -83,7 +83,7 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
         </div>
       ) : cubre ? (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-ink-100">
+          <div className="rounded-2xl bg-superficie p-4 ring-1 ring-ink-100">
             <p className="font-semibold">{planes.find((p) => p.id === cubre.membresia.planId)?.nombre ?? 'Plan'}</p>
             <p className="text-sm text-ink-500">
               Vence {fechaCorta(cubre.membresia.fin)} ({textoDias(cubre.diasRestantes)})
@@ -113,7 +113,7 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
             </p>
           )}
           {suelta && (
-            <div className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-ink-100">
+            <div className="space-y-3 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100">
               <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
               <Boton
                 grande

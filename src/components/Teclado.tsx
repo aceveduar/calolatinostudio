@@ -29,7 +29,7 @@ export function TecladoPin({ valor, onChange, error }: { valor: string; onChange
               key={i}
               type="button"
               onClick={() => tecla(t)}
-              className="flex h-16 items-center justify-center rounded-2xl bg-white text-2xl font-semibold ring-1 ring-ink-100 active:bg-ink-100"
+              className="flex h-16 items-center justify-center rounded-2xl bg-superficie text-2xl font-semibold ring-1 ring-ink-100 active:bg-ink-100"
               aria-label={t === 'borrar' ? 'Borrar' : t}
             >
               {t === 'borrar' ? <Delete size={24} /> : t}

@@ -7,7 +7,7 @@ type Variante = 'primario' | 'secundario' | 'fantasma' | 'peligro' | 'exito';
 const variantes: Record<Variante, string> = {
   primario: 'bg-brand-500 text-white active:bg-brand-600 shadow-sm shadow-brand-500/30',
   exito: 'bg-ok-600 text-white active:brightness-95 shadow-sm shadow-ok-600/30',
-  secundario: 'bg-white text-ink-900 ring-1 ring-ink-100 active:bg-ink-50',
+  secundario: 'bg-superficie text-ink-900 ring-1 ring-ink-100 active:bg-ink-50',
   fantasma: 'text-ink-700 active:bg-ink-100',
   peligro: 'bg-bad-50 text-bad-600 active:brightness-95',
 };
@@ -45,7 +45,7 @@ export function Campo({ etiqueta, ayuda, children }: { etiqueta: string; ayuda?:
 }
 
 const baseInput =
-  'w-full h-12 rounded-xl bg-white px-4 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-300';
+  'w-full h-12 rounded-xl bg-superficie px-4 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-300';
 
 export function Entrada(p: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cx(baseInput, p.className)} />;
@@ -73,7 +73,7 @@ export function Segmentos<T extends string>({
           onClick={() => onChange(o.valor)}
           className={cx(
             'flex-1 h-10 rounded-lg text-sm font-semibold transition',
-            valor === o.valor ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500',
+            valor === o.valor ? 'bg-superficie text-ink-900 shadow-sm' : 'text-ink-500',
           )}
         >
           {o.texto}
@@ -102,7 +102,7 @@ export function Etiqueta({ tono = 'neutro', children }: { tono?: Tono; children:
 export function Tarjeta({ className, children, onClick }: { className?: string; children: ReactNode; onClick?: () => void }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag onClick={onClick} className={cx('block w-full text-left rounded-2xl bg-white ring-1 ring-ink-100', onClick && 'active:bg-ink-50', className)}>
+    <Tag onClick={onClick} className={cx('block w-full text-left rounded-2xl bg-superficie ring-1 ring-ink-100', onClick && 'active:bg-ink-50', className)}>
       {children}
     </Tag>
   );
@@ -155,7 +155,7 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
   if (!abierta) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-ink-900/40 animate-aparece" onClick={onCerrar} />
+      <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
       <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-ink-50 pb-safe animate-sube sm:rounded-3xl">
         <div className="sticky top-0 z-10 flex items-center gap-2 bg-ink-50/95 px-5 pt-3 pb-2 backdrop-blur">
           <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink-300 sm:hidden" />

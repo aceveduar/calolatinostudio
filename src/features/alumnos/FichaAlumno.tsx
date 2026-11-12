@@ -64,7 +64,7 @@ export function FichaAlumno() {
           <Pencil size={20} />
         </button>
       </div>
-      {alumno.notas && <p className="mt-3 rounded-xl bg-white px-4 py-2 text-sm text-ink-700 ring-1 ring-ink-100">{alumno.notas}</p>}
+      {alumno.notas && <p className="mt-3 rounded-xl bg-superficie px-4 py-2 text-sm text-ink-700 ring-1 ring-ink-100">{alumno.notas}</p>}
 
       <div className="mt-5 grid grid-cols-2 gap-2">
         <Boton grande onClick={() => setVender(true)} className="col-span-2">

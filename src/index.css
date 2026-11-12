@@ -1,31 +1,40 @@
 @import "tailwindcss";
 
+/*
+ * Tokens de tema.
+ * - La marca sale de UN color (--marca) que elige cada academia; los tonos se derivan con color-mix().
+ * - Modo oscuro automático según el teléfono (clases de noche, recepción con poca luz).
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  --color-brand-50: #fff1f3;
-  --color-brand-100: #ffe0e5;
-  --color-brand-200: #ffc5cf;
-  --color-brand-500: #e8445a;
-  --color-brand-600: #d32a45;
-  --color-brand-700: #b01e38;
+  --color-brand-50: color-mix(in oklab, var(--marca) 9%, var(--fondo-tinte));
+  --color-brand-100: color-mix(in oklab, var(--marca) 18%, var(--fondo-tinte));
+  --color-brand-200: color-mix(in oklab, var(--marca) 32%, var(--fondo-tinte));
+  --color-brand-500: var(--marca);
+  --color-brand-600: color-mix(in oklab, var(--marca) 86%, black);
+  --color-brand-700: color-mix(in oklab, var(--marca) 72%, black);
 
-  --color-ink-900: #1c1a24;
-  --color-ink-700: #3d3a48;
-  --color-ink-500: #6e6a7c;
-  --color-ink-300: #b9b5c6;
-  --color-ink-100: #ecebf1;
-  --color-ink-50: #f6f5f9;
+  --color-ink-900: var(--t-ink-900);
+  --color-ink-700: var(--t-ink-700);
+  --color-ink-500: var(--t-ink-500);
+  --color-ink-300: var(--t-ink-300);
+  --color-ink-100: var(--t-ink-100);
+  --color-ink-50: var(--t-ink-50);
 
-  --color-ok-50: #e9f8ef;
-  --color-ok-600: #15924b;
-  --color-warn-50: #fff6e0;
-  --color-warn-600: #b7791f;
-  --color-bad-50: #fdecec;
-  --color-bad-600: #c53030;
+  --color-superficie: var(--t-superficie);
+  --color-panel: var(--t-panel);
+
+  --color-ok-50: var(--t-ok-50);
+  --color-ok-600: var(--t-ok-600);
+  --color-warn-50: var(--t-warn-50);
+  --color-warn-600: var(--t-warn-600);
+  --color-bad-50: var(--t-bad-50);
+  --color-bad-600: var(--t-bad-600);
 
   --animate-sube: sube 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
   --animate-aparece: aparece 160ms ease-out;
+  --animate-pop: pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1);
   @keyframes sube {
     from { transform: translateY(24px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -34,11 +43,55 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+  @keyframes pop {
+    0% { transform: scale(0.3); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 }
 
 :root {
-  color-scheme: light;
+  --marca: #d6304a;
+  --fondo-tinte: #ffffff;
+
+  --t-ink-900: #1c1a24;
+  --t-ink-700: #3d3a48;
+  --t-ink-500: #6e6a7c;
+  --t-ink-300: #b9b5c6;
+  --t-ink-100: #ecebf1;
+  --t-ink-50: #f6f5f9;
+  --t-superficie: #ffffff;
+  --t-panel: #1c1a24;
+
+  --t-ok-50: #e9f8ef;
+  --t-ok-600: #15924b;
+  --t-warn-50: #fff6e0;
+  --t-warn-600: #b7791f;
+  --t-bad-50: #fdecec;
+  --t-bad-600: #c53030;
+
+  color-scheme: light dark;
+  accent-color: var(--marca);
   -webkit-tap-highlight-color: transparent;
+
+  @media (prefers-color-scheme: dark) {
+    --fondo-tinte: #17151d;
+
+    --t-ink-900: #f4f2f8;
+    --t-ink-700: #d4d0de;
+    --t-ink-500: #9d98ad;
+    --t-ink-300: #5f5a6e;
+    --t-ink-100: #2c2936;
+    --t-ink-50: #110f16;
+    --t-superficie: #1c1a24;
+    --t-panel: #2a2734;
+
+    --t-ok-50: #11301f;
+    --t-ok-600: #4cc982;
+    --t-warn-50: #33270e;
+    --t-warn-600: #f0b44c;
+    --t-bad-50: #3a1518;
+    --t-bad-600: #ff7a7a;
+  }
 }
 
 html,
@@ -50,6 +103,7 @@ body {
 
 body {
   font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1; /* números del mismo ancho: montos alineados */
   -webkit-font-smoothing: antialiased;
 }
 
