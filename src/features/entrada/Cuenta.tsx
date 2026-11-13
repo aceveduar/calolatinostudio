@@ -4,11 +4,11 @@ import { cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
 import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
 
-const INACTIVIDAD_MS = 20_000;
+const INACTIVIDAD_MS = 45_000;
 
 /**
  * Cuenta abierta: los cobros seguidos se suman (pareja o amigos que pagan juntos),
- * Monse toca con qué billete pagaron y ve el cambio. Se cierra sola tras 20 s sin uso.
+ * Monse toca con qué billete pagaron y ve el cambio. Se cierra sola tras 45 s sin uso (el cobro ya quedó guardado; esto es solo para el cambio).
  */
 export function Cuenta({
   movs,

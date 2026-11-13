@@ -9,7 +9,11 @@ import type { Academia, Usuario } from '../../db/types';
 import { LogoAcademia } from '../../components/LogoAcademia';
 
 export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u: Usuario) => void }) {
-  const usuarios = useUsuarios().filter((u) => u.activo);
+  // Orden fijo: dueños, recepción y maestros; dentro de cada grupo, por nombre
+  const ORDEN = { dueno: 0, recepcion: 1, maestro: 2 } as const;
+  const usuarios = useUsuarios()
+    .filter((u) => u.activo)
+    .sort((a, b) => ORDEN[a.rol] - ORDEN[b.rol] || a.nombre.localeCompare(b.nombre));
   const [elegido, setElegido] = useState<Usuario | null>(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
