@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Download, Share2 } from 'lucide-react';
+import { Download, MessageCircle, Share2 } from 'lucide-react';
+import { waLink } from '../../domain/reportes';
 import { useAvisos } from '../../components/avisos';
 import { Boton } from '../../components/ui';
 import type { Academia, Alumno } from '../../db/types';
@@ -14,23 +15,40 @@ export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: A
     void QRCode.toDataURL(contenidoQR(alumno.codigo), { margin: 1, width: 640, errorCorrectionLevel: 'M' }).then(setQr);
   }, [alumno.codigo]);
 
-  const compartir = async () => {
+  const nombre1 = alumno.nombre.split(' ')[0];
+  const texto = `Hola ${nombre1}, esta es tu credencial de ${academia.nombre} 💃🕺 Muéstrala en recepción para entrar. Tu código: ${alumno.codigo}`;
+  const wa = waLink(alumno.telefono, texto);
+  const archivo = async () => {
     const blob = await credencialPNG(alumno, academia);
-    const archivo = new File([blob], `credencial-${alumno.nombre.replace(/\s+/g, '-').toLowerCase()}.png`, { type: 'image/png' });
-    if (navigator.canShare?.({ files: [archivo] })) {
+    return new File([blob], `credencial-${alumno.nombre.replace(/\s+/g, '-').toLowerCase()}.png`, { type: 'image/png' });
+  };
+  const descargar = (f: File) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f);
+    a.download = f.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  // Menú de compartir solo en pantallas táctiles (celular/tablet); en PC es más directo descargar y abrir el chat
+  const tactil = window.matchMedia('(pointer: coarse)').matches;
+  const puedeCompartirImagen = tactil && typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] });
+
+  /** Celular: menú de compartir con la imagen adjunta. PC: descarga la imagen y abre el chat del alumno. */
+  const enviar = async () => {
+    const f = await archivo();
+    if (puedeCompartirImagen) {
       try {
-        await navigator.share({ files: [archivo], title: `Tu credencial de ${academia.nombre}`, text: `Hola ${alumno.nombre.split(' ')[0]}, esta es tu credencial de ${academia.nombre}. Muéstrala en recepción para entrar. 💃🕺` });
+        await navigator.share({ files: [f], text: texto });
       } catch {
         /* canceló */
       }
       return;
     }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = archivo.name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    avisar('Credencial descargada');
+    descargar(f);
+    if (wa) {
+      window.open(wa, '_blank', 'noopener');
+      avisar('Imagen descargada: adjúntala en el chat de WhatsApp');
+    } else avisar('Credencial descargada');
   };
 
   return (
@@ -47,9 +65,26 @@ export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: A
         </div>
       </div>
       <p className="text-center text-sm text-ink-500">En recepción escanean este código para darle entrada o cobrarle.</p>
-      <Boton grande bloque onClick={compartir}>
-        {'share' in navigator ? <Share2 size={20} /> : <Download size={20} />} {'share' in navigator ? 'Enviar credencial' : 'Descargar credencial'}
+      <Boton grande bloque onClick={enviar}>
+        <Share2 size={20} /> {puedeCompartirImagen ? 'Enviar imagen (WhatsApp…)' : wa ? 'Enviar por WhatsApp' : 'Descargar credencial'}
       </Boton>
+      <div className="grid grid-cols-2 gap-2">
+        <Boton variante="secundario" onClick={async () => { descargar(await archivo()); avisar('Credencial descargada'); }}>
+          <Download size={18} /> Descargar
+        </Boton>
+        {wa ? (
+          <a href={wa} target="_blank" rel="noreferrer">
+            <Boton bloque variante="secundario">
+              <MessageCircle size={18} className="text-ok-600" /> Solo mensaje
+            </Boton>
+          </a>
+        ) : (
+          <Boton variante="secundario" disabled title="Agrega su WhatsApp en la ficha">
+            <MessageCircle size={18} /> Sin WhatsApp
+          </Boton>
+        )}
+      </div>
+      {!alumno.telefono && <p className="text-center text-xs text-ink-500">Agrega su WhatsApp (✏️ en la ficha) para enviarle mensajes directo.</p>}
     </div>
   );
 }
