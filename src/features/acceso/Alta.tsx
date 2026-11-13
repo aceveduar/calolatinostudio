@@ -7,6 +7,7 @@ import { entrarEnDispositivoNuevo } from '../../sync/engine';
 import { nubeConfigurada } from '../../sync/supabase';
 import type { Usuario } from '../../db/types';
 import { Logo } from '../../components/Logo';
+import { RestaurarRespaldo } from '../ajustes/Respaldo';
 
 type Paso = 'inicio' | 'datos' | 'pin' | 'confirmar' | 'nube';
 
@@ -76,6 +77,9 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
                 <CloudDownload size={20} /> Ya la uso en otro teléfono
               </Boton>
             )}
+            <div className="pt-4 [&_button]:text-ink-500 [&_button]:ring-0 [&_button]:bg-transparent">
+              <RestaurarRespaldo />
+            </div>
           </div>
         </div>
       )}

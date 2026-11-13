@@ -1,29 +1,40 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles } from 'lucide-react';
+import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, ChartColumn, LockKeyhole } from 'lucide-react';
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
 import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
-import { cx } from '../components/ui';
+import { Avatar, cx } from '../components/ui';
+import { LogoAcademia } from '../components/LogoAcademia';
 
 const TABS = [
-  { to: '/', texto: 'Entrada', icono: DoorOpen },
-  { to: '/alumnos', texto: 'Alumnos', icono: Users },
-  { to: '/caja', texto: 'Caja', icono: Wallet },
-  { to: '/ajustes', texto: 'Ajustes', icono: Settings },
+  { to: '/', texto: 'Entrada', icono: DoorOpen, soloDueno: false },
+  { to: '/alumnos', texto: 'Alumnos', icono: Users, soloDueno: false },
+  { to: '/caja', texto: 'Caja', icono: Wallet, soloDueno: false },
+  { to: '/reportes', texto: 'Reportes', icono: ChartColumn, soloDueno: true },
+  { to: '/ajustes', texto: 'Ajustes', icono: Settings, soloDueno: false },
 ];
 
+/**
+ * Teléfono: barra superior + pestañas abajo (alcance del pulgar).
+ * Laptop/PC (≥1024 px): barra lateral fija y contenido a todo lo ancho.
+ */
 export function Layout() {
+  const { esDueno } = useSesion();
+  const tabs = TABS.filter((t) => esDueno || !t.soloDueno);
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
-      <BarraSuperior />
-      <main className="flex-1 pb-24">
-        <Outlet />
-      </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur">
-        <div className="mx-auto grid max-w-2xl grid-cols-4">
-          {TABS.map(({ to, texto, icono: Icono }) => (
+    <div className="min-h-dvh lg:flex">
+      <BarraLateral tabs={tabs} />
+      <div className="mx-auto flex min-h-dvh w-full max-w-2xl min-w-0 flex-col lg:max-w-none lg:flex-1">
+        <BarraSuperior />
+        <main className="mx-auto w-full flex-1 pb-24 lg:max-w-6xl lg:px-6 lg:pb-10">
+          <Outlet />
+        </main>
+      </div>
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-2xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+          {tabs.map(({ to, texto, icono: Icono }) => (
             <NavLink
               key={to}
               to={to}
@@ -46,20 +57,71 @@ export function Layout() {
   );
 }
 
+function BarraLateral({ tabs }: { tabs: typeof TABS }) {
+  const { academia, usuario, bloquear } = useSesion();
+  return (
+    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-ink-100 bg-superficie px-4 py-5 lg:flex">
+      <div className="flex items-center gap-3 px-2">
+        <LogoAcademia academia={academia} tam={40} />
+        <span className="min-w-0">
+          <span className="block truncate font-extrabold">{academia.nombre}</span>
+          <span className="block text-xs text-ink-500">Compás</span>
+        </span>
+      </div>
+      <nav className="mt-8 flex flex-col gap-1">
+        {tabs.map(({ to, texto, icono: Icono }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) =>
+              cx('flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition', isActive ? 'bg-brand-50 text-brand-600' : 'text-ink-700 hover:bg-ink-50')
+            }
+          >
+            <Icono size={20} /> {texto}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="mt-auto space-y-3">
+        <div className="px-2">
+          <IndicadorSync />
+        </div>
+        <button onClick={bloquear} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-ink-50">
+          <Avatar nombre={usuario.nombre} tam={36} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">{usuario.nombre}</span>
+            <span className="block text-xs text-ink-500">Cambiar usuario</span>
+          </span>
+          <LockKeyhole size={16} className="text-ink-300" />
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 function BarraSuperior() {
-  const { academia } = useSesion();
+  const { academia, usuario, bloquear } = useSesion();
   const nueva = useActualizacionPendiente();
   return (
     <>
-    {nueva && (
-      <button onClick={aplicarActualizacion} className="flex w-full items-center justify-center gap-2 bg-brand-500 px-4 pt-safe py-2 text-sm font-semibold text-white">
-        <Sparkles size={16} /> Hay una versión nueva · Toca para actualizar
-      </button>
-    )}
-    <header className="sticky top-0 z-30 flex items-center justify-between bg-ink-50/95 px-4 pt-safe backdrop-blur">
-      <span className="truncate py-2.5 text-sm font-bold text-ink-700">{academia.nombre}</span>
-      <IndicadorSync />
-    </header>
+      {nueva && (
+        <button onClick={aplicarActualizacion} className="flex w-full items-center justify-center gap-2 bg-brand-500 px-4 pt-safe py-2 text-sm font-semibold text-white">
+          <Sparkles size={16} /> Hay una versión nueva · Toca para actualizar
+        </button>
+      )}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 bg-ink-50/95 px-4 pt-safe backdrop-blur lg:hidden">
+        <span className="flex min-w-0 items-center gap-2 py-2">
+          <LogoAcademia academia={academia} tam={26} />
+          <span className="truncate text-sm font-bold text-ink-700">{academia.nombre}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          <IndicadorSync />
+          {/* Quién está cobrando, y cambiar de usuario en un toque */}
+          <button onClick={bloquear} className="flex items-center gap-1.5 rounded-full py-1 pr-1 pl-2 active:bg-ink-100" aria-label={`${usuario.nombre} · cambiar usuario`}>
+            <Avatar nombre={usuario.nombre} tam={26} />
+          </button>
+        </span>
+      </header>
     </>
   );
 }
@@ -69,7 +131,7 @@ function IndicadorSync() {
   const { fase } = useEstadoSync();
   const pendientes = useLiveQuery(() => db.outbox.count(), [], 0);
   const cfg = {
-    'solo-local': { icono: Smartphone, texto: 'En este teléfono', cls: 'text-ink-500' },
+    'solo-local': { icono: Smartphone, texto: 'En este equipo', cls: 'text-ink-500' },
     'sin-red': { icono: CloudOff, texto: pendientes ? 'Sin red · se subirá solo' : 'Sin red', cls: 'text-warn-600' },
     sincronizando: { icono: RefreshCw, texto: 'Guardando…', cls: 'text-ink-500 [&_svg]:animate-spin' },
     'al-dia': { icono: Cloud, texto: pendientes ? 'Subiendo…' : 'Respaldado', cls: 'text-ok-600' },

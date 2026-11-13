@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { useEsEscritorio } from '../../app/pantalla';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -32,6 +33,7 @@ const capitalizar = (s: string) =>
 
 export function PantallaEntrada() {
   const { usuario } = useSesion();
+  const esc = useEsEscritorio();
   const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
@@ -122,6 +124,45 @@ export function PantallaEntrada() {
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);
 
+  // Teclado (laptop/PC): escribir en cualquier momento busca; Esc limpia
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (document.querySelector('[role=dialog]') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Escape') {
+        setQ('');
+        busca.current?.blur();
+        return;
+      }
+      if (t.matches('input, textarea, select') || e.key.length !== 1 || !/[\p{L}\p{N} ]/u.test(e.key)) return;
+      busca.current?.focus();
+    };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, []);
+
+  const cuenta = (
+    <Cuenta
+        incrustado={esc}
+        key={movs[movs.length - 1]?.key}
+        movs={movs}
+        onCerrar={cerrarCuenta}
+        onPagoCon={(b) => (yaPagaron.current = b !== null)}
+        onDeshacer={async (m) => {
+          await deshacer(m);
+          setMovs((x) => x.filter((y) => y.key !== m.key));
+          avisar(`Se deshizo: ${m.nombre}`);
+        }}
+        onTransferencia={async () => {
+          await cambiarMetodo(
+            movs.filter((m) => m.metodo === 'efectivo'),
+            'transferencia',
+          );
+          setMovs((x) => x.map((m) => (m.metodo === 'efectivo' ? { ...m, metodo: 'transferencia' } : m)));
+        }}
+      />
+  );
+
   const nombreNuevo = capitalizar(q);
   const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()));
   // Errores de dedo ("Ana Lopes", "Carlos Ruis"): mostrar parecidos antes de crear un duplicado
@@ -136,7 +177,8 @@ export function PantallaEntrada() {
   const claseNoEsHoy = clase && !deHoy.some((c) => c.id === clase.id);
 
   return (
-    <div className={movs.length ? 'pb-72' : undefined}>
+    <div className={cx(movs.length > 0 && !esc && 'pb-72', 'lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6')}>
+      <div className="min-w-0">
       <Encabezado titulo="Entrada" sub={fechaLarga(hoy())} />
 
       {/* Clases del día */}
@@ -203,7 +245,7 @@ export function PantallaEntrada() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
             }}
-            placeholder="¿Quién llegó?"
+            placeholder={esc ? '¿Quién llegó? (escribe para buscar)' : '¿Quién llegó?'}
             className="h-14 w-full rounded-2xl bg-superficie pr-11 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
             enterKeyHint="go"
@@ -298,7 +340,7 @@ export function PantallaEntrada() {
           <Vacio icono={<CalendarDays size={40} />} titulo="Hoy no hay clases programadas" texto="Toca “Elegir clase” para registrar entradas en otra clase." />
         ) : (
           <>
-            <div className="mb-3">
+            <div className="mb-3 lg:hidden">
               <Segmentos<'llegan' | 'adentro'>
                 opciones={[
                   { valor: 'llegan', texto: 'Por llegar' },
@@ -308,7 +350,7 @@ export function PantallaEntrada() {
                 onChange={setVista}
               />
             </div>
-            {vista === 'llegan' ? (
+            {vista === 'llegan' || esc ? (
               <>
                 <Frecuentes clase={clase} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
                 <p className="mt-4 px-2 text-center text-xs leading-relaxed text-ink-500">
@@ -323,25 +365,23 @@ export function PantallaEntrada() {
           </>
         )}
       </div>
+      </div>
 
-      <Cuenta
-        key={movs[movs.length - 1]?.key}
-        movs={movs}
-        onCerrar={cerrarCuenta}
-        onPagoCon={(b) => (yaPagaron.current = b !== null)}
-        onDeshacer={async (m) => {
-          await deshacer(m);
-          setMovs((x) => x.filter((y) => y.key !== m.key));
-          avisar(`Se deshizo: ${m.nombre}`);
-        }}
-        onTransferencia={async () => {
-          await cambiarMetodo(
-            movs.filter((m) => m.metodo === 'efectivo'),
-            'transferencia',
-          );
-          setMovs((x) => x.map((m) => (m.metodo === 'efectivo' ? { ...m, metodo: 'transferencia' } : m)));
-        }}
-      />
+      {esc && (
+        <aside className="sticky top-6 mt-6 space-y-4">
+          {movs.length ? (
+            cuenta
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-ink-100 px-6 py-8 text-center text-sm text-ink-500">
+              <p className="font-semibold text-ink-700">Cuenta</p>
+              <p className="mt-1">Al cobrar aparece aquí el total y el cambio.</p>
+            </div>
+          )}
+          {clase && <EnClase clase={clase} onVisitante={() => setVisitante(true)} />}
+        </aside>
+      )}
+
+      {!esc && cuenta}
 
       <HojaEntrada
         alumno={alumnoSel}

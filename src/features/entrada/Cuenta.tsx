@@ -16,7 +16,10 @@ export function Cuenta({
   onTransferencia,
   onCerrar,
   onPagoCon,
+  incrustado = false,
 }: {
+  /** en escritorio va en el panel lateral, no flotando */
+  incrustado?: boolean;
   onPagoCon: (billete: number | null) => void;
   movs: Movimiento[];
   onDeshacer: (m: Movimiento) => void;
@@ -39,12 +42,12 @@ export function Cuenta({
 
   return (
     <div
-      className="fixed inset-x-0 z-40 mx-auto max-w-2xl px-3 animate-sube"
-      style={{ bottom: 'calc(4.4rem + env(safe-area-inset-bottom))' }}
+      className={incrustado ? 'animate-sube' : 'fixed inset-x-0 z-40 mx-auto max-w-2xl px-3 animate-sube'}
+      style={incrustado ? undefined : { bottom: 'calc(4.4rem + env(safe-area-inset-bottom))' }}
       onPointerDown={toque}
     >
       <div className="overflow-hidden rounded-3xl bg-panel text-white shadow-2xl shadow-black/30">
-        <div className="max-h-36 divide-y divide-white/10 overflow-y-auto">
+        <div className="max-h-36 lg:max-h-72 divide-y divide-white/10 overflow-y-auto">
           {movs.map((m) => (
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
               <Check size={18} className="shrink-0 text-[#7ee2a8]" />

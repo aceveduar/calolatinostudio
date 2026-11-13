@@ -21,6 +21,8 @@ export interface Academia {
   moneda: 'MXN';
   /** Color de marca elegido por la academia (hex). null = predeterminado */
   color?: string | null;
+  /** Logo de la academia como imagen PNG/JPEG en data URL (reducida a ≤256 px). */
+  logo?: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;

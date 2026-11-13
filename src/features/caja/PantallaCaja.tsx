@@ -68,6 +68,9 @@ export function PantallaCaja() {
       <div className="-mx-4">
         <Encabezado titulo="Caja" sub={esHoy ? `Hoy, ${fechaLarga(fecha)}` : fechaLarga(fecha)} />
       </div>
+      {/* Laptop/PC: resumen a la izquierda, movimientos a la derecha */}
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+      <div className="min-w-0">
 
       <div className="mb-4 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
@@ -167,6 +170,8 @@ export function PantallaCaja() {
         </Seccion>
       )}
 
+      </div>
+      <div className="min-w-0 lg:[&>section]:mt-0">
       <Seccion titulo={`Movimientos · ${r.cobros}${r.anulados ? ` (+${r.anulados} anulados)` : ''}`}>
         {datos.pagos.length === 0 ? (
           <Tarjeta>
@@ -189,6 +194,8 @@ export function PantallaCaja() {
           </Tarjeta>
         )}
       </Seccion>
+      </div>
+      </div>
 
       <Hoja abierta={!!pagoSel} onCerrar={() => setPagoSel(null)} titulo="Cobro">
         {pagoSel && <DetallePago pago={pagoSel} cobro={usuarios.find((u) => u.id === pagoSel.usuarioId)?.nombre} anulo={usuarios.find((u) => u.id === pagoSel.anuladoPor)?.nombre} onHecho={() => setPagoSel(null)} />}

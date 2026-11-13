@@ -89,7 +89,7 @@ export function Frecuentes({
   if (!mostrar.length) return null;
 
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
       {mostrar.map((a) => {
         const entro = adentro.has(a.id);
         const plan = !!membresiaQueCubre(estados.get(a.id) ?? [], clase);

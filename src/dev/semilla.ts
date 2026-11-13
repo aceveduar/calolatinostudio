@@ -197,7 +197,7 @@ const APELLIDOS = ['García', 'Martínez', 'Rodríguez', 'Hernández', 'López',
  * (normalmente la demo descargada de la nube) y los encola para subirlos.
  * Recalcula los cortes de caja de cada día para que sigan cuadrando.
  */
-export async function ampliar(cuantos = 140): Promise<{ alumnos: number; pagos: number; asistencias: number; cortes: number }> {
+export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): Promise<{ alumnos: number; pagos: number; asistencias: number; cortes: number }> {
   const academia = await db.academias.toCollection().first();
   if (!academia) throw new Error('No hay academia en este teléfono');
   const A = academia.id;
@@ -234,7 +234,7 @@ export async function ampliar(cuantos = 140): Promise<{ alumnos: number; pagos: 
       alumno: { ...base(tsDe(alta, '19:00')), nombre, telefono: r() < 0.8 ? `55${Math.floor(10000000 + r() * 89999999)}` : '', notas: '', codigo: generarCodigo(), activo: r() > 0.03 },
       tipo: x < 0.3 ? 'mensual' : x < 0.45 ? 'paquete' : 'suelta',
       clases: c2 ? [c1, c2] : [c1],
-      asiste: 0.5 + r() * 0.4,
+      asiste: asisteMin + r() * (asisteMax - asisteMin),
     });
   }
 
@@ -313,4 +313,36 @@ export async function ampliar(cuantos = 140): Promise<{ alumnos: number; pagos: 
     ]);
   });
   return { alumnos: nuevos.length, pagos: pagos.length, asistencias: asistencias.length, cortes: cortes.length };
+}
+
+/** Más horarios para la demo (una academia de ~600 alumnos tiene más clases). Sube por el outbox. */
+export async function agregarClasesDemo(): Promise<number> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  const disc = await db.disciplinas.toArray();
+  const maestros = await db.maestros.toArray();
+  const m = (n: string) => maestros.find((x) => x.nombre.includes(n))?.id ?? null;
+  const ahora = Date.now();
+  const crearDisc = async (nombre: string, color: string) =>
+    disc.find((d) => d.nombre === nombre) ?? (await guardar('disciplinas', { id: crypto.randomUUID(), academiaId: academia.id, nombre, color, createdAt: ahora, updatedAt: ahora, deletedAt: null }));
+  const salsa = await crearDisc('Salsa', '#e8445a');
+  const bachata = await crearDisc('Bachata', '#7c4ddb');
+  const cumbia = await crearDisc('Cumbia', '#d97706');
+  const kizomba = await crearDisc('Kizomba', '#0d9488');
+  const nuevas: [string, string, string | null, number[], string][] = [
+    [salsa.id, '3', m('Iván'), [1, 3], '21:00'],
+    [salsa.id, '0', m('Luis'), [6], '12:30'],
+    [bachata.id, '2', m('Karla'), [2, 4], '21:00'],
+    [bachata.id, '0', m('Karla'), [6], '13:30'],
+    [cumbia.id, '0', m('Daniela'), [5], '19:00'],
+    [kizomba.id, '0', m('Iván'), [5], '20:00'],
+  ];
+  const existentes = await db.clases.toArray();
+  let n = 0;
+  for (const [disciplinaId, nivel, maestroId, dias, horaInicio] of nuevas) {
+    if (existentes.some((c) => c.disciplinaId === disciplinaId && c.nivel === nivel && c.horaInicio === horaInicio)) continue;
+    await guardar('clases', { id: crypto.randomUUID(), academiaId: academia.id, disciplinaId, nivel, maestroId, dias, horaInicio, duracionMin: 60, activo: true, createdAt: ahora, updatedAt: ahora, deletedAt: null });
+    n++;
+  }
+  return n;
 }

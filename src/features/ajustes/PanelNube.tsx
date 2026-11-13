@@ -7,7 +7,7 @@ import { db, getMeta } from '../../db/db';
 import { horaDe } from '../../domain/fechas';
 import { cerrarSesionNube, sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
 import { nubeConfigurada } from '../../sync/supabase';
-import { RespaldoLocal } from './PantallaAjustes';
+import { RespaldoLocal, RestaurarRespaldo } from './Respaldo';
 
 const TEXTO_FASE = {
   'solo-local': 'Solo en este teléfono',
@@ -58,7 +58,11 @@ export function PanelNube() {
         <p className="text-sm text-ink-500">Pide al dueño que conecte la academia a la nube.</p>
       )}
 
-      <RespaldoLocal />
+      <div className="space-y-2 pt-2">
+        <p className="px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">Respaldo en archivo</p>
+        <RespaldoLocal />
+        <RestaurarRespaldo />
+      </div>
     </div>
   );
 }

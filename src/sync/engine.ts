@@ -65,10 +65,27 @@ async function push(): Promise<void> {
       if (!ids) continue;
       const regs = (await db.table(tabla).bulkGet([...ids])).filter(Boolean) as Record<string, unknown>[];
       if (!regs.length) continue;
-      const { error } = await supabase.from(tabla).upsert(regs.map(aRemoto), { onConflict: 'id' });
-      if (error) throw new Error(`${tabla}: ${error.message}`);
+      await subirTolerante(tabla, regs.map(aRemoto));
     }
     await db.outbox.where('seq').belowOrEqual(maxSeq).delete();
+  }
+}
+
+/** Columnas que la app conoce pero la base aún no (falta correr la migración). */
+export const columnasFaltantes = new Set<string>();
+
+/**
+ * Si la app es más nueva que la base (p. ej. un campo nuevo como el logo), Supabase rechaza
+ * TODO el lote. En lugar de detener la sincronización, se omite esa columna y se avisa.
+ */
+async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
+  for (let intento = 0; intento < 5; intento++) {
+    const limpias = filas.map((f) => Object.fromEntries(Object.entries(f).filter(([k]) => !columnasFaltantes.has(`${tabla}.${k}`))));
+    const { error } = await supabase!.from(tabla).upsert(limpias, { onConflict: 'id' });
+    if (!error) return;
+    const col = error.message.match(/Could not find the '(\w+)' column/)?.[1];
+    if (!col || columnasFaltantes.has(`${tabla}.${col}`)) throw new Error(`${tabla}: ${error.message}`);
+    columnasFaltantes.add(`${tabla}.${col}`);
   }
 }
 
@@ -124,7 +141,7 @@ export async function sincronizar(): Promise<void> {
       setEstado({ fase: 'sincronizando', error: null });
       await push();
       await pull(academiaId);
-      setEstado({ fase: 'al-dia', ultimo: Date.now() });
+      setEstado({ fase: 'al-dia', ultimo: Date.now(), error: columnasFaltantes.size ? `Actualiza la base de datos: falta ${[...columnasFaltantes].join(', ')} (corre supabase/schema.sql)` : null });
     } catch (e) {
       setEstado({ fase: navigator.onLine ? 'error' : 'sin-red', error: e instanceof Error ? e.message : String(e) });
     } finally {

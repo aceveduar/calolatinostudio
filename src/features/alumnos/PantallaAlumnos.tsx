@@ -29,7 +29,7 @@ export function PantallaAlumnos() {
   }, [alumnos, estados, q, filtro, verBajas]);
 
   return (
-    <div className="px-4 pb-6">
+    <div className="px-4 pb-6 lg:mx-auto lg:max-w-3xl">
       <div className="-mx-4">
         <Encabezado
           titulo="Alumnos"

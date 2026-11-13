@@ -6,7 +6,7 @@ import { AyudaAcceso } from './AyudaAcceso';
 import { TecladoPin } from '../../components/Teclado';
 import { verificarPin } from '../../domain/acceso';
 import type { Academia, Usuario } from '../../db/types';
-import { Logo } from '../../components/Logo';
+import { LogoAcademia } from '../../components/LogoAcademia';
 
 export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u: Usuario) => void }) {
   const usuarios = useUsuarios().filter((u) => u.activo);
@@ -45,7 +45,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
       <div className="flex items-center gap-3 pt-6">
-        <Logo tam={36} />
+        <LogoAcademia academia={academia} tam={44} />
         <span className="truncate text-lg font-bold">{academia.nombre}</span>
       </div>
 

@@ -10,7 +10,7 @@ import type { Academia, Usuario } from '../../db/types';
 import { hashPin } from '../../domain/acceso';
 import { quitarAcademiaDelTelefono, sincronizar, useEstadoSync } from '../../sync/engine';
 import { verificarCuentaAcademia } from '../../sync/supabase';
-import { RespaldoLocal } from '../ajustes/PantallaAjustes';
+import { RespaldoLocal } from '../ajustes/Respaldo';
 
 type Vista = 'menu' | 'pin' | 'otra';
 
@@ -167,9 +167,7 @@ function OtraAcademia() {
           <p className="flex gap-2 font-medium">
             <AlertTriangle size={18} className="shrink-0" /> Esta academia NO está en la nube. Si la quitas, sus datos se borran de este teléfono. Descarga el respaldo primero.
           </p>
-          <div onClick={() => setRespaldado(true)}>
-            <RespaldoLocal />
-          </div>
+          <RespaldoLocal onDescargado={() => setRespaldado(true)} />
         </div>
       )}
       <Boton

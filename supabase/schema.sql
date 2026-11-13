@@ -12,6 +12,7 @@ create table if not exists academias (
   nombre text not null,
   moneda text not null default 'MXN',
   color text,
+  logo text,
   created_at bigint not null,
   updated_at bigint not null,
   deleted_at bigint,
@@ -160,6 +161,7 @@ create table if not exists cortes (
 
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
+alter table academias add column if not exists logo text;
 alter table clases add column if not exists maestro_id uuid;
 
 -- ---------- cursor de sincronización ----------

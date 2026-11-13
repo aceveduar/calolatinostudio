@@ -67,7 +67,7 @@ export function FichaAlumno() {
   };
 
   return (
-    <div className="px-4 pb-8">
+    <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <button onClick={() => nav(-1)} className="mt-3 -ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
         <ArrowLeft />
       </button>

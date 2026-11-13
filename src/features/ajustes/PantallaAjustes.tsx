@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, ChevronRight, Cloud, Download, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
-import { db } from '../../db/db';
-import { SYNC_TABLES } from '../../db/types';
-import { hoy } from '../../domain/fechas';
+import { RespaldoLocal } from './Respaldo';
+import { LogoAcademia, prepararLogo } from '../../components/LogoAcademia';
 import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorUsuarios } from './Editores';
 import { PanelNube } from './PanelNube';
 
@@ -31,7 +30,7 @@ export function PantallaAjustes() {
     const s = SECCIONES[seccion as Clave];
     const Comp = s.comp;
     return (
-      <div className="px-4 pb-8">
+      <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
         <button onClick={() => nav('/ajustes')} className="mt-3 -ml-2 flex items-center gap-1 rounded-full p-2 font-semibold text-ink-700 active:bg-ink-100">
           <ArrowLeft size={20} /> Ajustes
         </button>
@@ -44,7 +43,7 @@ export function PantallaAjustes() {
   const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'disciplinas', 'usuarios', 'academia', 'nube'] : ['nube'];
 
   return (
-    <div className="px-4 pb-8">
+    <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <div className="-mx-4">
         <Encabezado titulo="Ajustes" sub={`${usuario.nombre} · ${usuario.rol === 'dueno' ? 'Dueño' : 'Recepción'}`} />
       </div>
@@ -104,6 +103,7 @@ function EditorAcademia() {
       >
         Guardar
       </Boton>
+      <SubirLogo />
       <Campo etiqueta="Color de la academia" ayuda="Se aplica al instante en toda la app.">
         <div className="grid grid-cols-4 gap-3">
           {COLORES_MARCA.map((c) => (
@@ -129,23 +129,51 @@ function EditorAcademia() {
   );
 }
 
-export function RespaldoLocal() {
+function SubirLogo() {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const input = useRef<HTMLInputElement>(null);
   return (
-    <Boton
-      bloque
-      variante="secundario"
-      onClick={async () => {
-        const datos: Record<string, unknown[]> = {};
-        for (const t of SYNC_TABLES) datos[t] = await db.table(t).toArray();
-        const blob = new Blob([JSON.stringify({ version: 1, exportado: new Date().toISOString(), datos }, null, 1)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `compas-respaldo-${hoy()}.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      }}
-    >
-      <Download size={18} /> Descargar respaldo
-    </Boton>
+    <Campo etiqueta="Logo de la academia" ayuda="Mejor un PNG sin fondo. Aparece al entrar y en el menú.">
+      <div className="flex items-center gap-4 rounded-2xl bg-superficie p-3 ring-1 ring-ink-100">
+        <span className="flex h-20 w-20 items-center justify-center rounded-xl bg-ink-50">
+          <LogoAcademia academia={academia} tam={64} />
+        </span>
+        <div className="flex flex-1 flex-wrap gap-2">
+          <Boton variante="secundario" onClick={() => input.current?.click()}>
+            {academia.logo ? 'Cambiar' : 'Subir logo'}
+          </Boton>
+          {academia.logo && (
+            <Boton
+              variante="fantasma"
+              onClick={async () => {
+                const antes = academia.logo;
+                await actualizar('academias', academia.id, { logo: null });
+                avisar('Logo quitado', 'ok', { texto: 'Deshacer', fn: () => actualizar('academias', academia.id, { logo: antes }).then(() => undefined) });
+              }}
+            >
+              Quitar
+            </Boton>
+          )}
+        </div>
+        <input
+          ref={input}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            try {
+              await actualizar('academias', academia.id, { logo: await prepararLogo(f) });
+              avisar('Logo actualizado');
+            } catch (err) {
+              avisar(err instanceof Error ? err.message : 'No se pudo usar esa imagen', 'error');
+            }
+          }}
+        />
+      </div>
+    </Campo>
   );
 }
