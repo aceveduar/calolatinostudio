@@ -11,7 +11,8 @@ import { SYNC_TABLES, type ID, type SyncTable } from '../db/types';
 import { alCambiarLocal } from './bus';
 import { supabase } from './supabase';
 
-export type Fase = 'solo-local' | 'sin-red' | 'sincronizando' | 'al-dia' | 'error';
+/** solo-local: instalación sin nube · desconectada: hay nube pero este equipo no está conectado (o caducó la sesión) */
+export type Fase = 'solo-local' | 'desconectada' | 'sin-red' | 'sincronizando' | 'al-dia' | 'error';
 export interface EstadoSync {
   fase: Fase;
   ultimo: number | null;
@@ -136,7 +137,10 @@ export async function sincronizar(): Promise<void> {
       const academiaId = await getMeta<ID>('academiaId');
       const vinculada = await getMeta<boolean>('nubeVinculada');
       const { data } = await supabase.auth.getSession();
-      if (!academiaId || !vinculada || !data.session) return setEstado({ fase: 'solo-local' });
+      if (!academiaId) return setEstado({ fase: 'solo-local' });
+      // Nunca dejar de sincronizar en silencio: si este equipo no está conectado, decirlo
+      if (!vinculada) return setEstado({ fase: 'desconectada', error: null });
+      if (!data.session) return setEstado({ fase: 'desconectada', error: 'La sesión de la nube caducó. Vuelve a conectar con el correo de la academia.' });
       if (!navigator.onLine) return setEstado({ fase: 'sin-red' });
       setEstado({ fase: 'sincronizando', error: null });
       await push();
@@ -215,11 +219,6 @@ export async function entrarEnDispositivoNuevo(email: string, password: string):
   setEstado({ fase: 'al-dia', ultimo: Date.now() });
 }
 
-export async function cerrarSesionNube(): Promise<void> {
-  await supabase?.auth.signOut();
-  await setMeta('nubeVinculada', false);
-  setEstado({ fase: 'solo-local' });
-}
 
 export const BORRAR_AL_INICIAR = 'compas:borrar-al-iniciar';
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, Phone, Search, UserX } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -16,6 +16,7 @@ import { semaforoAlumno, textoDias } from '../../domain/membresias';
 import { DetallePago } from '../caja/PantallaCaja';
 import { FormAlumno } from './FormAlumno';
 import { VenderPlan } from './VenderPlan';
+import { CredencialQR } from './CredencialQR';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -33,6 +34,7 @@ export function FichaAlumno() {
   const [editar, setEditar] = useState(false);
   const [vender, setVender] = useState(false);
   const [fusionar, setFusionar] = useState(false);
+  const [qr, setQr] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
 
   const historial = useLiveQuery(async () => {
@@ -112,6 +114,9 @@ export function FichaAlumno() {
       <div className="mt-5 grid grid-cols-2 gap-2">
         <Boton grande onClick={() => setVender(true)} className="col-span-2">
           <CalendarPlus size={20} /> Vender plan
+        </Boton>
+        <Boton variante="secundario" onClick={() => setQr(true)} className="col-span-2">
+          <QrCode size={18} /> Credencial con QR
         </Boton>
         {alumno.telefono && (
           <>
@@ -219,6 +224,9 @@ export function FichaAlumno() {
             onHecho={() => setPagoSel(null)}
           />
         )}
+      </Hoja>
+      <Hoja abierta={qr} onCerrar={() => setQr(false)} titulo="Credencial">
+        {qr && <CredencialQR alumno={alumno} academia={academia} />}
       </Hoja>
       <Hoja abierta={fusionar} onCerrar={() => setFusionar(false)} titulo="Unir registros">
         {fusionar && (

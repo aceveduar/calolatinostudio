@@ -134,6 +134,7 @@ function IndicadorSync() {
   const pendientes = useLiveQuery(() => db.outbox.count(), [], 0);
   const cfg = {
     'solo-local': { icono: Smartphone, texto: 'En este equipo', cls: 'text-ink-500' },
+    desconectada: { icono: CloudOff, texto: 'Sin respaldo · Conectar', cls: 'bg-warn-50 text-warn-600' },
     'sin-red': { icono: CloudOff, texto: pendientes ? 'Sin red · se subirá solo' : 'Sin red', cls: 'text-warn-600' },
     sincronizando: { icono: RefreshCw, texto: 'Guardando…', cls: 'text-ink-500 [&_svg]:animate-spin' },
     'al-dia': { icono: Cloud, texto: pendientes ? 'Subiendo…' : 'Respaldado', cls: 'text-ok-600' },

@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { Boton, Campo, Entrada, Segmentos, Tarjeta } from '../../components/ui';
 import { db, getMeta } from '../../db/db';
 import { horaDe } from '../../domain/fechas';
-import { cerrarSesionNube, sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
+import { sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
 import { nubeConfigurada } from '../../sync/supabase';
 import { RespaldoLocal, RestaurarRespaldo } from './Respaldo';
 
 const TEXTO_FASE = {
-  'solo-local': 'Solo en este teléfono',
+  'solo-local': 'Solo en este equipo',
+  desconectada: 'Este equipo no está respaldando',
   'sin-red': 'Sin internet · se subirá al conectar',
   sincronizando: 'Sincronizando…',
   'al-dia': 'Todo respaldado en la nube',
@@ -33,7 +34,7 @@ export function PanelNube() {
           {sync.ultimo && ` · última vez ${horaDe(sync.ultimo)}`}
         </p>
         {sync.error && <p className="mt-2 text-sm text-bad-600">{sync.error}</p>}
-        {vinculada && (
+        {vinculada && sync.fase !== 'desconectada' && (
           <Boton variante="secundario" className="mt-3" onClick={() => void sincronizar()} disabled={sync.fase === 'sincronizando'}>
             <RefreshCw size={16} /> Sincronizar ahora
           </Boton>
@@ -48,14 +49,14 @@ export function PanelNube() {
             activa la nube (pídeselo a tu proveedor).
           </p>
         </Tarjeta>
-      ) : vinculada ? (
-        esDueno && (
-          <BotonDoble texto="Desconectar de la nube" confirmar="Toca otra vez para desconectar (tus datos se quedan en el teléfono)" onConfirmar={() => void cerrarSesionNube()} />
-        )
+      ) : sync.fase !== 'desconectada' ? (
+        <p className="px-1 text-sm text-ink-500">
+          Este equipo está conectado: todo se respalda solo cuando hay internet (wifi o datos). No tienes que hacer nada.
+        </p>
       ) : esDueno ? (
-        <FormVincular />
+        <FormVincular reconectar={!!vinculada} />
       ) : (
-        <p className="text-sm text-ink-500">Pide al dueño que conecte la academia a la nube.</p>
+        <p className="rounded-2xl bg-warn-50 p-4 text-sm font-medium text-warn-600">Este equipo no está respaldando. Pide a la dirección que lo conecte.</p>
       )}
 
       <div className="space-y-2 pt-2">
@@ -67,23 +68,8 @@ export function PanelNube() {
   );
 }
 
-/** Acción delicada sin ventanas del sistema: el primer toque arma, el segundo confirma. */
-function BotonDoble({ texto, confirmar, onConfirmar }: { texto: string; confirmar: string; onConfirmar: () => void }) {
-  const [armado, setArmado] = useState(false);
-  useEffect(() => {
-    if (!armado) return;
-    const t = setTimeout(() => setArmado(false), 4000);
-    return () => clearTimeout(t);
-  }, [armado]);
-  return (
-    <Boton bloque variante={armado ? 'peligro' : 'fantasma'} onClick={() => (armado ? onConfirmar() : setArmado(true))}>
-      {armado ? confirmar : texto}
-    </Boton>
-  );
-}
-
-function FormVincular() {
-  const [modo, setModo] = useState<'crear' | 'entrar'>('crear');
+function FormVincular({ reconectar }: { reconectar: boolean }) {
+  const [modo, setModo] = useState<'crear' | 'entrar'>(reconectar ? 'entrar' : 'crear');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -105,15 +91,19 @@ function FormVincular() {
         }
       }}
     >
-      <p className="text-sm text-ink-700">Conecta la academia para respaldar todo automáticamente y usarla en más de un teléfono.</p>
-      <Segmentos
+      <p className="text-sm text-ink-700">
+        {reconectar
+          ? 'Escribe el correo y la contraseña de la academia para volver a respaldar. No se pierde nada de lo que hay en este equipo.'
+          : 'Conecta la academia para respaldar todo automáticamente y usarla en más de un equipo. Se hace una sola vez.'}
+      </p>
+      {!reconectar && <Segmentos
         opciones={[
           { valor: 'crear', texto: 'Crear cuenta' },
           { valor: 'entrar', texto: 'Ya tengo cuenta' },
         ]}
         valor={modo}
         onChange={setModo}
-      />
+      />}
       <Campo etiqueta="Correo">
         <Entrada type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </Campo>

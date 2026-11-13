@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useEsEscritorio } from '../../app/pantalla';
@@ -18,6 +18,7 @@ import { FormAlumno } from '../alumnos/FormAlumno';
 import { METODOS } from '../alumnos/VenderPlan';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
+import { Escaner } from './Escaner';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
 import { parecidos } from '../../domain/correcciones';
@@ -52,6 +53,7 @@ export function PantallaEntrada() {
   const [alumnoSel, setAlumnoSel] = useState<Alumno | null>(null);
   const [nuevo, setNuevo] = useState(false);
   const [visitante, setVisitante] = useState(false);
+  const [escanear, setEscanear] = useState(false);
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const enCurso = useRef(new Set<string>());
   // Agrupar: toques casi seguidos = pagan juntos (pareja, amigos)
@@ -263,6 +265,13 @@ export function PantallaEntrada() {
             </button>
           )}
         </div>
+        <button
+          onClick={() => setEscanear(true)}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95"
+          aria-label="Escanear QR"
+        >
+          <ScanLine size={24} />
+        </button>
         {suelta && (
           <button
             onClick={() => rapido(crypto.randomUUID(), 'Sin nombre', (c) => entradaSinNombre(c, usuario.id))}
@@ -400,6 +409,21 @@ export function PantallaEntrada() {
             setAlumnoSel(a);
           }}
         />
+      </Hoja>
+
+      <Hoja abierta={escanear} onCerrar={() => setEscanear(false)} titulo="Escanear credencial">
+        {escanear && (
+          <Escaner
+            movs={movs}
+            onListo={() => setEscanear(false)}
+            onCodigo={async (codigo) => {
+              const a = await db.alumnos.where('codigo').equals(codigo).first();
+              if (!a || a.deletedAt) return avisar('Ese QR no es de un alumno de esta academia', 'error');
+              if (!a.activo) return avisar(`${a.nombre.split(' ')[0]} está dado de baja`, 'error');
+              await entrarAlumno(a);
+            }}
+          />
+        )}
       </Hoja>
 
       <Hoja abierta={visitante} onCerrar={() => setVisitante(false)} titulo="Visitante sin registro">
