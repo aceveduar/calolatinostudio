@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
 import { NOMBRE_ROL, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Rol, type TipoPlan, type Usuario } from '../../db/types';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -502,7 +502,7 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
           </Campo>
         ))}
       <Campo etiqueta={usuario ? 'Nuevo PIN (déjalo vacío para no cambiarlo)' : 'PIN de 4 dígitos'}>
-        <Entrada inputMode="numeric" type="password" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+        <EntradaClave inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
       </Campo>
       {usuario && !esUltimoDueno && usuario.id !== yo.id && <Interruptor valor={activo} onChange={setActivo} texto="Puede entrar a la app" />}
       <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinValido) || (pin.length > 0 && !pinValido) || (rol === 'maestro' && (!maestroId || !baseLista))}>

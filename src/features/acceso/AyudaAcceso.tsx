@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { AlertTriangle, ArrowLeft, CloudCheck, KeyRound, RefreshCw, Repeat } from 'lucide-react';
 import { useUsuarios } from '../../app/datos';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Entrada, Tarjeta, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Entrada, EntradaClave, Tarjeta, cx } from '../../components/ui';
 import { db, getMeta } from '../../db/db';
 import { actualizar } from '../../db/repo';
 import type { Academia, Usuario } from '../../db/types';
@@ -93,7 +93,7 @@ function RestablecerPin({ academia, onListo }: { academia: Academia; onListo: (u
           <Entrada type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </Campo>
         <Campo etiqueta="Contraseña">
-          <Entrada type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <EntradaClave autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Campo>
         {error && <p className="text-sm font-medium text-bad-600">{error}</p>}
         <Boton grande bloque type="submit" disabled={ocupado || !navigator.onLine}>
@@ -118,7 +118,7 @@ function RestablecerPin({ academia, onListo }: { academia: Academia; onListo: (u
         ))}
       </div>
       <Campo etiqueta="PIN nuevo (4 dígitos)">
-        <Entrada inputMode="numeric" type="password" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+        <EntradaClave inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
       </Campo>
       <Boton
         grande

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
-import { Boton, Campo, Entrada, Segmentos, Tarjeta } from '../../components/ui';
+import { Boton, Campo, Entrada, EntradaClave, Segmentos, Tarjeta } from '../../components/ui';
 import { db, getMeta } from '../../db/db';
 import { horaDe } from '../../domain/fechas';
 import { sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
@@ -108,7 +108,7 @@ function FormVincular({ reconectar }: { reconectar: boolean }) {
         <Entrada type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </Campo>
       <Campo etiqueta="Contraseña" ayuda="Mínimo 6 caracteres.">
-        <Entrada type="password" autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+        <EntradaClave autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
       </Campo>
       {error && <p className="text-sm font-medium text-bad-600">{error}</p>}
       <Boton grande bloque type="submit" disabled={ocupado || !navigator.onLine}>

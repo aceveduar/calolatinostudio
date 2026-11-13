@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, CloudDownload, Sparkles } from 'lucide-react';
-import { Boton, Campo, Entrada } from '../../components/ui';
+import { Boton, Campo, Entrada, EntradaClave } from '../../components/ui';
 import { TecladoPin } from '../../components/Teclado';
 import { crearAcademia } from '../../domain/acceso';
 import { entrarEnDispositivoNuevo } from '../../sync/engine';
@@ -133,7 +133,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
               <Entrada type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </Campo>
             <Campo etiqueta="Contraseña">
-              <Entrada type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <EntradaClave autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Campo>
             {error && <p className="text-sm font-medium text-bad-600">{error}</p>}
           </div>

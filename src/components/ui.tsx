@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -50,6 +50,25 @@ const baseInput =
 
 export function Entrada(p: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cx(baseInput, p.className)} />;
+}
+
+/** Campo de contraseña o PIN con botón de ojo para ver lo escrito. */
+export function EntradaClave(p: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className="relative">
+      <input {...p} type={ver ? 'text' : 'password'} className={cx(baseInput, 'pr-12', p.className)} />
+      <button
+        type="button"
+        onClick={() => setVer(!ver)}
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-2 text-ink-500 hover:bg-ink-50 active:bg-ink-100"
+        aria-label={ver ? 'Ocultar' : 'Mostrar'}
+        aria-pressed={ver}
+      >
+        {ver ? <EyeOff size={20} /> : <Eye size={20} />}
+      </button>
+    </div>
+  );
 }
 
 export function Selector(p: SelectHTMLAttributes<HTMLSelectElement>) {
