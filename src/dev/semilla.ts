@@ -185,3 +185,132 @@ export async function sembrar(): Promise<{ alumnos: number; pagos: number; asist
   });
   return { alumnos: perfiles.length, pagos: pagos.length, asistencias: asistencias.length };
 }
+
+const PILAS = ['Alejandro', 'María', 'José', 'Guadalupe', 'Juan', 'Fernanda', 'Luis', 'Camila', 'Carlos', 'Valentina', 'Jesús', 'Ximena', 'Miguel', 'Daniela', 'Antonio', 'Paula',
+  'Ángel', 'Regina', 'David', 'Sofía', 'Emiliano', 'Natalia', 'Santiago', 'Andrea', 'Mateo', 'Mariana', 'Gerardo', 'Abril', 'Omar', 'Elena', 'Adrián', 'Jimena', 'Hugo', 'Karla',
+  'Marco', 'Leticia', 'Enrique', 'Patricia', 'Rubén', 'Silvia', 'Pablo', 'Rocío', 'Ernesto', 'Teresa', 'Gustavo', 'Liliana', 'Martín', 'Diana'];
+const APELLIDOS = ['García', 'Martínez', 'Rodríguez', 'Hernández', 'López', 'González', 'Pérez', 'Sánchez', 'Ramírez', 'Torres', 'Flores', 'Rivera', 'Gómez', 'Díaz', 'Cruz',
+  'Morales', 'Reyes', 'Ortiz', 'Jiménez', 'Ruiz', 'Álvarez', 'Mendoza', 'Castillo', 'Vázquez', 'Romero', 'Chávez', 'Aguilar', 'Herrera', 'Medina', 'Castro', 'Vargas', 'Guzmán'];
+
+/**
+ * Agrega alumnos con 6 semanas de historia a la academia que ya está en este teléfono
+ * (normalmente la demo descargada de la nube) y los encola para subirlos.
+ * Recalcula los cortes de caja de cada día para que sigan cuadrando.
+ */
+export async function ampliar(cuantos = 140): Promise<{ alumnos: number; pagos: number; asistencias: number; cortes: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  const A = academia.id;
+  const r = generador(Date.now() % 100000);
+  const elige = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
+  const base = (ts: number) => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ts, updatedAt: ts, deletedAt: null });
+  const tsDe = (f: Fecha, hhmm: string, minAntes = 0) => {
+    const d = deFecha(f);
+    const [h, m] = hhmm.split(':').map(Number);
+    d.setHours(h, m - minAntes, Math.floor(r() * 60));
+    return d.getTime();
+  };
+
+  const recepcion = (await db.usuarios.filter((u) => u.rol === 'recepcion' && !u.deletedAt).first()) ?? (await db.usuarios.toCollection().first())!;
+  const clases = await db.clases.filter((c) => c.activo && !c.deletedAt).toArray();
+  const planes = await db.planes.filter((p) => p.activo && !p.deletedAt).toArray();
+  const suelta = planes.find((p) => p.tipo === 'suelta')!;
+  const mensual = planes.find((p) => p.tipo === 'mensual')!;
+  const paquete = planes.find((p) => p.tipo === 'paquete')!;
+  const usados = new Set((await db.alumnos.toArray()).map((a) => a.nombre));
+
+  const peso = (c: Clase) => (c.nivel === '0' ? 4 : c.nivel === '1' ? 3 : 2);
+  const bolsa = clases.flatMap((c) => Array<Clase>(peso(c)).fill(c));
+  const nuevos: { alumno: Alumno; tipo: 'mensual' | 'paquete' | 'suelta'; clases: Clase[]; asiste: number }[] = [];
+  while (nuevos.length < cuantos) {
+    const nombre = `${elige(PILAS)} ${elige(APELLIDOS)}${r() < 0.4 ? ' ' + elige(APELLIDOS) : ''}`;
+    if (usados.has(nombre)) continue;
+    usados.add(nombre);
+    const alta = sumarDias(hoy(), -DIAS_HISTORIA - Math.floor(r() * 90));
+    const c1 = elige(bolsa);
+    const c2 = r() < 0.35 ? elige(bolsa.filter((c) => c.id !== c1.id)) : null;
+    const x = r();
+    nuevos.push({
+      alumno: { ...base(tsDe(alta, '19:00')), nombre, telefono: r() < 0.8 ? `55${Math.floor(10000000 + r() * 89999999)}` : '', notas: '', codigo: generarCodigo(), activo: r() > 0.03 },
+      tipo: x < 0.3 ? 'mensual' : x < 0.45 ? 'paquete' : 'suelta',
+      clases: c2 ? [c1, c2] : [c1],
+      asiste: 0.5 + r() * 0.4,
+    });
+  }
+
+  const pagos: Pago[] = [];
+  const asistencias: Asistencia[] = [];
+  const membresias: (Membresia & { usadas: number })[] = [];
+  const metodo = (pt: number): MetodoPago => {
+    const x = r();
+    return x < pt ? 'transferencia' : x < pt + 0.04 ? 'tarjeta' : 'efectivo';
+  };
+  const pago = (alumnoId: ID, plan: Plan, m: MetodoPago, fecha: Fecha, ts: number): Pago => {
+    const p: Pago = { ...base(ts), alumnoId, planId: plan.id, concepto: plan.nombre, monto: plan.precio, metodo: m, usuarioId: recepcion.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null };
+    pagos.push(p);
+    return p;
+  };
+  for (let d = DIAS_HISTORIA; d >= 1; d--) {
+    const fecha = sumarDias(hoy(), -d);
+    const dia = deFecha(fecha).getDay();
+    for (const clase of clases.filter((c) => c.dias.includes(dia))) {
+      for (const pf of nuevos.filter((x) => x.clases.includes(clase))) {
+        if ((!pf.alumno.activo && d < 14) || r() > pf.asiste) continue;
+        const ts = tsDe(fecha, clase.horaInicio, 2 + Math.floor(r() * 25));
+        const id = pf.alumno.id;
+        let m = membresias.find((x) => x.alumnoId === id && x.inicio <= fecha && fecha <= x.fin && (x.clasesTotal === null || x.usadas < x.clasesTotal));
+        if (!m && pf.tipo !== 'suelta') {
+          const plan = pf.tipo === 'mensual' ? mensual : paquete;
+          const p = pago(id, plan, metodo(0.3), fecha, ts);
+          m = {
+            ...base(ts), alumnoId: id, planId: plan.id, pagoId: p.id, disciplinaId: null, inicio: fecha,
+            fin: plan.tipo === 'mensual' ? sumarDias(sumarMeses(fecha, 1), -1) : sumarDias(fecha, (plan.vigenciaDias ?? 30) - 1),
+            clasesTotal: plan.tipo === 'mensual' ? null : plan.clases, anuladaAt: null, usadas: 0,
+          };
+          membresias.push(m);
+        }
+        const a: Asistencia = { ...base(ts + 5000), alumnoId: id, nombreVisitante: null, claseId: clase.id, fecha, membresiaId: null, pagoId: null, usuarioId: recepcion.id, anuladaAt: null };
+        if (m) {
+          m.usadas++;
+          a.membresiaId = m.id;
+        } else {
+          a.pagoId = pago(id, suelta, metodo(0.12), fecha, ts).id;
+        }
+        asistencias.push(a);
+      }
+    }
+  }
+
+  // Cortes: recalcular lo esperado con todos los cobros del día, conservando la diferencia que hubo
+  const cortes: Corte[] = [];
+  for (const fecha of [...new Set(pagos.map((p) => p.fecha))]) {
+    const todos = [...(await db.pagos.where('fecha').equals(fecha).toArray()), ...pagos.filter((p) => p.fecha === fecha)].filter((p) => !p.anuladoAt && !p.deletedAt);
+    const efectivo = todos.filter((p) => p.metodo === 'efectivo').reduce((s, p) => s + p.monto, 0);
+    const otros = todos.reduce((s, p) => s + p.monto, 0) - efectivo;
+    const previo = (await db.cortes.where('fecha').equals(fecha).toArray())[0];
+    cortes.push(
+      previo
+        ? { ...previo, esperadoEfectivo: efectivo, contadoEfectivo: efectivo + previo.diferencia, totalOtros: otros, updatedAt: Date.now() }
+        : { ...base(tsDe(fecha, '22:30')), fecha, esperadoEfectivo: efectivo, contadoEfectivo: efectivo, diferencia: 0, totalOtros: otros, usuarioId: recepcion.id, notas: '' },
+    );
+  }
+
+  const ahora = Date.now();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const mems = membresias.map(({ usadas: _u, ...m }) => m);
+  await db.transaction('rw', [db.alumnos, db.pagos, db.membresias, db.asistencias, db.cortes, db.outbox], async () => {
+    await db.alumnos.bulkPut(nuevos.map((n) => n.alumno));
+    await db.pagos.bulkPut(pagos);
+    await db.membresias.bulkPut(mems);
+    await db.asistencias.bulkPut(asistencias);
+    await db.cortes.bulkPut(cortes);
+    await db.outbox.bulkAdd([
+      ...nuevos.map((n) => ({ table: 'alumnos' as const, id: n.alumno.id, at: ahora })),
+      ...pagos.map((x) => ({ table: 'pagos' as const, id: x.id, at: ahora })),
+      ...mems.map((x) => ({ table: 'membresias' as const, id: x.id, at: ahora })),
+      ...asistencias.map((x) => ({ table: 'asistencias' as const, id: x.id, at: ahora })),
+      ...cortes.map((x) => ({ table: 'cortes' as const, id: x.id, at: ahora })),
+    ]);
+  });
+  return { alumnos: nuevos.length, pagos: pagos.length, asistencias: asistencias.length, cortes: cortes.length };
+}

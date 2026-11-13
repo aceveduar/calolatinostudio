@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useUsuarios } from '../../app/datos';
-import { Avatar } from '../../components/ui';
+import { Avatar, Hoja } from '../../components/ui';
+import { AyudaAcceso } from './AyudaAcceso';
 import { TecladoPin } from '../../components/Teclado';
 import { verificarPin } from '../../domain/acceso';
 import type { Academia, Usuario } from '../../db/types';
@@ -12,6 +13,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
   const [elegido, setElegido] = useState<Usuario | null>(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const [ayuda, setAyuda] = useState(false);
 
   const usuario = elegido ?? (usuarios.length === 1 ? usuarios[0] : null);
 
@@ -61,6 +63,21 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
           <TecladoPin valor={pin} onChange={alPin} error={error} />
         </div>
       )}
+
+      <button onClick={() => setAyuda(true)} className="mx-auto mb-4 rounded-full px-4 py-2 text-sm font-semibold text-ink-500 active:bg-ink-100">
+        ¿Olvidaste tu PIN o es otra academia?
+      </button>
+      <Hoja abierta={ayuda} onCerrar={() => setAyuda(false)} titulo="¿Necesitas ayuda para entrar?">
+        {ayuda && (
+          <AyudaAcceso
+            academia={academia}
+            onListo={(u) => {
+              setAyuda(false);
+              if (u) onAbrir(u);
+            }}
+          />
+        )}
+      </Hoja>
     </div>
   );
 }
