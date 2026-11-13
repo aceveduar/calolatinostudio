@@ -69,14 +69,14 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
           <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Compás</h1>
           <p className="mt-2 text-lg text-ink-500">Cobros y asistencia de tu academia de baile. Funciona sin internet.</p>
           <div className="mt-10 space-y-3">
-            <Boton grande bloque onClick={() => setPaso('datos')}>
-              <Sparkles size={20} /> Configurar mi academia
-            </Boton>
             {nubeConfigurada && (
-              <Boton grande bloque variante="secundario" onClick={() => setPaso('nube')}>
-                <CloudDownload size={20} /> Ya la uso en otro teléfono
+              <Boton grande bloque onClick={() => setPaso('nube')}>
+                <CloudDownload size={20} /> Conectar a mi academia
               </Boton>
             )}
+            <Boton grande bloque variante={nubeConfigurada ? 'secundario' : 'primario'} onClick={() => setPaso('datos')}>
+              <Sparkles size={20} /> Crear una academia nueva
+            </Boton>
             <div className="pt-4 [&_button]:text-ink-500 [&_button]:ring-0 [&_button]:bg-transparent">
               <RestaurarRespaldo />
             </div>
@@ -126,8 +126,8 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
             void entrarNube();
           }}
         >
-          <h1 className="text-3xl font-extrabold tracking-tight">Conectar teléfono</h1>
-          <p className="mt-1 text-ink-500">Entra con la cuenta de la academia para descargar sus datos.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Conectar este equipo</h1>
+          <p className="mt-1 text-ink-500">Escribe el correo y la contraseña de la academia. Se hace una sola vez por equipo; después cada persona entra con su PIN.</p>
           <div className="mt-8 space-y-5">
             <Campo etiqueta="Correo">
               <Entrada type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
