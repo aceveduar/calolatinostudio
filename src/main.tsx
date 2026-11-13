@@ -6,9 +6,10 @@ import './index.css';
 import App from './App';
 import { db } from './db/db';
 import { BORRAR_AL_INICIAR } from './sync/engine';
+import { hayActualizacion } from './app/actualizacion';
 
-// Actualiza la app en segundo plano cuando hay versión nueva (se aplica al reabrir).
-registerSW({ immediate: true });
+// Versión nueva: se avisa y se aplica sin interrumpir un cobro (ver app/actualizacion.ts)
+const actualizarSW = registerSW({ immediate: true, onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true)) });
 
 // Solo en builds de demo/pruebas: expone el generador de datos de ejemplo
 if (import.meta.env.VITE_SEMILLA === '1') {

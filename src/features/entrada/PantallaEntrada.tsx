@@ -63,6 +63,10 @@ export function PantallaEntrada() {
     for (const a of hoyAsis) m.set(a.claseId, (m.get(a.claseId) ?? 0) + 1);
     return m;
   }, [hoyAsis]);
+  const vinieronHoy = useMemo(
+    () => [...new Set([...hoyAsis].sort((a, b) => a.createdAt - b.createdAt).flatMap((a) => (a.alumnoId ? [a.alumnoId] : [])))],
+    [hoyAsis],
+  );
   const adentro = useMemo(
     () => new Set(hoyAsis.filter((a) => a.claseId === clase?.id && a.alumnoId).map((a) => a.alumnoId!)),
     [hoyAsis, clase?.id],
@@ -306,7 +310,7 @@ export function PantallaEntrada() {
             </div>
             {vista === 'llegan' ? (
               <>
-                <Frecuentes clase={clase} adentro={adentro} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                <Frecuentes clase={clase} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
                 <p className="mt-4 px-2 text-center text-xs leading-relaxed text-ink-500">
                   Toca a quien llegó para cobrar o darle entrada.
                   <br />

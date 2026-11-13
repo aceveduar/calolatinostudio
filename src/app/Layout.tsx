@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone } from 'lucide-react';
+import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles } from 'lucide-react';
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
+import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
 import { cx } from '../components/ui';
 
 const TABS = [
@@ -47,11 +48,19 @@ export function Layout() {
 
 function BarraSuperior() {
   const { academia } = useSesion();
+  const nueva = useActualizacionPendiente();
   return (
+    <>
+    {nueva && (
+      <button onClick={aplicarActualizacion} className="flex w-full items-center justify-center gap-2 bg-brand-500 px-4 pt-safe py-2 text-sm font-semibold text-white">
+        <Sparkles size={16} /> Hay una versión nueva · Toca para actualizar
+      </button>
+    )}
     <header className="sticky top-0 z-30 flex items-center justify-between bg-ink-50/95 px-4 pt-safe backdrop-blur">
       <span className="truncate py-2.5 text-sm font-bold text-ink-700">{academia.nombre}</span>
       <IndicadorSync />
     </header>
+    </>
   );
 }
 

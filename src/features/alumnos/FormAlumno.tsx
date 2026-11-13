@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useAlumnos } from '../../app/datos';
+import { parecidos } from '../../domain/correcciones';
 import { Boton, Campo, Entrada } from '../../components/ui';
 import { actualizar, crear } from '../../db/repo';
 import type { Alumno } from '../../db/types';
@@ -16,6 +18,11 @@ export function FormAlumno({
   const [nombre, setNombre] = useState(alumno?.nombre ?? nombreInicial);
   const [telefono, setTelefono] = useState(alumno?.telefono ?? '');
   const [notas, setNotas] = useState(alumno?.notas ?? '');
+  const alumnos = useAlumnos();
+  const similares = useMemo(
+    () => (alumno ? [] : parecidos(nombre, alumnos.filter((a) => a.activo))),
+    [alumno, nombre, alumnos],
+  );
 
   const guardar = async () => {
     const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: telefono.replace(/\D/g, ''), notas: notas.trim() };
@@ -36,6 +43,11 @@ export function FormAlumno({
       <Campo etiqueta="Nombre completo">
         <Entrada autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellido" required />
       </Campo>
+      {similares.length > 0 && (
+        <p className="-mt-2 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+          Ojo, ya existe: {similares.map((a) => a.nombre).join(', ')}. Revisa que no sea la misma persona.
+        </p>
+      )}
       <Campo etiqueta="WhatsApp (opcional)" ayuda="Para mandarle recordatorios de pago.">
         <Entrada type="tel" inputMode="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="10 dígitos" />
       </Campo>

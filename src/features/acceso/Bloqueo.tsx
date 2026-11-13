@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useUsuarios } from '../../app/datos';
 import { Avatar, Hoja } from '../../components/ui';
@@ -14,6 +14,16 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [ayuda, setAyuda] = useState(false);
+  // Contra adivinar el PIN: tras 5 intentos fallidos, espera de 30 s que crece en cada ronda
+  const [fallos, setFallos] = useState(0);
+  const [bloqueadoHasta, setBloqueadoHasta] = useState(0);
+  const [, setTick] = useState(0);
+  const espera = Math.max(0, Math.ceil((bloqueadoHasta - Date.now()) / 1000));
+  useEffect(() => {
+    if (!espera) return;
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [espera]);
 
   const usuario = elegido ?? (usuarios.length === 1 ? usuarios[0] : null);
 
@@ -21,6 +31,9 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
     setPin(v);
     if (v.length < 4 || !usuario) return;
     if (await verificarPin(usuario, v)) return onAbrir(usuario);
+    const n = fallos + 1;
+    setFallos(n);
+    if (n % 5 === 0) setBloqueadoHasta(Date.now() + 30_000 * (n / 5));
     setError(true);
     navigator.vibrate?.([60, 40, 60]);
     setTimeout(() => {
@@ -58,9 +71,13 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
           <div className="mb-8 flex flex-col items-center">
             <Avatar nombre={usuario.nombre} tam={72} />
             <p className="mt-3 text-xl font-bold">Hola, {usuario.nombre.split(' ')[0]}</p>
-            <p className={error ? 'font-medium text-bad-600' : 'text-ink-500'}>{error ? 'PIN incorrecto' : 'Escribe tu PIN'}</p>
+            <p className={error || espera ? 'font-medium text-bad-600' : 'text-ink-500'}>
+              {espera ? `Demasiados intentos. Espera ${espera} s` : error ? 'PIN incorrecto' : 'Escribe tu PIN'}
+            </p>
           </div>
-          <TecladoPin valor={pin} onChange={alPin} error={error} />
+          <div className={espera ? 'pointer-events-none opacity-40' : undefined}>
+            <TecladoPin valor={pin} onChange={alPin} error={error} />
+          </div>
         </div>
       )}
 

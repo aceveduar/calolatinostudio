@@ -72,11 +72,17 @@ async function push(): Promise<void> {
   }
 }
 
+const TRASLAPE_MS = 2 * 60_000;
+
 async function pull(academiaId: ID): Promise<void> {
   if (!supabase) return;
   for (const tabla of SYNC_TABLES) {
     const claveCursor = `cursor:${tabla}`;
-    let cursor = (await getMeta<string>(claveCursor)) ?? '1970-01-01T00:00:00Z';
+    const guardado = await getMeta<string>(claveCursor);
+    // Traslape: volver a revisar los últimos 2 min. Una subida grande de otro teléfono puede
+    // terminar DESPUÉS de que leímos filas más nuevas, dejando filas con hora anterior al cursor.
+    // Repetirlas es inofensivo (se ignoran si no son más nuevas que las locales).
+    let cursor = guardado ? new Date(new Date(guardado).getTime() - TRASLAPE_MS).toISOString() : '1970-01-01T00:00:00Z';
     for (;;) {
       const { data, error } = await supabase
         .from(tabla)
