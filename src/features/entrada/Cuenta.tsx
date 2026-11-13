@@ -1,50 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Check, X, ArrowRightLeft } from 'lucide-react';
 import { cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
 import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
 
-const INACTIVIDAD_MS = 45_000;
-
 /**
- * Cuenta abierta: los cobros seguidos se suman (pareja o amigos que pagan juntos),
- * Monse toca con qué billete pagaron y ve el cambio. Se cierra sola tras 45 s sin uso (el cobro ya quedó guardado; esto es solo para el cambio).
+ * Cuenta abierta: junta los cobros hasta que recepción toca "Listo" (nunca se cierra sola).
+ * Sirve para cobrar juntos a una pareja o grupo: se toca el billete con que pagaron y se ve el cambio.
  */
 export function Cuenta({
   movs,
   onDeshacer,
   onTransferencia,
   onCerrar,
-  onPagoCon,
   incrustado = false,
 }: {
   /** en escritorio va en el panel lateral, no flotando */
   incrustado?: boolean;
-  onPagoCon: (billete: number | null) => void;
   movs: Movimiento[];
   onDeshacer: (m: Movimiento) => void;
   onTransferencia: () => void;
   onCerrar: () => void;
 }) {
   const [pagoCon, setPagoCon] = useState<number | null>(null);
-  const [tick, setTick] = useState(0);
   const efectivo = movs.filter((m) => m.metodo === 'efectivo').reduce((s, m) => s + m.monto, 0);
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
 
-  // reinicia el temporizador con cada cambio o toque
-  useEffect(() => {
-    const t = setTimeout(onCerrar, INACTIVIDAD_MS);
-    return () => clearTimeout(t);
-  }, [movs, tick, onCerrar]);
-
   if (!movs.length) return null;
-  const toque = () => setTick((n) => n + 1);
 
   return (
     <div
       className={incrustado ? 'animate-sube' : 'fixed inset-x-0 z-40 mx-auto max-w-2xl px-3 animate-sube'}
       style={incrustado ? undefined : { bottom: 'calc(4.4rem + env(safe-area-inset-bottom))' }}
-      onPointerDown={toque}
     >
       <div className="overflow-hidden rounded-3xl bg-panel text-white shadow-2xl shadow-black/30">
         <div className="max-h-36 lg:max-h-72 divide-y divide-white/10 overflow-y-auto">
@@ -82,7 +69,6 @@ export function Cuenta({
                   onClick={() => {
                     const v = pagoCon === b ? null : b;
                     setPagoCon(v);
-                    onPagoCon(v);
                   }}
                   className={cx('h-11 rounded-xl text-[15px] font-bold transition', pagoCon === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
                 >

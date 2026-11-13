@@ -23,7 +23,6 @@ import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
 import { parecidos } from '../../domain/correcciones';
 
-const VENTANA_JUNTOS_MS = 8000;
 const normalizar =(s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const capitalizar = (s: string) =>
   s
@@ -56,9 +55,6 @@ export function PantallaEntrada() {
   const [escanear, setEscanear] = useState(false);
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const enCurso = useRef(new Set<string>());
-  // Agrupar: toques casi seguidos = pagan juntos (pareja, amigos)
-  const ultimoToque = useRef(0);
-  const yaPagaron = useRef(false);
   const busca = useRef<HTMLInputElement>(null);
 
   const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).filter((a) => !a.anuladaAt && !a.deletedAt).toArray(), [], []);
@@ -105,11 +101,8 @@ export function PantallaEntrada() {
       if (r.tipo === 'ya-entro') return avisar(`${nombre.split(' ')[0]} ya está adentro`);
       if (r.tipo === 'sin-precio') return avisar('Falta el precio de clase suelta (Ajustes → Planes)', 'error');
       navigator.vibrate?.(25);
-      const ahora = Date.now();
-      const juntos = ahora - ultimoToque.current < VENTANA_JUNTOS_MS && !yaPagaron.current;
-      ultimoToque.current = ahora;
-      yaPagaron.current = false;
-      setMovs((m) => (juntos ? [r.mov, ...m] : [r.mov]));
+      // La cuenta junta todo hasta que recepción toca "Listo": nada se cierra sin confirmar
+      setMovs((m) => [r.mov, ...m]);
       if (q) {
         setQ('');
         busca.current?.blur();
@@ -149,7 +142,6 @@ export function PantallaEntrada() {
         key={movs[movs.length - 1]?.key}
         movs={movs}
         onCerrar={cerrarCuenta}
-        onPagoCon={(b) => (yaPagaron.current = b !== null)}
         onDeshacer={async (m) => {
           await deshacer(m);
           setMovs((x) => x.filter((y) => y.key !== m.key));
