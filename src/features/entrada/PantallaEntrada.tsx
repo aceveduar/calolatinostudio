@@ -18,7 +18,7 @@ import { FormAlumno } from '../alumnos/FormAlumno';
 import { METODOS } from '../alumnos/VenderPlan';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
-import { Escaner } from './Escaner';
+import { Escaner, type LecturaQR } from './Escaner';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
 import { parecidos } from '../../domain/correcciones';
@@ -92,14 +92,24 @@ export function PantallaEntrada() {
   }, [q, alumnos]);
 
   /** Ejecuta una acción rápida y la suma a la cuenta abierta. */
-  const rapido = async (llave: string, nombre: string, fn: (c: Clase) => Promise<Resultado>) => {
-    if (!clase) return avisar('Primero elige la clase', 'error');
-    if (enCurso.current.has(llave)) return; // evita doble toque
+  /** Devuelve el resultado (null si no se pudo). `silencioso`: sin avisos, quien llama muestra el resultado (escáner). */
+  const rapido = async (llave: string, nombre: string, fn: (c: Clase) => Promise<Resultado>, silencioso = false): Promise<Resultado | null> => {
+    if (!clase) {
+      if (!silencioso) avisar('Primero elige la clase', 'error');
+      return null;
+    }
+    if (enCurso.current.has(llave)) return null; // evita doble toque
     enCurso.current.add(llave);
     try {
       const r = await fn(clase);
-      if (r.tipo === 'ya-entro') return avisar(`${nombre.split(' ')[0]} ya está adentro`);
-      if (r.tipo === 'sin-precio') return avisar('Falta el precio de clase suelta (Ajustes → Planes)', 'error');
+      if (r.tipo === 'ya-entro') {
+        if (!silencioso) avisar(`${nombre.split(' ')[0]} ya está adentro`);
+        return r;
+      }
+      if (r.tipo === 'sin-precio') {
+        if (!silencioso) avisar('Falta el precio de clase suelta (Ajustes → Planes)', 'error');
+        return r;
+      }
       navigator.vibrate?.(25);
       // La cuenta junta todo hasta que recepción toca "Listo": nada se cierra sin confirmar
       setMovs((m) => [r.mov, ...m]);
@@ -107,15 +117,31 @@ export function PantallaEntrada() {
         setQ('');
         busca.current?.blur();
       }
+      return r;
     } catch (e) {
-      avisar(e instanceof Error ? e.message : 'No se pudo registrar', 'error');
+      if (!silencioso) avisar(e instanceof Error ? e.message : 'No se pudo registrar', 'error');
+      return null;
     } finally {
       enCurso.current.delete(llave);
     }
   };
 
-  const entrarAlumno = (a: Alumno) =>
-    rapido(a.id, a.nombre, (c) => entradaRapida({ alumnoId: a.id, nombre: a.nombre, clase: c, usuarioId: usuario.id }));
+  const entrarAlumno = (a: Alumno, silencioso = false) =>
+    rapido(a.id, a.nombre, (c) => entradaRapida({ alumnoId: a.id, nombre: a.nombre, clase: c, usuarioId: usuario.id }), silencioso);
+
+  /** Escáner: registra y describe en grande qué pasó. */
+  const alEscanear = async (codigo: string): Promise<LecturaQR> => {
+    const a = await db.alumnos.where('codigo').equals(codigo).first();
+    if (!a || a.deletedAt) return { tono: 'error', titulo: 'QR no reconocido', detalle: 'No es de un alumno de esta academia' };
+    const nombre = a.nombre;
+    if (!a.activo) return { tono: 'aviso', titulo: nombre, detalle: 'Está dado de baja' };
+    if (!clase) return { tono: 'error', titulo: 'Elige la clase primero', detalle: 'Cierra el escáner y elige la clase' };
+    const r = await entrarAlumno(a, true);
+    if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo registrar' };
+    if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está adentro de esta clase' };
+    if (r.tipo === 'sin-precio') return { tono: 'error', titulo: 'Falta el precio', detalle: 'Configura la clase suelta en Ajustes' };
+    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Cobrar ${dinero(r.mov.monto)}` : 'Entró con su plan' };
+  };
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);
 
@@ -408,12 +434,7 @@ export function PantallaEntrada() {
           <Escaner
             movs={movs}
             onListo={() => setEscanear(false)}
-            onCodigo={async (codigo) => {
-              const a = await db.alumnos.where('codigo').equals(codigo).first();
-              if (!a || a.deletedAt) return avisar('Ese QR no es de un alumno de esta academia', 'error');
-              if (!a.activo) return avisar(`${a.nombre.split(' ')[0]} está dado de baja`, 'error');
-              await entrarAlumno(a);
-            }}
+            onCodigo={alEscanear}
           />
         )}
       </Hoja>
