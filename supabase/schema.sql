@@ -220,3 +220,26 @@ begin
 end $$;
 
 grant execute on function vincular_academia(uuid, text) to authenticated;
+
+-- ---------- permisos explícitos ----------
+-- El proyecto se crea con "Automatically expose new tables" DESACTIVADO,
+-- así que nada queda expuesto salvo lo que se otorga aquí:
+--  · anon (sin sesión): nada.
+--  · authenticated: leer/crear/actualizar. Sin DELETE: la app nunca borra, anula (auditoría).
+--  · RLS (arriba) limita además cada fila a los miembros de su academia.
+do $$
+declare t text;
+begin
+  foreach t in array array['academias','usuarios','disciplinas','maestros','clases','planes','alumnos','membresias','pagos','asistencias','cortes'] loop
+    execute format('revoke all on %I from anon', t);
+    execute format('grant select, insert, update on %I to authenticated', t);
+  end loop;
+end $$;
+
+revoke all on miembros from anon;
+grant select on miembros to authenticated;
+
+revoke execute on function es_miembro(uuid) from public, anon;
+grant execute on function es_miembro(uuid) to authenticated;
+revoke execute on function vincular_academia(uuid, text) from public, anon;
+grant execute on function vincular_academia(uuid, text) to authenticated;
