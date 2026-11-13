@@ -183,10 +183,12 @@ export async function entrarEnDispositivoNuevo(email: string, password: string):
   const { data, error } = await supabase.from('miembros').select('academia_id').limit(1).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Esta cuenta no tiene una academia vinculada.');
-  await setMeta('academiaId', data.academia_id);
-  await setMeta('nubeVinculada', true);
+  // Descargar TODO antes de "abrir" la academia en este teléfono:
+  // si se marcara antes, la app mostraría la caja en $0 mientras bajan los cobros.
   setEstado({ fase: 'sincronizando' });
   await pull(data.academia_id as ID);
+  await setMeta('nubeVinculada', true);
+  await setMeta('academiaId', data.academia_id);
   setEstado({ fase: 'al-dia', ultimo: Date.now() });
 }
 

@@ -61,9 +61,9 @@ function IndicadorSync() {
   const pendientes = useLiveQuery(() => db.outbox.count(), [], 0);
   const cfg = {
     'solo-local': { icono: Smartphone, texto: 'En este teléfono', cls: 'text-ink-500' },
-    'sin-red': { icono: CloudOff, texto: pendientes ? `Sin red · ${pendientes} por subir` : 'Sin red', cls: 'text-warn-600' },
+    'sin-red': { icono: CloudOff, texto: pendientes ? 'Sin red · se subirá solo' : 'Sin red', cls: 'text-warn-600' },
     sincronizando: { icono: RefreshCw, texto: 'Guardando…', cls: 'text-ink-500 [&_svg]:animate-spin' },
-    'al-dia': { icono: Cloud, texto: pendientes ? `${pendientes} por subir` : 'Respaldado', cls: 'text-ok-600' },
+    'al-dia': { icono: Cloud, texto: pendientes ? 'Subiendo…' : 'Respaldado', cls: 'text-ok-600' },
     error: { icono: AlertTriangle, texto: 'Revisar nube', cls: 'text-bad-600' },
   }[fase];
   const Icono = cfg.icono;
