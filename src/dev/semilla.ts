@@ -219,14 +219,15 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
   const paquete = planes.find((p) => p.tipo === 'paquete')!;
   const usados = new Set((await db.alumnos.toArray()).map((a) => a.nombre));
 
-  const peso = (c: Clase) => (c.nivel === '0' ? 4 : c.nivel === '1' ? 3 : 2);
+  const peso = (c: Clase) => (c.nivel === '0' ? 3 : c.nivel === '1' ? 3 : 2);
   const bolsa = clases.flatMap((c) => Array<Clase>(peso(c)).fill(c));
   const nuevos: { alumno: Alumno; tipo: 'mensual' | 'paquete' | 'suelta'; clases: Clase[]; asiste: number }[] = [];
   while (nuevos.length < cuantos) {
     const nombre = `${elige(PILAS)} ${elige(APELLIDOS)}${r() < 0.4 ? ' ' + elige(APELLIDOS) : ''}`;
     if (usados.has(nombre)) continue;
     usados.add(nombre);
-    const alta = sumarDias(hoy(), -DIAS_HISTORIA - Math.floor(r() * 90));
+    // 15% se inscribieron en el último mes (para que "Alumnos nuevos" tenga datos)
+    const alta = r() < 0.15 ? sumarDias(hoy(), -1 - Math.floor(r() * 35)) : sumarDias(hoy(), -DIAS_HISTORIA - Math.floor(r() * 90));
     const c1 = elige(bolsa);
     const c2 = r() < 0.35 ? elige(bolsa.filter((c) => c.id !== c1.id)) : null;
     const x = r();
@@ -255,7 +256,7 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
     const dia = deFecha(fecha).getDay();
     for (const clase of clases.filter((c) => c.dias.includes(dia))) {
       for (const pf of nuevos.filter((x) => x.clases.includes(clase))) {
-        if ((!pf.alumno.activo && d < 14) || r() > pf.asiste) continue;
+        if ((!pf.alumno.activo && d < 14) || r() > pf.asiste || pf.alumno.createdAt > tsDe(fecha, '23:59')) continue;
         const ts = tsDe(fecha, clase.horaInicio, 2 + Math.floor(r() * 25));
         const id = pf.alumno.id;
         let m = membresias.find((x) => x.alumnoId === id && x.inicio <= fecha && fecha <= x.fin && (x.clasesTotal === null || x.usadas < x.clasesTotal));
