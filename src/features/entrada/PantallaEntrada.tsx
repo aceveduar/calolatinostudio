@@ -495,7 +495,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
         <h2 className="text-xs font-bold tracking-wider text-ink-500 uppercase">
           En {nombreClase(clase, disciplinas)} · {lista.length}
         </h2>
-        <button onClick={onVisitante} className="flex items-center gap-1 text-sm font-semibold text-brand-600">
+        <button onClick={onVisitante} className="-my-2 -mr-2 flex items-center gap-1 rounded-xl px-2 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50">
           <Footprints size={16} /> Visitante con nombre
         </button>
       </div>

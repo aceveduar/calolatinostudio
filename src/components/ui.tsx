@@ -1,4 +1,4 @@
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -153,13 +153,49 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
       document.body.style.overflow = prev;
     };
   }, [abierta, onCerrar]);
+
+  // Teclado (PC): al abrir, el foco entra a la hoja; Tab no se escapa al fondo; al cerrar vuelve a donde estaba.
+  // Solo depende de `abierta` para no robar el foco mientras se escribe.
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierta) return;
+    const antes = document.activeElement as HTMLElement | null;
+    const id = requestAnimationFrame(() => {
+      if (panel.current && !panel.current.contains(document.activeElement)) panel.current.focus({ preventScroll: true });
+    });
+    return () => {
+      cancelAnimationFrame(id);
+      if (antes?.isConnected) antes.focus({ preventScroll: true });
+    };
+  }, [abierta]);
+  const atraparTab = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab' || !panel.current) return;
+    const f = [...panel.current.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+      (el) => !el.hasAttribute('disabled') && el.offsetParent !== null,
+    );
+    if (!f.length) return;
+    const i = f.indexOf(document.activeElement as HTMLElement);
+    if (e.shiftKey && i <= 0) {
+      e.preventDefault();
+      f[f.length - 1].focus();
+    } else if (!e.shiftKey && i === f.length - 1) {
+      e.preventDefault();
+      f[0].focus();
+    }
+  };
+
   if (!abierta) return null;
   // Portal al <body>: así ninguna barra fija/pegajosa de la página puede quedar encima de la hoja,
   // sin importar desde qué parte de la pantalla se abra.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
-      <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-ink-50 pb-safe animate-sube sm:rounded-3xl">
+      <div
+        ref={panel}
+        tabIndex={-1}
+        onKeyDown={atraparTab}
+        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-ink-50 pb-safe outline-none animate-sube sm:rounded-3xl"
+      >
         <div className="sticky top-0 z-10 flex items-center gap-2 bg-ink-50/95 px-5 pt-3 pb-2 backdrop-blur">
           <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink-300 sm:hidden" />
           <div className="mt-2 flex-1 text-lg font-bold">{titulo}</div>

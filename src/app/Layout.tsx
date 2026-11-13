@@ -6,6 +6,7 @@ import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
 import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
+import { useHoy } from './reloj';
 import { Avatar, cx } from '../components/ui';
 import { LogoAcademia } from '../components/LogoAcademia';
 
@@ -24,6 +25,7 @@ const TABS: { to: string; texto: string; icono: typeof DoorOpen; para: Rol[] }[]
  */
 export function Layout() {
   const { usuario } = useSesion();
+  const dia = useHoy();
   const tabs = TABS.filter((t) => t.para.includes(usuario.rol));
   return (
     <div className="min-h-dvh lg:flex">
@@ -31,7 +33,10 @@ export function Layout() {
       <div className="mx-auto flex min-h-dvh w-full max-w-2xl min-w-0 flex-col lg:max-w-none lg:flex-1">
         <BarraSuperior />
         <main className={cx('mx-auto w-full flex-1 lg:max-w-6xl lg:px-6 lg:pb-10', tabs.length < 2 ? 'pb-8' : 'pb-24')}>
-          <Outlet />
+          {/* key = fecha: a medianoche la pantalla se vuelve a montar con el día nuevo */}
+          <div key={dia} className="contents">
+            <Outlet />
+          </div>
         </main>
       </div>
       <nav className={cx('fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur lg:hidden', tabs.length < 2 && 'hidden')}>
@@ -142,7 +147,7 @@ function IndicadorSync() {
   }[fase];
   const Icono = cfg.icono;
   return (
-    <NavLink to="/ajustes/nube" className={cx('flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold', cfg.cls)}>
+    <NavLink to="/ajustes/nube" className={cx('flex min-h-9 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', cfg.cls)}>
       <Icono size={14} /> {cfg.texto}
     </NavLink>
   );

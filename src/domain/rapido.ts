@@ -85,5 +85,7 @@ export async function cambiarMetodo(movs: Movimiento[], metodo: MetodoPago): Pro
 /** Billetes con los que probablemente pagaron: los más chicos que alcanzan el total. */
 export function billetesSugeridos(total: number): number[] {
   const billetes = [2000, 5000, 10000, 20000, 50000, 100000];
-  return billetes.filter((b) => b > total).slice(0, 4);
+  // Para cuentas grandes: redondear hacia arriba a $100, $500 y $1,000
+  const arriba = [10000, 50000, 100000].map((m) => Math.ceil((total + 1) / m) * m);
+  return [...new Set([...billetes, ...arriba])].filter((b) => b > total).sort((a, b) => a - b).slice(0, 4);
 }

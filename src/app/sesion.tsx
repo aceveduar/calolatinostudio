@@ -41,9 +41,14 @@ export function useEstadoApp() {
   }, []);
 
   useEffect(() => {
-    getMeta<{ usuarioId: ID; hasta: number }>('sesion').then((s) => {
-      setUsuarioId(s && s.hasta > Date.now() ? s.usuarioId : null);
-    });
+    const revisar = () =>
+      getMeta<{ usuarioId: ID; hasta: number }>('sesion').then((s) => {
+        setUsuarioId(s && s.hasta > Date.now() ? s.usuarioId : null);
+      });
+    void revisar();
+    // El turno (10 h) vence aunque la app se quede abierta
+    const t = setInterval(() => void revisar(), 60_000);
+    return () => clearInterval(t);
   }, []);
 
   // undefined = cargando, null = no existe

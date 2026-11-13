@@ -76,7 +76,7 @@ export function PantallaCaja() {
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
           <ChevronLeft />
         </button>
-        <button className="text-sm font-semibold text-brand-600 disabled:text-ink-300" disabled={esHoy} onClick={() => setFecha(hoy())}>
+        <button className="rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-300" disabled={esHoy} onClick={() => setFecha(hoy())}>
           Ir a hoy
         </button>
         <button className="rounded-xl p-2.5 active:bg-ink-100 disabled:opacity-30" disabled={esHoy} onClick={() => setFecha(sumarDias(fecha, 1))} aria-label="Día siguiente">
