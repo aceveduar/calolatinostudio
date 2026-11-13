@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -153,7 +154,9 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
     };
   }, [abierta, onCerrar]);
   if (!abierta) return null;
-  return (
+  // Portal al <body>: así ninguna barra fija/pegajosa de la página puede quedar encima de la hoja,
+  // sin importar desde qué parte de la pantalla se abra.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
       <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-ink-50 pb-safe animate-sube sm:rounded-3xl">
@@ -166,7 +169,8 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
         </div>
         <div className="px-5 pb-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
