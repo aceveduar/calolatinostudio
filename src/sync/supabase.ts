@@ -22,3 +22,10 @@ export async function verificarCuentaAcademia(email: string, password: string, a
   await temp.auth.signOut();
   if (!data) throw new Error('Esa cuenta no es de esta academia.');
 }
+
+/** ¿La base de datos ya tiene esta columna? (para no activar funciones que requieren una migración pendiente) */
+export async function baseTieneColumna(tabla: string, columna: string): Promise<boolean> {
+  if (!supabase) return true;
+  const { error } = await supabase.from(tabla).select(columna).limit(1);
+  return !error;
+}

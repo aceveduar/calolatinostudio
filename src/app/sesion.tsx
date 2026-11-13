@@ -9,6 +9,7 @@ interface Sesion {
   academia: Academia;
   usuario: Usuario;
   esDueno: boolean;
+  esMaestro: boolean;
   bloquear: () => void;
 }
 
@@ -53,6 +54,8 @@ export function useEstadoApp() {
 
   const abrir = useCallback(async (u: Usuario) => {
     await setMeta('sesion', { usuarioId: u.id, hasta: Date.now() + HORAS_SESION * 3600_000 });
+    // Cada persona empieza en su pantalla principal, nunca donde se quedó la anterior
+    history.replaceState(null, '', '/');
     setUsuarioId(u.id);
   }, []);
 
@@ -70,6 +73,6 @@ export function useEstadoApp() {
   return { estado, abrir, bloquear };
 }
 
-export function ProveedorSesion({ academia, usuario, bloquear, children }: Omit<Sesion, 'esDueno'> & { children: ReactNode }) {
-  return <Ctx.Provider value={{ academia, usuario, esDueno: usuario.rol === 'dueno', bloquear }}>{children}</Ctx.Provider>;
+export function ProveedorSesion({ academia, usuario, bloquear, children }: Omit<Sesion, 'esDueno' | 'esMaestro'> & { children: ReactNode }) {
+  return <Ctx.Provider value={{ academia, usuario, esDueno: usuario.rol === 'dueno', esMaestro: usuario.rol === 'maestro', bloquear }}>{children}</Ctx.Provider>;
 }

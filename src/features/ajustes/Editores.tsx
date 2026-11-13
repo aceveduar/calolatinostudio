@@ -5,7 +5,10 @@ import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
-import type { Clase, Disciplina, ID, Maestro, Plan, Rol, TipoPlan, Usuario } from '../../db/types';
+import { NOMBRE_ROL, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Rol, type TipoPlan, type Usuario } from '../../db/types';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getMeta } from '../../db/db';
+import { baseTieneColumna } from '../../sync/supabase';
 import { crearUsuario, hashPin } from '../../domain/acceso';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS } from '../../domain/fechas';
@@ -407,7 +410,7 @@ export function EditorUsuarios() {
           <>
             <Avatar nombre={u.nombre} tam={36} />
             <span className={cx('flex-1 font-semibold', !u.activo && 'opacity-40')}>{u.nombre}</span>
-            <Etiqueta tono={u.rol === 'dueno' ? 'marca' : 'neutro'}>{u.rol === 'dueno' ? 'Dueño' : 'Recepción'}</Etiqueta>
+            <Etiqueta tono={u.rol === 'dueno' ? 'marca' : u.rol === 'maestro' ? 'ok' : 'neutro'}>{NOMBRE_ROL[u.rol]}</Etiqueta>
           </>
         )}
         form={(u, cerrar) => <FormUsuario usuario={u} onHecho={cerrar} />}
@@ -422,6 +425,11 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
   const usuarios = useUsuarios();
   const [nombre, setNombre] = useState(usuario?.nombre ?? '');
   const [rol, setRol] = useState<Rol>(usuario?.rol ?? 'recepcion');
+  const maestros = useMaestros().filter((m) => m.activo);
+  const [maestroId, setMaestroId] = useState<string>(usuario?.maestroId ?? '');
+  const vinculada = useLiveQuery(() => getMeta<boolean>('nubeVinculada'), [], false);
+  // Si usa nube, el rol "maestro" requiere la base actualizada (si no, la sincronización fallaría)
+  const baseLista = useLiveQuery(async () => (vinculada ? baseTieneColumna('usuarios', 'maestro_id') : true), [vinculada], true);
   const [pin, setPin] = useState('');
   const [activo, setActivo] = useState(usuario?.activo ?? true);
   const esUltimoDueno = usuario?.rol === 'dueno' && usuarios.filter((u) => u.rol === 'dueno' && u.activo).length === 1;
@@ -432,11 +440,12 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
       await actualizar('usuarios', usuario.id, {
         nombre: nombre.trim(),
         rol: esUltimoDueno ? 'dueno' : rol,
+        maestroId: rol === 'maestro' ? maestroId || null : null,
         activo: esUltimoDueno || usuario.id === yo.id ? true : activo,
         ...(pinValido ? { pinHash: await hashPin(pin, academia.id) } : {}),
       });
     } else {
-      await crearUsuario({ nombre, rol, pin, academiaId: academia.id });
+      await crearUsuario({ nombre, rol, pin, academiaId: academia.id, maestroId: maestroId || null });
     }
     avisar('Usuario guardado');
     onHecho();
@@ -451,17 +460,52 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
         <Segmentos<Rol>
           opciones={[
             { valor: 'recepcion', texto: 'Recepción' },
+            { valor: 'maestro', texto: 'Maestro' },
             { valor: 'dueno', texto: 'Dueño' },
           ]}
           valor={rol}
-          onChange={setRol}
+          onChange={(r) => {
+            setRol(r);
+            if (r === 'maestro' && !nombre.trim() && maestros.length === 1) setNombre(maestros[0].nombre);
+          }}
         />
       )}
+      <p className="-mt-2 px-1 text-xs text-ink-500">
+        {rol === 'dueno'
+          ? 'Ve y cambia todo: precios, usuarios, reportes y dinero.'
+          : rol === 'recepcion'
+            ? 'Cobra, da entradas y hace el corte. No cambia precios ni usuarios.'
+            : 'Solo ve sus clases: quién llegó, quién es nuevo y sus números. Nunca ve dinero.'}
+      </p>
+      {rol === 'maestro' &&
+        (!baseLista ? (
+          <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+            Para dar acceso a maestros hay que actualizar la base de datos (correr supabase/schema.sql). Pídeselo a tu proveedor.
+          </p>
+        ) : (
+          <Campo etiqueta="¿Qué maestro es?">
+            <Selector
+              value={maestroId}
+              onChange={(e) => {
+                setMaestroId(e.target.value);
+                const m = maestros.find((x) => x.id === e.target.value);
+                if (m && !nombre.trim()) setNombre(m.nombre);
+              }}
+            >
+              <option value="">Elige…</option>
+              {maestros.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </Selector>
+          </Campo>
+        ))}
       <Campo etiqueta={usuario ? 'Nuevo PIN (déjalo vacío para no cambiarlo)' : 'PIN de 4 dígitos'}>
         <Entrada inputMode="numeric" type="password" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
       </Campo>
       {usuario && !esUltimoDueno && usuario.id !== yo.id && <Interruptor valor={activo} onChange={setActivo} texto="Puede entrar a la app" />}
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinValido) || (pin.length > 0 && !pinValido)}>
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinValido) || (pin.length > 0 && !pinValido) || (rol === 'maestro' && (!maestroId || !baseLista))}>
         Guardar
       </Boton>
     </div>

@@ -30,7 +30,8 @@ create table if not exists usuarios (
   id uuid primary key,
   academia_id uuid not null references academias(id),
   nombre text not null,
-  rol text not null check (rol in ('dueno','recepcion')),
+  rol text not null,
+  maestro_id uuid,
   pin_hash text not null,
   activo boolean not null default true,
   created_at bigint not null, updated_at bigint not null, deleted_at bigint,
@@ -162,6 +163,9 @@ create table if not exists cortes (
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
+alter table usuarios add column if not exists maestro_id uuid;
+alter table usuarios drop constraint if exists usuarios_rol_check;
+alter table usuarios add constraint usuarios_rol_check check (rol in ('dueno','recepcion','maestro'));
 alter table clases add column if not exists maestro_id uuid;
 
 -- ---------- cursor de sincronización ----------

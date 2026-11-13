@@ -16,10 +16,11 @@ export async function verificarPin(u: Usuario, pin: string): Promise<boolean> {
   return (await hashPin(pin, u.academiaId)) === u.pinHash;
 }
 
-export async function crearUsuario(p: { nombre: string; rol: Rol; pin: string; academiaId: ID }) {
+export async function crearUsuario(p: { nombre: string; rol: Rol; pin: string; academiaId: ID; maestroId?: ID | null }) {
   return crear('usuarios', {
     nombre: p.nombre.trim(),
     rol: p.rol,
+    maestroId: p.rol === 'maestro' ? (p.maestroId ?? null) : null,
     pinHash: await hashPin(p.pin, p.academiaId),
     activo: true,
   });

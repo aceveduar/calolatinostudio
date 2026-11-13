@@ -45,12 +45,13 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
       <div className="flex items-center gap-3 pt-6">
-        <LogoAcademia academia={academia} tam={44} />
+        {!academia.logo && <LogoAcademia academia={academia} tam={44} />}
         <span className="truncate text-lg font-bold">{academia.nombre}</span>
       </div>
 
       {!usuario ? (
         <div className="flex flex-1 flex-col justify-center pb-10">
+          {academia.logo && <img src={academia.logo} alt="" className="mx-auto mb-8 h-36 w-auto max-w-[70%] object-contain drop-shadow-sm" />}
           <h1 className="mb-8 text-center text-2xl font-extrabold">¿Quién eres?</h1>
           <div className="grid grid-cols-3 gap-4">
             {usuarios.map((u) => (

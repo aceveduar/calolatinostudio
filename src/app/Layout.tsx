@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, ChartColumn, LockKeyhole } from 'lucide-react';
+import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, ChartColumn, LockKeyhole, GraduationCap } from 'lucide-react';
+import type { Rol } from '../db/types';
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
@@ -8,12 +9,13 @@ import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion
 import { Avatar, cx } from '../components/ui';
 import { LogoAcademia } from '../components/LogoAcademia';
 
-const TABS = [
-  { to: '/', texto: 'Entrada', icono: DoorOpen, soloDueno: false },
-  { to: '/alumnos', texto: 'Alumnos', icono: Users, soloDueno: false },
-  { to: '/caja', texto: 'Caja', icono: Wallet, soloDueno: false },
-  { to: '/reportes', texto: 'Reportes', icono: ChartColumn, soloDueno: true },
-  { to: '/ajustes', texto: 'Ajustes', icono: Settings, soloDueno: false },
+const TABS: { to: string; texto: string; icono: typeof DoorOpen; para: Rol[] }[] = [
+  { to: '/', texto: 'Entrada', icono: DoorOpen, para: ['dueno', 'recepcion'] },
+  { to: '/', texto: 'Mis clases', icono: GraduationCap, para: ['maestro'] },
+  { to: '/alumnos', texto: 'Alumnos', icono: Users, para: ['dueno', 'recepcion'] },
+  { to: '/caja', texto: 'Caja', icono: Wallet, para: ['dueno', 'recepcion'] },
+  { to: '/reportes', texto: 'Reportes', icono: ChartColumn, para: ['dueno'] },
+  { to: '/ajustes', texto: 'Ajustes', icono: Settings, para: ['dueno', 'recepcion'] },
 ];
 
 /**
@@ -21,22 +23,22 @@ const TABS = [
  * Laptop/PC (≥1024 px): barra lateral fija y contenido a todo lo ancho.
  */
 export function Layout() {
-  const { esDueno } = useSesion();
-  const tabs = TABS.filter((t) => esDueno || !t.soloDueno);
+  const { usuario } = useSesion();
+  const tabs = TABS.filter((t) => t.para.includes(usuario.rol));
   return (
     <div className="min-h-dvh lg:flex">
       <BarraLateral tabs={tabs} />
       <div className="mx-auto flex min-h-dvh w-full max-w-2xl min-w-0 flex-col lg:max-w-none lg:flex-1">
         <BarraSuperior />
-        <main className="mx-auto w-full flex-1 pb-24 lg:max-w-6xl lg:px-6 lg:pb-10">
+        <main className={cx('mx-auto w-full flex-1 lg:max-w-6xl lg:px-6 lg:pb-10', tabs.length < 2 ? 'pb-8' : 'pb-24')}>
           <Outlet />
         </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur lg:hidden">
+      <nav className={cx('fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur lg:hidden', tabs.length < 2 && 'hidden')}>
         <div className="mx-auto grid max-w-2xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map(({ to, texto, icono: Icono }) => (
             <NavLink
-              key={to}
+              key={texto}
               to={to}
               end={to === '/'}
               className={({ isActive }) => cx('flex flex-col items-center gap-0.5 pt-2.5 pb-1 text-[11px] font-semibold', isActive ? 'text-brand-600' : 'text-ink-500')}
@@ -71,7 +73,7 @@ function BarraLateral({ tabs }: { tabs: typeof TABS }) {
       <nav className="mt-8 flex flex-col gap-1">
         {tabs.map(({ to, texto, icono: Icono }) => (
           <NavLink
-            key={to}
+            key={texto}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>

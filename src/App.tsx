@@ -11,6 +11,7 @@ import { FichaAlumno } from './features/alumnos/FichaAlumno';
 import { PantallaAlumnos } from './features/alumnos/PantallaAlumnos';
 import { PantallaCaja } from './features/caja/PantallaCaja';
 import { PantallaReportes } from './features/reportes/PantallaReportes';
+import { PantallaMaestro } from './features/maestro/PantallaMaestro';
 import { PantallaEntrada } from './features/entrada/PantallaEntrada';
 import { iniciarSync } from './sync/engine';
 
@@ -39,6 +40,12 @@ export default function App() {
         <ProveedorSesion academia={estado.academia} usuario={estado.usuario} bloquear={bloquear}>
           <BrowserRouter>
             <Routes>
+              {estado.usuario.rol === 'maestro' ? (
+                <Route element={<Layout />}>
+                  <Route index element={<PantallaMaestro />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
+              ) : (
               <Route element={<Layout />}>
                 <Route index element={<PantallaEntrada />} />
                 <Route path="alumnos" element={<PantallaAlumnos />} />
@@ -49,6 +56,7 @@ export default function App() {
                 <Route path="ajustes/:seccion" element={<PantallaAjustes />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
+              )}
             </Routes>
           </BrowserRouter>
         </ProveedorSesion>

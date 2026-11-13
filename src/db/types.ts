@@ -28,11 +28,15 @@ export interface Academia {
   deletedAt: number | null;
 }
 
-export type Rol = 'dueno' | 'recepcion';
+export type Rol = 'dueno' | 'recepcion' | 'maestro';
+
+export const NOMBRE_ROL: Record<Rol, string> = { dueno: 'Dueño', recepcion: 'Recepción', maestro: 'Maestro' };
 
 export interface Usuario extends Base {
   nombre: string;
   rol: Rol;
+  /** Solo rol 'maestro': qué maestro del catálogo es (ve únicamente sus clases). */
+  maestroId?: ID | null;
   pinHash: string;
   activo: boolean;
 }

@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import { RespaldoLocal } from './Respaldo';
+import { NOMBRE_ROL } from '../../db/types';
 import { LogoAcademia, prepararLogo } from '../../components/LogoAcademia';
 import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorUsuarios } from './Editores';
 import { PanelNube } from './PanelNube';
@@ -26,6 +27,10 @@ export function PantallaAjustes() {
   const { esDueno, bloquear, usuario } = useSesion();
   const nav = useNavigate();
 
+  const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'disciplinas', 'usuarios', 'academia', 'nube'] : ['nube'];
+  // Permiso por sección: también si se llega por enlace directo
+  if (seccion && !visibles.includes(seccion as Clave)) return <Navigate to="/ajustes" replace />;
+
   if (seccion && seccion in SECCIONES) {
     const s = SECCIONES[seccion as Clave];
     const Comp = s.comp;
@@ -40,12 +45,10 @@ export function PantallaAjustes() {
     );
   }
 
-  const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'disciplinas', 'usuarios', 'academia', 'nube'] : ['nube'];
-
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <div className="-mx-4">
-        <Encabezado titulo="Ajustes" sub={`${usuario.nombre} · ${usuario.rol === 'dueno' ? 'Dueño' : 'Recepción'}`} />
+        <Encabezado titulo="Ajustes" sub={`${usuario.nombre} · ${NOMBRE_ROL[usuario.rol]}`} />
       </div>
       <Tarjeta className="divide-y divide-ink-100">
         {visibles.map((k) => {
