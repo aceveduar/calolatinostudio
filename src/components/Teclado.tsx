@@ -1,16 +1,16 @@
 import { Delete } from 'lucide-react';
 import { cx } from './ui';
 
-/** Teclado numérico para PIN de 4 dígitos. */
-export function TecladoPin({ valor, onChange, error }: { valor: string; onChange: (v: string) => void; error?: boolean }) {
+/** Teclado numérico para el PIN (4 o 6 dígitos según el usuario). */
+export function TecladoPin({ valor, onChange, error, largo = 6 }: { valor: string; onChange: (v: string) => void; error?: boolean; largo?: number }) {
   const tecla = (t: string) => {
     if (t === 'borrar') return onChange(valor.slice(0, -1));
-    if (valor.length < 4) onChange(valor + t);
+    if (valor.length < largo) onChange(valor + t);
   };
   return (
     <div className="mx-auto w-full max-w-xs">
       <div className={cx('mb-8 flex justify-center gap-4', error && 'animate-[sube_200ms]')}>
-        {[0, 1, 2, 3].map((i) => (
+        {Array.from({ length: largo }, (_, i) => i).map((i) => (
           <span
             key={i}
             className={cx(

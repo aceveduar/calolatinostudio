@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QrScanner from 'qr-scanner';
-import { AlertTriangle, CameraOff, Check, ScanLine, SwitchCamera, XCircle } from 'lucide-react';
+import { AlertTriangle, CameraOff, Loader2, Check, ScanLine, SwitchCamera, XCircle } from 'lucide-react';
 import { Boton, cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
 import { leerQR } from '../../domain/qr';
@@ -8,7 +8,7 @@ import type { Movimiento } from '../../domain/rapido';
 
 /** Lo que pasó al leer un QR, para mostrarlo en grande. */
 export interface LecturaQR {
-  tono: 'ok' | 'aviso' | 'error';
+  tono: 'ok' | 'aviso' | 'error' | 'leyendo';
   titulo: string;
   detalle: string;
 }
@@ -20,6 +20,7 @@ const ESTILO = {
   ok: { fondo: 'bg-[#15924b]/95', icono: Check },
   aviso: { fondo: 'bg-[#b7791f]/95', icono: AlertTriangle },
   error: { fondo: 'bg-[#c53030]/95', icono: XCircle },
+  leyendo: { fondo: 'bg-black/70', icono: Loader2 },
 } as const;
 
 /**
@@ -58,6 +59,7 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
         if (clave === ultimo.current.codigo && ahora - ultimo.current.t < ESPERA_MISMO_CODIGO_MS) return;
         ultimo.current = { codigo: clave, t: ahora };
         ocupado.current = true;
+        setLectura({ tono: 'leyendo', titulo: 'Leyendo…', detalle: 'Un momento' });
         const res: LecturaQR = codigo
           ? await alCodigo.current(codigo).catch(() => ({ tono: 'error' as const, titulo: 'No se pudo registrar', detalle: 'Intenta de nuevo' }))
           : { tono: 'error', titulo: 'QR no reconocido', detalle: 'No es una credencial de la academia' };
@@ -105,7 +107,7 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
             aria-live="assertive"
           >
             <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 animate-pop">
-              <Icono size={48} strokeWidth={3} />
+              <Icono size={48} strokeWidth={3} className={lectura?.tono === 'leyendo' ? 'animate-spin' : undefined} />
             </span>
             <span className="mt-2 text-2xl leading-tight font-extrabold">{lectura.titulo}</span>
             <span className="text-xl font-semibold text-white/90">{lectura.detalle}</span>

@@ -7,7 +7,7 @@ import { Avatar, Boton, Campo, Entrada, EntradaClave, Tarjeta, cx } from '../../
 import { db, getMeta } from '../../db/db';
 import { actualizar } from '../../db/repo';
 import type { Academia, Usuario } from '../../db/types';
-import { hashPin } from '../../domain/acceso';
+import { LARGO_PIN, hashPin, pinDebil, pinValido } from '../../domain/acceso';
 import { quitarAcademiaDelTelefono, sincronizar, useEstadoSync } from '../../sync/engine';
 import { verificarCuentaAcademia } from '../../sync/supabase';
 import { RespaldoLocal } from '../ajustes/Respaldo';
@@ -117,13 +117,14 @@ function RestablecerPin({ academia, onListo }: { academia: Academia; onListo: (u
           </button>
         ))}
       </div>
-      <Campo etiqueta="PIN nuevo (4 dígitos)">
-        <EntradaClave inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+      <Campo etiqueta={`PIN nuevo (${LARGO_PIN} dígitos)`}>
+        <EntradaClave inputMode="numeric" maxLength={LARGO_PIN} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+        {pin.length === LARGO_PIN && pinDebil(pin) && <span className="mt-1 block text-xs font-medium text-bad-600">Muy fácil de adivinar: usa números sin orden.</span>}
       </Campo>
       <Boton
         grande
         bloque
-        disabled={!quien || !/^\d{4}$/.test(pin)}
+        disabled={!quien || !pinValido(pin)}
         onClick={async () => {
           const u = await actualizar('usuarios', quien!.id, { pinHash: await hashPin(pin, academia.id) });
           avisar(`PIN de ${u.nombre.split(' ')[0]} actualizado`);

@@ -19,6 +19,7 @@ import { METODOS } from '../alumnos/VenderPlan';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
 import { Escaner, type LecturaQR } from './Escaner';
+import { sincronizar } from '../../sync/engine';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
 import { parecidos } from '../../domain/correcciones';
@@ -131,8 +132,19 @@ export function PantallaEntrada() {
 
   /** Escáner: registra y describe en grande qué pasó. */
   const alEscanear = async (codigo: string): Promise<LecturaQR> => {
-    const a = await db.alumnos.where('codigo').equals(codigo).first();
-    if (!a || a.deletedAt) return { tono: 'error', titulo: 'QR no reconocido', detalle: 'No es de un alumno de esta academia' };
+    const buscar = () => db.alumnos.where('codigo').equals(codigo).filter((x) => !x.deletedAt).first();
+    let a = await buscar();
+    // Pudo darse de alta en otro equipo hace segundos: traer lo nuevo de la nube y volver a buscar
+    if (!a && navigator.onLine) {
+      await sincronizar();
+      a = await buscar();
+    }
+    if (!a)
+      return {
+        tono: 'error',
+        titulo: 'Alumno no encontrado',
+        detalle: navigator.onLine ? 'Ese QR no es de un alumno activo de esta academia' : 'Sin internet: si se registró en otro equipo, aún no llega aquí',
+      };
     const nombre = a.nombre;
     if (!a.activo) return { tono: 'aviso', titulo: nombre, detalle: 'Está dado de baja' };
     if (!clase) return { tono: 'error', titulo: 'Elige la clase primero', detalle: 'Cierra el escáner y elige la clase' };

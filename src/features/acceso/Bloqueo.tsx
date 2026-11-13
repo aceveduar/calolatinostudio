@@ -4,7 +4,7 @@ import { useUsuarios } from '../../app/datos';
 import { Avatar, Hoja } from '../../components/ui';
 import { AyudaAcceso } from './AyudaAcceso';
 import { TecladoPin } from '../../components/Teclado';
-import { verificarPin } from '../../domain/acceso';
+import { largoPin, verificarPin } from '../../domain/acceso';
 import type { Academia, Usuario } from '../../db/types';
 import { LogoAcademia } from '../../components/LogoAcademia';
 
@@ -33,7 +33,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
 
   const alPin = async (v: string) => {
     setPin(v);
-    if (v.length < 4 || !usuario) return;
+    if (!usuario || v.length < largoPin(usuario)) return;
     if (await verificarPin(usuario, v)) return onAbrir(usuario);
     const n = fallos + 1;
     setFallos(n);
@@ -81,7 +81,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
             </p>
           </div>
           <div className={espera ? 'pointer-events-none opacity-40' : undefined}>
-            <TecladoPin valor={pin} onChange={alPin} error={error} />
+            <TecladoPin valor={pin} onChange={alPin} error={error} largo={largoPin(usuario)} />
           </div>
         </div>
       )}

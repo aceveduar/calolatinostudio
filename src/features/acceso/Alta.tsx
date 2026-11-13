@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, CloudDownload, Sparkles } from 'lucide-react';
 import { Boton, Campo, Entrada, EntradaClave } from '../../components/ui';
 import { TecladoPin } from '../../components/Teclado';
-import { crearAcademia } from '../../domain/acceso';
+import { LARGO_PIN, crearAcademia, pinDebil } from '../../domain/acceso';
 import { entrarEnDispositivoNuevo } from '../../sync/engine';
 import { nubeConfigurada } from '../../sync/supabase';
 import type { Usuario } from '../../db/types';
@@ -24,11 +24,20 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
 
   const alPin = (v: string) => {
     setPin(v);
-    if (v.length === 4) setTimeout(() => setPaso('confirmar'), 150);
+    if (v.length !== LARGO_PIN) return;
+    if (pinDebil(v)) {
+      setError('Muy fácil de adivinar: usa números sin orden');
+      setTimeout(() => {
+        setPin('');
+        setError('');
+      }, 1400);
+      return;
+    }
+    setTimeout(() => setPaso('confirmar'), 150);
   };
   const alConfirmar = async (v: string) => {
     setPin2(v);
-    if (v.length < 4) return;
+    if (v.length < LARGO_PIN) return;
     if (v !== pin) {
       setError('Los PIN no coinciden');
       setTimeout(() => {
@@ -112,9 +121,9 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
 
       {(paso === 'pin' || paso === 'confirmar') && (
         <div className="flex flex-1 flex-col justify-center pb-10">
-          <h1 className="text-center text-2xl font-extrabold">{paso === 'pin' ? 'Crea tu PIN de 4 dígitos' : 'Repite tu PIN'}</h1>
+          <h1 className="text-center text-2xl font-extrabold">{paso === 'pin' ? `Crea tu PIN de ${LARGO_PIN} dígitos` : 'Repite tu PIN'}</h1>
           <p className="mt-1 mb-10 text-center text-ink-500">{error || 'Lo usarás para entrar a la app.'}</p>
-          {paso === 'pin' ? <TecladoPin valor={pin} onChange={alPin} /> : <TecladoPin valor={pin2} onChange={alConfirmar} error={!!error} />}
+          {paso === 'pin' ? <TecladoPin valor={pin} onChange={alPin} error={!!error} /> : <TecladoPin valor={pin2} onChange={alConfirmar} error={!!error} />}
         </div>
       )}
 

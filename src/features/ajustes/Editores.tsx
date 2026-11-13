@@ -9,7 +9,7 @@ import { NOMBRE_ROL, type Clase, type Disciplina, type ID, type Maestro, type Pl
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getMeta } from '../../db/db';
 import { baseTieneColumna } from '../../sync/supabase';
-import { crearUsuario, hashPin } from '../../domain/acceso';
+import { LARGO_PIN, crearUsuario, hashPin, largoPin, pinDebil, pinValido } from '../../domain/acceso';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { describirPlan } from '../alumnos/VenderPlan';
@@ -433,7 +433,7 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
   const [pin, setPin] = useState('');
   const [activo, setActivo] = useState(usuario?.activo ?? true);
   const esUltimoDueno = usuario?.rol === 'dueno' && usuarios.filter((u) => u.rol === 'dueno' && u.activo).length === 1;
-  const pinValido = /^\d{4}$/.test(pin);
+  const pinOk = pinValido(pin);
 
   const guardar = async () => {
     if (usuario) {
@@ -442,7 +442,7 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
         rol: esUltimoDueno ? 'dueno' : rol,
         maestroId: rol === 'maestro' ? maestroId || null : null,
         activo: esUltimoDueno || usuario.id === yo.id ? true : activo,
-        ...(pinValido ? { pinHash: await hashPin(pin, academia.id) } : {}),
+        ...(pinOk ? { pinHash: await hashPin(pin, academia.id) } : {}),
       });
     } else {
       await crearUsuario({ nombre, rol, pin, academiaId: academia.id, maestroId: maestroId || null });
@@ -501,11 +501,12 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
             </Selector>
           </Campo>
         ))}
-      <Campo etiqueta={usuario ? 'Nuevo PIN (déjalo vacío para no cambiarlo)' : 'PIN de 4 dígitos'}>
-        <EntradaClave inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+      <Campo etiqueta={usuario ? `Nuevo PIN de ${LARGO_PIN} dígitos (déjalo vacío para no cambiarlo)` : `PIN de ${LARGO_PIN} dígitos`} ayuda={usuario && largoPin(usuario) < LARGO_PIN ? `Su PIN actual es de ${largoPin(usuario)} dígitos: cámbialo por uno de ${LARGO_PIN} para más seguridad.` : 'Evita fechas de nacimiento o números seguidos (123456).'}>
+        <EntradaClave inputMode="numeric" maxLength={LARGO_PIN} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+        {pin.length === LARGO_PIN && pinDebil(pin) && <span className="mt-1 block text-xs font-medium text-bad-600">Muy fácil de adivinar: usa números sin orden.</span>}
       </Campo>
       {usuario && !esUltimoDueno && usuario.id !== yo.id && <Interruptor valor={activo} onChange={setActivo} texto="Puede entrar a la app" />}
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinValido) || (pin.length > 0 && !pinValido) || (rol === 'maestro' && (!maestroId || !baseLista))}>
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinOk) || (pin.length > 0 && !pinOk) || (rol === 'maestro' && (!maestroId || !baseLista))}>
         Guardar
       </Boton>
     </div>
