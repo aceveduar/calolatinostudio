@@ -13,7 +13,7 @@ const actualizarSW = registerSW({ immediate: true, onNeedRefresh: () => hayActua
 
 // Solo en builds de demo/pruebas: expone el generador de datos de ejemplo
 if (import.meta.env.VITE_SEMILLA === '1') {
-  void import('./dev/semilla').then((m) => ((window as unknown as Record<string, unknown>).compasDev = { sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo }));
+  void import('./dev/semilla').then((m) => ((window as unknown as Record<string, unknown>).compasDev = { sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo, agregarTiendaDemo: m.agregarTiendaDemo }));
 }
 
 async function arrancar() {

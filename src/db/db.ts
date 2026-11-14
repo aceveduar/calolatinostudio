@@ -12,6 +12,7 @@ import type {
   OutboxItem,
   Pago,
   Plan,
+  Producto,
   Usuario,
 } from './types';
 
@@ -23,6 +24,7 @@ export class CompasDB extends Dexie {
   maestros!: EntityTable<Maestro, 'id'>;
   clases!: EntityTable<Clase, 'id'>;
   planes!: EntityTable<Plan, 'id'>;
+  productos!: EntityTable<Producto, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -79,6 +81,12 @@ export class CompasDB extends Dexie {
             void tx.table('outbox').add({ table: 'clases', id: c.id, at: ahora });
           });
       });
+
+    // v3: tienda (productos) y ventas ligadas a producto
+    this.version(3).stores({
+      productos: 'id, academiaId',
+      pagos: 'id, academiaId, fecha, alumnoId, productoId',
+    });
   }
 }
 

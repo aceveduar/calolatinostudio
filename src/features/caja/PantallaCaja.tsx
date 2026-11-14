@@ -88,6 +88,11 @@ export function PantallaCaja() {
       <div className="rounded-3xl bg-panel p-5 text-white">
         <p className="text-sm text-white/60">Total cobrado</p>
         <p className="mt-1 text-4xl font-extrabold tracking-tight">{dinero(r.total)}</p>
+        {r.tienda > 0 && (
+          <p className="mt-1 text-sm text-white/70">
+            Clases {dinero(r.total - r.tienda)} · Tienda {dinero(r.tienda)}
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
           <Cifra etiqueta="Efectivo" valor={r.efectivo} />
           <Cifra etiqueta="Transferencia" valor={r.transferencia} />

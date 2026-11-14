@@ -19,7 +19,11 @@ export interface Movimiento {
   monto: number;
   metodo: MetodoPago | null;
   pagoId: ID | null;
-  asistenciaId: ID;
+  /** null en ventas de tienda */
+  asistenciaId: ID | null;
+  /** venta de tienda */
+  productoId?: ID;
+  emoji?: string;
   /** alumno creado en este mismo cobro (se borra al deshacer) */
   alumnoCreadoId: ID | null;
 }
@@ -70,7 +74,7 @@ export async function nuevoYCobrar(nombre: string, clase: Clase, usuarioId: ID):
 
 export async function deshacer(m: Movimiento): Promise<void> {
   await enTransaccion(async () => {
-    await borrar('asistencias', m.asistenciaId);
+    if (m.asistenciaId) await borrar('asistencias', m.asistenciaId);
     if (m.pagoId) await borrar('pagos', m.pagoId);
     if (m.alumnoCreadoId) await borrar('alumnos', m.alumnoCreadoId);
   });

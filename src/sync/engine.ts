@@ -51,10 +51,11 @@ function aLocal(r: Record<string, unknown>) {
 
 async function push(): Promise<void> {
   if (!supabase) return;
+  const retenidos = new Set<ID>();
   for (;;) {
-    const items = await db.outbox.orderBy('seq').limit(500).toArray();
+    // Las tablas que la base aún no tiene se saltan (sus cambios esperan en la cola sin frenar al resto)
+    const items = await db.outbox.orderBy('seq').filter((o) => !tablasFaltantes.has(o.table) && !retenidos.has(o.id)).limit(500).toArray();
     if (!items.length) return;
-    const maxSeq = items[items.length - 1].seq!;
     const porTabla = new Map<SyncTable, Set<ID>>();
     for (const it of items) {
       if (!porTabla.has(it.table)) porTabla.set(it.table, new Set());
@@ -64,16 +65,34 @@ async function push(): Promise<void> {
     for (const tabla of SYNC_TABLES) {
       const ids = porTabla.get(tabla);
       if (!ids) continue;
-      const regs = (await db.table(tabla).bulkGet([...ids])).filter(Boolean) as Record<string, unknown>[];
+      let regs = (await db.table(tabla).bulkGet([...ids])).filter(Boolean) as Record<string, unknown>[];
+      // Ventas de tienda: esperan en la cola hasta que la base tenga productos (si no, perderían el producto)
+      if (tabla === 'pagos' && (tablasFaltantes.has('productos') || columnasFaltantes.has('pagos.producto_id'))) {
+        for (const r of regs) if (r.productoId) retenidos.add(r.id as ID);
+        regs = regs.filter((r) => !r.productoId);
+      }
       if (!regs.length) continue;
-      await subirTolerante(tabla, regs.map(aRemoto));
+      try {
+        await subirTolerante(tabla, regs.map(aRemoto));
+      } catch (e) {
+        if (!esTablaFaltante(e)) throw e;
+        tablasFaltantes.add(tabla);
+      }
     }
-    await db.outbox.where('seq').belowOrEqual(maxSeq).delete();
+    await db.outbox.bulkDelete(items.filter((o) => !tablasFaltantes.has(o.table) && !retenidos.has(o.id)).map((o) => o.seq!));
+    if (items.every((o) => tablasFaltantes.has(o.table) || retenidos.has(o.id))) return;
   }
 }
 
 /** Columnas que la app conoce pero la base aún no (falta correr la migración). */
 export const columnasFaltantes = new Set<string>();
+/** Tablas nuevas que la base aún no tiene (p. ej. productos antes de correr schema.sql). */
+export const tablasFaltantes = new Set<SyncTable>();
+
+function esTablaFaltante(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return /Could not find the table|relation .* does not exist|PGRST205|42P01/i.test(m);
+}
 
 /**
  * Si la app es más nueva que la base (p. ej. un campo nuevo como el logo), Supabase rechaza
@@ -109,6 +128,10 @@ async function pull(academiaId: ID): Promise<void> {
         .gt('server_updated_at', cursor)
         .order('server_updated_at', { ascending: true })
         .limit(500);
+      if (error && esTablaFaltante(error.message)) {
+        tablasFaltantes.add(tabla);
+        break;
+      }
       if (error) throw new Error(`${tabla}: ${error.message}`);
       if (!data.length) break;
 
@@ -142,10 +165,14 @@ export async function sincronizar(): Promise<void> {
       if (!vinculada) return setEstado({ fase: 'desconectada', error: null });
       if (!data.session) return setEstado({ fase: 'desconectada', error: 'La sesión de la nube caducó. Vuelve a conectar con el correo de la academia.' });
       if (!navigator.onLine) return setEstado({ fase: 'sin-red' });
+      tablasFaltantes.clear(); // reintentar: quizá ya se corrió la migración
       setEstado({ fase: 'sincronizando', error: null });
       await push();
       await pull(academiaId);
-      setEstado({ fase: 'al-dia', ultimo: Date.now(), error: columnasFaltantes.size ? `Actualiza la base de datos: falta ${[...columnasFaltantes].join(', ')} (corre supabase/schema.sql)` : null });
+      // Solo avisar si algo quedó esperando por la base vieja (si no hay nada de la tienda, no molestar)
+      const esperando = await db.outbox.count();
+      const falta = esperando ? [...tablasFaltantes, ...columnasFaltantes] : [...columnasFaltantes];
+      setEstado({ fase: 'al-dia', ultimo: Date.now(), error: falta.length ? `Actualiza la base de datos: falta ${falta.join(', ')} (corre supabase/schema.sql)` : null });
     } catch (e) {
       setEstado({ fase: navigator.onLine ? 'error' : 'sin-red', error: e instanceof Error ? e.message : String(e) });
     } finally {

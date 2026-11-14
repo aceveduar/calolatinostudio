@@ -347,3 +347,75 @@ export async function agregarClasesDemo(): Promise<number> {
   }
   return n;
 }
+
+const PRODUCTOS_DEMO: { nombre: string; emoji: string; precio: number; categoria: 'consumo' | 'articulo'; inventario: number | null; peso: number }[] = [
+  { nombre: 'Agua 600 ml', emoji: '💧', precio: 1500, categoria: 'consumo', inventario: 48, peso: 10 },
+  { nombre: 'Electrolit', emoji: '⚡', precio: 3500, categoria: 'consumo', inventario: 24, peso: 5 },
+  { nombre: 'Refresco', emoji: '🥤', precio: 2000, categoria: 'consumo', inventario: 24, peso: 4 },
+  { nombre: 'Galletas', emoji: '🍪', precio: 1500, categoria: 'consumo', inventario: 30, peso: 4 },
+  { nombre: 'Barrita', emoji: '🍫', precio: 2500, categoria: 'consumo', inventario: 6, peso: 3 },
+  { nombre: 'Dulces', emoji: '🍬', precio: 500, categoria: 'consumo', inventario: null, peso: 4 },
+  { nombre: 'Playera Calo', emoji: '👕', precio: 25000, categoria: 'articulo', inventario: 15, peso: 0.4 },
+  { nombre: 'Gorra Calo', emoji: '🧢', precio: 20000, categoria: 'articulo', inventario: 10, peso: 0.3 },
+  { nombre: 'Zapatillas de baile', emoji: '👟', precio: 120000, categoria: 'articulo', inventario: 4, peso: 0.1 },
+];
+
+/** Tienda de ejemplo: productos y 6 semanas de ventas en los días con clase; recalcula los cortes. */
+export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if (await db.productos.count()) throw new Error('Ya hay productos');
+  const A = academia.id;
+  const r = generador(424242);
+  const ahora = Date.now();
+  const base = (ts: number) => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ts, updatedAt: ts, deletedAt: null });
+  const recepcion = (await db.usuarios.filter((u) => u.rol === 'recepcion' && !u.deletedAt).first()) ?? (await db.usuarios.toCollection().first())!;
+  const inicio = new Date(sumarDias(hoy(), -DIAS_HISTORIA)).getTime();
+  const productos = PRODUCTOS_DEMO.map((p) => ({
+    ...base(inicio),
+    nombre: p.nombre, emoji: p.emoji, precio: p.precio, categoria: p.categoria, foto: null, descripcion: '',
+    // existencias contadas hace 3 días, para que el "quedan" reste solo lo reciente
+    inventario: p.inventario, inventarioAt: p.inventario === null ? null : new Date(sumarDias(hoy(), -3)).getTime(),
+    alerta: p.categoria === 'consumo' ? 6 : 2, activo: true, enLinea: p.categoria === 'articulo',
+  }));
+  const bolsa = PRODUCTOS_DEMO.flatMap((p, i) => Array(Math.ceil(p.peso * 10)).fill(i) as number[]);
+  const clases = await db.clases.filter((c) => c.activo && !c.deletedAt).toArray();
+  const ventas: Pago[] = [];
+  for (let d = DIAS_HISTORIA; d >= 1; d--) {
+    const fecha = sumarDias(hoy(), -d);
+    const dia = deFecha(fecha).getDay();
+    for (const c of clases.filter((x) => x.dias.includes(dia))) {
+      const n = 3 + Math.floor(r() * 9);
+      for (let k = 0; k < n; k++) {
+        const prod = productos[bolsa[Math.floor(r() * bolsa.length)]];
+        const fechaD = deFecha(fecha);
+        const [h, m] = c.horaInicio.split(':').map(Number);
+        fechaD.setHours(h, m + 50 + Math.floor(r() * 20), Math.floor(r() * 60));
+        const ts = fechaD.getTime();
+        const cantidad = r() < 0.15 ? 2 : 1;
+        const metodo: MetodoPago = r() < 0.12 ? 'transferencia' : 'efectivo';
+        ventas.push({ ...base(ts), alumnoId: null, planId: null, productoId: prod.id, cantidad, concepto: prod.nombre, monto: prod.precio * cantidad, metodo, usuarioId: recepcion.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null });
+      }
+    }
+  }
+  // Cortes: el efectivo esperado ahora incluye la tienda
+  const cortes: Corte[] = [];
+  for (const fecha of [...new Set(ventas.map((v) => v.fecha))]) {
+    const todos = [...(await db.pagos.where('fecha').equals(fecha).toArray()), ...ventas.filter((v) => v.fecha === fecha)].filter((p) => !p.anuladoAt && !p.deletedAt);
+    const efectivo = todos.filter((p) => p.metodo === 'efectivo').reduce((s, p) => s + p.monto, 0);
+    const otros = todos.reduce((s, p) => s + p.monto, 0) - efectivo;
+    const previo = (await db.cortes.where('fecha').equals(fecha).toArray())[0];
+    if (previo) cortes.push({ ...previo, esperadoEfectivo: efectivo, contadoEfectivo: efectivo + previo.diferencia, totalOtros: otros, updatedAt: ahora });
+  }
+  await db.transaction('rw', [db.productos, db.pagos, db.cortes, db.outbox], async () => {
+    await db.productos.bulkPut(productos);
+    await db.pagos.bulkPut(ventas);
+    await db.cortes.bulkPut(cortes);
+    await db.outbox.bulkAdd([
+      ...productos.map((x) => ({ table: 'productos' as const, id: x.id, at: ahora })),
+      ...ventas.map((x) => ({ table: 'pagos' as const, id: x.id, at: ahora })),
+      ...cortes.map((x) => ({ table: 'cortes' as const, id: x.id, at: ahora })),
+    ]);
+  });
+  return { productos: productos.length, ventas: ventas.length };
+}

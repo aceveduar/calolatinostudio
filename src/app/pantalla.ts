@@ -12,3 +12,15 @@ export function useEsEscritorio(): boolean {
     () => consulta?.matches ?? false,
   );
 }
+
+/** Pantalla de celular angosta (≤ 430 px), para acortar textos que no caben. */
+const angosta = typeof window !== 'undefined' ? window.matchMedia('(max-width: 430px)') : null;
+export function useAngosta(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      angosta?.addEventListener('change', cb);
+      return () => angosta?.removeEventListener('change', cb);
+    },
+    () => angosta?.matches ?? false,
+  );
+}

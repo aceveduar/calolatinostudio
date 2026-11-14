@@ -5,6 +5,8 @@ export interface ResumenCaja {
   transferencia: number;
   tarjeta: number;
   total: number;
+  /** ventas de la tienda (productos) */
+  tienda: number;
   cobros: number;
   anulados: number;
   porConcepto: { concepto: string; cantidad: number; monto: number }[];
@@ -16,7 +18,7 @@ export function resumenCaja(pagos: Pago[]): ResumenCaja {
   const conceptos = new Map<string, { cantidad: number; monto: number }>();
   for (const p of validos) {
     const c = conceptos.get(p.concepto) ?? { cantidad: 0, monto: 0 };
-    c.cantidad++;
+    c.cantidad += p.cantidad ?? 1;
     c.monto += p.monto;
     conceptos.set(p.concepto, c);
   }
@@ -28,6 +30,7 @@ export function resumenCaja(pagos: Pago[]): ResumenCaja {
     transferencia,
     tarjeta,
     total: efectivo + transferencia + tarjeta,
+    tienda: validos.filter((p) => p.productoId).reduce((s, p) => s + p.monto, 0),
     cobros: validos.length,
     anulados: pagos.length - validos.length,
     porConcepto: [...conceptos.entries()]

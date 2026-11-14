@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
-import { useEsEscritorio } from '../../app/pantalla';
+import { useAngosta, useEsEscritorio } from '../../app/pantalla';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -19,6 +19,7 @@ import { METODOS } from '../alumnos/VenderPlan';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
 import { Escaner, type LecturaQR } from './Escaner';
+import { Tienda } from './Tienda';
 import { sincronizar } from '../../sync/engine';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
@@ -35,6 +36,7 @@ const capitalizar = (s: string) =>
 export function PantallaEntrada() {
   const { usuario } = useSesion();
   const esc = useEsEscritorio();
+  const angosta = useAngosta();
   const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
@@ -54,6 +56,7 @@ export function PantallaEntrada() {
   const [nuevo, setNuevo] = useState(false);
   const [visitante, setVisitante] = useState(false);
   const [escanear, setEscanear] = useState(false);
+  const [tienda, setTienda] = useState(false);
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const enCurso = useRef(new Set<string>());
   const busca = useRef<HTMLInputElement>(null);
@@ -269,7 +272,7 @@ export function PantallaEntrada() {
       {/* Buscador + la "tarjeta" sin nombre */}
       <div className="sticky top-0 z-20 flex gap-2 bg-ink-50/95 px-4 pt-3 pb-2 backdrop-blur">
         <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-300" size={22} />
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-300" size={20} />
           <input
             ref={busca}
             value={q}
@@ -277,8 +280,8 @@ export function PantallaEntrada() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
             }}
-            placeholder={esc ? '¿Quién llegó? (escribe para buscar)' : '¿Quién llegó?'}
-            className="h-14 w-full rounded-2xl bg-superficie pr-11 pl-12 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+            placeholder={esc ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
+            className="h-14 w-full rounded-2xl bg-superficie pr-10 pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
             enterKeyHint="go"
           />
@@ -296,8 +299,15 @@ export function PantallaEntrada() {
           )}
         </div>
         <button
+          onClick={() => setTienda(true)}
+          className="flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
+          aria-label="Tienda"
+        >
+          <ShoppingBag size={24} />
+        </button>
+        <button
           onClick={() => setEscanear(true)}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95"
+          className="flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
           aria-label="Escanear QR"
         >
           <ScanLine size={24} />
@@ -439,6 +449,17 @@ export function PantallaEntrada() {
             setAlumnoSel(a);
           }}
         />
+      </Hoja>
+
+      <Hoja abierta={tienda} onCerrar={() => setTienda(false)} titulo="Tienda">
+        {tienda && (
+          <Tienda
+            movs={movs}
+            onAgregar={(m) => setMovs((x) => [m, ...x])}
+            onQuitar={(m) => setMovs((x) => x.filter((y) => y.key !== m.key))}
+            onListo={() => setTienda(false)}
+          />
+        )}
       </Hoja>
 
       <Hoja abierta={escanear} onCerrar={() => setEscanear(false)} titulo="Escanear credencial">

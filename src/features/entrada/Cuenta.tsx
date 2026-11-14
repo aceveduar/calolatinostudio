@@ -27,6 +27,16 @@ export function Cuenta({
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
 
   if (!movs.length) return null;
+  // Productos iguales en una sola fila ("Agua ×2"); la ✕ quita una pieza (la más reciente)
+  const filas: { m: Movimiento; cantidad: number; monto: number }[] = [];
+  for (const m of movs) {
+    const f = m.productoId ? filas.find((x) => x.m.productoId === m.productoId && x.m.metodo === m.metodo) : undefined;
+    if (f) {
+      f.cantidad++;
+      f.monto += m.monto;
+    } else filas.push({ m, cantidad: 1, monto: m.monto });
+  }
+  const hayProductos = movs.some((m) => m.productoId);
 
   return (
     <div
@@ -35,12 +45,15 @@ export function Cuenta({
     >
       <div className="overflow-hidden rounded-3xl bg-panel text-white shadow-2xl shadow-black/30">
         <div className="max-h-36 lg:max-h-72 divide-y divide-white/10 overflow-y-auto">
-          {movs.map((m) => (
+          {filas.map(({ m, cantidad, monto }) => (
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
-              <Check size={18} className="shrink-0 text-[#7ee2a8]" />
-              <span className="min-w-0 flex-1 truncate font-semibold">{m.nombre}</span>
-              <span className={cx('text-sm font-bold', !m.monto && 'text-[#7ee2a8]')}>
-                {m.monto ? dinero(m.monto) : 'Plan'}
+              {m.emoji ? <span className="w-[18px] shrink-0 text-center text-lg leading-none">{m.emoji}</span> : <Check size={18} className="shrink-0 text-[#7ee2a8]" />}
+              <span className="min-w-0 flex-1 truncate font-semibold">
+                {m.nombre}
+                {cantidad > 1 && <span className="ml-1.5 font-bold text-white/70">×{cantidad}</span>}
+              </span>
+              <span className={cx('text-sm font-bold', !monto && 'text-[#7ee2a8]')}>
+                {monto ? dinero(monto) : 'Plan'}
                 {m.metodo === 'transferencia' && <span className="ml-1 font-normal text-white/60">transf.</span>}
               </span>
               <button onClick={() => onDeshacer(m)} className="-mr-2 rounded-full p-2 text-white/50 active:bg-white/10" aria-label={`Deshacer ${m.nombre}`}>
@@ -54,7 +67,7 @@ export function Cuenta({
           <div className="border-t border-white/10 px-4 pt-3 pb-3">
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-white/60">
-                {pagoCon ? `Pagó con ${dinero(pagoCon)}` : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
+                {pagoCon ? `Pagó con ${dinero(pagoCon)}` : hayProductos ? 'Total de la cuenta' : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
               </span>
               {pagoCon ? (
                 <span className="text-2xl font-extrabold text-[#7ee2a8]">Cambio {dinero(pagoCon - efectivo)}</span>

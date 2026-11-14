@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
@@ -8,7 +8,7 @@ import { actualizar } from '../../db/repo';
 import { RespaldoLocal } from './Respaldo';
 import { NOMBRE_ROL } from '../../db/types';
 import { LogoAcademia, prepararLogo } from '../../components/LogoAcademia';
-import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorUsuarios } from './Editores';
+import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorProductos, EditorUsuarios } from './Editores';
 import { PanelNube } from './PanelNube';
 import { EditorMensajes } from './EditorMensajes';
 
@@ -16,6 +16,7 @@ const SECCIONES = {
   clases: { titulo: 'Clases y horarios', icono: CalendarClock, comp: EditorClases },
   maestros: { titulo: 'Maestros', icono: GraduationCap, comp: EditorMaestros },
   planes: { titulo: 'Planes y precios', icono: Tags, comp: EditorPlanes },
+  productos: { titulo: 'Productos (tienda)', icono: ShoppingBag, comp: EditorProductos },
   disciplinas: { titulo: 'Disciplinas', icono: Music2, comp: EditorDisciplinas },
   usuarios: { titulo: 'Usuarios y PIN', icono: Users, comp: EditorUsuarios },
   academia: { titulo: 'Academia', icono: Building2, comp: EditorAcademia },
@@ -29,7 +30,7 @@ export function PantallaAjustes() {
   const { esDueno, bloquear, usuario } = useSesion();
   const nav = useNavigate();
 
-  const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'nube'] : ['nube'];
+  const visibles: Clave[] = esDueno ? ['clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'nube'] : ['nube'];
   // Permiso por sección: también si se llega por enlace directo
   if (seccion && !visibles.includes(seccion as Clave)) return <Navigate to="/ajustes" replace />;
 

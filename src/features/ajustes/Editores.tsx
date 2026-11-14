@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
-import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros, usePlanes, useUsuarios } from '../../app/datos';
+import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
-import { NOMBRE_ROL, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Rol, type TipoPlan, type Usuario } from '../../db/types';
+import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type TipoPlan, type Usuario } from '../../db/types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getMeta } from '../../db/db';
 import { baseTieneColumna } from '../../sync/supabase';
@@ -13,6 +13,7 @@ import { LARGO_PIN, crearUsuario, hashPin, largoPin, pinDebil, pinValido } from 
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { describirPlan } from '../alumnos/VenderPlan';
+import { EMOJIS_PRODUCTO, estadoExistencia } from '../../domain/tienda';
 
 /** Lista + hoja de edición: patrón común de todos los catálogos. */
 function Catalogo<T extends { id: ID }>({
@@ -119,6 +120,115 @@ function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro: Maest
       )}
       {maestro && <Interruptor valor={activo} onChange={setActivo} texto="Sigue dando clases" />}
       <Boton grande bloque onClick={guardar} disabled={!nombre.trim()}>
+        Guardar
+      </Boton>
+    </div>
+  );
+}
+
+// ---------- Productos (tienda) ----------
+export function EditorProductos() {
+  const productos = useProductos();
+  const stock = useExistencias();
+  return (
+    <>
+      <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
+      <Catalogo
+        items={productos}
+        textoNuevo="Nuevo producto"
+        titulo={(p) => (p ? p.nombre : 'Nuevo producto')}
+        fila={(p) => {
+          const d = stock.get(p.id) ?? null;
+          const est = estadoExistencia(p, d);
+          return (
+            <>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-50 text-2xl">{p.emoji}</span>
+              <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
+                <span className="block truncate font-semibold">{p.nombre}</span>
+                <span className="block text-sm text-ink-500">{p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}</span>
+              </span>
+              {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
+              <span className="w-16 text-right font-bold">{dinero(p.precio)}</span>
+            </>
+          );
+        }}
+        form={(p, cerrar) => <FormProducto producto={p} disponibles={p ? (stock.get(p.id) ?? null) : null} onHecho={cerrar} />}
+      />
+    </>
+  );
+}
+
+function FormProducto({ producto, disponibles, onHecho }: { producto: Producto | null; disponibles: number | null; onHecho: () => void }) {
+  const avisar = useAvisos();
+  const [nombre, setNombre] = useState(producto?.nombre ?? '');
+  const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
+  const [precio, setPrecio] = useState(producto ? aPesosTexto(producto.precio) : '');
+  const [categoria, setCategoria] = useState<CategoriaProducto>(producto?.categoria ?? 'consumo');
+  const [controlar, setControlar] = useState(producto ? producto.inventario !== null : false);
+  const [hay, setHay] = useState(disponibles !== null ? String(Math.max(0, disponibles)) : '');
+  const [alerta, setAlerta] = useState(String(producto?.alerta ?? 5));
+  const [activo, setActivo] = useState(producto?.activo ?? true);
+
+  const guardar = async () => {
+    const nuevoConteo = controlar ? Number(hay) || 0 : null;
+    // Solo se reinicia el conteo si cambió lo que hay (así no se pierden ventas de otros equipos)
+    const cambioConteo = controlar && (disponibles === null || nuevoConteo !== Math.max(0, disponibles));
+    const datos = {
+      nombre: nombre.trim(),
+      emoji,
+      precio: aCentavos(precio),
+      categoria,
+      alerta: Number(alerta) || 0,
+      activo,
+      ...(controlar ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
+    };
+    if (producto) await actualizar('productos', producto.id, datos);
+    else await crear('productos', { foto: null, descripcion: '', enLinea: false, inventario: null, inventarioAt: null, ...datos });
+    avisar('Producto guardado');
+    onHecho();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Campo etiqueta="Ícono">
+        <div className="grid grid-cols-7 gap-1.5">
+          {EMOJIS_PRODUCTO.map((e) => (
+            <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}
+              className={cx('flex h-11 items-center justify-center rounded-xl text-2xl ring-1', emoji === e ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-superficie ring-ink-100')}>
+              {e}
+            </button>
+          ))}
+        </div>
+      </Campo>
+      <div className="grid grid-cols-[1fr_7rem] gap-3">
+        <Campo etiqueta="Nombre">
+          <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Agua 600 ml" autoFocus={!producto} />
+        </Campo>
+        <Campo etiqueta="Precio">
+          <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
+        </Campo>
+      </div>
+      <Segmentos<CategoriaProducto>
+        opciones={[
+          { valor: 'consumo', texto: 'Snacks y bebidas' },
+          { valor: 'articulo', texto: 'Artículos' },
+        ]}
+        valor={categoria}
+        onChange={setCategoria}
+      />
+      <Interruptor valor={controlar} onChange={setControlar} texto="Llevar existencias" />
+      {controlar && (
+        <div className="grid grid-cols-2 gap-3">
+          <Campo etiqueta="¿Cuántas hay ahora?" ayuda="Se descuentan solas al vender.">
+            <Entrada inputMode="numeric" value={hay} onChange={(e) => setHay(e.target.value.replace(/\D/g, ''))} placeholder="0" />
+          </Campo>
+          <Campo etiqueta="Avisar cuando queden">
+            <Entrada inputMode="numeric" value={alerta} onChange={(e) => setAlerta(e.target.value.replace(/\D/g, ''))} />
+          </Campo>
+        </div>
+      )}
+      {producto && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (controlar && hay === '')}>
         Guardar
       </Boton>
     </div>

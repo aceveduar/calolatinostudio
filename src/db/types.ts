@@ -83,6 +83,29 @@ export interface Plan extends Base {
   activo: boolean;
 }
 
+export type CategoriaProducto = 'consumo' | 'articulo';
+
+/**
+ * Producto de la tienda. Las existencias no se guardan como "quedan N" (se pisaría entre equipos):
+ * se guarda cuántas había en un momento (`inventario` a las `inventarioAt`) y se restan las ventas posteriores.
+ */
+export interface Producto extends Base {
+  nombre: string;
+  precio: number; // centavos
+  emoji: string;
+  foto: string | null;
+  categoria: CategoriaProducto;
+  descripcion: string;
+  /** null = sin control de existencias */
+  inventario: number | null;
+  inventarioAt: number | null;
+  /** avisar cuando queden esta cantidad o menos */
+  alerta: number;
+  activo: boolean;
+  /** visible en la tienda en línea (próximamente) */
+  enLinea: boolean;
+}
+
 export interface Alumno extends Base {
   nombre: string;
   telefono: string;
@@ -107,6 +130,9 @@ export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta';
 export interface Pago extends Base {
   alumnoId: ID | null;
   planId: ID | null;
+  /** venta de tienda: qué producto y cuántas piezas */
+  productoId?: ID | null;
+  cantidad?: number | null;
   concepto: string;
   monto: number; // centavos
   metodo: MetodoPago;
@@ -158,6 +184,7 @@ export interface TablaMap {
   maestros: Maestro;
   clases: Clase;
   planes: Plan;
+  productos: Producto;
   alumnos: Alumno;
   membresias: Membresia;
   pagos: Pago;
@@ -174,6 +201,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'maestros',
   'clases',
   'planes',
+  'productos',
   'alumnos',
   'membresias',
   'pagos',

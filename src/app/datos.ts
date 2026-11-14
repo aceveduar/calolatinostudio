@@ -4,6 +4,7 @@ import { db } from '../db/db';
 import type { Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
 import { hoy } from '../domain/fechas';
+import { existencias, ventasDeProductos } from '../domain/tienda';
 
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
@@ -11,6 +12,20 @@ export const useDisciplinas = () => useLiveQuery(() => db.disciplinas.filter(viv
 export const usePlanes = () => useLiveQuery(() => db.planes.filter(vivo).toArray(), [], []);
 export const useMaestros = () =>
   useLiveQuery(async () => (await db.maestros.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], []);
+export const useProductos = () =>
+  useLiveQuery(async () => (await db.productos.filter(vivo).toArray()).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nombre.localeCompare(b.nombre)), [], []);
+
+/** Piezas disponibles por producto (se recalcula con cada venta, en cualquier equipo). */
+export function useExistencias() {
+  return useLiveQuery(
+    async () => {
+      const [productos, ventas] = await Promise.all([db.productos.toArray(), ventasDeProductos()]);
+      return new Map(productos.map((p) => [p.id, existencias(p, ventas)]));
+    },
+    [],
+    new Map<ID, number | null>(),
+  );
+}
 export const useClases = () => useLiveQuery(() => db.clases.filter(vivo).toArray(), [], []);
 export const useUsuarios = () => useLiveQuery(() => db.usuarios.filter(vivo).toArray(), [], []);
 export const useAlumnos = () =>

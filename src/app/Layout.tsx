@@ -135,14 +135,16 @@ function BarraSuperior() {
 
 /** Siempre visible y discreto: la gente necesita confiar en que nada se pierde. */
 function IndicadorSync() {
-  const { fase } = useEstadoSync();
+  const { fase, error } = useEstadoSync();
   const pendientes = useLiveQuery(() => db.outbox.count(), [], 0);
   const cfg = {
     'solo-local': { icono: Smartphone, texto: 'En este equipo', cls: 'text-ink-500' },
     desconectada: { icono: CloudOff, texto: 'Sin respaldo · Conectar', cls: 'bg-warn-50 text-warn-600' },
     'sin-red': { icono: CloudOff, texto: pendientes ? 'Sin red · se subirá solo' : 'Sin red', cls: 'text-warn-600' },
     sincronizando: { icono: RefreshCw, texto: 'Guardando…', cls: 'text-ink-500 [&_svg]:animate-spin' },
-    'al-dia': { icono: Cloud, texto: pendientes ? 'Subiendo…' : 'Respaldado', cls: 'text-ok-600' },
+    'al-dia': error
+      ? { icono: AlertTriangle, texto: 'Falta actualizar la base', cls: 'bg-warn-50 text-warn-600' }
+      : { icono: Cloud, texto: pendientes ? 'Subiendo…' : 'Respaldado', cls: 'text-ok-600' },
     error: { icono: AlertTriangle, texto: 'Revisar nube', cls: 'text-bad-600' },
   }[fase];
   const Icono = cfg.icono;
