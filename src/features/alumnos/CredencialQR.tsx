@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Download, MessageCircle, Share2 } from 'lucide-react';
 import { waLink } from '../../domain/reportes';
+import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { useAvisos } from '../../components/avisos';
 import { Boton } from '../../components/ui';
 import type { Academia, Alumno } from '../../db/types';
@@ -16,7 +17,7 @@ export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: A
   }, [alumno.codigo]);
 
   const nombre1 = alumno.nombre.split(' ')[0];
-  const texto = `Hola ${nombre1}, esta es tu credencial de ${academia.nombre} 💃🕺 Muéstrala en recepción para entrar. Tu código: ${alumno.codigo}`;
+  const texto = armarMensaje(plantilla(academia, 'credencial'), { nombre: nombre1, academia: academia.nombre, codigo: alumno.codigo });
   const wa = waLink(alumno.telefono, texto);
   const archivo = async () => {
     const blob = await credencialPNG(alumno, academia);

@@ -7,10 +7,11 @@ import { useSesion } from '../../app/sesion';
 import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { dinero } from '../../domain/dinero';
-import { aFecha, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
+import { aFecha, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
 import { textoDias } from '../../domain/membresias';
 import { dejaronDeVenir, indicadores, ingresosPorDia, periodos, porClase, variacion, vencenPronto, waLink } from '../../domain/reportes';
 import { GraficaBarras } from './GraficaBarras';
+import { armarMensaje, plantilla } from '../../domain/mensajes';
 
 type Rango = 7 | 30;
 
@@ -163,7 +164,7 @@ export function PantallaReportes() {
                   nombre={alumno.nombre}
                   detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Plan'} · ${fechaCorta(membresia.fin)}`}
                   etiqueta={<Etiqueta tono="pronto">{textoDias(enDias)}</Etiqueta>}
-                  wa={waLink(alumno.telefono, `Hola ${alumno.nombre.split(' ')[0]}, tu plan en ${academia.nombre} ${textoDias(enDias)}. ¿Lo renovamos? 💃🕺`)}
+                  wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'vence'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre, plan: (planes.find((p) => p.id === membresia.planId)?.nombre ?? 'plan').toLowerCase(), vence: fechaLarga(membresia.fin) }))}
                 />
               ))}
             </Tarjeta>
@@ -183,7 +184,7 @@ export function PantallaReportes() {
                   alumnoId={alumno.id}
                   nombre={alumno.nombre}
                   detalle={`Última vez ${fechaCorta(ultima)} · venía ${veces} veces`}
-                  wa={waLink(alumno.telefono, `Hola ${alumno.nombre.split(' ')[0]}, ¡te extrañamos en ${academia.nombre}! Esta semana tenemos clases para ti. 💃🕺`)}
+                  wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'extrañamos'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre }))}
                 />
               ))}
             </Tarjeta>

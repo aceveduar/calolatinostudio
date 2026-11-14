@@ -17,6 +17,7 @@ import { DetallePago } from '../caja/PantallaCaja';
 import { FormAlumno } from './FormAlumno';
 import { VenderPlan } from './VenderPlan';
 import { CredencialQR } from './CredencialQR';
+import { EnviarWhatsApp } from './EnviarWhatsApp';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -35,6 +36,7 @@ export function FichaAlumno() {
   const [vender, setVender] = useState(false);
   const [fusionar, setFusionar] = useState(false);
   const [qr, setQr] = useState(false);
+  const [whats, setWhats] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
 
   const historial = useLiveQuery(async () => {
@@ -56,13 +58,7 @@ export function FichaAlumno() {
 
   const sem = semaforoAlumno(estados);
   const vigentes = estados.filter((e) => e.vigente || e.membresia.inicio > hoy());
-  const tel = alumno.telefono.length === 10 ? `52${alumno.telefono}` : alumno.telefono;
   const nombre1 = alumno.nombre.split(' ')[0];
-  const recordatorio = encodeURIComponent(
-    sem.tono === 'sin'
-      ? `Hola ${nombre1}, ¡te esperamos en ${academia.nombre}! 💃🕺`
-      : `Hola ${nombre1}, te recordamos que tu plan en ${academia.nombre} está por terminar. ¡Te esperamos!`,
-  );
   const abrirPagoDePlan = async (pagoId: string) => {
     const p = await db.pagos.get(pagoId);
     if (p) setPagoSel(p);
@@ -120,11 +116,9 @@ export function FichaAlumno() {
         </Boton>
         {alumno.telefono && (
           <>
-            <a href={`https://wa.me/${tel}?text=${recordatorio}`} target="_blank" rel="noreferrer">
-              <Boton bloque variante="secundario">
-                <MessageCircle size={18} className="text-ok-600" /> WhatsApp
-              </Boton>
-            </a>
+            <Boton bloque variante="secundario" onClick={() => setWhats(true)}>
+              <MessageCircle size={18} className="text-ok-600" /> WhatsApp
+            </Boton>
             <a href={`tel:${alumno.telefono}`}>
               <Boton bloque variante="secundario">
                 <Phone size={18} /> Llamar
@@ -224,6 +218,9 @@ export function FichaAlumno() {
             onHecho={() => setPagoSel(null)}
           />
         )}
+      </Hoja>
+      <Hoja abierta={whats} onCerrar={() => setWhats(false)} titulo={`WhatsApp a ${nombre1}`}>
+        {whats && <EnviarWhatsApp alumno={alumno} estados={estados} onEnviado={() => setWhats(false)} />}
       </Hoja>
       <Hoja abierta={qr} onCerrar={() => setQr(false)} titulo="Credencial">
         {qr && <CredencialQR alumno={alumno} academia={academia} />}

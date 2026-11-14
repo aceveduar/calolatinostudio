@@ -13,6 +13,7 @@ create table if not exists academias (
   moneda text not null default 'MXN',
   color text,
   logo text,
+  mensajes jsonb,
   created_at bigint not null,
   updated_at bigint not null,
   deleted_at bigint,
@@ -163,6 +164,7 @@ create table if not exists cortes (
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
+alter table academias add column if not exists mensajes jsonb;
 alter table usuarios add column if not exists maestro_id uuid;
 alter table usuarios drop constraint if exists usuarios_rol_check;
 alter table usuarios add constraint usuarios_rol_check check (rol in ('dueno','recepcion','maestro'));

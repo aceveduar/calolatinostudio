@@ -23,6 +23,8 @@ export interface Academia {
   color?: string | null;
   /** Logo de la academia como imagen PNG/JPEG en data URL (reducida a ≤256 px). */
   logo?: string | null;
+  /** Textos de WhatsApp personalizados por la academia (clave → plantilla). */
+  mensajes?: Record<string, string> | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;

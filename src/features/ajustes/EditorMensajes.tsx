@@ -1,0 +1,103 @@
+import { useState } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { useSesion } from '../../app/sesion';
+import { useAvisos } from '../../components/avisos';
+import { Boton, Tarjeta } from '../../components/ui';
+import { actualizar } from '../../db/repo';
+import { MENSAJES, VARIABLES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
+
+const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX' };
+
+/** El dueño escribe los mensajes de WhatsApp con sus palabras; se ve cómo le llegará al alumno. */
+export function EditorMensajes() {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const [abierto, setAbierto] = useState<ClaveMensaje | null>(null);
+  const [texto, setTexto] = useState('');
+
+  const guardar = async (clave: ClaveMensaje, valor: string | null) => {
+    const actuales = { ...(academia.mensajes ?? {}) };
+    if (valor === null) delete actuales[clave];
+    else actuales[clave] = valor;
+    await actualizar('academias', academia.id, { mensajes: actuales });
+    avisar(valor === null ? 'Mensaje original restaurado' : 'Mensaje guardado');
+    setAbierto(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-500">Así le llegan los mensajes de WhatsApp a los alumnos. Escríbelos con el estilo de la academia.</p>
+      {MENSAJES.map((m) => {
+        const actual = plantilla(academia, m.clave);
+        const propio = !!academia.mensajes?.[m.clave];
+        const editando = abierto === m.clave;
+        return (
+          <Tarjeta key={m.clave} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">
+                  {m.titulo} {propio && <span className="ml-1 text-xs font-medium text-brand-600">· personalizado</span>}
+                </p>
+                <p className="text-xs text-ink-500">{m.cuando}</p>
+              </div>
+              {!editando && (
+                <Boton
+                  variante="secundario"
+                  onClick={() => {
+                    setAbierto(m.clave);
+                    setTexto(actual);
+                  }}
+                >
+                  Editar
+                </Boton>
+              )}
+            </div>
+            {editando ? (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  rows={4}
+                  aria-label={`Mensaje: ${m.titulo}`}
+                  className="w-full rounded-xl bg-superficie px-3 py-2 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {VARIABLES.map((v) => (
+                    <button
+                      key={v.clave}
+                      type="button"
+                      title={v.texto}
+                      onClick={() => setTexto((t) => `${t}{${v.clave}}`)}
+                      className="rounded-full bg-brand-50 px-2.5 py-1 font-mono text-xs text-brand-600"
+                    >
+                      {`{${v.clave}}`}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-xl bg-[#e7f8df] p-3 text-sm text-[#1c1a24]">
+                  <p className="mb-1 text-[11px] font-semibold text-[#3a7a2c]">Así se verá</p>
+                  {armarMensaje(texto, { ...EJEMPLO, academia: academia.nombre })}
+                </div>
+                <div className="flex gap-2">
+                  <Boton variante="fantasma" onClick={() => setAbierto(null)}>
+                    Cancelar
+                  </Boton>
+                  {propio && (
+                    <Boton variante="fantasma" onClick={() => guardar(m.clave, null)}>
+                      <RotateCcw size={16} /> Original
+                    </Boton>
+                  )}
+                  <Boton className="flex-1" disabled={!texto.trim()} onClick={() => guardar(m.clave, texto.trim())}>
+                    Guardar
+                  </Boton>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 rounded-xl bg-ink-50 p-3 text-sm text-ink-700">{armarMensaje(actual, { ...EJEMPLO, academia: academia.nombre })}</p>
+            )}
+          </Tarjeta>
+        );
+      })}
+    </div>
+  );
+}

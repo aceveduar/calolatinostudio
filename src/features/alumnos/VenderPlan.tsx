@@ -8,6 +8,8 @@ import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import type { EstadoMembresia } from '../../domain/membresias';
 import { calcularFin, venderPlan } from '../../domain/operaciones';
+import { armarMensaje, plantilla } from '../../domain/mensajes';
+import { waLink } from '../../domain/reportes';
 
 export const METODOS: { valor: MetodoPago; texto: string }[] = [
   { valor: 'efectivo', texto: 'Efectivo' },
@@ -33,7 +35,7 @@ export function VenderPlan({
   claseId?: ID;
   onHecho: () => void;
 }) {
-  const { usuario } = useSesion();
+  const { usuario, academia } = useSesion();
   const avisar = useAvisos();
   const planes = usePlanes().filter((p) => p.activo && p.tipo !== 'suelta');
   const [planId, setPlanId] = useState<ID | null>(null);
@@ -56,7 +58,19 @@ export function VenderPlan({
     setOcupado(true);
     try {
       await venderPlan({ alumnoId: alumno.id, plan, monto, metodo, inicio, usuarioId: usuario.id, entrarAClaseId: claseId });
-      avisar(`${plan.nombre} cobrada · ${dinero(monto)}`);
+      // Recibo por WhatsApp en un toque (solo si tiene número)
+      const recibo = waLink(
+        alumno.telefono,
+        armarMensaje(plantilla(academia, 'recibo'), {
+          nombre: alumno.nombre.split(' ')[0],
+          academia: academia.nombre,
+          monto: dinero(monto),
+          plan: plan.nombre.toLowerCase(),
+          vigencia: `${fechaCorta(inicio)} al ${fechaCorta(calcularFin(plan, inicio))}`,
+          vence: fechaCorta(calcularFin(plan, inicio)),
+        }),
+      );
+      avisar(`${plan.nombre} cobrada · ${dinero(monto)}`, 'ok', recibo ? { texto: 'Enviar recibo', fn: () => void window.open(recibo, '_blank', 'noopener') } : undefined);
       onHecho();
     } finally {
       setOcupado(false);
