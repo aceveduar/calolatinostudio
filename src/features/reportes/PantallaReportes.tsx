@@ -4,6 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowDownRight, ArrowUpRight, CalendarClock, HeartCrack, MessageCircle } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { nombreSede, useSedes } from '../../app/sedes';
+import { PRINCIPAL, claveSede } from '../../domain/sedes';
 import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { dinero } from '../../domain/dinero';
@@ -22,6 +24,9 @@ export function PantallaReportes() {
   const maestros = useMaestros();
   const planes = usePlanes();
   const [rango, setRango] = useState<Rango>(7);
+  const sedes = useSedes();
+  // 'todas' | PRINCIPAL | id
+  const [verSede, setVerSede] = useState<string>('todas');
   const dia = hoy();
   const { actual, anterior } = periodos(rango, dia);
 
@@ -38,9 +43,14 @@ export function PantallaReportes() {
 
   const r = useMemo(() => {
     if (!datos) return null;
+    const enSede = (sedeId: string | null | undefined) => verSede === 'todas' || claveSede(sedeId) === verSede;
+    const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
+    const pagosS = datos.pagos.filter((p) => enSede(p.sedeId));
+    const asisS = datos.asis.filter((a) => enSede(sedeDeClase.get(a.claseId)));
+    const clasesS = clases.filter((c) => enSede(c.sedeId));
     const altas = datos.alumnos.filter((a) => !a.deletedAt).map((a) => aFecha(new Date(a.createdAt)));
     const porId = new Map(datos.alumnos.map((a) => [a.id, a]));
-    const filas = porClase(actual, clases, datos.asis, datos.pagos);
+    const filas = porClase(actual, clasesS, asisS, pagosS);
     const maestro = new Map<string, { nombre: string; alumnos: number; sesiones: number; ingresos: number; clases: string[] }>();
     for (const f of filas) {
       const m = maestros.find((x) => x.id === f.clase.maestroId);
@@ -53,15 +63,19 @@ export function PantallaReportes() {
       maestro.set(k, v);
     }
     return {
-      ahora: indicadores(actual, datos.pagos, datos.asis, altas),
-      antes: indicadores(anterior, datos.pagos, datos.asis, altas),
-      dias: ingresosPorDia(actual, datos.pagos),
+      ahora: indicadores(actual, pagosS, asisS, altas),
+      antes: indicadores(anterior, pagosS, asisS, altas),
+      dias: ingresosPorDia(actual, pagosS),
+      porSede: [PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => {
+        const ps = datos.pagos.filter((p) => claveSede(p.sedeId) === id && !p.anuladoAt && !p.deletedAt && p.fecha >= actual.desde && p.fecha <= actual.hasta);
+        return { id, ingresos: ps.reduce((t, p) => t + p.monto, 0), tienda: ps.filter((p) => p.productoId).reduce((t, p) => t + p.monto, 0) };
+      }),
       clases: filas,
       maestros: [...maestro.values()].sort((a, b) => b.alumnos - a.alumnos),
       vencen: vencenPronto(datos.mems, porId, dia),
-      perdidos: dejaronDeVenir(datos.asis, porId, dia),
+      perdidos: dejaronDeVenir(asisS, porId, dia),
     };
-  }, [datos, actual, anterior, clases, maestros, disciplinas, dia]);
+  }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes]);
 
   if (!r) return null;
   const etiquetaAntes = rango === 7 ? 'vs 7 días previos' : 'vs 30 días previos';
@@ -83,12 +97,53 @@ export function PantallaReportes() {
         </div>
       </div>
 
+      {sedes.length > 0 && (
+        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+          {['todas', PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => (
+            <button
+              key={id}
+              onClick={() => setVerSede(id)}
+              className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+            >
+              {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
         <Cifra titulo="Ingresos" valor={dinero(r.ahora.ingresos)} cambio={variacion(r.ahora.ingresos, r.antes.ingresos)} pie={etiquetaAntes} destacada />
         <Cifra titulo="Asistencias" valor={r.ahora.asistencias.toLocaleString('es-MX')} cambio={variacion(r.ahora.asistencias, r.antes.asistencias)} pie={etiquetaAntes} />
         <Cifra titulo="Alumnos que vinieron" valor={r.ahora.activos.toLocaleString('es-MX')} cambio={variacion(r.ahora.activos, r.antes.activos)} pie={etiquetaAntes} />
         <Cifra titulo="Alumnos nuevos" valor={r.ahora.nuevos.toLocaleString('es-MX')} cambio={variacion(r.ahora.nuevos, r.antes.nuevos)} pie={etiquetaAntes} />
       </div>
+
+      {sedes.length > 0 && verSede === 'todas' && (
+        <Seccion titulo="Por sede">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {r.porSede.map((x) => {
+              const total = r.porSede.reduce((t, y) => t + y.ingresos, 0) || 1;
+              const sede = sedes.find((y) => y.id === x.id);
+              return (
+                <Tarjeta key={x.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2 font-semibold">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: sede?.color ?? 'var(--marca)' }} />
+                      <span className="truncate">{nombreSede(x.id === PRINCIPAL ? null : x.id, sedes, academia)}</span>
+                    </span>
+                    <span className="text-lg font-extrabold">{dinero(x.ingresos)}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full bg-ink-100">
+                    <div className="h-full rounded-full" style={{ width: `${(x.ingresos / total) * 100}%`, background: sede?.color ?? 'var(--marca)' }} />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-500">
+                    {Math.round((x.ingresos / total) * 100)}% del total{x.tienda ? ` · tienda ${dinero(x.tienda)}` : ''}
+                  </p>
+                </Tarjeta>
+              );
+            })}
+          </div>
+        </Seccion>
+      )}
 
       <Seccion titulo="Ingresos por día">
         <Tarjeta className="p-4">

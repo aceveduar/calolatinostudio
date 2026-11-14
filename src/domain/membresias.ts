@@ -1,3 +1,4 @@
+import { sirveEn } from './sedes';
 import type { Asistencia, Clase, Fecha, ID, Membresia } from '../db/types';
 import { diasEntre } from './fechas';
 
@@ -24,10 +25,10 @@ export function estadoMembresia(m: Membresia, asistencias: Asistencia[], dia: Fe
  */
 export function membresiaQueCubre(
   estados: EstadoMembresia[],
-  clase: Pick<Clase, 'disciplinaId'>,
+  clase: Pick<Clase, 'disciplinaId' | 'sedeId'>,
 ): EstadoMembresia | null {
   const aplicables = estados.filter(
-    (e) => e.vigente && (e.membresia.disciplinaId === null || e.membresia.disciplinaId === clase.disciplinaId),
+    (e) => e.vigente && (e.membresia.disciplinaId === null || e.membresia.disciplinaId === clase.disciplinaId) && sirveEn(e.membresia.sedeId, clase.sedeId),
   );
   aplicables.sort((a, b) => {
     if (a.membresia.fin !== b.membresia.fin) return a.membresia.fin < b.membresia.fin ? -1 : 1;

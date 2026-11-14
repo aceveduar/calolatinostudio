@@ -5,7 +5,7 @@ import { useExistencias, useProductos } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Vacio, cx } from '../../components/ui';
-import type { CategoriaProducto, Producto } from '../../db/types';
+import type { CategoriaProducto, ID, Producto } from '../../db/types';
 import { dinero } from '../../domain/dinero';
 import { deshacer, type Movimiento } from '../../domain/rapido';
 import { estadoExistencia, venderProducto } from '../../domain/tienda';
@@ -19,7 +19,7 @@ const GRUPOS: { cat: CategoriaProducto; titulo: string }[] = [
  * Venta rápida en recepción: cada toque agrega una pieza a la cuenta abierta (junto con las clases).
  * El "−" quita la última pieza de ese producto.
  */
-export function Tienda({ movs, onAgregar, onQuitar, onListo }: { movs: Movimiento[]; onAgregar: (m: Movimiento) => void; onQuitar: (m: Movimiento) => void; onListo: () => void }) {
+export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId: ID | null; movs: Movimiento[]; onAgregar: (m: Movimiento) => void; onQuitar: (m: Movimiento) => void; onListo: () => void }) {
   const { usuario, esDueno } = useSesion();
   const avisar = useAvisos();
   const productos = useProductos().filter((p) => p.activo);
@@ -44,7 +44,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo }: { movs: Movimient
     if (ocupado) return;
     setOcupado(true);
     try {
-      onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id }));
+      onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
       navigator.vibrate?.(20);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');

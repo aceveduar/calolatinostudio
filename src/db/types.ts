@@ -25,6 +25,8 @@ export interface Academia {
   logo?: string | null;
   /** Textos de WhatsApp personalizados por la academia (clave → plantilla). */
   mensajes?: Record<string, string> | null;
+  /** Nombre del lugar principal (las demás sedes están en `sedes`). */
+  sedePrincipal?: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -55,7 +57,19 @@ export interface Maestro extends Base {
   activo: boolean;
 }
 
+/**
+ * Lugar donde se dan clases (Estudio, Casa de Cultura…). El lugar principal NO es un registro:
+ * `sedeId = null` significa "sede principal". Así una academia de un solo lugar no nota nada.
+ */
+export interface Sede extends Base {
+  nombre: string;
+  color: string;
+  activo: boolean;
+}
+
 export interface Clase extends Base {
+  /** null = sede principal */
+  sedeId?: ID | null;
   disciplinaId: ID;
   nivel: string;
   maestroId: ID | null;
@@ -71,6 +85,8 @@ export interface Clase extends Base {
 export type TipoPlan = 'suelta' | 'mensual' | 'paquete';
 
 export interface Plan extends Base {
+  /** null = sirve en todas las sedes */
+  sedeId?: ID | null;
   nombre: string;
   tipo: TipoPlan;
   precio: number; // centavos
@@ -115,6 +131,8 @@ export interface Alumno extends Base {
 }
 
 export interface Membresia extends Base {
+  /** copiado del plan al venderlo; null = todas las sedes */
+  sedeId?: ID | null;
   alumnoId: ID;
   planId: ID;
   pagoId: ID;
@@ -128,6 +146,8 @@ export interface Membresia extends Base {
 export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta';
 
 export interface Pago extends Base {
+  /** dónde se cobró; null = sede principal */
+  sedeId?: ID | null;
   alumnoId: ID | null;
   planId: ID | null;
   /** venta de tienda: qué producto y cuántas piezas */
@@ -156,6 +176,8 @@ export interface Asistencia extends Base {
 }
 
 export interface Corte extends Base {
+  /** corte de caja de esta sede; null = sede principal */
+  sedeId?: ID | null;
   fecha: Fecha;
   esperadoEfectivo: number;
   contadoEfectivo: number;
@@ -179,6 +201,7 @@ export interface Meta {
 
 export interface TablaMap {
   academias: Academia;
+  sedes: Sede;
   usuarios: Usuario;
   disciplinas: Disciplina;
   maestros: Maestro;
@@ -196,6 +219,7 @@ export type SyncTable = keyof TablaMap;
 
 export const SYNC_TABLES: SyncTable[] = [
   'academias',
+  'sedes',
   'usuarios',
   'disciplinas',
   'maestros',

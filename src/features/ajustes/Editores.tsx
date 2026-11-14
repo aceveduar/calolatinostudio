@@ -5,15 +5,17 @@ import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
-import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type TipoPlan, type Usuario } from '../../db/types';
+import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type Sede, type TipoPlan, type Usuario } from '../../db/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getMeta } from '../../db/db';
+import { db, getMeta } from '../../db/db';
 import { baseTieneColumna } from '../../sync/supabase';
 import { LARGO_PIN, crearUsuario, hashPin, largoPin, pinDebil, pinValido } from '../../domain/acceso';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { describirPlan } from '../alumnos/VenderPlan';
 import { EMOJIS_PRODUCTO, estadoExistencia } from '../../domain/tienda';
+import { PRINCIPAL, nombreSede, useSedes } from '../../app/sedes';
+import { conSede } from '../../domain/sedes';
 
 /** Lista + hoja de edición: patrón común de todos los catálogos. */
 function Catalogo<T extends { id: ID }>({
@@ -120,6 +122,92 @@ function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro: Maest
       )}
       {maestro && <Interruptor valor={activo} onChange={setActivo} texto="Sigue dando clases" />}
       <Boton grande bloque onClick={guardar} disabled={!nombre.trim()}>
+        Guardar
+      </Boton>
+    </div>
+  );
+}
+
+// ---------- Sedes ----------
+const COLORES_SEDE = ['#d6304a', '#7c4ddb', '#1f8fd6', '#15924b', '#d97706', '#0d9488', '#db2777', '#3d3a48'];
+
+export function EditorSedes() {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const sedes = useLiveQuery(async () => (await db.sedes.filter((x) => !x.deletedAt).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], [] as Sede[]);
+  const clases = useClases();
+  const [principal, setPrincipal] = useState(academia.sedePrincipal ?? '');
+  const cuenta = (id: ID | null) => clases.filter((c) => (c.sedeId ?? null) === id && c.activo).length;
+  return (
+    <>
+      <p className="mb-3 text-sm text-ink-500">
+        Los lugares donde se dan clases. Cada clase pertenece a una sede, y cada equipo elige en Entrada dónde está trabajando: así ve solo esas clases, cobra el precio de esa sede y su corte de caja es aparte.
+      </p>
+      <Tarjeta className="mb-3 space-y-2 p-4">
+        <p className="text-sm font-semibold">Sede principal</p>
+        <div className="flex gap-2">
+          <Entrada value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="Ej. Estudio Calo" />
+          <Boton
+            variante="secundario"
+            disabled={principal.trim() === (academia.sedePrincipal ?? '')}
+            onClick={async () => {
+              await actualizar('academias', academia.id, { sedePrincipal: principal.trim() || null });
+              avisar('Sede principal guardada');
+            }}
+          >
+            Guardar
+          </Boton>
+        </div>
+        <p className="text-xs text-ink-500">{cuenta(null)} clases · Es el lugar de todo lo que ya existía.</p>
+      </Tarjeta>
+      <Catalogo
+        items={sedes}
+        textoNuevo="Nueva sede"
+        titulo={(x) => (x ? x.nombre : 'Nueva sede')}
+        fila={(x) => (
+          <>
+            <span className="h-4 w-4 rounded-full" style={{ background: x.color }} />
+            <span className={cx('flex-1 font-semibold', !x.activo && 'opacity-40')}>{x.nombre}</span>
+            <span className="text-sm text-ink-500">{cuenta(x.id)} clases</span>
+          </>
+        )}
+        form={(x, cerrar) => <FormSede sede={x} onHecho={cerrar} />}
+      />
+    </>
+  );
+}
+
+function FormSede({ sede, onHecho }: { sede: Sede | null; onHecho: () => void }) {
+  const avisar = useAvisos();
+  const [nombre, setNombre] = useState(sede?.nombre ?? '');
+  const [color, setColor] = useState(sede?.color ?? COLORES_SEDE[1]);
+  const [activo, setActivo] = useState(sede?.activo ?? true);
+  return (
+    <div className="space-y-4">
+      <Campo etiqueta="Nombre">
+        <Entrada autoFocus={!sede} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Casa de Cultura" />
+      </Campo>
+      <Campo etiqueta="Color">
+        <div className="flex flex-wrap gap-3">
+          {COLORES_SEDE.map((c) => (
+            <button key={c} type="button" onClick={() => setColor(c)} className={cx('h-10 w-10 rounded-full ring-offset-2', color === c && 'ring-2 ring-ink-900')} style={{ background: c }} aria-label={c} />
+          ))}
+        </div>
+      </Campo>
+      {sede && <Interruptor valor={activo} onChange={setActivo} texto="Sede activa" />}
+      <p className="rounded-xl bg-ink-50 p-3 text-xs text-ink-500">Después: asigna sus clases en “Clases y horarios” y, si su precio es distinto, crea su “Clase suelta” en “Planes y precios”.</p>
+      <Boton
+        grande
+        bloque
+        disabled={!nombre.trim()}
+        onClick={async () => {
+          const datos = { nombre: nombre.trim(), color, activo };
+          if (sede) await actualizar('sedes', sede.id, datos);
+          else await crear('sedes', datos);
+          avisar('Sede guardada');
+          onHecho();
+        }}
+      >
         Guardar
       </Boton>
     </div>
@@ -237,6 +325,8 @@ function FormProducto({ producto, disponibles, onHecho }: { producto: Producto |
 
 // ---------- Clases ----------
 export function EditorClases() {
+  const { academia } = useSesion();
+  const sedes = useSedes();
   const clases = useClases();
   const disciplinas = useDisciplinas();
   const maestros = useMaestros();
@@ -252,6 +342,7 @@ export function EditorClases() {
           <span className={cx('flex-1', !c.activo && 'opacity-40')}>
             <span className="block font-semibold">{nombreClase(c, disciplinas)}</span>
             <span className="block text-sm text-ink-500">
+              {sedes.length > 0 && `${nombreSede(c.sedeId, sedes, academia)} · `}
               {c.dias.map((d) => DIAS_CORTOS[d]).join(', ') || 'Sin días'} · {c.horaInicio}
               {nombreMaestro(c, maestros) && ` · ${nombreMaestro(c, maestros)}`}
             </span>
@@ -266,6 +357,7 @@ export function EditorClases() {
 
 function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disciplinas: Disciplina[]; onHecho: () => void }) {
   const avisar = useAvisos();
+  const { academia } = useSesion();
   const [disciplinaId, setDisciplinaId] = useState(clase?.disciplinaId ?? disciplinas[0]?.id ?? '');
   const [nivel, setNivel] = useState(clase?.nivel ?? '');
   const maestros = useMaestros().filter((m) => m.activo || m.id === clase?.maestroId);
@@ -275,13 +367,15 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const [hora, setHora] = useState(clase?.horaInicio ?? '19:00');
   const [duracion, setDuracion] = useState(String(clase?.duracionMin ?? 60));
   const [activo, setActivo] = useState(clase?.activo ?? true);
+  const sedes = useSedes();
+  const [sedeId, setSedeId] = useState<string>(clase?.sedeId ?? '');
 
   const guardar = async () => {
     let idMaestro: ID | null = maestroId && maestroId !== NUEVO ? maestroId : null;
     if (maestroId === NUEVO && maestroNuevo.trim()) {
       idMaestro = (await crear('maestros', { nombre: maestroNuevo.trim().replace(/\s+/g, ' '), telefono: '', notas: '', activo: true })).id;
     }
-    const datos = { disciplinaId, nivel: nivel.trim(), maestroId: idMaestro, dias: [...dias].sort(), horaInicio: hora, duracionMin: Number(duracion) || 60, activo };
+    const datos = { ...conSede(sedeId, clase?.sedeId), disciplinaId, nivel: nivel.trim(), maestroId: idMaestro, dias: [...dias].sort(), horaInicio: hora, duracionMin: Number(duracion) || 60, activo };
     if (clase) await actualizar('clases', clase.id, datos);
     else await crear('clases', datos);
     avisar('Clase guardada');
@@ -326,6 +420,18 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           <Entrada inputMode="numeric" value={duracion} onChange={(e) => setDuracion(e.target.value.replace(/\D/g, ''))} />
         </Campo>
       </div>
+      {sedes.length > 0 && (
+        <Campo etiqueta="Sede">
+          <Selector value={sedeId} onChange={(e) => setSedeId(e.target.value)}>
+            <option value="">{nombreSede(null, sedes, academia)}</option>
+            {sedes.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nombre}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
+      )}
       <Campo etiqueta="Maestro">
         <Selector value={maestroId} onChange={(e) => setMaestroId(e.target.value)}>
           <option value="">Sin asignar</option>
@@ -352,6 +458,8 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
 
 // ---------- Planes ----------
 export function EditorPlanes() {
+  const { academia } = useSesion();
+  const sedes = useSedes();
   const planes = usePlanes();
   const orden: Record<TipoPlan, number> = { suelta: 0, mensual: 1, paquete: 2 };
   return (
@@ -363,7 +471,10 @@ export function EditorPlanes() {
         <>
           <span className={cx('flex-1', !p.activo && 'opacity-40')}>
             <span className="block font-semibold">{p.nombre}</span>
-            <span className="block text-sm text-ink-500">{describirPlan(p)}</span>
+            <span className="block text-sm text-ink-500">
+              {describirPlan(p)}
+              {sedes.length > 0 && ` · ${p.sedeId ? `solo ${p.sedeId === PRINCIPAL ? nombreSede(null, sedes, academia) : nombreSede(p.sedeId, sedes, academia)}` : 'todas las sedes'}`}
+            </span>
           </span>
           <span className="font-bold">{dinero(p.precio)}</span>
         </>
@@ -383,9 +494,13 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
   const [vigencia, setVigencia] = useState(String(plan?.vigenciaDias ?? 30));
   const [disciplinaId, setDisciplinaId] = useState<ID | ''>(plan?.disciplinaId ?? '');
   const [activo, setActivo] = useState(plan?.activo ?? true);
+  const { academia } = useSesion();
+  const sedes = useSedes();
+  const [alcance, setAlcance] = useState<string>(plan?.sedeId ?? '');
 
   const guardar = async () => {
     const datos = {
+      ...conSede(alcance, plan?.sedeId),
       nombre: nombre.trim(),
       tipo,
       precio: aCentavos(precio),
@@ -426,6 +541,22 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
             <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencia(e.target.value.replace(/\D/g, ''))} />
           </Campo>
         </div>
+      )}
+      {sedes.length > 0 && (
+        <Campo
+          etiqueta={tipo === 'suelta' ? '¿En qué sede aplica este precio?' : '¿En qué sedes sirve?'}
+          ayuda={tipo === 'suelta' ? 'Puedes tener un precio de clase suelta distinto en cada sede.' : undefined}
+        >
+          <Selector value={alcance} onChange={(e) => setAlcance(e.target.value)}>
+            <option value="">Todas las sedes</option>
+            <option value={PRINCIPAL}>Solo {nombreSede(null, sedes, academia)}</option>
+            {sedes.map((x) => (
+              <option key={x.id} value={x.id}>
+                Solo {x.nombre}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
       )}
       {tipo !== 'suelta' && (
         <Campo etiqueta="¿Para qué clases sirve?">

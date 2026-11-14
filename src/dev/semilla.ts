@@ -419,3 +419,38 @@ export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: 
   });
   return { productos: productos.length, ventas: ventas.length };
 }
+
+/**
+ * Sedes de ejemplo: la principal se llama "Estudio Calo" (clase suelta $60) y se agrega "Casa de Cultura"
+ * ($40) con dos clases que ya tenían historia (sábados), para que los reportes por sede tengan datos.
+ */
+export async function agregarSedeDemo(): Promise<{ sede: string; clasesMovidas: number; pagosMovidos: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if (await db.sedes.filter((s) => !s.deletedAt).count()) throw new Error('Ya hay sedes');
+  const A = academia.id;
+  const ahora = Date.now();
+  const base = () => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ahora, updatedAt: ahora, deletedAt: null });
+  const PRINCIPAL = '00000000-0000-4000-8000-000000000000';
+  const cdc = { ...base(), nombre: 'Casa de Cultura', color: '#7c4ddb', activo: true };
+  await guardar('sedes', cdc);
+  await guardar('academias', { ...academia, sedePrincipal: 'Estudio Calo' });
+
+  // Precios: Estudio $60, Casa de Cultura $40
+  const suelta = (await db.planes.toArray()).find((p) => p.tipo === 'suelta' && !p.deletedAt);
+  if (suelta) await guardar('planes', { ...suelta, nombre: 'Clase suelta', precio: 6000, sedeId: PRINCIPAL });
+  await guardar('planes', { ...base(), nombre: 'Clase suelta Casa de Cultura', tipo: 'suelta', precio: 4000, clases: 1, vigenciaDias: null, disciplinaId: null, sedeId: cdc.id, activo: true });
+
+  // Las clases de sábado temprano pasan a Casa de Cultura (con su historia)
+  const clases = await db.clases.filter((c) => !c.deletedAt && c.activo && c.dias.includes(6) && c.horaInicio >= '10:00' && c.horaInicio <= '14:00').toArray();
+  const ids = new Set(clases.map((c) => c.id));
+  for (const c of clases) await guardar('clases', { ...c, sedeId: cdc.id });
+  const asis = await db.asistencias.filter((a) => ids.has(a.claseId) && !!a.pagoId).toArray();
+  const pagoIds = asis.map((a) => a.pagoId!);
+  const pagos = (await db.pagos.bulkGet(pagoIds)).filter((p): p is Pago => !!p);
+  await db.transaction('rw', [db.pagos, db.outbox], async () => {
+    await db.pagos.bulkPut(pagos.map((p) => ({ ...p, sedeId: cdc.id, updatedAt: ahora })));
+    await db.outbox.bulkAdd(pagos.map((p) => ({ table: 'pagos' as const, id: p.id, at: ahora })));
+  });
+  return { sede: cdc.nombre, clasesMovidas: clases.length, pagosMovidos: pagos.length };
+}

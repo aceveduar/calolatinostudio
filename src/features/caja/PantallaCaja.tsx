@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronLeft, ChevronRight, Lock, Receipt, RotateCcw, Scale } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas, useMaestros, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { nombreSede, useSedeActual, useSedes } from '../../app/sedes';
+import { PRINCIPAL, claveSede, conSede } from '../../domain/sedes';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -23,12 +25,20 @@ export function PantallaCaja() {
   const maestros = useMaestros();
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [corte, setCorte] = useState(false);
+  const { academia, esDueno } = useSesion();
+  const sedes = useSedes();
+  const [sedeActual] = useSedeActual();
+  // Qué sede se ve: 'todas' | PRINCIPAL | id. Por defecto, la de este equipo.
+  const [verSede, setVerSede] = useState<string | null>(null);
+  const k = verSede ?? claveSede(sedeActual);
+  const enSede = (sedeId: string | null | undefined) => k === 'todas' || claveSede(sedeId) === k;
+  const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
 
   const datos = useLiveQuery(async () => {
-    const pagos = await db.pagos.where('fecha').equals(fecha).filter((p) => !p.deletedAt).toArray();
-    const asis = asistenciasValidas(await db.asistencias.where('fecha').equals(fecha).toArray());
+    const pagos = await db.pagos.where('fecha').equals(fecha).filter((p) => !p.deletedAt && enSede(p.sedeId)).toArray();
+    const asis = asistenciasValidas(await db.asistencias.where('fecha').equals(fecha).toArray()).filter((a) => enSede(sedeDeClase.get(a.claseId)));
     const alumnos = await db.alumnos.bulkGet(pagos.map((p) => p.alumnoId ?? ''));
-    const cortes = await db.cortes.where('fecha').equals(fecha).filter((c) => !c.deletedAt).sortBy('createdAt');
+    const cortes = await db.cortes.where('fecha').equals(fecha).filter((c) => !c.deletedAt && k !== 'todas' && claveSede(c.sedeId) === k).sortBy('createdAt');
     const visitantes = new Map(asis.filter((a) => a.pagoId).map((a) => [a.pagoId!, a.nombreVisitante]));
     return {
       pagos: pagos
@@ -37,7 +47,7 @@ export function PantallaCaja() {
       asis,
       corte: cortes[cortes.length - 1],
     };
-  }, [fecha]);
+  }, [fecha, k, clases]);
 
   if (!datos) return null;
   const r = resumenCaja(datos.pagos.map((x) => x.p));
@@ -68,6 +78,19 @@ export function PantallaCaja() {
       <div className="-mx-4">
         <Encabezado titulo="Caja" sub={esHoy ? `Hoy, ${fechaLarga(fecha)}` : fechaLarga(fecha)} />
       </div>
+      {sedes.length > 0 && (
+        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+          {[...(esDueno ? ['todas'] : []), PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => (
+            <button
+              key={id}
+              onClick={() => setVerSede(id)}
+              className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', k === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+            >
+              {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Laptop/PC: resumen a la izquierda, movimientos a la derecha */}
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
       <div className="min-w-0">
@@ -117,7 +140,7 @@ export function PantallaCaja() {
             </button>
           </Tarjeta>
         ) : (
-          <Boton bloque grande variante="secundario" onClick={() => setCorte(true)} disabled={!r.cobros}>
+          <Boton bloque grande variante="secundario" onClick={() => setCorte(true)} disabled={!r.cobros || k === 'todas'} title={k === 'todas' ? 'El corte se hace por sede' : undefined}>
             <Scale size={20} /> Hacer corte de caja
           </Boton>
         )}
@@ -206,7 +229,7 @@ export function PantallaCaja() {
         {pagoSel && <DetallePago pago={pagoSel} cobro={usuarios.find((u) => u.id === pagoSel.usuarioId)?.nombre} anulo={usuarios.find((u) => u.id === pagoSel.anuladoPor)?.nombre} onHecho={() => setPagoSel(null)} />}
       </Hoja>
       <Hoja abierta={corte} onCerrar={() => setCorte(false)} titulo="Corte de caja">
-        {corte && <FormCorte fecha={fecha} esperado={r.efectivo} otros={r.transferencia + r.tarjeta} onHecho={() => setCorte(false)} />}
+        {corte && <FormCorte fecha={fecha} sedeId={k === PRINCIPAL || k === 'todas' ? null : k} esperado={r.efectivo} otros={r.transferencia + r.tarjeta} onHecho={() => setCorte(false)} />}
       </Hoja>
     </div>
   );
@@ -305,7 +328,7 @@ function Fila({ k, v }: { k: string; v: string }) {
   );
 }
 
-function FormCorte({ fecha, esperado, otros, onHecho }: { fecha: string; esperado: number; otros: number; onHecho: () => void }) {
+function FormCorte({ fecha, sedeId, esperado, otros, onHecho }: { fecha: string; sedeId: string | null; esperado: number; otros: number; onHecho: () => void }) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
   const [contadoTxt, setContadoTxt] = useState('');
@@ -339,7 +362,7 @@ function FormCorte({ fecha, esperado, otros, onHecho }: { fecha: string; esperad
         bloque
         disabled={!listo}
         onClick={async () => {
-          await crear('cortes', { fecha, esperadoEfectivo: esperado, contadoEfectivo: contado, diferencia: dif, totalOtros: otros, usuarioId: usuario.id, notas: notas.trim() });
+          await crear('cortes', { ...conSede(sedeId), fecha, esperadoEfectivo: esperado, contadoEfectivo: contado, diferencia: dif, totalOtros: otros, usuarioId: usuario.id, notas: notas.trim() });
           avisar('Corte guardado');
           onHecho();
         }}

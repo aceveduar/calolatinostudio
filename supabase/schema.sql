@@ -20,6 +20,16 @@ create table if not exists academias (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists sedes (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  nombre text not null,
+  color text not null default '#6e6a7c',
+  activo boolean not null default true,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 create table if not exists miembros (
   user_id uuid not null references auth.users(id) on delete cascade,
   academia_id uuid not null references academias(id) on delete cascade,
@@ -185,6 +195,12 @@ alter table academias add column if not exists logo text;
 alter table academias add column if not exists mensajes jsonb;
 alter table pagos add column if not exists producto_id uuid;
 alter table pagos add column if not exists cantidad int;
+alter table academias add column if not exists sede_principal text;
+alter table clases add column if not exists sede_id uuid;
+alter table planes add column if not exists sede_id uuid;
+alter table membresias add column if not exists sede_id uuid;
+alter table pagos add column if not exists sede_id uuid;
+alter table cortes add column if not exists sede_id uuid;
 alter table usuarios add column if not exists maestro_id uuid;
 alter table usuarios drop constraint if exists usuarios_rol_check;
 alter table usuarios add constraint usuarios_rol_check check (rol in ('dueno','recepcion','maestro'));
@@ -201,7 +217,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -227,7 +243,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;
@@ -258,7 +274,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;

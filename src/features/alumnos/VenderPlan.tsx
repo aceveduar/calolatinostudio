@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { usePlanes } from '../../app/datos';
+import { useClases, usePlanes } from '../../app/datos';
+import { useSedeActual } from '../../app/sedes';
+import { sirveEn } from '../../domain/sedes';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Segmentos, cx } from '../../components/ui';
@@ -37,7 +39,11 @@ export function VenderPlan({
 }) {
   const { usuario, academia } = useSesion();
   const avisar = useAvisos();
-  const planes = usePlanes().filter((p) => p.activo && p.tipo !== 'suelta');
+  const [sedeActual] = useSedeActual();
+  const clases = useClases();
+  // Sede de la venta: la de la clase a la que entra, o la de este equipo
+  const sedeVenta = claseId ? (clases.find((c) => c.id === claseId)?.sedeId ?? null) : sedeActual;
+  const planes = usePlanes().filter((p) => p.activo && p.tipo !== 'suelta' && sirveEn(p.sedeId, sedeVenta));
   const [planId, setPlanId] = useState<ID | null>(null);
   const plan = planes.find((p) => p.id === planId) ?? planes[0];
   const [montoTxt, setMontoTxt] = useState<string | null>(null);
@@ -57,7 +63,7 @@ export function VenderPlan({
   const cobrar = async () => {
     setOcupado(true);
     try {
-      await venderPlan({ alumnoId: alumno.id, plan, monto, metodo, inicio, usuarioId: usuario.id, entrarAClaseId: claseId });
+      await venderPlan({ alumnoId: alumno.id, plan, monto, metodo, inicio, usuarioId: usuario.id, entrarAClaseId: claseId, sedeId: sedeVenta });
       // Recibo por WhatsApp en un toque (solo si tiene número)
       const recibo = waLink(
         alumno.telefono,

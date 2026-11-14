@@ -13,6 +13,7 @@ import type {
   Pago,
   Plan,
   Producto,
+  Sede,
   Usuario,
 } from './types';
 
@@ -25,6 +26,7 @@ export class CompasDB extends Dexie {
   clases!: EntityTable<Clase, 'id'>;
   planes!: EntityTable<Plan, 'id'>;
   productos!: EntityTable<Producto, 'id'>;
+  sedes!: EntityTable<Sede, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -87,6 +89,9 @@ export class CompasDB extends Dexie {
       productos: 'id, academiaId',
       pagos: 'id, academiaId, fecha, alumnoId, productoId',
     });
+
+    // v4: sedes (lugares). Lo existente queda en la sede principal (sedeId vacío): no hay que migrar nada.
+    this.version(4).stores({ sedes: 'id, academiaId' });
   }
 }
 

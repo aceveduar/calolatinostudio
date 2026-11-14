@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import { crear } from '../db/repo';
 import type { ID, MetodoPago, Pago, Producto } from '../db/types';
 import { hoy } from './fechas';
+import { conSede } from './sedes';
 import type { Movimiento } from './rapido';
 
 /** Piezas disponibles: las que había en `inventarioAt` menos lo vendido después. null = sin control. */
@@ -27,9 +28,10 @@ export function ventasDeProductos(): Promise<Pago[]> {
   return db.pagos.where('productoId').above('').toArray();
 }
 
-export async function venderProducto(p: { producto: Producto; cantidad?: number; metodo: MetodoPago; usuarioId: ID; alumnoId?: ID | null }): Promise<Movimiento> {
+export async function venderProducto(p: { producto: Producto; cantidad?: number; metodo: MetodoPago; usuarioId: ID; alumnoId?: ID | null; sedeId?: ID | null }): Promise<Movimiento> {
   const cantidad = p.cantidad ?? 1;
   const pago = await crear('pagos', {
+    ...conSede(p.sedeId),
     alumnoId: p.alumnoId ?? null,
     planId: null,
     productoId: p.producto.id,

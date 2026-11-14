@@ -1,3 +1,4 @@
+import { sueltaPara } from '../../domain/sedes';
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CheckCircle2, Ticket, CalendarPlus, AlertTriangle } from 'lucide-react';
@@ -37,7 +38,7 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
   const [ocupado, setOcupado] = useState(false);
 
   const cubre = clase ? membresiaQueCubre(estados, clase) : null;
-  const suelta = planes.find((p) => p.activo && p.tipo === 'suelta');
+  const suelta = sueltaPara(planes, clase?.sedeId);
   const sem = semaforoAlumno(estados);
   const nClase = nombreClase(clase ?? undefined, disciplinas);
 

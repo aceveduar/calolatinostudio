@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag, MapPin, ChevronDown, Check } from 'lucide-react';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { mismaSede, nombreSede, useSedeActual, useSedes } from '../../app/sedes';
+import { sueltaPara } from '../../domain/sedes';
 import { useAngosta, useEsEscritorio } from '../../app/pantalla';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
@@ -34,16 +36,22 @@ const capitalizar = (s: string) =>
     .join(' ');
 
 export function PantallaEntrada() {
-  const { usuario } = useSesion();
+  const { usuario, academia } = useSesion();
   const esc = useEsEscritorio();
   const angosta = useAngosta();
   const avisar = useAvisos();
-  const clases = useClases();
+  const todasLasClases = useClases();
+  const sedes = useSedes();
+  const [sedeActual, cambiarSede] = useSedeActual();
+  // Solo las clases de la sede donde está este equipo
+  const clases = useMemo(() => todasLasClases.filter((c) => mismaSede(c.sedeId, sedeActual)), [todasLasClases, sedeActual]);
+  const [elegirSede, setElegirSede] = useState(false);
   const disciplinas = useDisciplinas();
   const maestros = useMaestros();
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
-  const suelta = usePlanes().find((p) => p.activo && p.tipo === 'suelta');
+  const planes = usePlanes();
+  const suelta = sueltaPara(planes, sedeActual);
   const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
 
   const [claseId, setClaseId] = useState<ID | null>(null);
@@ -214,7 +222,23 @@ export function PantallaEntrada() {
   return (
     <div className={cx(movs.length > 0 && !esc && 'pb-72', 'lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6')}>
       <div className="min-w-0">
-      <Encabezado titulo="Entrada" sub={fechaLarga(hoy())} />
+      <Encabezado
+        titulo="Entrada"
+        sub={fechaLarga(hoy())}
+        accion={
+          sedes.length > 0 ? (
+            <button
+              onClick={() => setElegirSede(true)}
+              className="mr-0 flex max-w-[55%] items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+              aria-label="Cambiar sede"
+            >
+              <MapPin size={16} style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} />
+              <span className="truncate">{nombreSede(sedeActual, sedes, academia)}</span>
+              <ChevronDown size={14} className="shrink-0 text-ink-500" />
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Clases del día */}
       <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
@@ -451,10 +475,44 @@ export function PantallaEntrada() {
         />
       </Hoja>
 
+      <Hoja abierta={elegirSede} onCerrar={() => setElegirSede(false)} titulo="¿Dónde estás hoy?">
+        {elegirSede && (
+          <div className="space-y-2">
+            {[null, ...sedes.map((x) => x.id)].map((id) => {
+              const x = sedes.find((y) => y.id === id);
+              const n = todasLasClases.filter((c) => mismaSede(c.sedeId, id) && c.activo).length;
+              return (
+                <button
+                  key={id ?? 'principal'}
+                  onClick={async () => {
+                    await cambiarSede(id);
+                    setClaseId(null);
+                    setElegirSede(false);
+                    avisar(`Ahora en ${nombreSede(id, sedes, academia)}`);
+                  }}
+                  className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie p-4 text-left ring-1', mismaSede(id, sedeActual) ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+                >
+                  <MapPin size={22} style={{ color: x?.color ?? 'var(--marca)' }} />
+                  <span className="flex-1">
+                    <span className="block font-semibold">{nombreSede(id, sedes, academia)}</span>
+                    <span className="block text-sm text-ink-500">
+                      {n} clases · clase suelta {sueltaPara(planes, id) ? dinero(sueltaPara(planes, id)!.precio) : 'sin precio'}
+                    </span>
+                  </span>
+                  {mismaSede(id, sedeActual) && <Check size={20} className="text-brand-600" />}
+                </button>
+              );
+            })}
+            <p className="px-1 pt-1 text-xs text-ink-500">Este equipo recuerda la sede. Los cobros y el corte de caja quedan en la sede elegida.</p>
+          </div>
+        )}
+      </Hoja>
+
       <Hoja abierta={tienda} onCerrar={() => setTienda(false)} titulo="Tienda">
         {tienda && (
           <Tienda
             movs={movs}
+            sedeId={sedeActual}
             onAgregar={(m) => setMovs((x) => [m, ...x])}
             onQuitar={(m) => setMovs((x) => x.filter((y) => y.key !== m.key))}
             onListo={() => setTienda(false)}
@@ -572,7 +630,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
 function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () => void }) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
-  const suelta = usePlanes().find((p) => p.activo && p.tipo === 'suelta');
+  const suelta = sueltaPara(usePlanes(), clase?.sedeId);
   const [nombre, setNombre] = useState('');
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [ocupado, setOcupado] = useState(false);

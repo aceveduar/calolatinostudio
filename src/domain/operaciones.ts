@@ -6,6 +6,7 @@ import { db } from '../db/db';
 import { actualizar, crear, enTransaccion } from '../db/repo';
 import type { Asistencia, Fecha, ID, Membresia, MetodoPago, Pago, Plan } from '../db/types';
 import { hoy, sumarDias, sumarMeses } from './fechas';
+import { conSede } from './sedes';
 
 export function calcularFin(plan: Plan, inicio: Fecha): Fecha {
   if (plan.tipo === 'mensual') return sumarDias(sumarMeses(inicio, 1), -1);
@@ -51,7 +52,9 @@ export async function cobrarClaseSuelta(p: {
   usuarioId: ID;
 }): Promise<{ pago: Pago; asistencia: Asistencia }> {
   return enTransaccion(async () => {
+    const clase = await db.clases.get(p.claseId);
     const pago = await crear('pagos', {
+      ...conSede(clase?.sedeId),
       alumnoId: p.alumnoId,
       planId: p.plan.id,
       concepto: p.plan.nombre,
@@ -86,9 +89,13 @@ export async function venderPlan(p: {
   inicio: Fecha;
   usuarioId: ID;
   entrarAClaseId?: ID;
+  /** dónde se cobró (si entra a una clase, la de esa clase) */
+  sedeId?: ID | null;
 }): Promise<{ pago: Pago; membresia: Membresia }> {
   return enTransaccion(async () => {
+    const clase = p.entrarAClaseId ? await db.clases.get(p.entrarAClaseId) : undefined;
     const pago = await crear('pagos', {
+      ...conSede(clase ? clase.sedeId : p.sedeId),
       alumnoId: p.alumnoId,
       planId: p.plan.id,
       concepto: p.plan.nombre,
@@ -105,6 +112,7 @@ export async function venderPlan(p: {
       planId: p.plan.id,
       pagoId: pago.id,
       disciplinaId: p.plan.disciplinaId,
+      ...conSede(p.plan.sedeId),
       inicio: p.inicio,
       fin: calcularFin(p.plan, p.inicio),
       clasesTotal: p.plan.tipo === 'mensual' ? null : p.plan.clases,

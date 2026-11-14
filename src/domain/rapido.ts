@@ -9,6 +9,7 @@ import { db } from '../db/db';
 import { actualizar, borrar, crear, enTransaccion } from '../db/repo';
 import type { Clase, ID, MetodoPago, Plan } from '../db/types';
 import { hoy } from './fechas';
+import { sueltaPara } from './sedes';
 import { estadoMembresia, membresiaQueCubre } from './membresias';
 import { cobrarClaseSuelta, entrarConMembresia, generarCodigo, yaEntroHoy } from './operaciones';
 
@@ -30,8 +31,9 @@ export interface Movimiento {
 
 export type Resultado = { tipo: 'ok'; mov: Movimiento } | { tipo: 'ya-entro' } | { tipo: 'sin-precio' };
 
-export async function planSuelta(): Promise<Plan | undefined> {
-  return db.planes.filter((p) => p.tipo === 'suelta' && p.activo && !p.deletedAt).first();
+/** Precio de clase suelta de la sede de esa clase (Estudio $60, Casa de Cultura $40…). */
+export async function planSuelta(sedeId?: ID | null): Promise<Plan | undefined> {
+  return sueltaPara(await db.planes.toArray(), sedeId);
 }
 
 export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Clase; usuarioId: ID; alumnoCreadoId?: ID }): Promise<Resultado> {
@@ -47,7 +49,7 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
     return { tipo: 'ok', mov: { ...base, monto: 0, metodo: null, pagoId: null, asistenciaId: a.id } };
   }
 
-  const suelta = await planSuelta();
+  const suelta = await planSuelta(p.clase.sedeId);
   if (!suelta) return { tipo: 'sin-precio' };
   const r = await cobrarClaseSuelta({ alumnoId: p.alumnoId, claseId: p.clase.id, plan: suelta, metodo: 'efectivo', usuarioId: p.usuarioId });
   return { tipo: 'ok', mov: { ...base, monto: r.pago.monto, metodo: 'efectivo', pagoId: r.pago.id, asistenciaId: r.asistencia.id } };
@@ -55,7 +57,7 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
 
 /** La tarjeta de siempre: cobra sin pedir nombre. */
 export async function entradaSinNombre(clase: Clase, usuarioId: ID): Promise<Resultado> {
-  const suelta = await planSuelta();
+  const suelta = await planSuelta(clase.sedeId);
   if (!suelta) return { tipo: 'sin-precio' };
   const r = await cobrarClaseSuelta({ alumnoId: null, claseId: clase.id, plan: suelta, metodo: 'efectivo', usuarioId });
   return {
