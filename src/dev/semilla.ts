@@ -454,3 +454,42 @@ export async function agregarSedeDemo(): Promise<{ sede: string; clasesMovidas: 
   });
   return { sede: cdc.nombre, clasesMovidas: clases.length, pagosMovidos: pagos.length };
 }
+
+/** Becas de ejemplo: plan "Beca" ($0, 180 días) para 8 alumnos que vienen seguido; sus clases recientes pasan a la beca. */
+export async function agregarBecasDemo(): Promise<{ becados: number; asistencias: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if ((await db.planes.toArray()).some((p) => !p.deletedAt && p.tipo !== 'suelta' && p.precio === 0)) throw new Error('Ya hay becas');
+  const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt);
+  if (!dueno) throw new Error('No hay usuario de dirección');
+  const A = academia.id;
+  const ahora = Date.now();
+  const base = () => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ahora, updatedAt: ahora, deletedAt: null });
+  const plan: Plan = { ...base(), nombre: 'Beca', tipo: 'paquete', precio: 0, clases: null, vigenciaDias: 180, disciplinaId: null, activo: true };
+  await guardar('planes', plan);
+
+  const hoyF = hoy();
+  const recientes = await db.asistencias.where('fecha').aboveOrEqual(sumarDias(hoyF, -21)).filter((a) => !!a.alumnoId && !a.anuladaAt && !a.deletedAt).toArray();
+  const veces = new Map<ID, number>();
+  for (const a of recientes) veces.set(a.alumnoId!, (veces.get(a.alumnoId!) ?? 0) + 1);
+  const elegidos = [...veces.entries()].sort((a, b) => b[1] - a[1]).slice(3, 11).map(([id]) => id);
+
+  let movidas = 0;
+  for (const [i, alumnoId] of elegidos.entries()) {
+    // dos becas por terminar pronto para que se vea el aviso
+    const inicio = sumarDias(hoyF, i < 2 ? -172 : -21);
+    const pago: Pago = { ...base(), alumnoId, planId: plan.id, concepto: plan.nombre, monto: 0, metodo: 'efectivo', usuarioId: dueno.id, fecha: inicio, anuladoAt: null, anuladoMotivo: null, anuladoPor: null };
+    await guardar('pagos', pago);
+    const mem: Membresia = { ...base(), alumnoId, planId: plan.id, pagoId: pago.id, disciplinaId: null, inicio, fin: sumarDias(inicio, 179), clasesTotal: null, anuladaAt: null };
+    await guardar('membresias', mem);
+    for (const a of recientes.filter((x) => x.alumnoId === alumnoId && x.fecha >= inicio)) {
+      if (a.pagoId) {
+        const p = await db.pagos.get(a.pagoId);
+        if (p) await guardar('pagos', { ...p, deletedAt: ahora });
+      }
+      await guardar('asistencias', { ...a, membresiaId: mem.id, pagoId: null });
+      movidas++;
+    }
+  }
+  return { becados: elegidos.length, asistencias: movidas };
+}

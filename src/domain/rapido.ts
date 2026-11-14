@@ -5,6 +5,7 @@
  *  - si no → cobra clase suelta en efectivo
  * Todo es reversible con `deshacer` (borrado lógico), así no hacen falta confirmaciones.
  */
+import { esBeca } from './becas';
 import { db } from '../db/db';
 import { actualizar, borrar, crear, enTransaccion } from '../db/repo';
 import type { Clase, ID, MetodoPago, Plan } from '../db/types';
@@ -25,6 +26,8 @@ export interface Movimiento {
   /** venta de tienda */
   productoId?: ID;
   emoji?: string;
+  /** entró con beca (se muestra "Beca" en lugar de "Plan") */
+  beca?: boolean;
   /** alumno creado en este mismo cobro (se borra al deshacer) */
   alumnoCreadoId: ID | null;
 }
@@ -46,7 +49,8 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
 
   if (cubre) {
     const a = await entrarConMembresia({ alumnoId: p.alumnoId, claseId: p.clase.id, membresiaId: cubre.membresia.id, usuarioId: p.usuarioId });
-    return { tipo: 'ok', mov: { ...base, monto: 0, metodo: null, pagoId: null, asistenciaId: a.id } };
+    const beca = esBeca(await db.planes.get(cubre.membresia.planId));
+    return { tipo: 'ok', mov: { ...base, monto: 0, metodo: null, pagoId: null, asistenciaId: a.id, ...(beca && { beca }) } };
   }
 
   const suelta = await planSuelta(p.clase.sedeId);

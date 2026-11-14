@@ -213,7 +213,7 @@ export function PantallaCaja() {
                 <span className={cx('min-w-0 flex-1', !!p.anuladoAt && 'opacity-40')}>
                   <span className={cx('block truncate font-medium', !!p.anuladoAt && 'line-through')}>{quien}</span>
                   <span className="block truncate text-xs text-ink-500">
-                    {p.concepto} · {p.metodo}
+                    {p.concepto} · {p.monto === 0 && p.planId ? 'sin costo' : p.metodo}
                   </span>
                 </span>
                 {p.anuladoAt ? <Etiqueta tono="sin">Anulado</Etiqueta> : <span className="font-bold">{dinero(p.monto)}</span>}
@@ -274,7 +274,7 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho }: { pago: Pa
         </Boton>
       ) : (
         <>
-          <div>
+          {pago.monto > 0 && <div>
             <p className="mb-1.5 px-1 text-sm font-medium text-ink-700">Método de pago</p>
             <Segmentos<MetodoPago>
               opciones={METODOS}
@@ -284,9 +284,9 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho }: { pago: Pa
                 avisar(`Método: ${m}`, 'ok', { texto: 'Deshacer', fn: () => cambiarMetodoPago(pago.id, antes).then(() => undefined) });
               }}
             />
-          </div>
+          </div>}
           <div className="space-y-2 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100">
-            <p className="text-sm font-medium text-ink-700">Anular cobro</p>
+            <p className="text-sm font-medium text-ink-700">{pago.monto === 0 && pago.planId ? 'Anular (quita la beca)' : 'Anular cobro'}</p>
             <div className="flex flex-wrap gap-2">
               {MOTIVOS.map((m) => (
                 <button

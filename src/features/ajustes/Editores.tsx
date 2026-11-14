@@ -16,6 +16,7 @@ import { describirPlan } from '../alumnos/VenderPlan';
 import { EMOJIS_PRODUCTO, estadoExistencia } from '../../domain/tienda';
 import { PRINCIPAL, nombreSede, useSedes } from '../../app/sedes';
 import { conSede } from '../../domain/sedes';
+import { VIGENCIA_BECA, esBeca } from '../../domain/becas';
 
 /** Lista + hoja de edición: patrón común de todos los catálogos. */
 function Catalogo<T extends { id: ID }>({
@@ -464,7 +465,7 @@ export function EditorPlanes() {
   const orden: Record<TipoPlan, number> = { suelta: 0, mensual: 1, paquete: 2 };
   return (
     <Catalogo
-      items={[...planes].sort((a, b) => orden[a.tipo] - orden[b.tipo])}
+      items={[...planes].sort((a, b) => (esBeca(a) ? 3 : orden[a.tipo]) - (esBeca(b) ? 3 : orden[b.tipo]))}
       textoNuevo="Nuevo plan"
       titulo={(p) => (p ? p.nombre : 'Nuevo plan')}
       fila={(p) => (
@@ -476,7 +477,7 @@ export function EditorPlanes() {
               {sedes.length > 0 && ` · ${p.sedeId ? `solo ${p.sedeId === PRINCIPAL ? nombreSede(null, sedes, academia) : nombreSede(p.sedeId, sedes, academia)}` : 'todas las sedes'}`}
             </span>
           </span>
-          <span className="font-bold">{dinero(p.precio)}</span>
+          {esBeca(p) ? <Etiqueta tono="ok">Beca</Etiqueta> : <span className="font-bold">{dinero(p.precio)}</span>}
         </>
       )}
       form={(p, cerrar) => <FormPlan plan={p} onHecho={cerrar} />}
@@ -488,10 +489,11 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
   const avisar = useAvisos();
   const disciplinas = useDisciplinas();
   const [nombre, setNombre] = useState(plan?.nombre ?? '');
-  const [tipo, setTipo] = useState<TipoPlan>(plan?.tipo ?? 'mensual');
+  // 'beca' solo existe en el formulario: se guarda como paquete de $0 con clases ilimitadas
+  const [tipo, setTipo] = useState<TipoPlan | 'beca'>(esBeca(plan) ? 'beca' : (plan?.tipo ?? 'mensual'));
   const [precio, setPrecio] = useState(plan ? aPesosTexto(plan.precio) : '');
   const [clases, setClases] = useState(String(plan?.clases ?? 8));
-  const [vigencia, setVigencia] = useState(String(plan?.vigenciaDias ?? 30));
+  const [vigencia, setVigencia] = useState(String(plan?.vigenciaDias ?? (esBeca(plan) ? VIGENCIA_BECA : 30)));
   const [disciplinaId, setDisciplinaId] = useState<ID | ''>(plan?.disciplinaId ?? '');
   const [activo, setActivo] = useState(plan?.activo ?? true);
   const { academia } = useSesion();
@@ -502,10 +504,10 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
     const datos = {
       ...conSede(alcance, plan?.sedeId),
       nombre: nombre.trim(),
-      tipo,
-      precio: aCentavos(precio),
+      tipo: tipo === 'beca' ? ('paquete' as const) : tipo,
+      precio: tipo === 'beca' ? 0 : aCentavos(precio),
       clases: tipo === 'paquete' ? Number(clases) || 1 : tipo === 'suelta' ? 1 : null,
-      vigenciaDias: tipo === 'paquete' ? Number(vigencia) || 30 : null,
+      vigenciaDias: tipo === 'paquete' ? Number(vigencia) || 30 : tipo === 'beca' ? Number(vigencia) || VIGENCIA_BECA : null,
       disciplinaId: disciplinaId || null,
       activo,
     };
@@ -517,21 +519,37 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
 
   return (
     <div className="space-y-4">
-      <Segmentos<TipoPlan>
+      <Segmentos<TipoPlan | 'beca'>
         opciones={[
           { valor: 'suelta', texto: 'Por clase' },
           { valor: 'mensual', texto: 'Mensual' },
           { valor: 'paquete', texto: 'Paquete' },
+          { valor: 'beca', texto: 'Beca' },
         ]}
         valor={tipo}
-        onChange={setTipo}
+        onChange={(t) => {
+          setTipo(t);
+          if (t === 'beca' && !plan) setVigencia(String(VIGENCIA_BECA));
+          if (t === 'paquete' && !plan) setVigencia('30');
+        }}
       />
+      {tipo === 'beca' && (
+        <p className="rounded-xl bg-ok-50 px-3 py-2 text-sm text-ok-600">
+          El alumno becado entra a sus clases sin pagar. Solo la dirección puede dar becas; al terminar la vigencia se renueva desde su ficha.
+        </p>
+      )}
       <Campo etiqueta="Nombre">
-        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={tipo === 'suelta' ? 'Clase suelta' : tipo === 'mensual' ? 'Mensualidad' : 'Paquete 8 clases'} />
+        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={tipo === 'suelta' ? 'Clase suelta' : tipo === 'mensual' ? 'Mensualidad' : tipo === 'beca' ? 'Beca' : 'Paquete 8 clases'} />
       </Campo>
-      <Campo etiqueta="Precio">
-        <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
-      </Campo>
+      {tipo === 'beca' ? (
+        <Campo etiqueta="Vigencia (días)" ayuda="180 días ≈ un semestre.">
+          <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencia(e.target.value.replace(/\D/g, ''))} />
+        </Campo>
+      ) : (
+        <Campo etiqueta="Precio">
+          <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
+        </Campo>
+      )}
       {tipo === 'paquete' && (
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="Clases">
@@ -571,7 +589,7 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
         </Campo>
       )}
       <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0}>
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (tipo === 'beca' ? !(Number(vigencia) > 0) : aCentavos(precio) <= 0)}>
         Guardar
       </Boton>
     </div>

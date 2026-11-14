@@ -163,7 +163,7 @@ export function PantallaEntrada() {
     if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo registrar' };
     if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está adentro de esta clase' };
     if (r.tipo === 'sin-precio') return { tono: 'error', titulo: 'Falta el precio', detalle: 'Configura la clase suelta en Ajustes' };
-    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Cobrar ${dinero(r.mov.monto)}` : 'Entró con su plan' };
+    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Cobrar ${dinero(r.mov.monto)}` : r.mov.beca ? 'Becado · entra sin pagar' : 'Entró con su plan' };
   };
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);

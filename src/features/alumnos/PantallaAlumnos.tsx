@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Users } from 'lucide-react';
-import { useAlumnos, useEstadosPorAlumno } from '../../app/datos';
+import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
+import { esBeca } from '../../domain/becas';
 import { Avatar, Boton, Encabezado, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-type Filtro = 'todos' | Semaforo;
+type Filtro = 'todos' | Semaforo | 'beca';
 
 export function PantallaAlumnos() {
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
+  const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
@@ -23,10 +25,14 @@ export function PantallaAlumnos() {
     const t = normalizar(q.trim());
     return alumnos
       .filter((a) => a.activo !== verBajas)
-      .map((a) => ({ a, s: semaforoAlumno(estados.get(a.id) ?? []) }))
+      .map((a) => {
+        const est = estados.get(a.id) ?? [];
+        return { a, s: semaforoAlumno(est), beca: est.some((e) => e.vigente && planesBeca.has(e.membresia.planId)) };
+      })
       .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || a.telefono.includes(t))
-      .filter(({ s }) => filtro === 'todos' || s.tono === filtro);
-  }, [alumnos, estados, q, filtro, verBajas]);
+      .filter(({ s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : s.tono === filtro));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alumnos, estados, q, filtro, verBajas, planesBeca.size]);
 
   return (
     <div className="px-4 pb-6 lg:mx-auto lg:max-w-3xl">
@@ -57,6 +63,7 @@ export function PantallaAlumnos() {
           { valor: 'ok', texto: 'Al corriente' },
           { valor: 'pronto', texto: 'Por vencer' },
           { valor: 'sin', texto: 'Sin plan' },
+          ...(planesBeca.size ? [{ valor: 'beca' as const, texto: 'Becados' }] : []),
         ]}
         valor={filtro}
         onChange={setFiltro}
@@ -67,10 +74,11 @@ export function PantallaAlumnos() {
           <Vacio icono={<Users size={40} />} titulo={alumnos.length ? 'Nadie coincide' : 'Aún no hay alumnos'} texto={alumnos.length ? undefined : 'Se registran solos desde Entrada la primera vez que llegan.'} />
         ) : (
           <Tarjeta className="divide-y divide-ink-100">
-            {filas.map(({ a, s }) => (
+            {filas.map(({ a, s, beca }) => (
               <button key={a.id} onClick={() => nav(`/alumnos/${a.id}`)} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-ink-50">
                 <Avatar nombre={a.nombre} tam={40} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
+                {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
                 <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>
               </button>
             ))}

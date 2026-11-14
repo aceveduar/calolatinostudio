@@ -1,19 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowDownRight, ArrowUpRight, CalendarClock, HeartCrack, MessageCircle } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, CalendarClock, GraduationCap, HeartCrack, MessageCircle } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
-import { PRINCIPAL, claveSede } from '../../domain/sedes';
+import { PRINCIPAL, claveSede, sirveEn } from '../../domain/sedes';
 import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { dinero } from '../../domain/dinero';
-import { aFecha, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
+import { aFecha, diasEntre, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
 import { textoDias } from '../../domain/membresias';
 import { dejaronDeVenir, indicadores, ingresosPorDia, periodos, porClase, variacion, vencenPronto, waLink } from '../../domain/reportes';
 import { GraficaBarras } from './GraficaBarras';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
+import { esBeca, resumenBecas } from '../../domain/becas';
 
 type Rango = 7 | 30;
 
@@ -35,7 +36,7 @@ export function PantallaReportes() {
     const [pagos, asis, mems, alumnos] = await Promise.all([
       db.pagos.where('fecha').aboveOrEqual(desde).toArray(),
       db.asistencias.where('fecha').aboveOrEqual(desde).toArray(),
-      db.membresias.where('fin').aboveOrEqual(dia).toArray(),
+      db.membresias.where('fin').aboveOrEqual(desde).toArray(),
       db.alumnos.toArray(),
     ]);
     return { pagos, asis, mems, alumnos };
@@ -72,10 +73,13 @@ export function PantallaReportes() {
       }),
       clases: filas,
       maestros: [...maestro.values()].sort((a, b) => b.alumnos - a.alumnos),
-      vencen: vencenPronto(datos.mems, porId, dia),
+      // las becas no se cobran: no van en "vencen" (el mensaje pide renovar pagando)
+      vencen: vencenPronto(datos.mems.filter((m) => !esBeca(planes.find((p) => p.id === m.planId))), porId, dia),
+      becas: planes.some(esBeca) ? resumenBecas({ desde: actual.desde, hasta: actual.hasta, hoy: dia, planes, mems: datos.mems.filter((m) => verSede === 'todas' || sirveEn(m.sedeId, verSede === PRINCIPAL ? null : verSede)), asis: asisS, clases }) : null,
+      porId,
       perdidos: dejaronDeVenir(asisS, porId, dia),
     };
-  }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes]);
+  }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes, planes]);
 
   if (!r) return null;
   const etiquetaAntes = rango === 7 ? 'vs 7 días previos' : 'vs 30 días previos';
@@ -142,6 +146,46 @@ export function PantallaReportes() {
               );
             })}
           </div>
+        </Seccion>
+      )}
+
+      {r.becas && (
+        <Seccion titulo={`Becas · ${r.becas.activas.length} activas`}>
+          <Tarjeta className="p-4">
+            <div className="flex items-start gap-3">
+              <span className="rounded-xl bg-ok-50 p-2 text-ok-600">
+                <GraduationCap size={22} />
+              </span>
+              <p className="text-sm">
+                <b className="text-base">{r.becas.asistencias.toLocaleString('es-MX')}</b> asistencias de becados en el periodo
+                {r.becas.valor > 0 && (
+                  <>
+                    {' '}· equivalen a <b>{dinero(r.becas.valor)}</b> en clases sueltas
+                  </>
+                )}
+                .
+              </p>
+            </div>
+          </Tarjeta>
+          {r.becas.activas.length > 0 && (
+            <Tarjeta className="mt-2 divide-y divide-ink-100">
+              {r.becas.activas.map(({ membresia, asistencias }) => {
+                const alumno = r.porId.get(membresia.alumnoId);
+                if (!alumno) return null;
+                const dias = diasEntre(dia, membresia.fin);
+                return (
+                  <FilaContacto
+                    key={membresia.id}
+                    alumnoId={alumno.id}
+                    nombre={alumno.nombre}
+                    detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Beca'} · hasta ${fechaCorta(membresia.fin)} · ${asistencias} ${asistencias === 1 ? 'clase' : 'clases'}`}
+                    etiqueta={dias <= 14 ? <Etiqueta tono="pronto">{textoDias(dias)}</Etiqueta> : undefined}
+                    wa={null}
+                  />
+                );
+              })}
+            </Tarjeta>
+          )}
         </Seccion>
       )}
 

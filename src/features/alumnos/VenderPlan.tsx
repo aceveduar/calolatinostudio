@@ -12,6 +12,7 @@ import type { EstadoMembresia } from '../../domain/membresias';
 import { calcularFin, venderPlan } from '../../domain/operaciones';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { waLink } from '../../domain/reportes';
+import { esBeca } from '../../domain/becas';
 
 export const METODOS: { valor: MetodoPago; texto: string }[] = [
   { valor: 'efectivo', texto: 'Efectivo' },
@@ -20,6 +21,7 @@ export const METODOS: { valor: MetodoPago; texto: string }[] = [
 ];
 
 export function describirPlan(p: Plan): string {
+  if (esBeca(p)) return `Clases ilimitadas por ${p.vigenciaDias} días, sin costo`;
   if (p.tipo === 'mensual') return 'Clases ilimitadas por un mes';
   if (p.tipo === 'paquete') return `${p.clases} clases · vigencia ${p.vigenciaDias} días`;
   return 'Una clase';
@@ -37,13 +39,14 @@ export function VenderPlan({
   claseId?: ID;
   onHecho: () => void;
 }) {
-  const { usuario, academia } = useSesion();
+  const { usuario, academia, esDueno } = useSesion();
   const avisar = useAvisos();
   const [sedeActual] = useSedeActual();
   const clases = useClases();
   // Sede de la venta: la de la clase a la que entra, o la de este equipo
   const sedeVenta = claseId ? (clases.find((c) => c.id === claseId)?.sedeId ?? null) : sedeActual;
-  const planes = usePlanes().filter((p) => p.activo && p.tipo !== 'suelta' && sirveEn(p.sedeId, sedeVenta));
+  const planes = usePlanes().filter((p) => p.activo && p.tipo !== 'suelta' && sirveEn(p.sedeId, sedeVenta) && (esDueno || !esBeca(p)))
+    .sort((a, b) => Number(esBeca(a)) - Number(esBeca(b)));
   const [planId, setPlanId] = useState<ID | null>(null);
   const plan = planes.find((p) => p.id === planId) ?? planes[0];
   const [montoTxt, setMontoTxt] = useState<string | null>(null);
@@ -58,12 +61,18 @@ export function VenderPlan({
 
   if (!plan) return <p className="py-6 text-center text-ink-500">No hay mensualidades ni paquetes activos. Créalos en Ajustes → Planes.</p>;
 
-  const monto = montoTxt === null ? plan.precio : aCentavos(montoTxt);
+  const beca = esBeca(plan);
+  const monto = beca ? 0 : montoTxt === null ? plan.precio : aCentavos(montoTxt);
 
   const cobrar = async () => {
     setOcupado(true);
     try {
-      await venderPlan({ alumnoId: alumno.id, plan, monto, metodo, inicio, usuarioId: usuario.id, entrarAClaseId: claseId, sedeId: sedeVenta });
+      await venderPlan({ alumnoId: alumno.id, plan, monto, metodo: beca ? 'efectivo' : metodo, inicio, usuarioId: usuario.id, entrarAClaseId: claseId, sedeId: sedeVenta });
+      if (beca) {
+        avisar(`Beca registrada hasta el ${fechaCorta(calcularFin(plan, inicio))}`);
+        onHecho();
+        return;
+      }
       // Recibo por WhatsApp en un toque (solo si tiene número)
       const recibo = waLink(
         alumno.telefono,
@@ -103,7 +112,7 @@ export function VenderPlan({
               <p className="font-semibold">{p.nombre}</p>
               <p className="text-sm text-ink-500">{describirPlan(p)}</p>
             </div>
-            <span className="text-lg font-bold">{dinero(p.precio)}</span>
+            {esBeca(p) ? <span className="rounded-full bg-ok-50 px-2.5 py-0.5 text-sm font-bold text-ok-600">Beca</span> : <span className="text-lg font-bold">{dinero(p.precio)}</span>}
           </button>
         ))}
       </div>
@@ -115,6 +124,15 @@ export function VenderPlan({
         {vigenteMismoTipo && <p className="mt-1 text-ink-500">Renovación: empieza cuando termine su plan actual.</p>}
       </div>
 
+      {beca ? (
+        <>
+          <p className="rounded-xl bg-ok-50 px-3 py-2 text-sm text-ok-600">{alumno.nombre.split(' ')[0]} entrará a sus clases sin pagar durante la vigencia. No se registra dinero en caja.</p>
+          <Boton grande bloque onClick={cobrar} disabled={ocupado}>
+            Dar beca{claseId && inicio <= hoy() ? ' y dar entrada' : ''}
+          </Boton>
+        </>
+      ) : (
+        <>
       <Campo etiqueta="Monto cobrado" ayuda="Cámbialo solo si hay descuento.">
         <Entrada inputMode="decimal" value={montoTxt ?? aPesosTexto(plan.precio)} onChange={(e) => setMontoTxt(e.target.value)} />
       </Campo>
@@ -133,6 +151,8 @@ export function VenderPlan({
         Cobrar {dinero(monto)}
         {claseId && inicio <= hoy() ? ' y dar entrada' : ''}
       </Boton>
+        </>
+      )}
     </div>
   );
 }

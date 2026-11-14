@@ -53,7 +53,7 @@ export function Cuenta({
                 {cantidad > 1 && <span className="ml-1.5 font-bold text-white/70">×{cantidad}</span>}
               </span>
               <span className={cx('text-sm font-bold', !monto && 'text-[#7ee2a8]')}>
-                {monto ? dinero(monto) : 'Plan'}
+                {monto ? dinero(monto) : m.beca ? 'Beca' : 'Plan'}
                 {m.metodo === 'transferencia' && <span className="ml-1 font-normal text-white/60">transf.</span>}
               </span>
               <button onClick={() => onDeshacer(m)} className="-mr-2 rounded-full p-2 text-white/50 active:bg-white/10" aria-label={`Deshacer ${m.nombre}`}>

@@ -146,7 +146,7 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
             <div key={m.key} className="flex items-center gap-2 border-b border-ink-100 px-4 py-2 last:border-0">
               <Check size={16} className="text-ok-600" />
               <span className="min-w-0 flex-1 truncate font-semibold">{m.nombre}</span>
-              <span className={cx('text-sm font-bold', !m.monto && 'text-ok-600')}>{m.monto ? dinero(m.monto) : 'Plan'}</span>
+              <span className={cx('text-sm font-bold', !m.monto && 'text-ok-600')}>{m.monto ? dinero(m.monto) : m.beca ? 'Beca' : 'Plan'}</span>
             </div>
           ))}
         </div>
