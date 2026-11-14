@@ -187,6 +187,35 @@ export interface Corte extends Base {
   notas: string;
 }
 
+export type CategoriaGasto = 'renta' | 'luz' | 'agua' | 'internet' | 'maestros' | 'limpieza' | 'otro';
+
+/** Gasto que se repite cada mes (renta, luz, internet). El monto es el estimado; se confirma al registrarlo. */
+export interface GastoFijo extends Base {
+  /** null = sede principal */
+  sedeId?: ID | null;
+  concepto: string;
+  categoria: CategoriaGasto;
+  monto: number;
+  /** día del mes en que se paga (1–28) */
+  dia: number;
+  activo: boolean;
+}
+
+/** Salida de dinero de la academia. */
+export interface Gasto extends Base {
+  /** null = sede principal */
+  sedeId?: ID | null;
+  concepto: string;
+  categoria: CategoriaGasto;
+  monto: number;
+  fecha: Fecha;
+  /** si viene de un gasto fijo, cuál (para saber qué falta pagar en el mes) */
+  fijoId: ID | null;
+  metodo: MetodoPago;
+  notas: string;
+  usuarioId: ID;
+}
+
 export interface OutboxItem {
   seq?: number;
   table: SyncTable;
@@ -213,6 +242,8 @@ export interface TablaMap {
   pagos: Pago;
   asistencias: Asistencia;
   cortes: Corte;
+  gastosFijos: GastoFijo;
+  gastos: Gasto;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -231,4 +262,6 @@ export const SYNC_TABLES: SyncTable[] = [
   'pagos',
   'asistencias',
   'cortes',
+  'gastosFijos',
+  'gastos',
 ];

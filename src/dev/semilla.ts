@@ -4,7 +4,7 @@
  */
 import { db } from '../db/db';
 import { guardar } from '../db/repo';
-import type { Alumno, Asistencia, Clase, Corte, Fecha, ID, Maestro, Membresia, MetodoPago, Pago, Plan, Usuario } from '../db/types';
+import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Plan, Usuario } from '../db/types';
 import { crearAcademia, hashPin } from '../domain/acceso';
 import { generarCodigo } from '../domain/operaciones';
 import { deFecha, hoy, sumarDias, sumarMeses } from '../domain/fechas';
@@ -492,4 +492,46 @@ export async function agregarBecasDemo(): Promise<{ becados: number; asistencias
     }
   }
   return { becados: elegidos.length, asistencias: movidas };
+}
+
+/** Gastos de ejemplo: renta(s), luz, internet y garrafones de los últimos 2 meses y el actual (hasta hoy). */
+export async function agregarGastosDemo(): Promise<{ fijos: number; gastos: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if (await db.gastosFijos.filter((f) => !f.deletedAt).count()) throw new Error('Ya hay gastos fijos');
+  const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt);
+  if (!dueno) throw new Error('No hay usuario de dirección');
+  const A = academia.id;
+  const base = () => {
+    const ahora = Date.now();
+    return { id: crypto.randomUUID() as ID, academiaId: A, createdAt: ahora, updatedAt: ahora, deletedAt: null };
+  };
+  const cdc = (await db.sedes.toArray()).find((s) => !s.deletedAt);
+  const fijos: GastoFijo[] = [
+    { ...base(), concepto: `Renta ${academia.sedePrincipal || 'estudio'}`, categoria: 'renta', monto: 550000, dia: 1, activo: true },
+    { ...base(), concepto: 'Luz', categoria: 'luz', monto: 85000, dia: 15, activo: true },
+    { ...base(), concepto: 'Internet', categoria: 'internet', monto: 49900, dia: 10, activo: true },
+    ...(cdc ? [{ ...base(), sedeId: cdc.id, concepto: `Renta ${cdc.nombre}`, categoria: 'renta' as const, monto: 150000, dia: 5, activo: true }] : []),
+  ];
+  for (const f of fijos) await guardar('gastosFijos', f);
+  const r = generador(7);
+  const hoyF = hoy();
+  let n = 0;
+  for (let m = -2; m <= 0; m++) {
+    const mes = sumarMeses(hoyF, m).slice(0, 7);
+    for (const f of fijos) {
+      const fecha = `${mes}-${String(f.dia).padStart(2, '0')}`;
+      if (fecha > hoyF) continue;
+      const monto = f.categoria === 'luz' ? Math.round((70000 + r() * 35000) / 100) * 100 : f.monto;
+      await guardar('gastos', { ...base(), ...(f.sedeId ? { sedeId: f.sedeId } : {}), concepto: f.concepto, categoria: f.categoria, monto, fecha, fijoId: f.id, metodo: 'transferencia', notas: '', usuarioId: dueno.id });
+      n++;
+    }
+    for (const dia of ['04', '18']) {
+      const fecha = `${mes}-${dia}`;
+      if (fecha > hoyF) continue;
+      await guardar('gastos', { ...base(), concepto: 'Garrafones de agua', categoria: 'agua', monto: 15000, fecha, fijoId: null, metodo: 'efectivo', notas: '', usuarioId: dueno.id });
+      n++;
+    }
+  }
+  return { fijos: fijos.length, gastos: n };
 }

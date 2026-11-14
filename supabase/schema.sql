@@ -189,6 +189,35 @@ create table if not exists cortes (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists gastos_fijos (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  sede_id uuid,
+  concepto text not null,
+  categoria text not null default 'otro',
+  monto int not null,
+  dia int not null default 1,
+  activo boolean not null default true,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
+create table if not exists gastos (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  sede_id uuid,
+  concepto text not null,
+  categoria text not null default 'otro',
+  monto int not null,
+  fecha date not null,
+  fijo_id uuid,
+  metodo text not null default 'efectivo',
+  notas text not null default '',
+  usuario_id uuid not null,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
@@ -217,7 +246,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -243,7 +272,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;
@@ -274,7 +303,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;

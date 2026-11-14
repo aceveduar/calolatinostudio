@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowDownRight, ArrowUpRight, CalendarClock, GraduationCap, HeartCrack, MessageCircle } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, CalendarClock, ChevronRight, GraduationCap, HeartCrack, MessageCircle, Wallet } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -15,6 +15,7 @@ import { dejaronDeVenir, indicadores, ingresosPorDia, periodos, porClase, variac
 import { GraficaBarras } from './GraficaBarras';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { esBeca, resumenBecas } from '../../domain/becas';
+import { mesDe, nombreMes, rangoMes, resumenMes } from '../../domain/gastos';
 
 type Rango = 7 | 30;
 
@@ -120,6 +121,8 @@ export function PantallaReportes() {
         <Cifra titulo="Alumnos que vinieron" valor={r.ahora.activos.toLocaleString('es-MX')} cambio={variacion(r.ahora.activos, r.antes.activos)} pie={etiquetaAntes} />
         <Cifra titulo="Alumnos nuevos" valor={r.ahora.nuevos.toLocaleString('es-MX')} cambio={variacion(r.ahora.nuevos, r.antes.nuevos)} pie={etiquetaAntes} />
       </div>
+
+      <TarjetaUtilidad verSede={verSede} />
 
       {sedes.length > 0 && verSede === 'todas' && (
         <Seccion titulo="Por sede">
@@ -291,6 +294,39 @@ export function PantallaReportes() {
         </Seccion>
       </div>
     </div>
+  );
+}
+
+/** Utilidad del mes en curso (ingresos − gastos) con acceso a Gastos. */
+function TarjetaUtilidad({ verSede }: { verSede: string }) {
+  const mes = mesDe(hoy());
+  const r = useLiveQuery(async () => {
+    const { desde, hasta } = rangoMes(mes);
+    const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
+    const [pagos, gastos, fijos] = await Promise.all([
+      db.pagos.where('fecha').between(desde, hasta, true, true).toArray(),
+      db.gastos.where('fecha').between(desde, hasta, true, true).toArray(),
+      db.gastosFijos.toArray(),
+    ]);
+    return resumenMes({ mes, pagos: pagos.filter((p) => enSede(p.sedeId)), gastos: gastos.filter((g) => enSede(g.sedeId)), fijos: fijos.filter((f) => enSede(f.sedeId)) });
+  }, [mes, verSede]);
+  if (!r) return null;
+  return (
+    <Link to="/reportes/gastos" className="mt-2 flex items-center gap-3 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100 active:bg-ink-50 lg:mt-3">
+      <span className="rounded-xl bg-brand-50 p-2 text-brand-600">
+        <Wallet size={22} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold text-ink-500">Utilidad de {nombreMes(mes).split(' ')[0].toLowerCase()}</span>
+        <span className={cx('block text-xl font-extrabold', r.utilidad < 0 && 'text-bad-600')}>{dinero(r.utilidad)}</span>
+        <span className="block truncate text-xs text-ink-500">
+          {r.gastos || r.pendiente ? `Ingresos ${dinero(r.ingresos)} − gastos ${dinero(r.gastos)}${r.pendiente ? ` · faltan fijos ~${dinero(r.pendiente)}` : ''}` : 'Registra renta, luz e internet para ver la utilidad real'}
+        </span>
+      </span>
+      <span className="flex items-center text-sm font-semibold text-brand-600">
+        Gastos <ChevronRight size={18} />
+      </span>
+    </Link>
   );
 }
 

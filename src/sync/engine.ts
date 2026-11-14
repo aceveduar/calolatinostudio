@@ -108,7 +108,7 @@ const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensa
 async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
   for (let intento = 0; intento < OMITIBLES.size + 1; intento++) {
     const limpias = filas.map((f) => Object.fromEntries(Object.entries(f).filter(([k]) => !columnasFaltantes.has(`${tabla}.${k}`))));
-    const { error } = await supabase!.from(tabla).upsert(limpias, { onConflict: 'id' });
+    const { error } = await supabase!.from(aSnake(tabla)).upsert(limpias, { onConflict: 'id' });
     if (!error) return;
     const col = error.message.match(/Could not find the '(\w+)' column/)?.[1];
     const clave = `${tabla}.${col}`;
@@ -132,7 +132,7 @@ async function pull(academiaId: ID): Promise<void> {
     let cursor = guardado ? new Date(new Date(guardado).getTime() - TRASLAPE_MS).toISOString() : '1970-01-01T00:00:00Z';
     for (;;) {
       const { data, error } = await supabase
-        .from(tabla)
+        .from(aSnake(tabla))
         .select('*')
         .eq(tabla === 'academias' ? 'id' : 'academia_id', academiaId)
         .gt('server_updated_at', cursor)

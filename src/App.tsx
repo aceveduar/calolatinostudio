@@ -11,6 +11,7 @@ import { FichaAlumno } from './features/alumnos/FichaAlumno';
 import { PantallaAlumnos } from './features/alumnos/PantallaAlumnos';
 import { PantallaCaja } from './features/caja/PantallaCaja';
 import { PantallaReportes } from './features/reportes/PantallaReportes';
+import { PantallaGastos } from './features/gastos/PantallaGastos';
 import { PantallaMaestro } from './features/maestro/PantallaMaestro';
 import { PantallaEntrada } from './features/entrada/PantallaEntrada';
 import { iniciarSync } from './sync/engine';
@@ -52,6 +53,7 @@ export default function App() {
                 <Route path="alumnos/:id" element={<FichaAlumno />} />
                 <Route path="caja" element={<PantallaCaja />} />
                 <Route path="reportes" element={estado.usuario.rol === 'dueno' ? <PantallaReportes /> : <Navigate to="/" replace />} />
+                <Route path="reportes/gastos" element={estado.usuario.rol === 'dueno' ? <PantallaGastos /> : <Navigate to="/" replace />} />
                 <Route path="ajustes" element={<PantallaAjustes />} />
                 <Route path="ajustes/:seccion" element={<PantallaAjustes />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
