@@ -234,6 +234,8 @@ alter table usuarios add column if not exists maestro_id uuid;
 alter table usuarios drop constraint if exists usuarios_rol_check;
 alter table usuarios add constraint usuarios_rol_check check (rol in ('dueno','recepcion','maestro'));
 alter table clases add column if not exists maestro_id uuid;
+alter table alumnos add column if not exists portal text;
+create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------
 create or replace function tocar_server_updated_at() returns trigger
@@ -316,3 +318,47 @@ revoke execute on function es_miembro(uuid) from public, anon;
 grant execute on function es_miembro(uuid) to authenticated;
 revoke execute on function vincular_academia(uuid, text) from public, anon;
 grant execute on function vincular_academia(uuid, text) to authenticated;
+
+-- ---------- portal del alumno (enlace personal, sin cuenta) ----------
+-- Lo único que puede llamar alguien sin sesión. Recibe el token secreto del enlace (≥ 128 bits, no adivinable)
+-- y devuelve SOLO los datos de ese alumno: nombre, código de su QR, planes recientes, últimas clases
+-- y los productos que la academia marcó "en línea". Nunca teléfono, notas, pagos ni datos de otros.
+create or replace function portal_alumno(p_token text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  a alumnos;
+  hoy date := (now() at time zone 'America/Mexico_City')::date;
+begin
+  if p_token is null or length(p_token) < 20 then return null; end if;
+  select * into a from alumnos where portal = p_token and deleted_at is null and activo;
+  if not found then return null; end if;
+  return jsonb_build_object(
+    'hoy', hoy,
+    'alumno', jsonb_build_object('nombre', a.nombre, 'codigo', a.codigo),
+    'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', x.logo) from academias x where x.id = a.academia_id),
+    'planes', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'plan', p.nombre, 'tipo', p.tipo, 'beca', (p.precio = 0 and p.tipo <> 'suelta'),
+        'inicio', m.inicio, 'fin', m.fin, 'clases', m.clases_total,
+        'usadas', (select count(*) from asistencias s where s.membresia_id = m.id and s.anulada_at is null and s.deleted_at is null)
+      ) order by m.fin desc)
+      from membresias m join planes p on p.id = m.plan_id
+      where m.alumno_id = a.id and m.anulada_at is null and m.deleted_at is null and m.fin >= hoy - 60
+    ), '[]'::jsonb),
+    'clases', coalesce((
+      select jsonb_agg(c order by c->>'fecha' desc) from (
+        select jsonb_build_object('fecha', s.fecha, 'clase', trim(coalesce(d.nombre, 'Clase') || ' ' || coalesce(k.nivel, '')), 'color', d.color) c
+        from asistencias s left join clases k on k.id = s.clase_id left join disciplinas d on d.id = k.disciplina_id
+        where s.alumno_id = a.id and s.anulada_at is null and s.deleted_at is null
+        order by s.fecha desc, s.created_at desc limit 8
+      ) t
+    ), '[]'::jsonb),
+    'tienda', coalesce((
+      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion) order by p.nombre)
+      from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
+    ), '[]'::jsonb)
+  );
+end $$;
+
+revoke execute on function portal_alumno(text) from public;
+grant execute on function portal_alumno(text) to anon, authenticated;

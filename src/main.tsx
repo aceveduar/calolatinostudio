@@ -17,6 +17,17 @@ if (import.meta.env.VITE_SEMILLA === '1') {
 }
 
 async function arrancar() {
+  // Portal del alumno (/p/<token>): página pública aparte; no abre la base de la academia en ese teléfono
+  const portal = location.pathname.match(/^\/p\/([A-Za-z0-9]{20,64})\/?$/);
+  if (portal) {
+    const { PortalAlumno } = await import('./features/portal/PortalAlumno');
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <PortalAlumno token={portal[1]} />
+      </StrictMode>,
+    );
+    return;
+  }
   // "Quitar academia de este teléfono": borrar la base local antes de abrirla
   try {
     if (localStorage.getItem(BORRAR_AL_INICIAR)) {

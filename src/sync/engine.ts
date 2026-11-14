@@ -103,7 +103,7 @@ function esTablaFaltante(e: unknown): boolean {
  * Columnas opcionales que se pueden omitir si la base aún no las tiene: el registro sigue siendo válido sin ellas.
  * Cualquier otra columna faltante detiene la subida y CONSERVA la cola (nunca se sube un registro incompleto).
  */
-const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'academias.sede_principal', 'usuarios.maestro_id', 'clases.maestro_id']);
+const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'academias.sede_principal', 'usuarios.maestro_id', 'clases.maestro_id', 'alumnos.portal']);
 
 async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
   for (let intento = 0; intento < OMITIBLES.size + 1; intento++) {

@@ -6,7 +6,7 @@ import { Boton, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import { MENSAJES, VARIABLES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
 
-const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX' };
+const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX', enlace: 'calolatinostudio.pages.dev/p/Xb7…' };
 
 /** El dueño escribe los mensajes de WhatsApp con sus palabras; se ve cómo le llegará al alumno. */
 export function EditorMensajes() {

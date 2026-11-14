@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronRight, MessageCircle } from 'lucide-react';
 import { usePlanes } from '../../app/datos';
@@ -9,6 +10,8 @@ import { fechaCorta, fechaLarga, hoy } from '../../domain/fechas';
 import type { EstadoMembresia } from '../../domain/membresias';
 import { MENSAJES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
 import { waLink } from '../../domain/reportes';
+import { asegurarPortal, enlacePortal, regenerarPortal } from '../../domain/portal';
+import { useAvisos } from '../../components/avisos';
 
 /** Datos del alumno para llenar los mensajes. */
 export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
@@ -33,6 +36,7 @@ export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
       nombre: alumno.nombre.split(' ')[0],
       academia: academia.nombre,
       codigo: alumno.codigo,
+      enlace: alumno.portal ? enlacePortal(alumno.portal) : undefined,
       plan: mem ? (planes.find((p) => p.id === mem.planId)?.nombre ?? 'plan').toLowerCase() : undefined,
       vence: mem ? fechaLarga(mem.fin) : undefined,
       vigencia: mem ? `${fechaCorta(mem.inicio)} al ${fechaCorta(mem.fin)}` : undefined,
@@ -47,7 +51,12 @@ export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
 /** Elegir qué mensaje mandar: se abre WhatsApp con el texto ya escrito. */
 export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno; estados: EstadoMembresia[]; onEnviado: () => void }) {
   const { academia, datos, tienePlan, tieneRecibo } = useDatosMensaje(alumno, estados);
-  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, vence: tienePlan, extrañamos: true, recibo: tieneRecibo };
+  const avisar = useAvisos();
+  // El enlace del portal se crea al abrir esta hoja, para que el mensaje ya lo lleve al tocarlo
+  useEffect(() => {
+    if (!alumno.portal) void asegurarPortal(alumno);
+  }, [alumno]);
+  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, extrañamos: true, recibo: tieneRecibo };
 
   return (
     <div className="space-y-2">
@@ -74,6 +83,18 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
           </a>
         );
       })}
+      {alumno.portal && (
+        <button
+          type="button"
+          className="w-full px-1 pt-1 text-left text-xs font-semibold text-ink-500 underline-offset-2 active:underline"
+          onClick={async () => {
+            await regenerarPortal(alumno.id);
+            avisar('Enlace nuevo creado: el anterior ya no funciona');
+          }}
+        >
+          ¿Se compartió su enlace por error? Crear uno nuevo
+        </button>
+      )}
       <p className="px-1 pt-1 text-xs text-ink-500">Los textos se cambian en Ajustes → Mensajes de WhatsApp. La credencial con imagen se envía desde “Credencial con QR”.</p>
     </div>
   );

@@ -128,6 +128,8 @@ export interface Alumno extends Base {
   notas: string;
   codigo: string;
   activo: boolean;
+  /** token secreto de su portal (/p/<token>); se crea al enviarle el enlace */
+  portal?: string | null;
 }
 
 export interface Membresia extends Base {

@@ -1,7 +1,7 @@
 /** Mensajes de WhatsApp: plantillas editables por la academia con datos del alumno. */
 import type { Academia } from '../db/types';
 
-export type ClaveMensaje = 'bienvenida' | 'credencial' | 'vence' | 'extrañamos' | 'recibo';
+export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'extrañamos' | 'recibo';
 
 export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; base: string }[] = [
   {
@@ -15,6 +15,12 @@ export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; ba
     titulo: 'Credencial',
     cuando: 'Al enviar su credencial con QR',
     base: 'Hola {nombre}, esta es tu credencial de {academia} 💃🕺 Muéstrala en recepción para entrar. Tu código: {codigo}',
+  },
+  {
+    clave: 'portal',
+    titulo: 'Su portal (QR y plan)',
+    cuando: 'Enlace personal donde ve su QR, su plan y sus clases',
+    base: 'Hola {nombre}, este es tu acceso personal a {academia} 💃🕺 Ahí tienes tu QR para entrar, tu plan y tus clases: {enlace} (Es solo tuyo, no lo compartas.)',
   },
   {
     clave: 'vence',
@@ -44,6 +50,7 @@ export const VARIABLES: { clave: string; texto: string }[] = [
   { clave: 'vigencia', texto: 'Del … al …' },
   { clave: 'monto', texto: 'Monto cobrado' },
   { clave: 'codigo', texto: 'Código de credencial' },
+  { clave: 'enlace', texto: 'Enlace a su portal' },
 ];
 
 export function plantilla(academia: Pick<Academia, 'mensajes'>, clave: ClaveMensaje): string {
