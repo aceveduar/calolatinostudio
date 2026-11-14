@@ -364,7 +364,7 @@ const PRODUCTOS_DEMO: { nombre: string; emoji: string; precio: number; categoria
 export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: number }> {
   const academia = await db.academias.toCollection().first();
   if (!academia) throw new Error('No hay academia en este teléfono');
-  if (await db.productos.count()) throw new Error('Ya hay productos');
+  if (await db.productos.filter((p) => !p.deletedAt).count()) throw new Error('Ya hay productos');
   const A = academia.id;
   const r = generador(424242);
   const ahora = Date.now();

@@ -75,7 +75,8 @@ async function push(): Promise<void> {
       try {
         await subirTolerante(tabla, regs.map(aRemoto));
       } catch (e) {
-        if (!esTablaFaltante(e)) throw e;
+        // Tabla o columna que la base aún no conoce: esa tabla espera en la cola, las demás siguen
+        if (!esTablaFaltante(e) && !/Could not find the '\w+' column/.test(e instanceof Error ? e.message : String(e))) throw e;
         tablasFaltantes.add(tabla);
       }
     }
@@ -98,15 +99,24 @@ function esTablaFaltante(e: unknown): boolean {
  * Si la app es más nueva que la base (p. ej. un campo nuevo como el logo), Supabase rechaza
  * TODO el lote. En lugar de detener la sincronización, se omite esa columna y se avisa.
  */
+/**
+ * Columnas opcionales que se pueden omitir si la base aún no las tiene: el registro sigue siendo válido sin ellas.
+ * Cualquier otra columna faltante detiene la subida y CONSERVA la cola (nunca se sube un registro incompleto).
+ */
+const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'usuarios.maestro_id', 'clases.maestro_id']);
+
 async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
-  for (let intento = 0; intento < 5; intento++) {
+  for (let intento = 0; intento < OMITIBLES.size + 1; intento++) {
     const limpias = filas.map((f) => Object.fromEntries(Object.entries(f).filter(([k]) => !columnasFaltantes.has(`${tabla}.${k}`))));
     const { error } = await supabase!.from(tabla).upsert(limpias, { onConflict: 'id' });
     if (!error) return;
     const col = error.message.match(/Could not find the '(\w+)' column/)?.[1];
-    if (!col || columnasFaltantes.has(`${tabla}.${col}`)) throw new Error(`${tabla}: ${error.message}`);
-    columnasFaltantes.add(`${tabla}.${col}`);
+    const clave = `${tabla}.${col}`;
+    if (!col || !OMITIBLES.has(clave) || columnasFaltantes.has(clave)) throw new Error(`${tabla}: ${error.message}`);
+    columnasFaltantes.add(clave);
   }
+  // Nunca dar por buena una subida que no se confirmó: la cola se conserva para reintentar
+  throw new Error(`${tabla}: no se pudo subir`);
 }
 
 const TRASLAPE_MS = 2 * 60_000;
