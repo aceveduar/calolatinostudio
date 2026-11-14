@@ -53,5 +53,15 @@ export interface DatosPortal {
   academia: { nombre: string; color: string | null; logo: string | null };
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];
-  tienda: { nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string }[];
+  tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null }[];
+  pedidos?: { producto: string; emoji: string; opcion: string | null; cantidad: number; precio: number; estado: 'pendiente' | 'entregado' | 'cancelado'; creado: number }[];
 }
+
+export const ERRORES_PEDIDO: Record<string, string> = {
+  enlace: 'Este enlace ya no funciona. Pide uno nuevo en recepción.',
+  cantidad: 'Puedes apartar de 1 a 5 piezas.',
+  producto: 'Ese producto ya no está disponible.',
+  opcion: 'Elige una talla o color.',
+  muchos: 'Ya tienes 5 apartados por recoger. Recógelos en recepción para apartar más.',
+  agotado: 'Ya no hay suficientes piezas.',
+};

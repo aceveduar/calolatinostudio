@@ -118,8 +118,29 @@ export interface Producto extends Base {
   /** avisar cuando queden esta cantidad o menos */
   alerta: number;
   activo: boolean;
-  /** visible en la tienda en línea (próximamente) */
+  /** visible en el portal de alumnos, donde lo pueden apartar */
   enLinea: boolean;
+  /** tallas o colores a elegir al apartar (vacío = sin opciones) */
+  opciones?: string[] | null;
+}
+
+export type EstadoPedido = 'pendiente' | 'entregado' | 'cancelado';
+
+/**
+ * Apartado desde el portal del alumno: se paga y se entrega en recepción.
+ * Lo crea la base (función portal_pedir), nunca un equipo; los equipos solo lo entregan o cancelan.
+ * Mientras está pendiente, aparta existencias.
+ */
+export interface Pedido extends Base {
+  alumnoId: ID;
+  productoId: ID;
+  opcion: string | null;
+  cantidad: number;
+  /** precio por pieza al apartar (centavos) */
+  precio: number;
+  estado: EstadoPedido;
+  /** venta con la que se entregó */
+  pagoId: ID | null;
 }
 
 export interface Alumno extends Base {
@@ -275,6 +296,7 @@ export interface TablaMap {
   gastosFijos: GastoFijo;
   gastos: Gasto;
   rentas: Renta;
+  pedidos: Pedido;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -296,4 +318,5 @@ export const SYNC_TABLES: SyncTable[] = [
   'gastosFijos',
   'gastos',
   'rentas',
+  'pedidos',
 ];

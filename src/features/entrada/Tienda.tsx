@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, ShoppingBag } from 'lucide-react';
-import { useExistencias, useProductos } from '../../app/datos';
+import { Minus, PackageCheck, ShoppingBag } from 'lucide-react';
+import { useExistencias, usePedidosPendientes, useProductos } from '../../app/datos';
+import { cancelarPedido, entregarPedido, nombrePedido } from '../../domain/pedidos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Vacio, cx } from '../../components/ui';
@@ -25,9 +26,75 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
   const productos = useProductos().filter((p) => p.activo);
   const stock = useExistencias();
   const [ocupado, setOcupado] = useState(false);
+  const pendientes = usePedidosPendientes();
+  const [cancelando, setCancelando] = useState<ID | null>(null);
 
   const enCuenta = (p: Producto) => movs.filter((m) => m.productoId === p.id);
   const total = movs.reduce((s, m) => s + m.monto, 0);
+
+  const entregar = async (x: (typeof pendientes)[number]) => {
+    if (ocupado || !x.producto) return;
+    setOcupado(true);
+    try {
+      onAgregar(await entregarPedido({ pedido: x.pedido, producto: x.producto, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
+      avisar(`Entregado a ${x.alumno?.nombre.split(' ')[0] ?? 'el alumno'}: se sumó a la cuenta`);
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo entregar', 'error');
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const apartados = pendientes.length > 0 && (
+    <section>
+      <h3 className="mb-2 flex items-center gap-1.5 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <PackageCheck size={14} /> Apartados por recoger · {pendientes.length}
+      </h3>
+      <div className="divide-y divide-ink-100 rounded-2xl bg-superficie ring-1 ring-ink-100">
+        {pendientes.map((x) => (
+          <div key={x.pedido.id} className="flex items-center gap-3 px-3 py-2.5">
+            <span className="text-2xl leading-none">{x.producto?.emoji ?? '🛍️'}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-semibold">
+                {nombrePedido(x.pedido, x.producto)}
+                {x.pedido.cantidad > 1 && ` ×${x.pedido.cantidad}`}
+              </span>
+              <span className="block truncate text-xs text-ink-500">
+                {x.alumno?.nombre ?? 'Alumno'} · {dinero(x.pedido.precio * x.pedido.cantidad)}
+              </span>
+            </span>
+            {cancelando === x.pedido.id ? (
+              <span className="flex gap-1">
+                <Boton
+                  variante="secundario"
+                  onClick={async () => {
+                    await cancelarPedido(x.pedido.id);
+                    setCancelando(null);
+                    avisar('Apartado cancelado');
+                  }}
+                >
+                  <span className="text-bad-600">Cancelar</span>
+                </Boton>
+                <Boton variante="fantasma" onClick={() => setCancelando(null)}>
+                  No
+                </Boton>
+              </span>
+            ) : (
+              <>
+                <button className="px-1 text-xs font-semibold text-ink-500" onClick={() => setCancelando(x.pedido.id)} aria-label={`Cancelar apartado de ${x.alumno?.nombre ?? 'alumno'}`}>
+                  ✕
+                </button>
+                <Boton onClick={() => entregar(x)} disabled={ocupado || !x.producto}>
+                  Entregar
+                </Boton>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="mt-1.5 px-1 text-xs text-ink-500">“Entregar” suma el apartado a la cuenta para cobrarlo.</p>
+    </section>
+  );
 
   if (!productos.length)
     return (
@@ -61,6 +128,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
 
   return (
     <div className="space-y-4">
+      {apartados}
       {GRUPOS.map(({ cat, titulo }) => {
         const lista = productos.filter((p) => p.categoria === cat);
         if (!lista.length) return null;

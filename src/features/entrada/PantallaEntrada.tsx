@@ -22,6 +22,7 @@ import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
 import { Escaner, type LecturaQR } from './Escaner';
 import { Tienda } from './Tienda';
+import { usePedidosPendientes } from '../../app/datos';
 import { sincronizar } from '../../sync/engine';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
@@ -65,6 +66,7 @@ export function PantallaEntrada() {
   const [visitante, setVisitante] = useState(false);
   const [escanear, setEscanear] = useState(false);
   const [tienda, setTienda] = useState(false);
+  const porRecoger = usePedidosPendientes().length;
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const enCurso = useRef(new Set<string>());
   const busca = useRef<HTMLInputElement>(null);
@@ -324,10 +326,13 @@ export function PantallaEntrada() {
         </div>
         <button
           onClick={() => setTienda(true)}
-          className="flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
-          aria-label="Tienda"
+          aria-label={porRecoger ? `Tienda, ${porRecoger} apartados por recoger` : 'Tienda'}
+          className="relative flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
         >
           <ShoppingBag size={24} />
+          {porRecoger > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1 text-xs font-extrabold text-white shadow">{porRecoger}</span>
+          )}
         </button>
         <button
           onClick={() => setEscanear(true)}

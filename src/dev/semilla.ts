@@ -4,7 +4,7 @@
  */
 import { db } from '../db/db';
 import { guardar } from '../db/repo';
-import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Plan, Renta, Usuario } from '../db/types';
+import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Pedido, Plan, Renta, Usuario } from '../db/types';
 import { crearAcademia, hashPin } from '../domain/acceso';
 import { generarCodigo } from '../domain/operaciones';
 import { deFecha, hoy, sumarDias, sumarMeses } from '../domain/fechas';
@@ -579,4 +579,24 @@ export async function agregarRentasDemo(): Promise<{ rentas: number; cobros: num
     n++;
   }
   return { rentas: hechas.length, cobros: n };
+}
+
+/** Tienda en el portal: los artículos se muestran en línea (playera con tallas) y hay 2 apartados por recoger. */
+export async function agregarPedidosDemo(): Promise<{ enLinea: number; pedidos: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  const articulos = (await db.productos.toArray()).filter((p) => !p.deletedAt && p.categoria === 'articulo');
+  if (!articulos.length) throw new Error('Primero agrega la tienda demo');
+  const OPCIONES: Record<string, string[]> = { 'Playera Calo': ['CH', 'M', 'G', 'XG'], 'Zapatillas de baile': ['23', '24', '25', '26'] };
+  for (const p of articulos) await guardar('productos', { ...p, enLinea: true, opciones: OPCIONES[p.nombre] ?? [], descripcion: p.nombre.startsWith('Playera') ? 'Algodón, logo al frente' : p.descripcion });
+  const alumnos = (await db.alumnos.toArray()).filter((a) => !a.deletedAt && a.activo).slice(0, 2);
+  const playera = articulos.find((p) => p.nombre.startsWith('Playera')) ?? articulos[0];
+  const gorra = articulos.find((p) => p.nombre.startsWith('Gorra')) ?? articulos[0];
+  const ahora = Date.now();
+  const pedidos: Pedido[] = alumnos.map((a, i) => ({
+    id: crypto.randomUUID(), academiaId: academia.id, createdAt: ahora - (i + 1) * 3600_000, updatedAt: ahora, deletedAt: null,
+    alumnoId: a.id, productoId: (i === 0 ? playera : gorra).id, opcion: i === 0 ? 'M' : null, cantidad: 1, precio: (i === 0 ? playera : gorra).precio, estado: 'pendiente', pagoId: null,
+  }));
+  for (const p of pedidos) await guardar('pedidos', p);
+  return { enLinea: articulos.length, pedidos: pedidos.length };
 }

@@ -64,7 +64,7 @@ export function borrar<K extends SyncTable>(tabla: K, id: ID) {
 export async function enTransaccion<T>(fn: () => Promise<T>): Promise<T> {
   return db.transaction(
     'rw',
-    [db.pagos, db.asistencias, db.membresias, db.alumnos, db.planes, db.clases, db.outbox, db.meta],
+    [db.pagos, db.asistencias, db.membresias, db.alumnos, db.planes, db.clases, db.pedidos, db.outbox, db.meta],
     fn,
   );
 }

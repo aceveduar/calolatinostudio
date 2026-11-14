@@ -16,6 +16,7 @@ import type {
   Gasto,
   GastoFijo,
   Renta,
+  Pedido,
   Sede,
   Usuario,
 } from './types';
@@ -33,6 +34,7 @@ export class CompasDB extends Dexie {
   gastosFijos!: EntityTable<GastoFijo, 'id'>;
   gastos!: EntityTable<Gasto, 'id'>;
   rentas!: EntityTable<Renta, 'id'>;
+  pedidos!: EntityTable<Pedido, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -104,6 +106,9 @@ export class CompasDB extends Dexie {
 
     // v6: rentas del salón (agenda) y cobros de renta ligados a la renta
     this.version(6).stores({ rentas: 'id, academiaId', pagos: 'id, academiaId, fecha, alumnoId, productoId, rentaId' });
+
+    // v7: apartados de la tienda hechos desde el portal del alumno
+    this.version(7).stores({ pedidos: 'id, academiaId, estado, alumnoId' });
   }
 }
 

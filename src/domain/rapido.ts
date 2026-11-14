@@ -6,6 +6,7 @@
  * Todo es reversible con `deshacer` (borrado lógico), así no hacen falta confirmaciones.
  */
 import { esBeca } from './becas';
+import { reabrirPedidoDePago } from './pedidos';
 import { db } from '../db/db';
 import { actualizar, borrar, crear, enTransaccion } from '../db/repo';
 import type { Clase, ID, MetodoPago, Plan } from '../db/types';
@@ -82,6 +83,8 @@ export async function deshacer(m: Movimiento): Promise<void> {
   await enTransaccion(async () => {
     if (m.asistenciaId) await borrar('asistencias', m.asistenciaId);
     if (m.pagoId) await borrar('pagos', m.pagoId);
+    // si era la entrega de un apartado, vuelve a quedar por recoger
+    if (m.pagoId && m.productoId) await reabrirPedidoDePago(m.pagoId);
     if (m.alumnoCreadoId) await borrar('alumnos', m.alumnoCreadoId);
   });
 }

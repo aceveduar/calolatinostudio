@@ -5,6 +5,7 @@ import type { Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
 import { hoy } from '../domain/fechas';
 import { existencias, ventasDeProductos } from '../domain/tienda';
+import { apartadas } from '../domain/pedidos';
 
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
@@ -19,8 +20,15 @@ export const useProductos = () =>
 export function useExistencias() {
   return useLiveQuery(
     async () => {
-      const [productos, ventas] = await Promise.all([db.productos.toArray(), ventasDeProductos()]);
-      return new Map(productos.map((p) => [p.id, existencias(p, ventas)]));
+      const [productos, ventas, pedidos] = await Promise.all([db.productos.toArray(), ventasDeProductos(), db.pedidos.where('estado').equals('pendiente').toArray()]);
+      // lo apartado desde el portal no se puede vender a otro
+      const reservado = apartadas(pedidos);
+      return new Map(
+        productos.map((p) => {
+          const n = existencias(p, ventas);
+          return [p.id, n === null ? null : n - (reservado.get(p.id) ?? 0)];
+        }),
+      );
     },
     [],
     new Map<ID, number | null>(),
@@ -78,5 +86,18 @@ export function useEstadosDeAlumno(alumnoId: ID | undefined, dia: Fecha = hoy())
     },
     [alumnoId, dia],
     [] as EstadoMembresia[],
+  );
+}
+
+/** Apartados pendientes de recoger, con producto y alumno. */
+export function usePedidosPendientes() {
+  return useLiveQuery(
+    async () => {
+      const pedidos = (await db.pedidos.where('estado').equals('pendiente').filter(vivo).toArray()).sort((a, b) => a.createdAt - b.createdAt);
+      const [productos, alumnos] = await Promise.all([db.productos.bulkGet(pedidos.map((p) => p.productoId)), db.alumnos.bulkGet(pedidos.map((p) => p.alumnoId))]);
+      return pedidos.map((pedido, i) => ({ pedido, producto: productos[i], alumno: alumnos[i] }));
+    },
+    [],
+    [],
   );
 }

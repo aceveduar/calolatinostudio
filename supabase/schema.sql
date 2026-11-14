@@ -237,6 +237,20 @@ create table if not exists rentas (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists pedidos (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  alumno_id uuid not null,
+  producto_id uuid not null,
+  opcion text,
+  cantidad int not null default 1 check (cantidad between 1 and 20),
+  precio int not null,
+  estado text not null default 'pendiente' check (estado in ('pendiente','entregado','cancelado')),
+  pago_id uuid,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
@@ -256,6 +270,7 @@ alter table clases add column if not exists maestro_id uuid;
 alter table alumnos add column if not exists portal text;
 alter table pagos add column if not exists renta_id uuid;
 alter table pagos add column if not exists periodo text;
+alter table productos add column if not exists opciones text[];
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------
@@ -269,7 +284,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -295,7 +310,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;
@@ -326,7 +341,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;
@@ -339,6 +354,18 @@ revoke execute on function es_miembro(uuid) from public, anon;
 grant execute on function es_miembro(uuid) to authenticated;
 revoke execute on function vincular_academia(uuid, text) from public, anon;
 grant execute on function vincular_academia(uuid, text) to authenticated;
+
+-- Piezas que se pueden apartar/vender: lo contado menos lo vendido después, menos lo apartado. null = sin control.
+create or replace function disponibles_producto(p productos) returns int
+language sql stable security definer set search_path = public as $$
+  select case when p.inventario is null then null else (
+    p.inventario
+    - coalesce((select sum(coalesce(v.cantidad, 1)) from pagos v
+                where v.producto_id = p.id and v.anulado_at is null and v.deleted_at is null and v.created_at >= coalesce(p.inventario_at, 0)), 0)
+    - coalesce((select sum(d.cantidad) from pedidos d where d.producto_id = p.id and d.estado = 'pendiente' and d.deleted_at is null), 0)
+  )::int end;
+$$;
+revoke execute on function disponibles_producto(productos) from public, anon, authenticated;
 
 -- ---------- portal del alumno (enlace personal, sin cuenta) ----------
 -- Lo único que puede llamar alguien sin sesión. Recibe el token secreto del enlace (≥ 128 bits, no adivinable)
@@ -375,11 +402,51 @@ begin
       ) t
     ), '[]'::jsonb),
     'tienda', coalesce((
-      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion) order by p.nombre)
+      select jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion,
+                                          'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'disponibles', disponibles_producto(p)) order by p.categoria, p.nombre)
       from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
+    ), '[]'::jsonb),
+    'pedidos', coalesce((
+      select jsonb_agg(jsonb_build_object('producto', p.nombre, 'emoji', p.emoji, 'opcion', d.opcion, 'cantidad', d.cantidad, 'precio', d.precio, 'estado', d.estado, 'creado', d.created_at) order by d.created_at desc)
+      from pedidos d join productos p on p.id = d.producto_id
+      where d.alumno_id = a.id and d.deleted_at is null
+        and (d.estado = 'pendiente' or d.updated_at > (extract(epoch from now()) * 1000)::bigint - 30::bigint * 86400000)
     ), '[]'::jsonb)
   );
 end $$;
 
 revoke execute on function portal_alumno(text) from public;
 grant execute on function portal_alumno(text) to anon, authenticated;
+
+-- Apartar un producto desde el portal. Valida el enlace, que el producto esté en línea, la talla/color,
+-- existencias y un máximo de 5 apartados pendientes por alumno (para que nadie llene la lista).
+create or replace function portal_pedir(p_token text, p_producto uuid, p_opcion text, p_cantidad int) returns jsonb
+language plpgsql volatile security definer set search_path = public as $$
+declare
+  a alumnos;
+  p productos;
+  ahora bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+  disp int;
+  tiene_opciones boolean;
+begin
+  if p_token is null or length(p_token) < 20 then return jsonb_build_object('error', 'enlace'); end if;
+  select * into a from alumnos where portal = p_token and deleted_at is null and activo;
+  if not found then return jsonb_build_object('error', 'enlace'); end if;
+  if p_cantidad is null or p_cantidad < 1 or p_cantidad > 5 then return jsonb_build_object('error', 'cantidad'); end if;
+  -- "for update": dos apartados al mismo tiempo no pueden llevarse la última pieza
+  select * into p from productos where id = p_producto and academia_id = a.academia_id and en_linea and activo and deleted_at is null for update;
+  if not found then return jsonb_build_object('error', 'producto'); end if;
+  tiene_opciones := coalesce(array_length(p.opciones, 1), 0) > 0;
+  if tiene_opciones and (p_opcion is null or not (p_opcion = any (p.opciones))) then return jsonb_build_object('error', 'opcion'); end if;
+  if (select count(*) from pedidos where alumno_id = a.id and estado = 'pendiente' and deleted_at is null) >= 5 then
+    return jsonb_build_object('error', 'muchos');
+  end if;
+  disp := disponibles_producto(p);
+  if disp is not null and disp < p_cantidad then return jsonb_build_object('error', 'agotado', 'disponibles', greatest(disp, 0)); end if;
+  insert into pedidos (id, academia_id, alumno_id, producto_id, opcion, cantidad, precio, estado, created_at, updated_at)
+  values (gen_random_uuid(), a.academia_id, a.id, p.id, case when tiene_opciones then p_opcion end, p_cantidad, p.precio, 'pendiente', ahora, ahora);
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function portal_pedir(text, uuid, text, int) from public;
+grant execute on function portal_pedir(text, uuid, text, int) to anon, authenticated;

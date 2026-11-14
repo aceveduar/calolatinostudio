@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 import { useRentas } from '../../app/datos';
 import { rentasQueChocanConClase } from '../../domain/agenda';
-import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
+import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, usePedidosPendientes, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
@@ -221,6 +221,8 @@ function FormSede({ sede, onHecho }: { sede: Sede | null; onHecho: () => void })
 export function EditorProductos() {
   const productos = useProductos();
   const stock = useExistencias();
+  const pendientes = usePedidosPendientes();
+  const reservadas = (id: ID) => pendientes.filter((x) => x.pedido.productoId === id).reduce((s, x) => s + x.pedido.cantidad, 0);
   return (
     <>
       <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
@@ -236,20 +238,26 @@ export function EditorProductos() {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-50 text-2xl">{p.emoji}</span>
               <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
                 <span className="block truncate font-semibold">{p.nombre}</span>
-                <span className="block text-sm text-ink-500">{p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}</span>
+                <span className="block text-sm text-ink-500">
+                  {p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}
+                  {p.enLinea && ' · en el portal'}
+                  {reservadas(p.id) > 0 && ` · ${reservadas(p.id)} apartad${reservadas(p.id) === 1 ? 'a' : 'as'}`}
+                </span>
               </span>
               {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
               <span className="w-16 text-right font-bold">{dinero(p.precio)}</span>
             </>
           );
         }}
-        form={(p, cerrar) => <FormProducto producto={p} disponibles={p ? (stock.get(p.id) ?? null) : null} onHecho={cerrar} />}
+        form={(p, cerrar) => <FormProducto producto={p} disponibles={p ? (stock.get(p.id) ?? null) : null} reservadas={p ? reservadas(p.id) : 0} onHecho={cerrar} />}
       />
     </>
   );
 }
 
-function FormProducto({ producto, disponibles, onHecho }: { producto: Producto | null; disponibles: number | null; onHecho: () => void }) {
+function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { producto: Producto | null; disponibles: number | null; reservadas: number; onHecho: () => void }) {
+  // En el anaquel también están las piezas apartadas: el conteo físico las incluye
+  const disponibles = libres === null ? null : libres + reservadas;
   const avisar = useAvisos();
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
@@ -259,6 +267,10 @@ function FormProducto({ producto, disponibles, onHecho }: { producto: Producto |
   const [hay, setHay] = useState(disponibles !== null ? String(Math.max(0, disponibles)) : '');
   const [alerta, setAlerta] = useState(String(producto?.alerta ?? 5));
   const [activo, setActivo] = useState(producto?.activo ?? true);
+  const [enLinea, setEnLinea] = useState(producto?.enLinea ?? false);
+  const [opciones, setOpciones] = useState((producto?.opciones ?? []).join(', '));
+  const [descripcion, setDescripcion] = useState(producto?.descripcion ?? '');
+  const listaOpciones = [...new Set(opciones.split(',').map((x) => x.trim()).filter(Boolean))].slice(0, 12);
 
   const guardar = async () => {
     const nuevoConteo = controlar ? Number(hay) || 0 : null;
@@ -271,10 +283,14 @@ function FormProducto({ producto, disponibles, onHecho }: { producto: Producto |
       categoria,
       alerta: Number(alerta) || 0,
       activo,
+      enLinea,
+      descripcion: descripcion.trim(),
+      // solo se manda si hay opciones (o si había y se quitaron), para no depender de la columna nueva
+      ...(listaOpciones.length || producto?.opciones?.length ? { opciones: listaOpciones } : {}),
       ...(controlar ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
     };
     if (producto) await actualizar('productos', producto.id, datos);
-    else await crear('productos', { foto: null, descripcion: '', enLinea: false, inventario: null, inventarioAt: null, ...datos });
+    else await crear('productos', { foto: null, inventario: null, inventarioAt: null, ...datos });
     avisar('Producto guardado');
     onHecho();
   };
@@ -317,6 +333,22 @@ function FormProducto({ producto, disponibles, onHecho }: { producto: Producto |
             <Entrada inputMode="numeric" value={alerta} onChange={(e) => setAlerta(e.target.value.replace(/\D/g, ''))} />
           </Campo>
         </div>
+      )}
+      {controlar && reservadas > 0 && (
+        <p className="-mt-2 px-1 text-xs text-ink-500">
+          {reservadas} {reservadas === 1 ? 'pieza está apartada' : 'piezas están apartadas'} desde el portal: cuéntalas también, se descuentan al entregarlas.
+        </p>
+      )}
+      <Interruptor valor={enLinea} onChange={setEnLinea} texto="Mostrar en el portal de alumnos" />
+      {enLinea && (
+        <>
+          <Campo etiqueta="Tallas o colores (opcional)" ayuda="Sepáralos con comas. El alumno elige uno al apartar.">
+            <Entrada value={opciones} onChange={(e) => setOpciones(e.target.value)} placeholder="Ej. CH, M, G" />
+          </Campo>
+          <Campo etiqueta="Descripción (opcional)">
+            <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Algodón, logo bordado" />
+          </Campo>
+        </>
       )}
       {producto && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
       <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (controlar && hay === '')}>
