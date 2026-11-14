@@ -111,7 +111,7 @@ function EditorAcademia() {
         Guardar
       </Boton>
       <SubirLogo />
-      <Campo etiqueta="Color de la academia" ayuda="Se aplica al instante en toda la app.">
+      <Campo grupo etiqueta="Color de la academia" ayuda="Se aplica al instante en toda la app.">
         <div className="grid grid-cols-4 gap-3">
           {COLORES_MARCA.map((c) => (
             <button
@@ -141,7 +141,7 @@ function SubirLogo() {
   const avisar = useAvisos();
   const input = useRef<HTMLInputElement>(null);
   return (
-    <Campo etiqueta="Logo de la academia" ayuda="Mejor un PNG sin fondo. Aparece al entrar y en el menú.">
+    <Campo grupo etiqueta="Logo de la academia" ayuda="Mejor un PNG sin fondo. Aparece al entrar y en el menú.">
       <div className="flex items-center gap-4 rounded-2xl bg-superficie p-3 ring-1 ring-ink-100">
         <span className="flex h-20 w-20 items-center justify-center rounded-xl bg-ink-50">
           <LogoAcademia academia={academia} tam={64} />

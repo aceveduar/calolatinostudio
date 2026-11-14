@@ -27,6 +27,8 @@ export function useExistencias() {
   );
 }
 export const useClases = () => useLiveQuery(() => db.clases.filter(vivo).toArray(), [], []);
+export const useRentas = () =>
+  useLiveQuery(async () => (await db.rentas.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], []);
 export const useUsuarios = () => useLiveQuery(() => db.usuarios.filter(vivo).toArray(), [], []);
 export const useAlumnos = () =>
   useLiveQuery(() => db.alumnos.orderBy('nombre').filter(vivo).toArray(), [], []);

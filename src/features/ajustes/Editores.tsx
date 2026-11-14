@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
+import { useRentas } from '../../app/datos';
+import { rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -188,7 +190,7 @@ function FormSede({ sede, onHecho }: { sede: Sede | null; onHecho: () => void })
       <Campo etiqueta="Nombre">
         <Entrada autoFocus={!sede} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Casa de Cultura" />
       </Campo>
-      <Campo etiqueta="Color">
+      <Campo etiqueta="Color" grupo>
         <div className="flex flex-wrap gap-3">
           {COLORES_SEDE.map((c) => (
             <button key={c} type="button" onClick={() => setColor(c)} className={cx('h-10 w-10 rounded-full ring-offset-2', color === c && 'ring-2 ring-ink-900')} style={{ background: c }} aria-label={c} />
@@ -279,7 +281,7 @@ function FormProducto({ producto, disponibles, onHecho }: { producto: Producto |
 
   return (
     <div className="space-y-4">
-      <Campo etiqueta="Ícono">
+      <Campo etiqueta="Ícono" grupo>
         <div className="grid grid-cols-7 gap-1.5">
           {EMOJIS_PRODUCTO.map((e) => (
             <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}
@@ -370,6 +372,8 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const [activo, setActivo] = useState(clase?.activo ?? true);
   const sedes = useSedes();
   const [sedeId, setSedeId] = useState<string>(clase?.sedeId ?? '');
+  const rentas = useRentas();
+  const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null }, rentas);
 
   const guardar = async () => {
     let idMaestro: ID | null = maestroId && maestroId !== NUEVO ? maestroId : null;
@@ -399,7 +403,7 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           <Entrada value={nivel} onChange={(e) => setNivel(e.target.value)} placeholder="0, 1, 2…" />
         </Campo>
       </div>
-      <Campo etiqueta="Días">
+      <Campo etiqueta="Días" grupo>
         <div className="grid grid-cols-7 gap-1.5">
           {[1, 2, 3, 4, 5, 6, 0].map((d) => (
             <button
@@ -450,6 +454,11 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
         </Campo>
       )}
       <Interruptor valor={activo} onChange={setActivo} texto="Clase activa" />
+      {chocaCon.length > 0 && (
+        <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+          Ojo: a esa hora el salón está rentado a {chocaCon.map((r) => r.nombre).join(', ')}. Revisa la Agenda antes de guardar.
+        </p>
+      )}
       <Boton grande bloque onClick={guardar} disabled={!disciplinaId || !dias.length}>
         Guardar
       </Boton>
@@ -627,7 +636,7 @@ function FormDisciplina({ disciplina, enUso, onHecho }: { disciplina: Disciplina
       <Campo etiqueta="Nombre">
         <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Cumbia, Kizomba" />
       </Campo>
-      <Campo etiqueta="Color">
+      <Campo etiqueta="Color" grupo>
         <div className="flex flex-wrap gap-3">
           {COLORES.map((c) => (
             <button key={c} type="button" onClick={() => setColor(c)} className={cx('h-10 w-10 rounded-full ring-offset-2', color === c && 'ring-2 ring-ink-900')} style={{ background: c }} aria-label={c} />

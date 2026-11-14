@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, ChartColumn, LockKeyhole, GraduationCap } from 'lucide-react';
+import { DoorOpen, Users, Wallet, Settings, Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, ChartColumn, LockKeyhole, GraduationCap, CalendarDays } from 'lucide-react';
 import type { Rol } from '../db/types';
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
@@ -15,6 +15,7 @@ const TABS: { to: string; texto: string; icono: typeof DoorOpen; para: Rol[] }[]
   { to: '/', texto: 'Mis clases', icono: GraduationCap, para: ['maestro'] },
   { to: '/alumnos', texto: 'Alumnos', icono: Users, para: ['dueno', 'recepcion'] },
   { to: '/caja', texto: 'Caja', icono: Wallet, para: ['dueno', 'recepcion'] },
+  { to: '/agenda', texto: 'Agenda', icono: CalendarDays, para: ['dueno', 'recepcion'] },
   { to: '/reportes', texto: 'Reportes', icono: ChartColumn, para: ['dueno'] },
   { to: '/ajustes', texto: 'Ajustes', icono: Settings, para: ['dueno', 'recepcion'] },
 ];

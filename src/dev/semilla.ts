@@ -4,7 +4,7 @@
  */
 import { db } from '../db/db';
 import { guardar } from '../db/repo';
-import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Plan, Usuario } from '../db/types';
+import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Plan, Renta, Usuario } from '../db/types';
 import { crearAcademia, hashPin } from '../domain/acceso';
 import { generarCodigo } from '../domain/operaciones';
 import { deFecha, hoy, sumarDias, sumarMeses } from '../domain/fechas';
@@ -534,4 +534,49 @@ export async function agregarGastosDemo(): Promise<{ fijos: number; gastos: numb
     }
   }
   return { fijos: fijos.length, gastos: n };
+}
+
+/** Rentas de ejemplo del salón: dos horarios fijos mensuales y un evento de todo el día el próximo domingo. */
+export async function agregarRentasDemo(): Promise<{ rentas: number; cobros: number }> {
+  const { empalmes, TODO_EL_DIA } = await import('../domain/agenda');
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if (await db.rentas.filter((r) => !r.deletedAt).count()) throw new Error('Ya hay rentas');
+  const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt);
+  if (!dueno) throw new Error('No hay usuario de dirección');
+  const A = academia.id;
+  const base = () => {
+    const ahora = Date.now();
+    return { id: crypto.randomUUID() as ID, academiaId: A, createdAt: ahora, updatedAt: ahora, deletedAt: null };
+  };
+  const hoyF = hoy();
+  const mesActual = hoyF.slice(0, 7);
+  const mesPasado = sumarMeses(hoyF, -1).slice(0, 7);
+  const domingo = sumarDias(hoyF, (7 - deFecha(hoyF).getDay()) % 7 || 7);
+  const propuestas: Renta[] = [
+    { ...base(), nombre: 'Profe Ana (Bachata)', telefono: '5512345678', tipo: 'mensual', dias: [2, 4], horaInicio: '17:00', duracionMin: 60, desde: `${mesPasado}-01`, hasta: null, monto: 240000, notas: '', activo: true },
+    { ...base(), nombre: 'Yoga con Laura', telefono: '', tipo: 'mensual', dias: [1, 3, 5], horaInicio: '08:00', duracionMin: 60, desde: `${mesPasado}-01`, hasta: null, monto: 300000, notas: '', activo: true },
+    { ...base(), nombre: 'Taller de tango', telefono: '', tipo: 'evento', dias: [0], ...TODO_EL_DIA, desde: domingo, hasta: domingo, monto: 250000, notas: 'Traen su sonido', activo: true },
+  ];
+  const clases = await db.clases.toArray();
+  const hechas: Renta[] = [];
+  for (const r of propuestas) {
+    if (empalmes(r, clases, hechas).length) continue; // nunca dejar la demo con empalmes
+    await guardar('rentas', r);
+    hechas.push(r);
+  }
+  const cobro = (r: Renta, periodo: string, fecha: Fecha): Pago => ({
+    ...base(), alumnoId: null, planId: null, rentaId: r.id, periodo, concepto: `Renta del salón · ${r.nombre}`, monto: r.monto, metodo: 'transferencia', usuarioId: dueno.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null,
+  });
+  let n = 0;
+  for (const r of hechas.filter((x) => x.tipo === 'mensual')) {
+    await guardar('pagos', cobro(r, mesPasado, `${mesPasado}-05`));
+    n++;
+  }
+  const laura = hechas.find((x) => x.nombre.startsWith('Yoga'));
+  if (laura && `${mesActual}-05` <= hoyF) {
+    await guardar('pagos', cobro(laura, mesActual, `${mesActual}-05`));
+    n++;
+  }
+  return { rentas: hechas.length, cobros: n };
 }

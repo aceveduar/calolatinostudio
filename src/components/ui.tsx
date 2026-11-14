@@ -35,13 +35,19 @@ export function Boton({
   );
 }
 
-export function Campo({ etiqueta, ayuda, children }: { etiqueta: string; ayuda?: string; children: ReactNode }) {
+/**
+ * Campo con etiqueta. Para un solo control usa <label> (tocar la etiqueta enfoca el control).
+ * Con `grupo` (varios botones, p. ej. días de la semana) usa un grupo con nombre: un <label> haría que
+ * tocar la etiqueta activara el primer botón y que el lector de pantalla lo nombrara mal.
+ */
+export function Campo({ etiqueta, ayuda, grupo, children }: { etiqueta: string; ayuda?: string; grupo?: boolean; children: ReactNode }) {
+  const Tag = grupo ? 'div' : 'label';
   return (
-    <label className="block">
+    <Tag className="block" {...(grupo ? { role: 'group', 'aria-label': etiqueta } : {})}>
       <span className="mb-1.5 block text-sm font-medium text-ink-700">{etiqueta}</span>
       {children}
       {ayuda && <span className="mt-1 block text-xs text-ink-500">{ayuda}</span>}
-    </label>
+    </Tag>
   );
 }
 

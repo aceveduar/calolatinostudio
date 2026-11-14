@@ -155,6 +155,9 @@ export interface Pago extends Base {
   /** venta de tienda: qué producto y cuántas piezas */
   productoId?: ID | null;
   cantidad?: number | null;
+  /** cobro de renta del salón: qué renta y de qué mes ('YYYY-MM') */
+  rentaId?: ID | null;
+  periodo?: string | null;
   concepto: string;
   monto: number; // centavos
   metodo: MetodoPago;
@@ -187,6 +190,31 @@ export interface Corte extends Base {
   totalOtros: number;
   usuarioId: ID;
   notas: string;
+}
+
+export type TipoRenta = 'mensual' | 'evento';
+
+/**
+ * Renta del salón a un maestro externo. Ocupa el salón los `dias` de la semana a `horaInicio`
+ * durante `duracionMin`, entre `desde` y `hasta`. Un evento es una renta de un solo día (desde = hasta).
+ */
+export interface Renta extends Base {
+  /** null = sede principal (el estudio) */
+  sedeId?: ID | null;
+  nombre: string;
+  telefono: string;
+  tipo: TipoRenta;
+  /** 0 = domingo … 6 = sábado */
+  dias: number[];
+  horaInicio: string;
+  duracionMin: number;
+  desde: Fecha;
+  /** null = sin fecha de fin (mensual) */
+  hasta: Fecha | null;
+  /** cuota mensual o precio del evento, en centavos */
+  monto: number;
+  notas: string;
+  activo: boolean;
 }
 
 export type CategoriaGasto = 'renta' | 'luz' | 'agua' | 'internet' | 'maestros' | 'limpieza' | 'otro';
@@ -246,6 +274,7 @@ export interface TablaMap {
   cortes: Corte;
   gastosFijos: GastoFijo;
   gastos: Gasto;
+  rentas: Renta;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -266,4 +295,5 @@ export const SYNC_TABLES: SyncTable[] = [
   'cortes',
   'gastosFijos',
   'gastos',
+  'rentas',
 ];
