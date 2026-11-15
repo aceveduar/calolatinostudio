@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { esAdeudo } from '../../domain/adeudos';
-import { ClipboardList, Plus, Search, Users } from 'lucide-react';
+import { ChevronRight, ClipboardList, Megaphone, Plus, Search, Users } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
-import { Avatar, Boton, Encabezado, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio } from '../../components/ui';
+import { Avatar, Boton, Encabezado, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
 
@@ -18,6 +18,7 @@ export function PantallaAlumnos() {
   const estados = useEstadosPorAlumno();
   const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));
   // Clases fiadas sin pagar, por alumno
+  const interesadosNuevos = useLiveQuery(() => db.interesados.where('estado').equals('nuevo').filter((i) => !i.deletedAt).count(), [], 0);
   const deben = useLiveQuery(
     async () => {
       const m = new Map<string, number>();
@@ -77,6 +78,14 @@ export function PantallaAlumnos() {
           className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
+      <Link
+        to="/alumnos/interesados"
+        className={cx('mb-3 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm ring-1', interesadosNuevos ? 'bg-brand-50 font-semibold text-brand-600 ring-brand-500/30' : 'bg-superficie text-ink-700 ring-ink-100')}
+      >
+        <Megaphone size={18} className="shrink-0" />
+        <span className="flex-1">{interesadosNuevos ? `${interesadosNuevos} ${interesadosNuevos === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar` : 'Interesados (página pública)'}</span>
+        <ChevronRight size={18} />
+      </Link>
       <Segmentos<Filtro>
         opciones={[
           { valor: 'todos', texto: 'Todos' },

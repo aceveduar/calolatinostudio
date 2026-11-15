@@ -13,11 +13,22 @@ const actualizarSW = registerSW({ immediate: true, onNeedRefresh: () => hayActua
 
 // Solo en builds de demo/pruebas: expone el generador de datos de ejemplo
 if (import.meta.env.VITE_SEMILLA === '1') {
-  void import('./dev/semilla').then((m) => ((window as unknown as Record<string, unknown>).compasDev = { sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo, agregarTiendaDemo: m.agregarTiendaDemo, agregarSedeDemo: m.agregarSedeDemo, agregarBecasDemo: m.agregarBecasDemo, agregarGastosDemo: m.agregarGastosDemo, agregarRentasDemo: m.agregarRentasDemo, agregarPedidosDemo: m.agregarPedidosDemo, agregarFiadosDemo: m.agregarFiadosDemo, agregarEventosDemo: m.agregarEventosDemo, demoCompleta: m.demoCompleta }));
+  void import('./dev/semilla').then((m) => ((window as unknown as Record<string, unknown>).compasDev = { sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo, agregarTiendaDemo: m.agregarTiendaDemo, agregarSedeDemo: m.agregarSedeDemo, agregarBecasDemo: m.agregarBecasDemo, agregarGastosDemo: m.agregarGastosDemo, agregarRentasDemo: m.agregarRentasDemo, agregarPedidosDemo: m.agregarPedidosDemo, agregarFiadosDemo: m.agregarFiadosDemo, agregarEventosDemo: m.agregarEventosDemo, demoCompleta: m.demoCompleta, agregarInteresadosDemo: m.agregarInteresadosDemo }));
 }
 
 async function arrancar() {
   // Portal del alumno (/p/<token>): página pública aparte; no abre la base de la academia en ese teléfono
+  // Página pública del estudio (/a/<slug>): para compartir en Facebook; tampoco abre la base de la academia
+  const publica = location.pathname.match(/^\/a\/([a-zA-Z0-9-]{3,40})\/?$/);
+  if (publica) {
+    const { PaginaPublica } = await import('./features/publica/PaginaPublica');
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <PaginaPublica slug={publica[1].toLowerCase()} />
+      </StrictMode>,
+    );
+    return;
+  }
   const portal = location.pathname.match(/^\/p\/([A-Za-z0-9]{20,64})\/?$/);
   if (portal) {
     const { PortalAlumno } = await import('./features/portal/PortalAlumno');

@@ -1,7 +1,7 @@
 /** Mensajes de WhatsApp: plantillas editables por la academia con datos del alumno. */
 import type { Academia } from '../db/types';
 
-export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'adeudo' | 'extrañamos' | 'recibo';
+export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'adeudo' | 'extrañamos' | 'recibo' | 'interesado' | 'grupo';
 
 export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; base: string }[] = [
   {
@@ -48,6 +48,22 @@ export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; ba
   },
 ];
 
+/** Mensajes para interesados (página pública): no salen en la ficha de alumno, sino en Alumnos → Interesados. */
+export const MENSAJES_INTERESADOS: { clave: ClaveMensaje; titulo: string; cuando: string; base: string }[] = [
+  {
+    clave: 'interesado',
+    titulo: 'Interesado: primer mensaje',
+    cuando: 'A quien se inscribió en la página pública',
+    base: '¡Hola {nombre}! Gracias por tu interés en las clases de {academia} 💃🕺 ¿Te gustaría venir a una clase de {clase}? Cualquier duda, aquí estamos.',
+  },
+  {
+    clave: 'grupo',
+    titulo: 'Abrimos grupo',
+    cuando: 'Para avisar a los interesados que abrió un grupo',
+    base: '¡Hola {nombre}! Abrimos grupo de {clase} en {academia}: {horario}. ¿Te apartamos lugar? 💃🕺',
+  },
+];
+
 export const VARIABLES: { clave: string; texto: string }[] = [
   { clave: 'nombre', texto: 'Nombre del alumno' },
   { clave: 'academia', texto: 'Nombre de la academia' },
@@ -57,10 +73,12 @@ export const VARIABLES: { clave: string; texto: string }[] = [
   { clave: 'monto', texto: 'Monto cobrado' },
   { clave: 'codigo', texto: 'Código de credencial' },
   { clave: 'enlace', texto: 'Enlace a su portal' },
+  { clave: 'clase', texto: 'Clase (interesados)' },
+  { clave: 'horario', texto: 'Días y hora de la clase' },
 ];
 
 export function plantilla(academia: Pick<Academia, 'mensajes'>, clave: ClaveMensaje): string {
-  return academia.mensajes?.[clave]?.trim() || MENSAJES.find((m) => m.clave === clave)!.base;
+  return academia.mensajes?.[clave]?.trim() || [...MENSAJES, ...MENSAJES_INTERESADOS].find((m) => m.clave === clave)!.base;
 }
 
 /** Sustituye {variables}; las que no tengan valor se quitan sin dejar huecos raros. */

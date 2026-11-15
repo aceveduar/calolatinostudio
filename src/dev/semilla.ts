@@ -707,6 +707,40 @@ export async function agregarEventosDemo(): Promise<{ eventos: number; boletos: 
   return { eventos: 2, boletos: n + m };
 }
 
+/** Página pública (calo-latino) e interesados de ejemplo: 9 por contactar y 2 a los que ya se les escribió. */
+export async function agregarInteresadosDemo(): Promise<{ interesados: number }> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  await guardar('academias', { ...academia, slug: academia.slug ?? 'calo-latino', whatsapp: academia.whatsapp ?? '5512345678' });
+  const clases = (await db.clases.toArray()).filter((c) => !c.deletedAt && c.activo);
+  const disciplinas = await db.disciplinas.toArray();
+  const de = (nombre: string) => clases.find((c) => `${disciplinas.find((d) => d.id === c.disciplinaId)?.nombre} ${c.nivel}` === nombre)?.id ?? null;
+  const r = generador(31);
+  const ahora = Date.now();
+  const lista: [string, string | null, string, boolean][] = [
+    ['Mariana Solís', 'Salsa 0', 'Nunca he bailado', false],
+    ['Diego Peña', 'Salsa 0', 'Vamos mi novia y yo', false],
+    ['Lucía Ortega', 'Salsa 0', '', false],
+    ['Fernando Ríos', 'Bachata 0', '', false],
+    ['Paola Méndez', 'Bachata 0', '¿Hay grupo en la mañana?', false],
+    ['Sofía Aguilar', 'Bachata 0', '', false],
+    ['Andrea Campos', null, 'Quiero empezar en enero', false],
+    ['Ricardo Lara', 'Salsa 1', 'Ya bailé antes', false],
+    ['Valeria Ibarra', null, '', false],
+    ['Héctor Ruiz', 'Salsa 0', '', true],
+    ['Natalia Cruz', 'Bachata 0', '', true],
+  ];
+  for (const [i, [nombre, clase, mensaje, contactado]] of lista.entries()) {
+    const creado = ahora - Math.floor(r() * 12 + 1) * 86400_000 - i * 3600_000;
+    await guardar('interesados', {
+      id: crypto.randomUUID(), academiaId: academia.id, createdAt: creado, updatedAt: creado, deletedAt: null,
+      nombre, telefono: `55${Math.floor(10000000 + r() * 89999999)}`, claseId: clase ? de(clase) : null, mensaje,
+      estado: contactado ? 'contactado' : 'nuevo', contactadoAt: contactado ? creado + 86400_000 : null, alumnoId: null,
+    });
+  }
+  return { interesados: lista.length };
+}
+
 /**
  * La demo completa para mostrar a Calo, en orden: alumnos e historia, tienda y apartados, las dos sedes con
  * sus planes reales, becas, gastos, rentas de maestros, fiados, eventos y los usuarios de los maestros.
@@ -726,6 +760,7 @@ export async function demoCompleta(p: { academiaId?: ID; logo?: string | null; s
   r.rentas = await agregarRentasDemo();
   r.fiados = await agregarFiadosDemo();
   r.eventos = await agregarEventosDemo();
+  r.interesados = await agregarInteresadosDemo();
   const academia = (await db.academias.toCollection().first())!;
   await guardar('academias', { ...academia, ...(p.logo ? { logo: p.logo } : {}), ...(p.sedePrincipal ? { sedePrincipal: p.sedePrincipal } : {}) });
   // Usuarios de los maestros (ven sus clases y pasan lista)

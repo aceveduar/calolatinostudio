@@ -19,6 +19,7 @@ import type {
   Pedido,
   Evento,
   Boleto,
+  Interesado,
   Sede,
   Usuario,
 } from './types';
@@ -39,6 +40,7 @@ export class CompasDB extends Dexie {
   pedidos!: EntityTable<Pedido, 'id'>;
   eventos!: EntityTable<Evento, 'id'>;
   boletos!: EntityTable<Boleto, 'id'>;
+  interesados!: EntityTable<Interesado, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -124,6 +126,9 @@ export class CompasDB extends Dexie {
 
     // v9: productos con código de barras (para cobrar escaneando)
     this.version(9).stores({ productos: 'id, academiaId, codigo' });
+
+    // v10: interesados que se inscriben en la página pública
+    this.version(10).stores({ interesados: 'id, academiaId, estado, claseId' });
   }
 }
 

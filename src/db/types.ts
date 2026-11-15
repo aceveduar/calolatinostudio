@@ -33,6 +33,10 @@ export interface Academia {
   salones?: Salon[] | null;
   /** Nombre del lugar principal (las demás sedes están en `sedes`). */
   sedePrincipal?: string | null;
+  /** dirección de la página pública: /a/<slug> (vacío = sin página pública) */
+  slug?: string | null;
+  /** WhatsApp de contacto que se muestra en la página pública */
+  whatsapp?: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -184,6 +188,22 @@ export interface Boleto extends Base {
  * Apartado de algo en existencia: pendiente → entregado.
  * Encargo sobre pedido: pendiente (solicitado) → pedido (al proveedor) → llego → entregado.
  */
+export type EstadoInteresado = 'nuevo' | 'contactado' | 'inscrito' | 'descartado';
+
+/** Persona que se inscribió en la página pública (o que anotó recepción) y quiere entrar a una clase. */
+export interface Interesado extends Base {
+  nombre: string;
+  telefono: string;
+  /** clase que le interesa (vacío = cualquiera) */
+  claseId: ID | null;
+  mensaje: string;
+  estado: EstadoInteresado;
+  /** cuándo se le escribió por última vez */
+  contactadoAt: number | null;
+  /** alumno con que quedó registrado */
+  alumnoId: ID | null;
+}
+
 export type EstadoPedido = 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado';
 
 /**
@@ -384,6 +404,7 @@ export interface TablaMap {
   pedidos: Pedido;
   eventos: Evento;
   boletos: Boleto;
+  interesados: Interesado;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -408,4 +429,5 @@ export const SYNC_TABLES: SyncTable[] = [
   'pedidos',
   'eventos',
   'boletos',
+  'interesados',
 ];

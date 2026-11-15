@@ -284,6 +284,20 @@ create table if not exists boletos (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists interesados (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  nombre text not null,
+  telefono text not null,
+  clase_id uuid,
+  mensaje text not null default '',
+  estado text not null default 'nuevo' check (estado in ('nuevo','contactado','inscrito','descartado')),
+  contactado_at bigint,
+  alumno_id uuid,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
@@ -327,6 +341,9 @@ alter table pedidos add column if not exists anticipo int;
 alter table pedidos add column if not exists anticipo_pago_id uuid;
 alter table pedidos drop constraint if exists pedidos_estado_check;
 alter table pedidos add constraint pedidos_estado_check check (estado in ('pendiente','pedido','llego','entregado','cancelado'));
+alter table academias add column if not exists slug text;
+alter table academias add column if not exists whatsapp text;
+create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------
@@ -340,7 +357,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -366,7 +383,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;
@@ -397,7 +414,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;
@@ -510,3 +527,78 @@ end $$;
 
 revoke execute on function portal_pedir(text, uuid, text, int, text) from public;
 grant execute on function portal_pedir(text, uuid, text, int, text) to anon, authenticated;
+
+-- ---------- página pública del estudio (/a/<slug>) ----------
+-- Para compartir en Facebook: clases con horario, sede y precios, planes, próximos eventos y la tienda.
+-- Nunca nombres de maestros, alumnos ni teléfonos (salvo el WhatsApp de contacto que la academia decida mostrar).
+create or replace function pagina_publica(p_slug text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  ac academias;
+  hoy date := (now() at time zone 'America/Mexico_City')::date;
+begin
+  if p_slug is null or length(p_slug) < 3 then return null; end if;
+  select * into ac from academias where lower(slug) = lower(p_slug) and deleted_at is null;
+  if not found then return null; end if;
+  return jsonb_build_object(
+    'academia', jsonb_build_object('nombre', ac.nombre, 'color', ac.color, 'logo', ac.logo, 'whatsapp', ac.whatsapp, 'sede_principal', coalesce(ac.sede_principal, 'Sede principal')),
+    'sedes', coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre, 'color', s.color) order by s.nombre)
+                       from sedes s where s.academia_id = ac.id and s.activo and s.deleted_at is null), '[]'::jsonb),
+    'clases', coalesce((
+      select jsonb_agg(jsonb_build_object('id', k.id, 'clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta) order by k.hora_inicio)
+      from clases k left join disciplinas d on d.id = k.disciplina_id
+      where k.academia_id = ac.id and k.activo and k.deleted_at is null
+    ), '[]'::jsonb),
+    'planes', coalesce((
+      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'tipo', p.tipo, 'precio', p.precio, 'clases', p.clases, 'vigencia', p.vigencia_dias,
+                                          'grupos', p.grupos, 'sede_id', p.sede_id) order by p.tipo, p.precio)
+      from planes p where p.academia_id = ac.id and p.activo and p.deleted_at is null and p.precio > 0
+    ), '[]'::jsonb),
+    'eventos', coalesce((
+      select jsonb_agg(jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
+                                          'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
+      from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and e.fecha >= hoy
+    ), '[]'::jsonb),
+    'tienda', coalesce((
+      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion,
+                                          'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'sobre_pedido', coalesce(p.sobre_pedido, false)) order by p.nombre)
+      from productos p where p.academia_id = ac.id and p.en_linea and p.activo and p.deleted_at is null
+    ), '[]'::jsonb)
+  );
+end $$;
+
+revoke execute on function pagina_publica(text) from public;
+grant execute on function pagina_publica(text) to anon, authenticated;
+
+-- Inscripción desde la página pública: queda en "interesados" para que la academia le escriba.
+-- Límites para que nadie la llene: teléfono de 10 dígitos, 3 por teléfono al día, 200 por academia al día.
+create or replace function inscribir_interesado(p_slug text, p_nombre text, p_telefono text, p_clase uuid, p_mensaje text) returns jsonb
+language plpgsql volatile security definer set search_path = public as $$
+declare
+  ac academias;
+  tel text := right(regexp_replace(coalesce(p_telefono, ''), '\D', '', 'g'), 10);
+  nom text := left(trim(coalesce(p_nombre, '')), 80);
+  ahora bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+  hace_un_dia bigint := ahora - 86400000;
+begin
+  select * into ac from academias where lower(slug) = lower(p_slug) and deleted_at is null;
+  if not found then return jsonb_build_object('error', 'academia'); end if;
+  if length(nom) < 2 then return jsonb_build_object('error', 'nombre'); end if;
+  if length(tel) <> 10 then return jsonb_build_object('error', 'telefono'); end if;
+  if p_clase is not null and not exists (select 1 from clases where id = p_clase and academia_id = ac.id and activo and deleted_at is null) then
+    return jsonb_build_object('error', 'clase');
+  end if;
+  if (select count(*) from interesados where academia_id = ac.id and telefono = tel and created_at > hace_un_dia) >= 3 then
+    return jsonb_build_object('error', 'muchos');
+  end if;
+  if (select count(*) from interesados where academia_id = ac.id and created_at > hace_un_dia) >= 200 then
+    return jsonb_build_object('error', 'cupo');
+  end if;
+  insert into interesados (id, academia_id, nombre, telefono, clase_id, mensaje, estado, created_at, updated_at)
+  values (gen_random_uuid(), ac.id, nom, tel, p_clase, left(trim(coalesce(p_mensaje, '')), 300), 'nuevo', ahora, ahora);
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function inscribir_interesado(text, text, text, uuid, text) from public;
+grant execute on function inscribir_interesado(text, text, text, uuid, text) to anon, authenticated;

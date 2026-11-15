@@ -58,7 +58,7 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
   useEffect(() => {
     if (!alumno.portal) void asegurarPortal(alumno);
   }, [alumno]);
-  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo };
+  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
 
   return (
     <div className="space-y-2">

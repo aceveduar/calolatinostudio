@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag, MapPin } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag, MapPin, Globe } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
@@ -11,6 +11,7 @@ import { LogoAcademia, prepararLogo } from '../../components/LogoAcademia';
 import { EditorClases, EditorDisciplinas, EditorMaestros, EditorPlanes, EditorProductos, EditorSedes, EditorUsuarios } from './Editores';
 import { PanelNube } from './PanelNube';
 import { EditorMensajes } from './EditorMensajes';
+import { EditorPagina } from './EditorPagina';
 
 const SECCIONES = {
   sedes: { titulo: 'Sedes', icono: MapPin, comp: EditorSedes },
@@ -22,6 +23,7 @@ const SECCIONES = {
   usuarios: { titulo: 'Usuarios y PIN', icono: Users, comp: EditorUsuarios },
   academia: { titulo: 'Academia', icono: Building2, comp: EditorAcademia },
   mensajes: { titulo: 'Mensajes de WhatsApp', icono: MessageCircle, comp: EditorMensajes },
+  pagina: { titulo: 'Página pública e inscripciones', icono: Globe, comp: EditorPagina },
   nube: { titulo: 'Nube y respaldo', icono: Cloud, comp: PanelNube },
 } as const;
 type Clave = keyof typeof SECCIONES;
@@ -31,7 +33,7 @@ export function PantallaAjustes() {
   const { esDueno, bloquear, usuario } = useSesion();
   const nav = useNavigate();
 
-  const visibles: Clave[] = esDueno ? ['sedes', 'clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'nube'] : ['nube'];
+  const visibles: Clave[] = esDueno ? ['sedes', 'clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'pagina', 'nube'] : ['nube'];
   // Permiso por sección: también si se llega por enlace directo
   if (seccion && !visibles.includes(seccion as Clave)) return <Navigate to="/ajustes" replace />;
 

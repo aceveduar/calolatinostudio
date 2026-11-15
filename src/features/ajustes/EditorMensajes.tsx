@@ -4,9 +4,9 @@ import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
-import { MENSAJES, VARIABLES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
+import { MENSAJES, MENSAJES_INTERESADOS, VARIABLES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
 
-const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX', enlace: 'calolatinostudio.pages.dev/p/Xb7…' };
+const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX', enlace: 'calolatinostudio.pages.dev/p/Xb7…', clase: 'Salsa 1', horario: 'lunes y miércoles 8:00 pm' };
 
 /** El dueño escribe los mensajes de WhatsApp con sus palabras; se ve cómo le llegará al alumno. */
 export function EditorMensajes() {
@@ -27,7 +27,7 @@ export function EditorMensajes() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-500">Así le llegan los mensajes de WhatsApp a los alumnos. Escríbelos con el estilo de la academia.</p>
-      {MENSAJES.map((m) => {
+      {[...MENSAJES, ...MENSAJES_INTERESADOS].map((m) => {
         const actual = plantilla(academia, m.clave);
         const propio = !!academia.mensajes?.[m.clave];
         const editando = abierto === m.clave;
