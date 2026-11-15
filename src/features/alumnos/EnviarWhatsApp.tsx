@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, MessageCircle } from 'lucide-react';
+import { ChevronRight, Copy, ExternalLink, MessageCircle } from 'lucide-react';
 import { usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { db } from '../../db/db';
@@ -83,6 +83,32 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
           </a>
         );
       })}
+      {alumno.portal && (
+        <div className="flex gap-2 pt-1">
+          <a
+            href={enlacePortal(alumno.portal)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-superficie text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+          >
+            <ExternalLink size={16} /> Abrir su portal
+          </a>
+          <button
+            type="button"
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-superficie text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(enlacePortal(alumno.portal!));
+                avisar('Enlace copiado');
+              } catch {
+                avisar('No se pudo copiar; usa “Abrir su portal” y copia la dirección', 'error');
+              }
+            }}
+          >
+            <Copy size={16} /> Copiar enlace
+          </button>
+        </div>
+      )}
       {alumno.portal && (
         <button
           type="button"
