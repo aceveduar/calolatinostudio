@@ -28,12 +28,12 @@ function generador(seed: number) {
   };
 }
 
-export async function sembrar(): Promise<{ alumnos: number; pagos: number; asistencias: number }> {
+export async function sembrar(academiaId?: ID): Promise<{ alumnos: number; pagos: number; asistencias: number }> {
   if (await db.academias.count()) throw new Error('Este navegador ya tiene una academia');
   const r = generador(20261113);
   const elige = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)];
 
-  const dueno = await crearAcademia({ nombre: 'Calo Latino Studio', duenoNombre: 'Dirección Calo', pin: '1234' });
+  const dueno = await crearAcademia({ nombre: 'Calo Latino Studio', duenoNombre: 'Dirección Calo', pin: '1234', id: academiaId });
   const A = dueno.academiaId;
   const ahora = Date.now();
   const base = (ts: number) => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ts, updatedAt: ts, deletedAt: null });
@@ -669,4 +669,32 @@ export async function agregarEventosDemo(): Promise<{ eventos: number; boletos: 
   }
   await registrarGasto({ concepto: 'Anticipo DJ (Baile de Navidad)', categoria: 'otro', monto: 75000, fecha: hoyF, metodo: 'transferencia', sedeId: null, eventoId: navidad.id, usuarioId: dueno.id });
   return { eventos: 2, boletos: n + m };
+}
+
+/**
+ * La demo completa para mostrar a Calo, en orden: alumnos e historia, tienda y apartados, las dos sedes con
+ * sus planes reales, becas, gastos, rentas de maestros, fiados, eventos y los usuarios de los maestros.
+ * Con `academiaId` se rehace sobre la academia que ya existe en la nube (la cuenta demo sigue igual).
+ */
+export async function demoCompleta(p: { academiaId?: ID; logo?: string | null; sedePrincipal?: string } = {}): Promise<Record<string, unknown>> {
+  const { crearUsuario } = await import('../domain/acceso');
+  const r: Record<string, unknown> = {};
+  r.base = await sembrar(p.academiaId);
+  r.clases = await agregarClasesDemo();
+  r.alumnos = await ampliar(552, 0.2, 0.55);
+  r.tienda = await agregarTiendaDemo();
+  r.portal = await agregarPedidosDemo();
+  r.sedes = await agregarSedeDemo();
+  r.becas = await agregarBecasDemo();
+  r.gastos = await agregarGastosDemo();
+  r.rentas = await agregarRentasDemo();
+  r.fiados = await agregarFiadosDemo();
+  r.eventos = await agregarEventosDemo();
+  const academia = (await db.academias.toCollection().first())!;
+  await guardar('academias', { ...academia, ...(p.logo ? { logo: p.logo } : {}), ...(p.sedePrincipal ? { sedePrincipal: p.sedePrincipal } : {}) });
+  // Usuarios de los maestros (ven sus clases y pasan lista)
+  const PINES: Record<string, string> = { 'Profe Luis Herrera': '5555', 'Profa Karla Méndez': '6666', 'Profe Iván Ruiz': '7777', 'Profa Daniela Soto': '8888' };
+  for (const m of await db.maestros.toArray()) if (PINES[m.nombre]) await crearUsuario({ nombre: m.nombre, rol: 'maestro', pin: PINES[m.nombre], academiaId: academia.id, maestroId: m.id });
+  r.usuarios = await db.usuarios.count();
+  return r;
 }

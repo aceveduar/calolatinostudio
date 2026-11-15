@@ -48,10 +48,11 @@ export async function crearUsuario(p: { nombre: string; rol: Rol; pin: string; a
 }
 
 /** Primer arranque: crea la academia con datos de ejemplo editables. */
-export async function crearAcademia(p: { nombre: string; duenoNombre: string; pin: string }): Promise<Usuario> {
+export async function crearAcademia(p: { nombre: string; duenoNombre: string; pin: string; id?: ID }): Promise<Usuario> {
   const ahora = Date.now();
   const academia: Academia = {
-    id: uuid(),
+    // `id` solo para rehacer la demo sobre la misma academia de la nube
+    id: p.id ?? uuid(),
     nombre: p.nombre.trim(),
     moneda: 'MXN',
     createdAt: ahora,
