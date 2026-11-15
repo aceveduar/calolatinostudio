@@ -149,6 +149,8 @@ export interface Producto extends Base {
   sobrePedido?: boolean | null;
   /** días aproximados que tarda en llegar un encargo */
   diasEntrega?: number | null;
+  /** lo que le cuesta a la academia cada pieza (centavos); solo lo ve la dirección */
+  costo?: number | null;
 }
 
 /**
@@ -265,6 +267,8 @@ export interface Pago extends Base {
   cantidad?: number | null;
   /** venta de boletos de un evento */
   eventoId?: ID | null;
+  /** venta de tienda: costo total de lo vendido al momento de venderlo (para la ganancia) */
+  costo?: number | null;
   /** cobro de renta del salón: qué renta y de qué mes ('YYYY-MM') */
   rentaId?: ID | null;
   periodo?: string | null;

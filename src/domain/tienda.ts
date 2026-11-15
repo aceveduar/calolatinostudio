@@ -36,6 +36,8 @@ export async function venderProducto(p: { producto: Producto; cantidad?: number;
     planId: null,
     productoId: p.producto.id,
     cantidad,
+    // el costo se guarda en la venta: si después cambia, la ganancia de lo ya vendido no se mueve
+    ...(p.producto.costo ? { costo: p.producto.costo * cantidad } : {}),
     concepto: p.producto.nombre,
     // monto distinto al precio × piezas: p. ej. al entregar un encargo con anticipo se cobra el resto
     monto: p.monto ?? p.producto.precio * cantidad,

@@ -291,6 +291,7 @@ export function EditorProductos() {
                   {p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}
                   {p.enLinea && ' · en el portal'}
                   {reservadas(p.id) > 0 && ` · ${reservadas(p.id)} apartad${reservadas(p.id) === 1 ? 'a' : 'as'}`}
+                  {p.costo ? ` · deja ${dinero(p.precio - p.costo)}` : ''}
                 </span>
               </span>
               {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
@@ -311,6 +312,8 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
   const [precio, setPrecio] = useState(producto ? aPesosTexto(producto.precio) : '');
+  const [costo, setCosto] = useState(producto?.costo ? aPesosTexto(producto.costo) : '');
+  const ganancia = aCentavos(precio) - aCentavos(costo);
   const [categoria, setCategoria] = useState<CategoriaProducto>(producto?.categoria ?? 'consumo');
   const [controlar, setControlar] = useState(producto ? producto.inventario !== null : false);
   const [hay, setHay] = useState(disponibles !== null ? String(Math.max(0, disponibles)) : '');
@@ -336,6 +339,8 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
       nombre: nombre.trim(),
       emoji,
       precio: aCentavos(precio),
+      // costo: solo se manda si lo tiene (o si lo tenía y se quitó)
+      ...(aCentavos(costo) > 0 ? { costo: aCentavos(costo) } : producto?.costo ? { costo: null } : {}),
       categoria,
       alerta: Number(alerta) || 0,
       activo,
@@ -374,6 +379,16 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
         </Campo>
       </div>
+      <Campo etiqueta="¿Cuánto te cuesta? (opcional)" ayuda="Solo lo ve la dirección. Sirve para saber cuánto te deja cada venta.">
+        <Entrada inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="$ costo por pieza" />
+      </Campo>
+      {aCentavos(costo) > 0 && aCentavos(precio) > 0 && (
+        <p className={cx('-mt-2 rounded-xl px-3 py-2 text-sm font-semibold', ganancia > 0 ? 'bg-ok-50 text-ok-600' : 'bg-bad-50 text-bad-600')}>
+          {ganancia > 0
+            ? `Te deja ${dinero(ganancia)} por pieza (${Math.round((ganancia / aCentavos(precio)) * 100)}% del precio)`
+            : `Ojo: lo vendes ${ganancia === 0 ? 'al costo' : `${dinero(-ganancia)} abajo del costo`}`}
+        </p>
+      )}
       <Campo etiqueta="Código de barras (opcional)" ayuda="Para cobrarlo escaneando, con la cámara o con un lector.">
         <div className="flex gap-2">
           <Entrada inputMode="numeric" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, ''))} placeholder="Escanéalo o escríbelo" />

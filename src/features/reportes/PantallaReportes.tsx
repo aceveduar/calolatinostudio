@@ -14,6 +14,7 @@ import { textoDias } from '../../domain/membresias';
 import { dejaronDeVenir, indicadores, ingresosPorDia, periodos, porClase, variacion, vencenPronto, waLink } from '../../domain/reportes';
 import { GraficaBarras } from './GraficaBarras';
 import { TendenciaAnual } from './TendenciaAnual';
+import { ResumenTienda } from './ResumenTienda';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { esBeca, resumenBecas } from '../../domain/becas';
 import { mesDe, nombreMes, rangoMes, resumenMes } from '../../domain/gastos';
@@ -67,6 +68,7 @@ export function PantallaReportes() {
     }
     return {
       ahora: indicadores(actual, pagosS, asisS, altas),
+      pagosPeriodo: pagosS.filter((p) => p.fecha >= actual.desde && p.fecha <= actual.hasta),
       antes: indicadores(anterior, pagosS, asisS, altas),
       dias: ingresosPorDia(actual, pagosS),
       porSede: [PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => {
@@ -194,6 +196,8 @@ export function PantallaReportes() {
       )}
 
       <TendenciaAnual verSede={verSede} />
+
+      <ResumenTienda pagos={r.pagosPeriodo} />
 
       <Seccion titulo="Ingresos por día">
         <Tarjeta className="p-4">

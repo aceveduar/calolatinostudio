@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useEsEscritorio } from '../../app/pantalla';
 import { ArrowLeft } from 'lucide-react';
 import { useUsuarios } from '../../app/datos';
 import { Avatar, Hoja } from '../../components/ui';
@@ -46,6 +47,40 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
     }, 600);
   };
 
+  // PC: el PIN también se escribe con el teclado (números de arriba o teclado numérico);
+  // Retroceso borra y Esc regresa a elegir usuario.
+  const escritorio = useEsEscritorio();
+  const pinActual = useRef(pin);
+  pinActual.current = pin;
+  const alPinRef = useRef(alPin);
+  alPinRef.current = alPin;
+  useEffect(() => {
+    if (!usuario || espera) return;
+    const largo = largoPin(usuario);
+    const tecla = (e: KeyboardEvent) => {
+      if (document.querySelector('[role=dialog]') || e.ctrlKey || e.metaKey || e.altKey) return;
+      // teclado numérico: se lee por la tecla física, así funciona aunque Bloq Num esté apagado
+      const digito = /^[0-9]$/.test(e.key) ? e.key : /^Numpad([0-9])$/.exec(e.code)?.[1];
+      if (digito) {
+        e.preventDefault();
+        if (pinActual.current.length >= largo) return;
+        // se actualiza al momento: al teclear rápido no se pierden dígitos entre renders
+        const nuevo = pinActual.current + digito;
+        pinActual.current = nuevo;
+        void alPinRef.current(nuevo);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        pinActual.current = pinActual.current.slice(0, -1);
+        setPin(pinActual.current);
+      } else if (e.key === 'Escape' && usuarios.length > 1) {
+        setElegido(null);
+        setPin('');
+      }
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [usuario, espera, usuarios.length]);
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
       <div className="flex items-center gap-3 pt-6">
@@ -77,7 +112,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
             <Avatar nombre={usuario.nombre} tam={72} />
             <p className="mt-3 text-xl font-bold">Hola, {usuario.nombre.split(' ')[0]}</p>
             <p className={error || espera ? 'font-medium text-bad-600' : 'text-ink-500'}>
-              {espera ? `Demasiados intentos. Espera ${espera} s` : error ? 'PIN incorrecto' : 'Escribe tu PIN'}
+              {espera ? `Demasiados intentos. Espera ${espera} s` : error ? 'PIN incorrecto' : escritorio ? 'Escribe tu PIN (puedes usar el teclado)' : 'Escribe tu PIN'}
             </p>
           </div>
           <div className={espera ? 'pointer-events-none opacity-40' : undefined}>

@@ -372,10 +372,13 @@ export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: 
   const recepcion = (await db.usuarios.filter((u) => u.rol === 'recepcion' && !u.deletedAt).first()) ?? (await db.usuarios.toCollection().first())!;
   const inicio = new Date(sumarDias(hoy(), -DIAS_HISTORIA)).getTime();
   // códigos de barras de ejemplo (EAN-13 válidos), para cobrar escaneando
+  // lo que le cuesta cada pieza a la academia (para ver cuánto deja la tienda)
+  const COSTOS = [700, 2200, 1200, 800, 1500, 250, 12000, 9000, 75000];
   const CODIGOS = ['7501000000012', '7501000000029', '7501000000036', '7501000000043', '7501000000050', '7501000000067', '7501000000074', '7501000000081', '7501000000098'];
   const productos = PRODUCTOS_DEMO.map((p, i) => ({
     ...base(inicio),
     codigo: CODIGOS[i],
+    costo: COSTOS[i],
     nombre: p.nombre, emoji: p.emoji, precio: p.precio, categoria: p.categoria, foto: null, descripcion: '',
     // existencias contadas hace 3 días, para que el "quedan" reste solo lo reciente
     inventario: p.inventario, inventarioAt: p.inventario === null ? null : new Date(sumarDias(hoy(), -3)).getTime(),
@@ -397,7 +400,7 @@ export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: 
         const ts = fechaD.getTime();
         const cantidad = r() < 0.15 ? 2 : 1;
         const metodo: MetodoPago = r() < 0.12 ? 'transferencia' : 'efectivo';
-        ventas.push({ ...base(ts), alumnoId: null, planId: null, productoId: prod.id, cantidad, concepto: prod.nombre, monto: prod.precio * cantidad, metodo, usuarioId: recepcion.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null });
+        ventas.push({ ...base(ts), alumnoId: null, planId: null, productoId: prod.id, cantidad, costo: (prod.costo ?? 0) * cantidad, concepto: prod.nombre, monto: prod.precio * cantidad, metodo, usuarioId: recepcion.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null });
       }
     }
   }
