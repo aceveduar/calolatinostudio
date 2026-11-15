@@ -27,6 +27,8 @@ export interface Academia {
   mensajes?: Record<string, string> | null;
   /** recargo por día de atraso en mensualidades (centavos); vacío o 0 = sin recargo */
   recargoDiario?: number | null;
+  /** meta de lo que deben dejar las rentas del salón por día (centavos), p. ej. $500 para cubrir la renta */
+  metaDiaria?: number | null;
   /** Nombre del lugar principal (las demás sedes están en `sedes`). */
   sedePrincipal?: string | null;
   createdAt: number;
@@ -224,6 +226,8 @@ export interface Corte extends Base {
 }
 
 export type TipoRenta = 'mensual' | 'evento';
+/** Cómo paga el maestro externo: cuota fija al mes, por hora usada, o comisión por alumno que llega a sus clases. */
+export type CobroRenta = 'fijo' | 'hora' | 'alumno';
 
 /**
  * Renta del salón a un maestro externo. Ocupa el salón los `dias` de la semana a `horaInicio`
@@ -246,6 +250,12 @@ export interface Renta extends Base {
   monto: number;
   notas: string;
   activo: boolean;
+  /** vacío = fijo */
+  cobro?: CobroRenta | null;
+  /** por hora: $ por hora · por alumno: $ por alumno (centavos) */
+  tarifa?: number | null;
+  /** maestro de la academia al que corresponde (por alumno: se cuentan los alumnos de sus clases) */
+  maestroId?: ID | null;
 }
 
 export type CategoriaGasto = 'renta' | 'luz' | 'agua' | 'internet' | 'maestros' | 'limpieza' | 'otro';

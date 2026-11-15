@@ -4,7 +4,7 @@
  * (Las clases entre sí no se validan aquí: eso lo decide la academia al armar su horario.)
  */
 import { crear } from '../db/repo';
-import type { Clase, Fecha, ID, MetodoPago, Pago, Renta } from '../db/types';
+import type { Asistencia, Clase, Fecha, ID, MetodoPago, Pago, Renta } from '../db/types';
 import { deFecha, diasEntre, hoy, minutosDelDia, sumarDias } from './fechas';
 import { rangoMes, type Mes } from './gastos';
 
@@ -114,15 +114,48 @@ export function rentasQueChocanConClase(k: Pick<Clase, 'dias' | 'horaInicio' | '
 export interface CobroRenta {
   renta: Renta;
   pago: Pago | null;
+  /** lo que toca pagar este mes según cómo paga (fijo, horas usadas o alumnos que llegaron) */
+  monto: number;
+  /** cómo se calculó, p. ej. "12 h × $150" */
+  detalle: string;
 }
 
-/** Rentas que se cobran en ese mes (mensuales activas en el mes y eventos de ese mes) y si ya se pagaron. */
-export function cobrosDelMes(rentas: Renta[], pagos: Pago[], mes: Mes): CobroRenta[] {
+/** Fechas del mes (hasta `hastaDia`) en que la renta ocupa el salón. */
+export function fechasDelMes(r: Pick<Renta, 'desde' | 'hasta' | 'dias'>, mes: Mes, hastaDia?: Fecha): Fecha[] {
+  const { desde, hasta } = rangoMes(mes);
+  const fin = hastaDia && hastaDia < hasta ? hastaDia : hasta;
+  const r2: Fecha[] = [];
+  for (let f = desde; f <= fin; f = sumarDias(f, 1)) if (rentaOcupa(r, f)) r2.push(f);
+  return r2;
+}
+
+/** Contexto para calcular lo que toca pagar: asistencias del mes y clases (para comisión por alumno). */
+export interface CtxCobro {
+  asistencias: Asistencia[];
+  clases: Clase[];
+}
+
+export function montoDelMes(r: Renta, mes: Mes, ctx: CtxCobro): { monto: number; detalle: string } {
+  const pesos = (c: number) => `$${(c / 100).toLocaleString('es-MX')}`;
+  if (r.tipo === 'evento' || !r.cobro || r.cobro === 'fijo') return { monto: r.monto, detalle: r.tipo === 'evento' ? 'evento' : 'cuota fija' };
+  const tarifa = r.tarifa ?? 0;
+  if (r.cobro === 'hora') {
+    const horas = (fechasDelMes(r, mes).length * r.duracionMin) / 60;
+    return { monto: Math.round(horas * tarifa), detalle: `${horas.toLocaleString('es-MX')} h × ${pesos(tarifa)}` };
+  }
+  // por alumno: cuántos llegaron este mes a las clases de su maestro
+  const suyas = new Set(ctx.clases.filter((c) => r.maestroId && c.maestroId === r.maestroId).map((c) => c.id));
+  const n = ctx.asistencias.filter((a) => suyas.has(a.claseId) && a.fecha.startsWith(mes) && !a.anuladaAt && vivo(a)).length;
+  return { monto: n * tarifa, detalle: `${n} ${n === 1 ? 'alumno' : 'alumnos'} × ${pesos(tarifa)}` };
+}
+
+/** Rentas que se cobran en ese mes (activas en el mes y eventos de ese mes), cuánto toca y si ya se pagaron. */
+export function cobrosDelMes(rentas: Renta[], pagos: Pago[], mes: Mes, ctx: CtxCobro = { asistencias: [], clases: [] }): CobroRenta[] {
   const { desde, hasta } = rangoMes(mes);
   const pagados = pagos.filter((p) => vivo(p) && !p.anuladoAt && p.rentaId && p.periodo === mes);
   return rentas
     .filter((r) => vivo(r) && r.desde <= hasta && (r.hasta === null || r.hasta >= desde) && (r.activo || pagados.some((p) => p.rentaId === r.id)))
-    .map((renta) => ({ renta, pago: pagados.find((p) => p.rentaId === renta.id) ?? null }))
+    .map((renta) => ({ renta, pago: pagados.find((p) => p.rentaId === renta.id) ?? null, ...montoDelMes(renta, mes, ctx) }))
     .sort((a, b) => Number(!!a.pago) - Number(!!b.pago) || a.renta.nombre.localeCompare(b.renta.nombre));
 }
 

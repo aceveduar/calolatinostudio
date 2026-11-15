@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { colorClase, nombreClase, useClases, useDisciplinas, useRentas } from '../../app/datos';
+import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, useRentas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { actualizar, borrar, crear } from '../../db/repo';
-import type { Clase, Disciplina, Fecha, MetodoPago, Renta, TipoRenta } from '../../db/types';
+import type { Clase, CobroRenta, Disciplina, Fecha, MetodoPago, Renta, TipoRenta } from '../../db/types';
 import { TODO_EL_DIA, bloquesDelDia, cobrarRenta, cobrosDelMes, diaSemana, empalmes, horaTexto, huecos, rangoHora, type Empalme } from '../../domain/agenda';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, deFecha, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
@@ -29,7 +29,9 @@ function textoDias(dias: number[]): string {
 export function describirRenta(r: Renta): string {
   const hora = r.duracionMin >= TODO_EL_DIA.duracionMin ? 'todo el día' : rangoHora(r.horaInicio, r.duracionMin);
   if (r.tipo === 'evento') return `${DIAS_CORTOS[diaSemana(r.desde)]} ${fechaCorta(r.desde)} · ${hora}`;
-  return `${textoDias(r.dias)} ${hora}${r.hasta ? ` · hasta ${fechaCorta(r.hasta)}` : ''}`;
+  const fin = r.hasta ? ` · hasta ${fechaCorta(r.hasta)}` : '';
+  if (r.cobro === 'alumno') return `${dinero(r.tarifa ?? 0)} por alumno en sus clases${fin}`;
+  return `${textoDias(r.dias)} ${hora}${r.cobro === 'hora' ? ` · ${dinero(r.tarifa ?? 0)} la hora` : ''}${fin}`;
 }
 
 /** Agenda del salón: qué está ocupado cada día de la semana, huecos libres y cobro de rentas. */
@@ -40,16 +42,22 @@ export function PantallaAgenda() {
   const disciplinas = useDisciplinas();
   const rentas = useRentas();
   const [lunes, setLunes] = useState(lunesDe(hoy()));
-  const [editar, setEditar] = useState<Renta | 'nueva' | null>(null);
-  const [cobrar, setCobrar] = useState<Renta | null>(null);
+  // 'nueva' | una renta | { extraDe } = hora extra (ensayo) de un maestro que ya renta
+  const [editar, setEditar] = useState<Renta | 'nueva' | { extraDe: Renta } | null>(null);
+  const [cobrar, setCobrar] = useState<{ renta: Renta; monto: number } | null>(null);
+  const [meta, setMeta] = useState(false);
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i)), [lunes]);
   const estaSemana = lunes === lunesDe(hoy());
   // El mes de los cobros: el de la semana que se ve (el jueves decide si la semana cruza de mes)
   const mes: Mes = mesDe(sumarDias(lunes, 3));
   const { desde, hasta } = rangoMes(mes);
   const pagos = useLiveQuery(() => db.pagos.where('rentaId').above('').toArray(), [], []);
-  const cobros = cobrosDelMes(rentas, pagos, mes);
-  const pendiente = cobros.filter((c) => !c.pago).reduce((s, c) => s + c.renta.monto, 0);
+  // asistencias del mes: para la comisión por alumno
+  const asistencias = useLiveQuery(() => db.asistencias.where('fecha').between(desde, hasta, true, true).toArray(), [desde, hasta], []);
+  const cobros = cobrosDelMes(rentas, pagos, mes, { asistencias, clases });
+  const pendiente = cobros.filter((c) => !c.pago).reduce((s, c) => s + c.monto, 0);
+  const metaMes = (academia.metaDiaria ?? 0) * Number(hasta.slice(8));
+  const esMesActual = mes === mesDe(hoy());
   const cobrado = cobros.filter((c) => c.pago).reduce((s, c) => s + c.pago!.monto, 0);
   const otras = rentas.filter((r) => !cobros.some((c) => c.renta.id === r.id));
 
@@ -91,6 +99,10 @@ export function PantallaAgenda() {
         ))}
       </div>
 
+      {(metaMes > 0 || esDueno) && (
+        <MetaRentas metaMes={metaMes} metaDiaria={academia.metaDiaria ?? 0} total={cobrado + pendiente} cobrado={cobrado} mes={mes} onEditar={esDueno ? () => setMeta(true) : undefined} />
+      )}
+
       <Seccion titulo={`Rentas de ${nombreMes(mes).toLowerCase()}`}>
         {cobros.length === 0 ? (
           <Tarjeta>
@@ -107,13 +119,19 @@ export function PantallaAgenda() {
               )}
             </p>
             <Tarjeta className="divide-y divide-ink-100">
-              {cobros.map(({ renta: r, pago }) => (
+              {cobros.map(({ renta: r, pago, monto, detalle }) => (
                 <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                   <button className="min-w-0 flex-1 text-left" onClick={esDueno ? () => setEditar(r) : undefined}>
                     <span className="block truncate font-semibold">
                       {r.nombre} {r.tipo === 'evento' && <Etiqueta tono="marca">Evento</Etiqueta>}
                     </span>
                     <span className="block truncate text-xs text-ink-500">{describirRenta(r)}</span>
+                    {r.cobro && r.cobro !== 'fijo' && r.tipo === 'mensual' && (
+                      <span className="block truncate text-xs font-semibold text-ink-700">
+                        {esMesActual && !pago && r.cobro === 'alumno' ? 'Va en ' : r.cobro === 'hora' ? 'Este mes: ' : ''}
+                        {detalle} = {dinero(monto)}
+                      </span>
+                    )}
                   </button>
                   {pago ? (
                     <span className="flex items-center gap-1 text-right">
@@ -121,8 +139,8 @@ export function PantallaAgenda() {
                       <span className="font-bold">{dinero(pago.monto)}</span>
                     </span>
                   ) : esDueno ? (
-                    <Boton variante="secundario" onClick={() => setCobrar(r)}>
-                      Cobrar {dinero(r.monto)}
+                    <Boton variante="secundario" onClick={() => setCobrar({ renta: r, monto })}>
+                      Cobrar {dinero(monto)}
                     </Boton>
                   ) : (
                     <Etiqueta tono="pronto">Por cobrar</Etiqueta>
@@ -153,11 +171,25 @@ export function PantallaAgenda() {
         </Seccion>
       )}
 
-      <Hoja abierta={!!editar} onCerrar={() => setEditar(null)} titulo={editar === 'nueva' ? 'Apartar el salón' : 'Renta del salón'}>
-        {editar && <FormRenta key={editar === 'nueva' ? 'n' : editar.id} renta={editar === 'nueva' ? null : editar} clases={clases} rentas={rentas} disciplinas={disciplinas} onHecho={() => setEditar(null)} />}
+      <Hoja abierta={!!editar} onCerrar={() => setEditar(null)} titulo={editar === 'nueva' ? 'Apartar el salón' : editar && 'extraDe' in editar ? `Hora extra · ${editar.extraDe.nombre}` : 'Renta del salón'}>
+        {editar && (
+          <FormRenta
+            key={editar === 'nueva' ? 'n' : 'extraDe' in editar ? `x${editar.extraDe.id}` : editar.id}
+            renta={editar === 'nueva' || 'extraDe' in editar ? null : editar}
+            extraDe={editar !== 'nueva' && 'extraDe' in editar ? editar.extraDe : undefined}
+            clases={clases}
+            rentas={rentas}
+            disciplinas={disciplinas}
+            onHecho={() => setEditar(null)}
+            onHoraExtra={(r) => setEditar({ extraDe: r })}
+          />
+        )}
       </Hoja>
-      <Hoja abierta={!!cobrar} onCerrar={() => setCobrar(null)} titulo={cobrar ? `Cobrar renta · ${cobrar.nombre}` : ''}>
-        {cobrar && <FormCobro key={cobrar.id} renta={cobrar} mes={mes} usuarioId={usuario.id} onHecho={() => setCobrar(null)} />}
+      <Hoja abierta={!!cobrar} onCerrar={() => setCobrar(null)} titulo={cobrar ? `Cobrar renta · ${cobrar.renta.nombre}` : ''}>
+        {cobrar && <FormCobro key={cobrar.renta.id} renta={cobrar.renta} monto={cobrar.monto} mes={mes} usuarioId={usuario.id} onHecho={() => setCobrar(null)} />}
+      </Hoja>
+      <Hoja abierta={meta} onCerrar={() => setMeta(false)} titulo="Meta diaria de rentas">
+        {meta && <FormMeta onHecho={() => setMeta(false)} />}
       </Hoja>
     </div>
   );
@@ -213,11 +245,32 @@ function textoEmpalme(e: Empalme, disciplinas: Disciplina[]): string {
   return `${r.tipo === 'evento' ? 'Evento' : 'Renta'} de ${r.nombre} · ${r.tipo === 'evento' ? fechaCorta(r.desde) : dias} ${rangoHora(r.horaInicio, r.duracionMin)}`;
 }
 
-function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Renta | null; clases: Clase[]; rentas: Renta[]; disciplinas: Disciplina[]; onHecho: () => void }) {
+function FormRenta({
+  renta,
+  extraDe,
+  clases,
+  rentas,
+  disciplinas,
+  onHecho,
+  onHoraExtra,
+}: {
+  renta: Renta | null;
+  /** hora extra (ensayo) de un maestro que ya renta: evento corto con sus datos */
+  extraDe?: Renta;
+  clases: Clase[];
+  rentas: Renta[];
+  disciplinas: Disciplina[];
+  onHecho: () => void;
+  onHoraExtra: (r: Renta) => void;
+}) {
   const avisar = useAvisos();
-  const [tipo, setTipo] = useState<TipoRenta>(renta?.tipo ?? 'mensual');
-  const [nombre, setNombre] = useState(renta?.nombre ?? '');
-  const [telefono, setTelefono] = useState(renta?.telefono ?? '');
+  const maestros = useMaestros();
+  const [tipo, setTipo] = useState<TipoRenta>(extraDe ? 'evento' : (renta?.tipo ?? 'mensual'));
+  const [nombre, setNombre] = useState(renta?.nombre ?? extraDe?.nombre ?? '');
+  const [telefono, setTelefono] = useState(renta?.telefono ?? extraDe?.telefono ?? '');
+  const [cobro, setCobro] = useState<CobroRenta>(renta?.cobro ?? 'fijo');
+  const [tarifa, setTarifa] = useState(renta?.tarifa ? aPesosTexto(renta.tarifa) : '');
+  const [maestroId, setMaestroId] = useState<string>(renta?.maestroId ?? extraDe?.maestroId ?? '');
   const [dias, setDias] = useState<number[]>(renta?.tipo === 'mensual' ? renta.dias : []);
   const [fecha, setFecha] = useState<Fecha>(renta?.tipo === 'evento' ? renta.desde : hoy());
   const [todoDia, setTodoDia] = useState(!!renta && renta.duracionMin >= TODO_EL_DIA.duracionMin);
@@ -225,35 +278,44 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
   const [duracion, setDuracion] = useState(String(renta?.duracionMin ?? 60));
   const [desde, setDesde] = useState<Fecha>(renta?.tipo === 'mensual' ? renta.desde : hoy());
   const [hasta, setHasta] = useState<Fecha | ''>(renta?.tipo === 'mensual' ? (renta.hasta ?? '') : '');
-  const [monto, setMonto] = useState(renta ? aPesosTexto(renta.monto) : '');
-  const [notas, setNotas] = useState(renta?.notas ?? '');
+  const [monto, setMonto] = useState(renta ? aPesosTexto(renta.monto) : extraDe ? '100' : '');
+  const [notas, setNotas] = useState(renta?.notas ?? (extraDe ? 'Hora extra (ensayo)' : ''));
   const [ocupado, setOcupado] = useState(false);
 
   const evento = tipo === 'evento';
+  // Por alumno: no aparta horario propio (sus clases ya están en el horario); se cobra por cada alumno que llega
+  const porAlumno = !evento && cobro === 'alumno';
   const horario = evento && todoDia ? TODO_EL_DIA : { horaInicio: hora, duracionMin: Math.max(15, Number(duracion) || 60) };
+  const tarifaC = aCentavos(tarifa);
   const datos = {
     tipo,
     nombre: nombre.trim(),
     telefono: telefono.replace(/\D/g, ''),
-    dias: evento ? [diaSemana(fecha)] : [...dias].sort(),
+    dias: evento ? [diaSemana(fecha)] : porAlumno ? [] : [...dias].sort(),
     ...horario,
     desde: evento ? fecha : desde,
     hasta: evento ? fecha : hasta || null,
-    monto: aCentavos(monto),
+    monto: evento || cobro === 'fijo' ? aCentavos(monto) : 0,
     notas: notas.trim(),
     activo: true,
+    // solo se mandan si no es cuota fija (o si cambió de esquema), para no depender de columnas nuevas
+    ...(!evento && cobro !== 'fijo' ? { cobro, tarifa: tarifaC, maestroId: porAlumno ? maestroId || null : null } : renta?.cobro ? { cobro: null, tarifa: null } : {}),
+    ...(maestroId && !porAlumno && (extraDe || renta?.maestroId) ? { maestroId } : {}),
   };
   const choques = datos.dias.length && datos.horaInicio ? empalmes({ ...datos, id: renta?.id }, clases, rentas) : [];
   const fechasMal = !evento && datos.hasta !== null && datos.hasta < datos.desde;
-  const sePasaDeMedianoche = !(evento && todoDia) && Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3)) + horario.duracionMin > 24 * 60;
-  const listo = datos.nombre && datos.dias.length && datos.monto > 0 && !choques.length && !fechasMal && !sePasaDeMedianoche;
+  const sePasaDeMedianoche = !porAlumno && !(evento && todoDia) && Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3)) + horario.duracionMin > 24 * 60;
+  const pagoListo = evento || cobro === 'fijo' ? datos.monto > 0 : tarifaC > 0 && (!porAlumno || !!maestroId);
+  const listo = datos.nombre && (porAlumno || datos.dias.length) && pagoListo && !choques.length && !fechasMal && !sePasaDeMedianoche;
+  // estimado por hora: horas que ocuparía en un mes típico (4.3 semanas)
+  const horasMes = Math.round(((datos.dias.length * horario.duracionMin) / 60) * 4.3 * 10) / 10;
 
   const guardar = async () => {
     setOcupado(true);
     try {
       if (renta) await actualizar('rentas', renta.id, datos);
       else await crear('rentas', datos);
-      avisar(renta ? 'Renta actualizada' : evento ? 'Evento apartado' : 'Horario apartado');
+      avisar(renta ? 'Renta actualizada' : extraDe ? 'Hora extra apartada' : evento ? 'Evento apartado' : porAlumno ? 'Acuerdo guardado' : 'Horario apartado');
       onHecho();
     } finally {
       setOcupado(false);
@@ -262,7 +324,7 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
 
   return (
     <div className="space-y-4">
-      {!renta && (
+      {!renta && !extraDe && (
         <Segmentos<TipoRenta>
           opciones={[
             { valor: 'mensual', texto: 'Horario fijo (mensual)' },
@@ -279,7 +341,36 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
         <Entrada inputMode="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Para mandarle su recibo" />
       </Campo>
 
-      {evento ? (
+      {!evento && (
+        <Campo etiqueta="¿Cómo paga?" grupo>
+          <Segmentos<CobroRenta>
+            opciones={[
+              { valor: 'fijo', texto: 'Cuota al mes' },
+              { valor: 'hora', texto: 'Por hora' },
+              { valor: 'alumno', texto: 'Por alumno' },
+            ]}
+            valor={cobro}
+            onChange={setCobro}
+          />
+        </Campo>
+      )}
+      {porAlumno && (
+        <>
+          <Campo etiqueta="Maestro (sus clases en Compás)">
+            <Selector value={maestroId} onChange={(e) => setMaestroId(e.target.value)}>
+              <option value="">Elige al maestro</option>
+              {maestros.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </Selector>
+          </Campo>
+          <p className="-mt-2 px-1 text-xs text-ink-500">Se cuentan los alumnos que entran a sus clases cada mes. Sus clases deben estar dadas de alta con este maestro.</p>
+        </>
+      )}
+
+      {porAlumno ? null : evento ? (
         <>
           <Campo etiqueta="Fecha">
             <Entrada type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} />
@@ -310,7 +401,7 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
         </Campo>
       )}
 
-      {!(evento && todoDia) && (
+      {!porAlumno && !(evento && todoDia) && (
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="Hora">
             <Entrada type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
@@ -332,9 +423,18 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
         </div>
       )}
 
-      <Campo etiqueta={evento ? 'Precio' : 'Cuota al mes'}>
-        <Entrada inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="$" />
-      </Campo>
+      {evento || cobro === 'fijo' ? (
+        <Campo etiqueta={evento ? 'Precio' : 'Cuota al mes'}>
+          <Entrada inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="$" />
+        </Campo>
+      ) : (
+        <Campo
+          etiqueta={cobro === 'hora' ? 'Cuánto paga por hora' : 'Cuánto paga por alumno'}
+          ayuda={cobro === 'hora' && horasMes > 0 && tarifaC > 0 ? `≈ ${horasMes} h al mes → ${dinero(Math.round(horasMes * tarifaC))}. Se cobra lo que de verdad usó cada mes.` : cobro === 'hora' ? 'Se cobra al final del mes según las horas que usó.' : 'Ej. $10 por cada alumno.'}
+        >
+          <Entrada inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="$" />
+        </Campo>
+      )}
       <Campo etiqueta="Notas (opcional)">
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Depósito, llaves, acuerdos…" />
       </Campo>
@@ -353,8 +453,13 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
       {sePasaDeMedianoche && <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">El horario pasa de la medianoche.</p>}
 
       <Boton grande bloque onClick={guardar} disabled={ocupado || !listo}>
-        {renta ? 'Guardar cambios' : evento ? 'Apartar evento' : 'Apartar horario'}
+        {renta ? 'Guardar cambios' : extraDe ? 'Apartar hora extra' : evento ? 'Apartar evento' : porAlumno ? 'Guardar acuerdo' : 'Apartar horario'}
       </Boton>
+      {renta && renta.tipo === 'mensual' && renta.activo && (
+        <Boton bloque variante="secundario" onClick={() => onHoraExtra(renta)}>
+          <Plus size={18} /> Hora extra (ensayo) para {renta.nombre.split(' (')[0]}
+        </Boton>
+      )}
       {renta && renta.tipo === 'mensual' && renta.activo && (!renta.hasta || renta.hasta >= hoy()) && (
         <Boton
           bloque
@@ -385,10 +490,10 @@ function FormRenta({ renta, clases, rentas, disciplinas, onHecho }: { renta: Ren
   );
 }
 
-function FormCobro({ renta, mes, usuarioId, onHecho }: { renta: Renta; mes: Mes; usuarioId: string; onHecho: () => void }) {
+function FormCobro({ renta, monto: sugerido, mes, usuarioId, onHecho }: { renta: Renta; monto: number; mes: Mes; usuarioId: string; onHecho: () => void }) {
   const avisar = useAvisos();
   const { academia } = useSesion();
-  const [monto, setMonto] = useState(aPesosTexto(renta.monto));
+  const [monto, setMonto] = useState(aPesosTexto(sugerido));
   const [metodo, setMetodo] = useState<MetodoPago>('transferencia');
   const [ocupado, setOcupado] = useState(false);
   const centavos = aCentavos(monto);
@@ -420,6 +525,64 @@ function FormCobro({ renta, mes, usuarioId, onHecho }: { renta: Renta; mes: Mes;
       <p className="text-xs text-ink-500">Entra a la caja de hoy como ingreso del estudio.</p>
       <Boton grande bloque onClick={cobrar} disabled={ocupado || centavos <= 0}>
         Cobrar {centavos > 0 ? dinero(centavos) : ''}
+      </Boton>
+    </div>
+  );
+}
+
+/** Lo que dejan las rentas del mes contra la meta (p. ej. $500 al día para pagar la renta del local). */
+function MetaRentas({ metaMes, metaDiaria, total, cobrado, mes, onEditar }: { metaMes: number; metaDiaria: number; total: number; cobrado: number; mes: Mes; onEditar?: () => void }) {
+  if (!metaMes)
+    return (
+      <button onClick={onEditar} className="mt-4 w-full rounded-2xl bg-superficie p-4 text-left text-sm ring-1 ring-ink-100 active:bg-ink-50">
+        <span className="font-semibold text-brand-600">Poner meta diaria de rentas</span>
+        <span className="block text-ink-500">Por ejemplo $500 al día para que el salón se pague solo.</span>
+      </button>
+    );
+  const pct = Math.min(100, Math.round((total / metaMes) * 100));
+  return (
+    <button onClick={onEditar} disabled={!onEditar} className="mt-4 w-full rounded-2xl bg-superficie p-4 text-left ring-1 ring-ink-100 active:bg-ink-50 disabled:active:bg-superficie">
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-bold tracking-wider text-ink-500 uppercase">Meta de {nombreMes(mes).split(' ')[0]}</span>
+        <span className="text-sm text-ink-500">
+          {dinero(metaDiaria)} al día · {dinero(metaMes)}
+        </span>
+      </span>
+      <span className="mt-1 block text-2xl font-extrabold">
+        {dinero(total)} <span className="text-base font-semibold text-ink-500">({pct}%)</span>
+      </span>
+      <span className="mt-2 block h-2 overflow-hidden rounded-full bg-ink-100">
+        <span className="block h-full rounded-full bg-ok-600" style={{ width: `${Math.min(100, (cobrado / metaMes) * 100)}%` }} />
+      </span>
+      <span className="mt-1 block text-xs text-ink-500">
+        Cobrado {dinero(cobrado)}
+        {total > cobrado && ` · por cobrar ${dinero(total - cobrado)}`}
+        {total < metaMes && ` · faltan ${dinero(metaMes - total)} para la meta`}
+      </span>
+    </button>
+  );
+}
+
+function FormMeta({ onHecho }: { onHecho: () => void }) {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const [txt, setTxt] = useState(academia.metaDiaria ? aPesosTexto(academia.metaDiaria) : '500');
+  return (
+    <div className="space-y-4">
+      <Campo etiqueta="¿Cuánto deben dejar las rentas por día?" ayuda="Se multiplica por los días del mes. Sirve para ver si el salón se paga solo.">
+        <Entrada inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="$" />
+      </Campo>
+      <Boton
+        grande
+        bloque
+        onClick={async () => {
+          const v = aCentavos(txt);
+          await actualizar('academias', academia.id, { metaDiaria: v || null });
+          avisar(v ? `Meta: ${dinero(v)} al día` : 'Sin meta');
+          onHecho();
+        }}
+      >
+        Guardar
       </Boton>
     </div>
   );

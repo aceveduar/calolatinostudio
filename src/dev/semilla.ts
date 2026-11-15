@@ -563,11 +563,20 @@ export async function agregarRentasDemo(): Promise<{ rentas: number; cobros: num
   const mesActual = hoyF.slice(0, 7);
   const mesPasado = sumarMeses(hoyF, -1).slice(0, 7);
   const domingo = sumarDias(hoyF, (7 - deFecha(hoyF).getDay()) % 7 || 7);
+  const maestros = await db.maestros.toArray();
+  const bachata = maestros.find((m) => /Karla/.test(m.nombre)) ?? maestros[0];
+  const sabado = sumarDias(hoyF, (6 - deFecha(hoyF).getDay() + 7) % 7 || 7);
+  // Como lo platicó Calo: Jackson paga cuota fija (mar y jue 4 a 6) y sus horas extra aparte;
+  // contemporáneo paga por hora; el de bachata deja $10 por alumno.
   const propuestas: Renta[] = [
-    { ...base(), nombre: 'Profe Ana (Bachata)', telefono: '5512345678', tipo: 'mensual', dias: [2, 4], horaInicio: '17:00', duracionMin: 60, desde: `${mesPasado}-01`, hasta: null, monto: 240000, notas: '', activo: true },
+    { ...base(), nombre: 'Jackson (Salsa)', telefono: '5512345678', tipo: 'mensual', dias: [2, 4], horaInicio: '16:00', duracionMin: 120, desde: `${mesPasado}-01`, hasta: null, monto: 320000, notas: 'Horas extra $100', activo: true },
+    { ...base(), nombre: 'Maestra de contemporáneo', telefono: '', tipo: 'mensual', dias: [2, 5], horaInicio: '11:00', duracionMin: 120, desde: `${mesPasado}-01`, hasta: null, monto: 0, notas: 'Paga al final del mes', activo: true, cobro: 'hora', tarifa: 15000 },
+    ...(bachata ? [{ ...base(), nombre: `${bachata.nombre} (comisión)`, telefono: '', tipo: 'mensual' as const, dias: [], horaInicio: '00:00', duracionMin: 60, desde: `${mesPasado}-01`, hasta: null, monto: 0, notas: '', activo: true, cobro: 'alumno' as const, tarifa: 1000, maestroId: bachata.id }] : []),
     { ...base(), nombre: 'Yoga con Laura', telefono: '', tipo: 'mensual', dias: [1, 3, 5], horaInicio: '08:00', duracionMin: 60, desde: `${mesPasado}-01`, hasta: null, monto: 300000, notas: '', activo: true },
     { ...base(), nombre: 'Taller de tango', telefono: '', tipo: 'evento', dias: [0], ...TODO_EL_DIA, desde: domingo, hasta: domingo, monto: 250000, notas: 'Traen su sonido', activo: true },
+    { ...base(), nombre: 'Jackson (Salsa)', telefono: '5512345678', tipo: 'evento', dias: [6], horaInicio: '16:00', duracionMin: 60, desde: sabado, hasta: sabado, monto: 10000, notas: 'Hora extra (ensayo)', activo: true },
   ];
+  await guardar('academias', { ...academia, metaDiaria: 50000 });
   const clases = await db.clases.toArray();
   const hechas: Renta[] = [];
   for (const r of propuestas) {
@@ -579,7 +588,7 @@ export async function agregarRentasDemo(): Promise<{ rentas: number; cobros: num
     ...base(), alumnoId: null, planId: null, rentaId: r.id, periodo, concepto: `Renta del salón · ${r.nombre}`, monto: r.monto, metodo: 'transferencia', usuarioId: dueno.id, fecha, anuladoAt: null, anuladoMotivo: null, anuladoPor: null,
   });
   let n = 0;
-  for (const r of hechas.filter((x) => x.tipo === 'mensual')) {
+  for (const r of hechas.filter((x) => x.tipo === 'mensual' && (!x.cobro || x.cobro === 'fijo'))) {
     await guardar('pagos', cobro(r, mesPasado, `${mesPasado}-05`));
     n++;
   }
