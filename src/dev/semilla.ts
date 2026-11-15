@@ -724,6 +724,15 @@ export async function agregarInteresadosDemo(): Promise<{ interesados: number }>
   const clases = (await db.clases.toArray()).filter((c) => !c.deletedAt && c.activo);
   const disciplinas = await db.disciplinas.toArray();
   const de = (nombre: string) => clases.find((c) => `${disciplinas.find((d) => d.id === c.disciplinaId)?.nombre} ${c.nivel}` === nombre)?.id ?? null;
+  // cursos: Salsa 0 ya va a medio curso (los nuevos esperan al siguiente) y Bachata 0 abre grupo pronto
+  const hoyF = hoy();
+  for (const [nombre, curso] of [
+    ['Salsa 0', { inicio: sumarDias(hoyF, -35), fin: sumarDias(hoyF, 49), semanas: 2 }],
+    ['Bachata 0', { inicio: sumarDias(hoyF, 10), fin: sumarDias(hoyF, 94), semanas: 2 }],
+  ] as const) {
+    const c = clases.find((x) => x.id === de(nombre));
+    if (c) await guardar('clases', { ...c, curso, updatedAt: Date.now() });
+  }
   const r = generador(31);
   const ahora = Date.now();
   const lista: [string, string | null, string, boolean][] = [

@@ -37,9 +37,27 @@ export interface Academia {
   slug?: string | null;
   /** WhatsApp de contacto que se muestra en la página pública */
   whatsapp?: string | null;
+  /** contenido de la página pública (portada, frase, ubicación, preguntas, redes) */
+  pagina?: ContenidoPagina | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+}
+
+/** Lo que la academia escribe para su página pública; todo es opcional. */
+export interface ContenidoPagina {
+  /** frase grande de la portada, p. ej. "Aprende a bailar salsa y bachata" */
+  frase?: string;
+  /** texto corto debajo de la frase */
+  intro?: string;
+  /** foto de portada: JPEG en data URL (reducida a ≤1280 px) */
+  portada?: string | null;
+  /** oferta de la primera clase, p. ej. "Tu primera clase es gratis" (vacío = precio de clase suelta) */
+  primera?: string;
+  /** dirección y referencias por sede ("principal" = el lugar principal) */
+  ubicaciones?: Record<string, { direccion: string; referencias?: string }>;
+  preguntas?: { p: string; r: string }[];
+  redes?: { instagram?: string; facebook?: string; tiktok?: string };
 }
 
 export type Rol = 'dueno' | 'recepcion' | 'maestro';
@@ -99,6 +117,8 @@ export interface Clase extends Base {
   precioSuelta?: number | null;
   /** salón del estudio; vacío = salón principal */
   salonId?: ID | null;
+  /** clase por curso: desde cuándo y hasta cuándo, y cuántas semanas después de iniciar aún entran nuevos. Vacío = se entra cuando sea */
+  curso?: { inicio: Fecha; fin?: Fecha | null; semanas?: number } | null;
 }
 
 export type TipoPlan = 'suelta' | 'mensual' | 'paquete';

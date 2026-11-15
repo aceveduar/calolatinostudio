@@ -343,6 +343,8 @@ alter table pedidos drop constraint if exists pedidos_estado_check;
 alter table pedidos add constraint pedidos_estado_check check (estado in ('pendiente','pedido','llego','entregado','cancelado'));
 alter table academias add column if not exists slug text;
 alter table academias add column if not exists whatsapp text;
+alter table academias add column if not exists pagina jsonb;
+alter table clases add column if not exists curso jsonb;
 alter table productos add column if not exists costo int;
 alter table pagos add column if not exists costo int;
 alter table alumnos add column if not exists foto text;
@@ -548,11 +550,13 @@ begin
   if not found then return null; end if;
   return jsonb_build_object(
     'academia', jsonb_build_object('nombre', ac.nombre, 'color', ac.color, 'logo', ac.logo, 'whatsapp', ac.whatsapp, 'sede_principal', coalesce(ac.sede_principal, 'Sede principal')),
+    -- portada, frase, ubicación, preguntas y redes que la academia escribió para su página
+    'pagina', coalesce(ac.pagina, '{}'::jsonb),
     'sedes', coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre, 'color', s.color) order by s.nombre)
                        from sedes s where s.academia_id = ac.id and s.activo and s.deleted_at is null), '[]'::jsonb),
     'clases', coalesce((
       select jsonb_agg(jsonb_build_object('id', k.id, 'clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
-                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta) order by k.hora_inicio)
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta, 'curso', k.curso) order by k.hora_inicio)
       from clases k left join disciplinas d on d.id = k.disciplina_id
       where k.academia_id = ac.id and k.activo and k.deleted_at is null
     ), '[]'::jsonb),

@@ -5,6 +5,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import { enlacePublico, slugDe, slugValido } from '../../domain/publica';
+import { EditorContenido } from './EditorContenido';
 
 /**
  * Página pública del estudio: dirección (/a/<slug>) y WhatsApp de contacto.
@@ -94,6 +95,7 @@ export function EditorPagina() {
           <p className="text-xs text-ink-500">Se actualiza sola: si cambias un horario o un precio aquí, la página ya lo muestra.</p>
         </Tarjeta>
       )}
+      {publicada && <EditorContenido />}
     </div>
   );
 }

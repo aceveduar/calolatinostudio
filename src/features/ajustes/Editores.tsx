@@ -8,6 +8,7 @@ import { rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, usePedidosPendientes, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
+import { SEMANAS_PARA_ENTRAR } from '../../domain/cursos';
 import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Interruptor, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
 import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type Sede, type TipoPlan, type Usuario } from '../../db/types';
@@ -506,6 +507,12 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const [precioPropio, setPrecioPropio] = useState(clase?.precioSuelta ? aPesosTexto(clase.precioSuelta) : '');
   const salones = academia.salones ?? [];
   const [salonId, setSalonId] = useState<string>(clase?.salonId ?? '');
+  // por curso: solo entran nuevos al inicio (p. ej. Salsa 0 de 3 meses)
+  const [porCurso, setPorCurso] = useState(!!clase?.curso?.inicio);
+  const [inicio, setInicio] = useState(clase?.curso?.inicio ?? '');
+  const [fin, setFin] = useState(clase?.curso?.fin ?? '');
+  const [semanas, setSemanas] = useState(String(clase?.curso?.semanas ?? SEMANAS_PARA_ENTRAR));
+  const finMal = porCurso && !!fin && !!inicio && fin <= inicio;
   const precioSede = sueltaPara(usePlanes(), sedeId || null)?.precio;
   const rentas = useRentas();
   const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null, salonId: salonId || null }, rentas);
@@ -528,6 +535,11 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
       // solo se manda si tiene precio propio (o si lo tenía y se quitó)
       ...(propio > 0 ? { precioSuelta: propio } : clase?.precioSuelta ? { precioSuelta: null } : {}),
       ...(salonId && !sedeId ? { salonId } : clase?.salonId ? { salonId: null } : {}),
+      ...(porCurso && inicio
+        ? { curso: { inicio, ...(fin ? { fin } : {}), semanas: Math.min(12, Math.max(0, Number(semanas) || 0)) } }
+        : clase?.curso
+          ? { curso: null }
+          : {}),
     };
     if (clase) await actualizar('clases', clase.id, datos);
     else await crear('clases', datos);
@@ -616,13 +628,42 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           <Entrada autoFocus value={maestroNuevo} onChange={(e) => setMaestroNuevo(e.target.value)} placeholder="Ej. Profe Luis" />
         </Campo>
       )}
+      <Campo etiqueta="¿Cuándo pueden entrar alumnos nuevos?" grupo>
+        <Segmentos<'siempre' | 'curso'>
+          opciones={[
+            { valor: 'siempre', texto: 'Cuando sea' },
+            { valor: 'curso', texto: 'Por curso' },
+          ]}
+          valor={porCurso ? 'curso' : 'siempre'}
+          onChange={(v) => setPorCurso(v === 'curso')}
+        />
+      </Campo>
+      {porCurso && (
+        <div className="space-y-3 rounded-2xl bg-ink-50 p-3 ring-1 ring-ink-100">
+          <div className="grid grid-cols-2 gap-3">
+            <Campo etiqueta="Inicia">
+              <Entrada type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+            </Campo>
+            <Campo etiqueta="Termina (opcional)">
+              <Entrada type="date" value={fin ?? ''} min={inicio || undefined} onChange={(e) => setFin(e.target.value)} />
+            </Campo>
+          </div>
+          <Campo etiqueta="Aún pueden entrar hasta… semanas después de iniciar">
+            <Entrada inputMode="numeric" value={semanas} onChange={(e) => setSemanas(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+          </Campo>
+          {finMal && <p className="text-sm font-medium text-bad-600">La fecha de fin debe ser después del inicio.</p>}
+          <p className="text-xs text-ink-500">
+            En la página pública se ve “Nuevo grupo: inicia…”, y después de esas semanas “Grupo en curso”. Quien se inscriba entonces queda en Interesados para avisarle cuando abra el siguiente grupo.
+          </p>
+        </div>
+      )}
       <Interruptor valor={activo} onChange={setActivo} texto="Clase activa" />
       {chocaCon.length > 0 && (
         <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
           Ojo: a esa hora el salón está rentado a {chocaCon.map((r) => r.nombre).join(', ')}. Revisa la Agenda antes de guardar.
         </p>
       )}
-      <Boton grande bloque onClick={guardar} disabled={!disciplinaId || !dias.length}>
+      <Boton grande bloque onClick={guardar} disabled={!disciplinaId || !dias.length || (porCurso && !inicio) || finMal}>
         Guardar
       </Boton>
     </div>

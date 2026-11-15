@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# emulador local de Cloudflare
+.wrangler

@@ -18,3 +18,25 @@ export async function prepararFoto(archivo: File, lado = 200): Promise<string> {
   }
   return lienzo.toDataURL('image/jpeg', 0.4);
 }
+
+/**
+ * Foto de portada de la página pública: horizontal (recorte 16:10 al centro si viene vertical),
+ * máximo 1280 px de ancho y ~200 KB, para que cargue rápido en el celular.
+ */
+export async function prepararPortada(archivo: File): Promise<string> {
+  if (!archivo.type.startsWith('image/')) throw new Error('Elige una foto.');
+  const bmp = await createImageBitmap(archivo);
+  // nunca más alta que 16:10 (en el celular se ve como banda ancha)
+  const alto = Math.min(bmp.height, Math.round((bmp.width * 10) / 16));
+  const ancho = Math.min(1280, bmp.width);
+  const lienzo = document.createElement('canvas');
+  lienzo.width = ancho;
+  lienzo.height = Math.round((alto * ancho) / bmp.width);
+  lienzo.getContext('2d')!.drawImage(bmp, 0, (bmp.height - alto) / 2, bmp.width, alto, 0, 0, lienzo.width, lienzo.height);
+  bmp.close();
+  for (const q of [0.8, 0.7, 0.6, 0.5]) {
+    const url = lienzo.toDataURL('image/jpeg', q);
+    if (url.length < 280_000) return url;
+  }
+  return lienzo.toDataURL('image/jpeg', 0.4);
+}
