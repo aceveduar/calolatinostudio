@@ -121,6 +121,9 @@ export class CompasDB extends Dexie {
       pagos: 'id, academiaId, fecha, alumnoId, productoId, rentaId, eventoId',
       gastos: 'id, academiaId, fecha, eventoId',
     });
+
+    // v9: productos con código de barras (para cobrar escaneando)
+    this.version(9).stores({ productos: 'id, academiaId, codigo' });
   }
 }
 

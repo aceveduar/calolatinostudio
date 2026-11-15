@@ -58,5 +58,12 @@ export async function venderProducto(p: { producto: Producto; cantidad?: number;
   };
 }
 
+/** Producto activo con ese código de barras (o undefined). */
+export async function productoPorCodigo(codigo: string): Promise<Producto | undefined> {
+  const c = codigo.trim();
+  if (!c) return undefined;
+  return db.productos.where('codigo').equals(c).filter((p) => !p.deletedAt && p.activo).first();
+}
+
 /** Emojis sugeridos para que cada producto se reconozca de un vistazo en la cuadrícula. */
 export const EMOJIS_PRODUCTO = ['💧', '🥤', '🧃', '⚡', '☕', '🍪', '🍫', '🍬', '🍭', '🥜', '🍌', '🥪', '👕', '🧢', '👟', '🩰', '🧦', '🎒', '🧴', '🎟️', '🛍️'];

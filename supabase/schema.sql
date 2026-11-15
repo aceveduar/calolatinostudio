@@ -319,6 +319,7 @@ alter table rentas add column if not exists salon_id uuid;
 alter table pagos add column if not exists evento_id uuid;
 alter table gastos add column if not exists evento_id uuid;
 alter table rentas add column if not exists evento_id uuid;
+alter table productos add column if not exists codigo text;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------

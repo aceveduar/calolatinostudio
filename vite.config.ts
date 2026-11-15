@@ -35,6 +35,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // Supabase nunca se cachea: los datos viven en IndexedDB
         navigateFallbackDenylist: [/^\/api/],
+        // Lector de códigos de barras (~1 MB): se guarda la primera vez que se escanea y luego sirve sin internet
+        runtimeCaching: [{ urlPattern: /\.wasm$/, handler: 'CacheFirst', options: { cacheName: 'lector-codigos', expiration: { maxEntries: 4 } } }],
       },
     }),
   ],

@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { Plus } from 'lucide-react';
+import { Barcode, Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { useLectorUSB } from '../../app/codigos';
+import { EscanerCodigo } from '../../components/EscanerCodigo';
 import { useRentas } from '../../app/datos';
 import { rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, usePedidosPendientes, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
@@ -221,11 +224,50 @@ function FormSede({ sede, onHecho }: { sede: Sede | null; onHecho: () => void })
 export function EditorProductos() {
   const productos = useProductos();
   const stock = useExistencias();
+  // Escanear: si el código ya es de un producto lo abre; si no, da de alta uno nuevo con ese código.
+  // También llega aquí desde Entrada con ?codigo=… ("Darlo de alta").
+  const [params, setParams] = useSearchParams();
+  const [porCodigo, setPorCodigo] = useState<{ producto: Producto | null; codigo: string } | null>(() => {
+    const c = params.get('codigo');
+    return c ? { producto: null, codigo: c } : null;
+  });
+  const [camara, setCamara] = useState(false);
+  const abrirCodigo = (codigo: string) => {
+    setCamara(false);
+    setPorCodigo({ producto: productos.find((x) => x.codigo === codigo) ?? null, codigo });
+  };
+  useLectorUSB(abrirCodigo, !porCodigo && !camara);
   const pendientes = usePedidosPendientes();
   const reservadas = (id: ID) => pendientes.filter((x) => x.pedido.productoId === id).reduce((s, x) => s + x.pedido.cantidad, 0);
   return (
     <>
       <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
+      <Boton bloque variante="secundario" className="mb-3" onClick={() => setCamara(true)}>
+        <Barcode size={18} /> Escanear producto (buscar o dar de alta)
+      </Boton>
+      {camara && <EscanerCodigo titulo="Escanear producto" onCodigo={abrirCodigo} onCerrar={() => setCamara(false)} />}
+      <Hoja
+        abierta={!!porCodigo}
+        onCerrar={() => {
+          setPorCodigo(null);
+          if (params.get('codigo')) setParams({}, { replace: true });
+        }}
+        titulo={porCodigo?.producto ? porCodigo.producto.nombre : 'Nuevo producto'}
+      >
+        {porCodigo && (
+          <FormProducto
+            key={porCodigo.codigo}
+            producto={porCodigo.producto}
+            codigoInicial={porCodigo.codigo}
+            disponibles={porCodigo.producto ? (stock.get(porCodigo.producto.id) ?? null) : null}
+            reservadas={porCodigo.producto ? reservadas(porCodigo.producto.id) : 0}
+            onHecho={() => {
+              setPorCodigo(null);
+              if (params.get('codigo')) setParams({}, { replace: true });
+            }}
+          />
+        )}
+      </Hoja>
       <Catalogo
         items={productos}
         textoNuevo="Nuevo producto"
@@ -255,7 +297,7 @@ export function EditorProductos() {
   );
 }
 
-function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { producto: Producto | null; disponibles: number | null; reservadas: number; onHecho: () => void }) {
+function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas, onHecho }: { producto: Producto | null; codigoInicial?: string; disponibles: number | null; reservadas: number; onHecho: () => void }) {
   // En el anaquel también están las piezas apartadas: el conteo físico las incluye
   const disponibles = libres === null ? null : libres + reservadas;
   const avisar = useAvisos();
@@ -270,6 +312,10 @@ function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { 
   const [enLinea, setEnLinea] = useState(producto?.enLinea ?? false);
   const [opciones, setOpciones] = useState((producto?.opciones ?? []).join(', '));
   const [descripcion, setDescripcion] = useState(producto?.descripcion ?? '');
+  const [codigo, setCodigo] = useState(producto?.codigo ?? codigoInicial ?? '');
+  const [camara, setCamara] = useState(false);
+  const productos = useProductos();
+  const repetido = codigo.trim() ? productos.find((x) => x.codigo === codigo.trim() && x.id !== producto?.id) : undefined;
   const listaOpciones = [...new Set(opciones.split(',').map((x) => x.trim()).filter(Boolean))].slice(0, 12);
 
   const guardar = async () => {
@@ -287,6 +333,7 @@ function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { 
       descripcion: descripcion.trim(),
       // solo se manda si hay opciones (o si había y se quitaron), para no depender de la columna nueva
       ...(listaOpciones.length || producto?.opciones?.length ? { opciones: listaOpciones } : {}),
+      ...(codigo.trim() ? { codigo: codigo.trim() } : producto?.codigo ? { codigo: null } : {}),
       ...(controlar ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
     };
     if (producto) await actualizar('productos', producto.id, datos);
@@ -315,6 +362,25 @@ function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { 
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
         </Campo>
       </div>
+      <Campo etiqueta="Código de barras (opcional)" ayuda="Para cobrarlo escaneando, con la cámara o con un lector.">
+        <div className="flex gap-2">
+          <Entrada inputMode="numeric" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, ''))} placeholder="Escanéalo o escríbelo" />
+          <Boton variante="secundario" onClick={() => setCamara(true)} aria-label="Escanear código de barras">
+            <Barcode size={18} />
+          </Boton>
+        </div>
+      </Campo>
+      {repetido && <p className="-mt-2 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Ese código ya es de “{repetido.nombre}”.</p>}
+      {camara && (
+        <EscanerCodigo
+          titulo="Código del producto"
+          onCodigo={(c) => {
+            setCodigo(c);
+            setCamara(false);
+          }}
+          onCerrar={() => setCamara(false)}
+        />
+      )}
       <Segmentos<CategoriaProducto>
         opciones={[
           { valor: 'consumo', texto: 'Snacks y bebidas' },
@@ -351,7 +417,7 @@ function FormProducto({ producto, disponibles: libres, reservadas, onHecho }: { 
         </>
       )}
       {producto && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (controlar && hay === '')}>
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (controlar && hay === '') || !!repetido}>
         Guardar
       </Boton>
     </div>

@@ -371,8 +371,11 @@ export async function agregarTiendaDemo(): Promise<{ productos: number; ventas: 
   const base = (ts: number) => ({ id: crypto.randomUUID() as ID, academiaId: A, createdAt: ts, updatedAt: ts, deletedAt: null });
   const recepcion = (await db.usuarios.filter((u) => u.rol === 'recepcion' && !u.deletedAt).first()) ?? (await db.usuarios.toCollection().first())!;
   const inicio = new Date(sumarDias(hoy(), -DIAS_HISTORIA)).getTime();
-  const productos = PRODUCTOS_DEMO.map((p) => ({
+  // códigos de barras de ejemplo (EAN-13 válidos), para cobrar escaneando
+  const CODIGOS = ['7501000000012', '7501000000029', '7501000000036', '7501000000043', '7501000000050', '7501000000067', '7501000000074', '7501000000081', '7501000000098'];
+  const productos = PRODUCTOS_DEMO.map((p, i) => ({
     ...base(inicio),
+    codigo: CODIGOS[i],
     nombre: p.nombre, emoji: p.emoji, precio: p.precio, categoria: p.categoria, foto: null, descripcion: '',
     // existencias contadas hace 3 días, para que el "quedan" reste solo lo reciente
     inventario: p.inventario, inventarioAt: p.inventario === null ? null : new Date(sumarDias(hoy(), -3)).getTime(),

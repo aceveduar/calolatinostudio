@@ -139,6 +139,8 @@ export interface Producto extends Base {
   enLinea: boolean;
   /** tallas o colores a elegir al apartar (vacío = sin opciones) */
   opciones?: string[] | null;
+  /** código de barras (EAN/UPC) para cobrarlo escaneando */
+  codigo?: string | null;
 }
 
 /**

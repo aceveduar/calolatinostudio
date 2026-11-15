@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, PackageCheck, ShoppingBag } from 'lucide-react';
+import { Barcode, Minus, PackageCheck, ShoppingBag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useLectorUSB } from '../../app/codigos';
+import { EscanerCodigo } from '../../components/EscanerCodigo';
 import { useExistencias, usePedidosPendientes, useProductos } from '../../app/datos';
 import { cancelarPedido, entregarPedido, nombrePedido } from '../../domain/pedidos';
 import { useSesion } from '../../app/sesion';
@@ -9,7 +12,7 @@ import { Boton, Vacio, cx } from '../../components/ui';
 import type { CategoriaProducto, ID, Producto } from '../../db/types';
 import { dinero } from '../../domain/dinero';
 import { deshacer, type Movimiento } from '../../domain/rapido';
-import { estadoExistencia, venderProducto } from '../../domain/tienda';
+import { estadoExistencia, productoPorCodigo, venderProducto } from '../../domain/tienda';
 
 const GRUPOS: { cat: CategoriaProducto; titulo: string }[] = [
   { cat: 'consumo', titulo: 'Snacks y bebidas' },
@@ -27,6 +30,26 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
   const stock = useExistencias();
   const [ocupado, setOcupado] = useState(false);
   const pendientes = usePedidosPendientes();
+  const nav = useNavigate();
+  const [camara, setCamara] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  /** Código escaneado (cámara o lector USB): suma el producto a la cuenta. */
+  const porCodigo = async (codigo: string) => {
+    const p = await productoPorCodigo(codigo);
+    if (!p) {
+      setAviso(`Código ${codigo} no registrado`);
+      avisar(`El código ${codigo} no es de ningún producto`, 'error', esDueno ? { texto: 'Darlo de alta', fn: () => { onListo(); nav(`/ajustes/productos?codigo=${encodeURIComponent(codigo)}`); } } : undefined);
+      return;
+    }
+    try {
+      onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
+      setAviso(`${p.emoji} ${p.nombre} · ${dinero(p.precio)}`);
+      navigator.vibrate?.(20);
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
+    }
+  };
+  useLectorUSB(porCodigo, !camara);
   const [cancelando, setCancelando] = useState<ID | null>(null);
 
   const enCuenta = (p: Producto) => movs.filter((m) => m.productoId === p.id);
@@ -128,6 +151,17 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
 
   return (
     <div className="space-y-4">
+      <button
+        type="button"
+        onClick={() => {
+          setAviso(null);
+          setCamara(true);
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-superficie py-3 font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+      >
+        <Barcode size={20} /> Escanear código de barras
+      </button>
+      {camara && <EscanerCodigo titulo="Cobrar escaneando" continuo aviso={aviso} onCodigo={porCodigo} onCerrar={() => setCamara(false)} />}
       {apartados}
       {GRUPOS.map(({ cat, titulo }) => {
         const lista = productos.filter((p) => p.categoria === cat);

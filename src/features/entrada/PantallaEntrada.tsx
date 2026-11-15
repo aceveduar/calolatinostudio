@@ -24,6 +24,9 @@ import { Escaner, type LecturaQR } from './Escaner';
 import { Tienda } from './Tienda';
 import { usePedidosPendientes } from '../../app/datos';
 import { sincronizar } from '../../sync/engine';
+import { useLectorUSB } from '../../app/codigos';
+import { productoPorCodigo, venderProducto } from '../../domain/tienda';
+import { leerQR } from '../../domain/qr';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
 import { parecidos } from '../../domain/correcciones';
@@ -170,6 +173,31 @@ export function PantallaEntrada() {
   };
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);
+
+  // Lector de códigos USB/Bluetooth (PC): un producto se suma a la cuenta; el QR de un alumno le da entrada.
+  // Si hay una hoja abierta (p. ej. la Tienda), esa hoja lo atiende.
+  useLectorUSB(async (codigo) => {
+    if (document.querySelector('[role=dialog]')) return;
+    setQ('');
+    const p = await productoPorCodigo(codigo);
+    if (p) {
+      try {
+        const mov = await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
+        setMovs((x) => [mov, ...x]);
+        avisar(`${p.emoji} ${p.nombre} · ${dinero(p.precio)}`);
+      } catch (e) {
+        avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
+      }
+      return;
+    }
+    const alumno = leerQR(codigo);
+    if (alumno) {
+      const r = await alEscanear(alumno);
+      avisar(`${r.titulo} · ${r.detalle}`, r.tono === 'error' ? 'error' : 'ok');
+      return;
+    }
+    avisar(`El código ${codigo} no es de ningún producto ni alumno`, 'error');
+  }, true, true);
 
   // Teclado (laptop/PC): escribir en cualquier momento busca; Esc limpia
   useEffect(() => {
