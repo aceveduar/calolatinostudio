@@ -28,7 +28,7 @@ export function ventasDeProductos(): Promise<Pago[]> {
   return db.pagos.where('productoId').above('').toArray();
 }
 
-export async function venderProducto(p: { producto: Producto; cantidad?: number; metodo: MetodoPago; usuarioId: ID; alumnoId?: ID | null; sedeId?: ID | null }): Promise<Movimiento> {
+export async function venderProducto(p: { producto: Producto; cantidad?: number; monto?: number; metodo: MetodoPago; usuarioId: ID; alumnoId?: ID | null; sedeId?: ID | null }): Promise<Movimiento> {
   const cantidad = p.cantidad ?? 1;
   const pago = await crear('pagos', {
     ...conSede(p.sedeId),
@@ -37,7 +37,8 @@ export async function venderProducto(p: { producto: Producto; cantidad?: number;
     productoId: p.producto.id,
     cantidad,
     concepto: p.producto.nombre,
-    monto: p.producto.precio * cantidad,
+    // monto distinto al precio × piezas: p. ej. al entregar un encargo con anticipo se cobra el resto
+    monto: p.monto ?? p.producto.precio * cantidad,
     metodo: p.metodo,
     usuarioId: p.usuarioId,
     fecha: hoy(),

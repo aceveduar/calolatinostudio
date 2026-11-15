@@ -4,7 +4,7 @@
  */
 import { db } from '../db/db';
 import { guardar } from '../db/repo';
-import type { Alumno, Asistencia, Clase, Corte, Fecha, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Pedido, Plan, Renta, Usuario } from '../db/types';
+import type { Alumno, Asistencia, Clase, Corte, Fecha, EstadoPedido, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Pedido, Plan, Renta, Usuario } from '../db/types';
 import { crearAcademia, hashPin } from '../domain/acceso';
 import { generarCodigo } from '../domain/operaciones';
 import { deFecha, hoy, sumarDias, sumarMeses } from '../domain/fechas';
@@ -604,7 +604,7 @@ export async function agregarRentasDemo(): Promise<{ rentas: number; cobros: num
 }
 
 /** Tienda en el portal: los artículos se muestran en línea (playera con tallas) y hay 2 apartados por recoger. */
-export async function agregarPedidosDemo(): Promise<{ enLinea: number; pedidos: number }> {
+export async function agregarPedidosDemo(): Promise<{ enLinea: number; pedidos: number; encargos: number }> {
   const academia = await db.academias.toCollection().first();
   if (!academia) throw new Error('No hay academia en este teléfono');
   const articulos = (await db.productos.toArray()).filter((p) => !p.deletedAt && p.categoria === 'articulo');
@@ -620,7 +620,40 @@ export async function agregarPedidosDemo(): Promise<{ enLinea: number; pedidos: 
     alumnoId: a.id, productoId: (i === 0 ? playera : gorra).id, opcion: i === 0 ? 'M' : null, cantidad: 1, precio: (i === 0 ? playera : gorra).precio, estado: 'pendiente', pagoId: null,
   }));
   for (const p of pedidos) await guardar('pedidos', p);
-  return { enLinea: articulos.length, pedidos: pedidos.length };
+
+  // Zapatillas sobre pedido (por número y diseño): 3 por pedir, 1 en camino con anticipo, 1 que ya llegó
+  const zapatillas = articulos.find((p) => p.nombre.startsWith('Zapatillas'));
+  let encargos = 0;
+  if (zapatillas) {
+    const z = { ...(await db.productos.get(zapatillas.id))!, sobrePedido: true, diasEntrega: 15, inventario: null, inventarioAt: null, descripcion: 'Sobre pedido, por número y diseño' };
+    await guardar('productos', z);
+    const otros = (await db.alumnos.toArray()).filter((a) => !a.deletedAt && a.activo).slice(2, 7);
+    const plan: [string, string, EstadoPedido, number][] = [
+      ['24', 'Negras, tacón 5 cm', 'pendiente', 0],
+      ['25', 'Nude, tacón 7 cm', 'pendiente', 0],
+      ['24', 'Negras, tacón 5 cm', 'pendiente', 0],
+      ['23', 'Rojas, tacón 5 cm', 'pedido', 50000],
+      ['26', 'Negras de caballero', 'llego', 60000],
+    ];
+    const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt)!;
+    for (const [i, [talla, nota, estado, anticipo]] of plan.entries()) {
+      const al = otros[i];
+      if (!al) break;
+      const id = crypto.randomUUID();
+      let anticipoPagoId: ID | null = null;
+      if (anticipo) {
+        const pago: Pago = { id: crypto.randomUUID(), academiaId: academia.id, createdAt: ahora, updatedAt: ahora, deletedAt: null, alumnoId: al.id, planId: null, concepto: `Anticipo · ${z.nombre} (${talla})`, monto: anticipo, metodo: 'efectivo', usuarioId: dueno.id, fecha: sumarDias(hoy(), -10), anuladoAt: null, anuladoMotivo: null, anuladoPor: null };
+        await guardar('pagos', pago);
+        anticipoPagoId = pago.id;
+      }
+      await guardar('pedidos', {
+        id, academiaId: academia.id, createdAt: ahora - (10 - i) * 86400_000, updatedAt: ahora, deletedAt: null,
+        alumnoId: al.id, productoId: z.id, opcion: talla, cantidad: 1, precio: z.precio, estado, pagoId: null, nota, ...(anticipo ? { anticipo, anticipoPagoId } : {}),
+      });
+      encargos++;
+    }
+  }
+  return { enLinea: articulos.length, pedidos: pedidos.length, encargos };
 }
 
 /** Fiados de ejemplo: a 4 alumnos su última clase pagada pasa a "debe" (para ver la libreta y los adeudos). */

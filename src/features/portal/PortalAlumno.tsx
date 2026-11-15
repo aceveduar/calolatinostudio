@@ -82,6 +82,8 @@ export function PortalAlumno({ token }: { token: string }) {
 function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPortal['tienda'][number]; token: string; onCerrar: () => void; onListo: (texto: string) => void }) {
   const [opcion, setOpcion] = useState<string | null>(producto.opciones.length === 1 ? producto.opciones[0] : null);
   const [cantidad, setCantidad] = useState(1);
+  const encargo = !!producto.sobre_pedido;
+  const [nota, setNota] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const maximo = Math.max(1, Math.min(5, producto.disponibles ?? 5));
@@ -92,13 +94,18 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
     setOcupado(true);
     setError(null);
     try {
-      const { data, error: e } = await supabase.rpc('portal_pedir', { p_token: token, p_producto: producto.id, p_opcion: opcion, p_cantidad: cantidad });
+      // el detalle solo se manda si lo escribió (así sirve aunque la base aún no tenga ese campo)
+      const { data, error: e } = await supabase.rpc('portal_pedir', { p_token: token, p_producto: producto.id, p_opcion: opcion, p_cantidad: cantidad, ...(nota.trim() ? { p_nota: nota.trim() } : {}) });
       if (e) throw new Error('Sin conexión. Inténtalo otra vez.');
       if (data?.error) {
         setError(data.error === 'agotado' && typeof data.disponibles === 'number' && data.disponibles > 0 ? `Solo quedan ${data.disponibles}.` : (ERRORES_PEDIDO[data.error] ?? 'No se pudo apartar.'));
         return;
       }
-      onListo(`¡Listo! Apartaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. Recógelo y págalo en recepción.`);
+      onListo(
+        encargo
+          ? `¡Listo! Encargaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. Te avisamos cuando llegue${producto.dias_entrega ? ` (unos ${producto.dias_entrega} días)` : ''}.`
+          : `¡Listo! Apartaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. Recógelo y págalo en recepción.`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo apartar.');
     } finally {
@@ -152,6 +159,18 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
             </button>
           </div>
         </div>
+        {encargo && (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-sm font-medium text-ink-700">Detalles (color, diseño…)</span>
+            <input
+              value={nota}
+              onChange={(e) => setNota(e.target.value.slice(0, 200))}
+              placeholder="Ej. negras, tacón 5 cm"
+              className="h-12 w-full rounded-xl bg-superficie px-4 ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+            />
+          </label>
+        )}
+        {encargo && <p className="mt-2 text-xs text-ink-500">Se pide al proveedor{producto.dias_entrega ? ` y tarda unos ${producto.dias_entrega} días` : ''}. Te avisamos por WhatsApp cuando llegue; lo pagas al recogerlo.</p>}
         {error && <p className="mt-3 rounded-xl bg-bad-50 px-3 py-2 text-sm font-medium text-bad-600">{error}</p>}
         <button
           type="button"
@@ -159,7 +178,7 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
           disabled={ocupado || falta}
           className="mt-4 h-14 w-full rounded-2xl bg-brand-500 text-lg font-bold text-white active:scale-[0.98] disabled:opacity-50"
         >
-          {falta ? 'Elige talla o color' : `Apartar · pagas ${dinero(producto.precio * cantidad)} al recoger`}
+          {falta ? 'Elige talla o color' : `${encargo ? 'Encargar' : 'Apartar'} · pagas ${dinero(producto.precio * cantidad)} al recoger`}
         </button>
       </div>
     </div>
@@ -292,7 +311,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {/* Mis apartados */}
         {pedidos.length > 0 && (
           <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-            <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tus apartados</p>
+            <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tus apartados y encargos</p>
             <ul className="mt-2 divide-y divide-ink-100">
               {pedidos.map((p, i) => (
                 <li key={i} className="flex items-center gap-3 py-2">
@@ -303,13 +322,24 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                       {p.opcion && ` · ${p.opcion}`}
                       {p.cantidad > 1 && ` ×${p.cantidad}`}
                     </span>
-                    <span className="block text-xs text-ink-500">{p.estado === 'pendiente' ? `Recógelo y págalo en recepción · ${dinero(p.precio * p.cantidad)}` : 'Entregado'}</span>
+                    {p.nota && <span className="block truncate text-xs text-ink-700">{p.nota}</span>}
+                    <span className="block text-xs text-ink-500">
+                      {p.estado === 'entregado'
+                        ? 'Entregado'
+                        : p.estado === 'llego' || p.estado === 'pendiente'
+                          ? `${p.estado === 'llego' ? '¡Ya llegó! ' : ''}Recógelo en recepción · ${dinero(Math.max(0, p.precio * p.cantidad - (p.anticipo ?? 0)))}`
+                          : 'El proveedor lo está preparando'}
+                    </span>
                   </span>
-                  {p.estado === 'pendiente' ? (
-                    <span className="rounded-full bg-warn-50 px-2.5 py-0.5 text-xs font-bold text-warn-600">Apartado</span>
-                  ) : (
-                    <span className="rounded-full bg-ok-50 px-2.5 py-0.5 text-xs font-bold text-ok-600">✓</span>
-                  )}
+                  <span
+                    className={
+                      p.estado === 'entregado' || p.estado === 'llego'
+                        ? 'rounded-full bg-ok-50 px-2.5 py-0.5 text-xs font-bold text-ok-600'
+                        : 'rounded-full bg-warn-50 px-2.5 py-0.5 text-xs font-bold text-warn-600'
+                    }
+                  >
+                    {p.estado === 'entregado' ? '✓' : p.estado === 'llego' ? 'Llegó' : p.estado === 'pedido' ? 'En camino' : 'Apartado'}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -322,12 +352,13 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tienda de la academia</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {datos.tienda.map((p) => {
-                const agotado = p.disponibles !== null && p.disponibles <= 0;
+                const agotado = !p.sobre_pedido && p.disponibles !== null && p.disponibles <= 0;
                 return (
                   <div key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
                     {p.foto ? <img src={p.foto} alt="" className="mx-auto h-20 w-20 rounded-xl object-cover" /> : <span className="block text-4xl leading-tight">{p.emoji}</span>}
                     <p className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</p>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}
+                    {p.sobre_pedido && <p className="text-[11px] font-semibold text-brand-600">Sobre pedido{p.dias_entrega ? ` · ~${p.dias_entrega} días` : ''}</p>}
                     <p className="text-sm font-bold text-brand-600">{dinero(p.precio)}</p>
                     {p.opciones.length > 0 && <p className="text-[11px] text-ink-500">{p.opciones.join(' · ')}</p>}
                     <span className="flex-1" />
@@ -340,7 +371,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                       }}
                       className="mt-2 h-10 rounded-xl bg-brand-500 text-sm font-bold text-white active:scale-95 disabled:bg-ink-100 disabled:text-ink-500"
                     >
-                      {agotado ? 'Agotado' : 'Apartar'}
+                      {p.sobre_pedido ? 'Encargar' : agotado ? 'Agotado' : 'Apartar'}
                     </button>
                   </div>
                 );

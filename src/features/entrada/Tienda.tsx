@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Barcode, Minus, PackageCheck, ShoppingBag } from 'lucide-react';
+import { Barcode, Minus, PackageCheck, ShoppingBag, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLectorUSB } from '../../app/codigos';
 import { EscanerCodigo } from '../../components/EscanerCodigo';
 import { useExistencias, usePedidosPendientes, useProductos } from '../../app/datos';
-import { cancelarPedido, entregarPedido, nombrePedido } from '../../domain/pedidos';
+import { cancelarPedido, entregarPedido, nombrePedido, restaPorPagar } from '../../domain/pedidos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Vacio, cx } from '../../components/ui';
@@ -83,7 +83,8 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
                 {x.pedido.cantidad > 1 && ` ×${x.pedido.cantidad}`}
               </span>
               <span className="block truncate text-xs text-ink-500">
-                {x.alumno?.nombre ?? 'Alumno'} · {dinero(x.pedido.precio * x.pedido.cantidad)}
+                {x.alumno?.nombre ?? 'Alumno'} · {dinero(restaPorPagar(x.pedido))}
+                {x.pedido.anticipo ? ` (dejó ${dinero(x.pedido.anticipo)})` : ''}
               </span>
             </span>
             {cancelando === x.pedido.id ? (
@@ -163,6 +164,12 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
       </button>
       {camara && <EscanerCodigo titulo="Cobrar escaneando" continuo aviso={aviso} onCodigo={porCodigo} onCerrar={() => setCamara(false)} />}
       {apartados}
+      <Link to="/encargos" onClick={onListo} className="flex items-center justify-between rounded-2xl bg-superficie px-4 py-3 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50">
+        <span className="flex items-center gap-2">
+          <Truck size={18} /> Encargos (zapatillas, playeras…)
+        </span>
+        <span className="text-brand-600">Ver</span>
+      </Link>
       {GRUPOS.map(({ cat, titulo }) => {
         const lista = productos.filter((p) => p.categoria === cat);
         if (!lista.length) return null;

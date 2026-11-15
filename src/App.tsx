@@ -15,6 +15,7 @@ import { PantallaReportes } from './features/reportes/PantallaReportes';
 import { PantallaGastos } from './features/gastos/PantallaGastos';
 import { PantallaAgenda } from './features/agenda/PantallaAgenda';
 import { PantallaEventos } from './features/eventos/PantallaEventos';
+import { PantallaEncargos } from './features/tienda/PantallaEncargos';
 import { PantallaEvento } from './features/eventos/PantallaEvento';
 import { PantallaMaestro } from './features/maestro/PantallaMaestro';
 import { PantallaEntrada } from './features/entrada/PantallaEntrada';
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="caja" element={<PantallaCaja />} />
                 <Route path="agenda" element={<PantallaAgenda />} />
                 <Route path="agenda/eventos" element={<PantallaEventos />} />
+                <Route path="encargos" element={<PantallaEncargos />} />
                 <Route path="agenda/eventos/:id" element={<PantallaEvento />} />
                 <Route path="reportes" element={estado.usuario.rol === 'dueno' ? <PantallaReportes /> : <Navigate to="/" replace />} />
                 <Route path="reportes/gastos" element={estado.usuario.rol === 'dueno' ? <PantallaGastos /> : <Navigate to="/" replace />} />

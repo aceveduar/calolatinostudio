@@ -355,7 +355,7 @@ export function PantallaEntrada() {
         </div>
         <button
           onClick={() => setTienda(true)}
-          aria-label={porRecoger ? `Tienda, ${porRecoger} apartados por recoger` : 'Tienda'}
+          aria-label={porRecoger ? `Tienda, ${porRecoger} ${porRecoger === 1 ? 'apartado' : 'apartados'} por recoger` : 'Tienda'}
           className="relative flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
         >
           <ShoppingBag size={24} />

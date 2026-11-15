@@ -141,6 +141,10 @@ export interface Producto extends Base {
   opciones?: string[] | null;
   /** código de barras (EAN/UPC) para cobrarlo escaneando */
   codigo?: string | null;
+  /** sobre pedido: no hay existencias, se encarga al proveedor (p. ej. zapatillas por número y diseño) */
+  sobrePedido?: boolean | null;
+  /** días aproximados que tarda en llegar un encargo */
+  diasEntrega?: number | null;
 }
 
 /**
@@ -176,7 +180,11 @@ export interface Boleto extends Base {
   anuladoAt: number | null;
 }
 
-export type EstadoPedido = 'pendiente' | 'entregado' | 'cancelado';
+/**
+ * Apartado de algo en existencia: pendiente → entregado.
+ * Encargo sobre pedido: pendiente (solicitado) → pedido (al proveedor) → llego → entregado.
+ */
+export type EstadoPedido = 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado';
 
 /**
  * Apartado desde el portal del alumno: se paga y se entrega en recepción.
@@ -193,6 +201,11 @@ export interface Pedido extends Base {
   estado: EstadoPedido;
   /** venta con la que se entregó */
   pagoId: ID | null;
+  /** detalles del encargo: color, diseño, nombre bordado… */
+  nota?: string | null;
+  /** anticipo cobrado (centavos) y su cobro; al entregar se cobra el resto */
+  anticipo?: number | null;
+  anticipoPagoId?: ID | null;
 }
 
 export interface Alumno extends Base {

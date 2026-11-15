@@ -5,7 +5,7 @@ import type { Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
 import { hoy } from '../domain/fechas';
 import { existencias, ventasDeProductos } from '../domain/tienda';
-import { apartadas } from '../domain/pedidos';
+import { apartadas, listoParaEntregar } from '../domain/pedidos';
 
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
@@ -93,9 +93,12 @@ export function useEstadosDeAlumno(alumnoId: ID | undefined, dia: Fecha = hoy())
 export function usePedidosPendientes() {
   return useLiveQuery(
     async () => {
-      const pedidos = (await db.pedidos.where('estado').equals('pendiente').filter(vivo).toArray()).sort((a, b) => a.createdAt - b.createdAt);
+      // por recoger: apartados en existencia pendientes y encargos que ya llegaron
+      const pedidos = (await db.pedidos.where('estado').anyOf('pendiente', 'llego').filter(vivo).toArray()).sort((a, b) => a.createdAt - b.createdAt);
       const [productos, alumnos] = await Promise.all([db.productos.bulkGet(pedidos.map((p) => p.productoId)), db.alumnos.bulkGet(pedidos.map((p) => p.alumnoId))]);
-      return pedidos.map((pedido, i) => ({ pedido, producto: productos[i], alumno: alumnos[i] }));
+      return pedidos
+        .map((pedido, i) => ({ pedido, producto: productos[i], alumno: alumnos[i] }))
+        .filter((x) => listoParaEntregar(x.pedido, x.producto));
     },
     [],
     [],

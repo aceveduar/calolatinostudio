@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Barcode, Plus } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Barcode, Plus, Truck } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useLectorUSB } from '../../app/codigos';
 import { EscanerCodigo } from '../../components/EscanerCodigo';
 import { useRentas } from '../../app/datos';
@@ -242,9 +242,16 @@ export function EditorProductos() {
   return (
     <>
       <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
-      <Boton bloque variante="secundario" className="mb-3" onClick={() => setCamara(true)}>
-        <Barcode size={18} /> Escanear producto (buscar o dar de alta)
-      </Boton>
+      <div className="mb-3 grid gap-2 sm:grid-cols-2">
+        <Boton bloque variante="secundario" onClick={() => setCamara(true)}>
+          <Barcode size={18} /> Escanear producto
+        </Boton>
+        <Link to="/encargos">
+          <Boton bloque variante="secundario">
+            <Truck size={18} /> Encargos y proveedor
+          </Boton>
+        </Link>
+      </div>
       {camara && <EscanerCodigo titulo="Escanear producto" onCodigo={abrirCodigo} onCerrar={() => setCamara(false)} />}
       <Hoja
         abierta={!!porCodigo}
@@ -310,6 +317,8 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
   const [alerta, setAlerta] = useState(String(producto?.alerta ?? 5));
   const [activo, setActivo] = useState(producto?.activo ?? true);
   const [enLinea, setEnLinea] = useState(producto?.enLinea ?? false);
+  const [sobrePedido, setSobrePedido] = useState(!!producto?.sobrePedido);
+  const [diasEntrega, setDiasEntrega] = useState(producto?.diasEntrega ? String(producto.diasEntrega) : '');
   const [opciones, setOpciones] = useState((producto?.opciones ?? []).join(', '));
   const [descripcion, setDescripcion] = useState(producto?.descripcion ?? '');
   const [codigo, setCodigo] = useState(producto?.codigo ?? codigoInicial ?? '');
@@ -319,9 +328,10 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
   const listaOpciones = [...new Set(opciones.split(',').map((x) => x.trim()).filter(Boolean))].slice(0, 12);
 
   const guardar = async () => {
-    const nuevoConteo = controlar ? Number(hay) || 0 : null;
+    const conteo = controlar && !sobrePedido;
+    const nuevoConteo = conteo ? Number(hay) || 0 : null;
     // Solo se reinicia el conteo si cambió lo que hay (así no se pierden ventas de otros equipos)
-    const cambioConteo = controlar && (disponibles === null || nuevoConteo !== Math.max(0, disponibles));
+    const cambioConteo = conteo && (disponibles === null || nuevoConteo !== Math.max(0, disponibles));
     const datos = {
       nombre: nombre.trim(),
       emoji,
@@ -334,7 +344,9 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
       // solo se manda si hay opciones (o si había y se quitaron), para no depender de la columna nueva
       ...(listaOpciones.length || producto?.opciones?.length ? { opciones: listaOpciones } : {}),
       ...(codigo.trim() ? { codigo: codigo.trim() } : producto?.codigo ? { codigo: null } : {}),
-      ...(controlar ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
+      ...(conteo ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
+      // sobre pedido: se encarga al proveedor (solo se manda si aplica, para no depender de la columna nueva)
+      ...(sobrePedido ? { sobrePedido: true, diasEntrega: Number(diasEntrega) || null } : producto?.sobrePedido ? { sobrePedido: false } : {}),
     };
     if (producto) await actualizar('productos', producto.id, datos);
     else await crear('productos', { foto: null, inventario: null, inventarioAt: null, ...datos });
@@ -389,8 +401,14 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
         valor={categoria}
         onChange={setCategoria}
       />
-      <Interruptor valor={controlar} onChange={setControlar} texto="Llevar existencias" />
-      {controlar && (
+      {categoria === 'articulo' && <Interruptor valor={sobrePedido} onChange={setSobrePedido} texto="Sobre pedido (se encarga al proveedor)" />}
+      {sobrePedido && categoria === 'articulo' && (
+        <Campo etiqueta="¿Cuántos días tarda en llegar? (aprox.)" ayuda="Se le dice al alumno al encargar. Los encargos se juntan en Encargos para mandarlos al proveedor.">
+          <Entrada inputMode="numeric" value={diasEntrega} onChange={(e) => setDiasEntrega(e.target.value.replace(/\D/g, ''))} placeholder="Ej. 15" />
+        </Campo>
+      )}
+      {!(sobrePedido && categoria === 'articulo') && <Interruptor valor={controlar} onChange={setControlar} texto="Llevar existencias" />}
+      {controlar && !(sobrePedido && categoria === 'articulo') && (
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="¿Cuántas hay ahora?" ayuda="Se descuentan solas al vender.">
             <Entrada inputMode="numeric" value={hay} onChange={(e) => setHay(e.target.value.replace(/\D/g, ''))} placeholder="0" />

@@ -320,6 +320,13 @@ alter table pagos add column if not exists evento_id uuid;
 alter table gastos add column if not exists evento_id uuid;
 alter table rentas add column if not exists evento_id uuid;
 alter table productos add column if not exists codigo text;
+alter table productos add column if not exists sobre_pedido boolean;
+alter table productos add column if not exists dias_entrega int;
+alter table pedidos add column if not exists nota text;
+alter table pedidos add column if not exists anticipo int;
+alter table pedidos add column if not exists anticipo_pago_id uuid;
+alter table pedidos drop constraint if exists pedidos_estado_check;
+alter table pedidos add constraint pedidos_estado_check check (estado in ('pendiente','pedido','llego','entregado','cancelado'));
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------
@@ -407,7 +414,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 -- Piezas que se pueden apartar/vender: lo contado menos lo vendido después, menos lo apartado. null = sin control.
 create or replace function disponibles_producto(p productos) returns int
 language sql stable security definer set search_path = public as $$
-  select case when p.inventario is null then null else (
+  select case when p.inventario is null or coalesce(p.sobre_pedido, false) then null else (
     p.inventario
     - coalesce((select sum(coalesce(v.cantidad, 1)) from pagos v
                 where v.producto_id = p.id and v.anulado_at is null and v.deleted_at is null and v.created_at >= coalesce(p.inventario_at, 0)), 0)
@@ -452,14 +459,16 @@ begin
     ), '[]'::jsonb),
     'tienda', coalesce((
       select jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion,
-                                          'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'disponibles', disponibles_producto(p)) order by p.categoria, p.nombre)
+                                          'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'disponibles', disponibles_producto(p),
+                                          'sobre_pedido', coalesce(p.sobre_pedido, false), 'dias_entrega', p.dias_entrega) order by p.categoria, p.nombre)
       from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
     ), '[]'::jsonb),
     'pedidos', coalesce((
-      select jsonb_agg(jsonb_build_object('producto', p.nombre, 'emoji', p.emoji, 'opcion', d.opcion, 'cantidad', d.cantidad, 'precio', d.precio, 'estado', d.estado, 'creado', d.created_at) order by d.created_at desc)
+      select jsonb_agg(jsonb_build_object('producto', p.nombre, 'emoji', p.emoji, 'opcion', d.opcion, 'nota', d.nota, 'cantidad', d.cantidad, 'precio', d.precio,
+                                          'anticipo', coalesce(d.anticipo, 0), 'estado', d.estado, 'creado', d.created_at) order by d.created_at desc)
       from pedidos d join productos p on p.id = d.producto_id
       where d.alumno_id = a.id and d.deleted_at is null
-        and (d.estado = 'pendiente' or d.updated_at > (extract(epoch from now()) * 1000)::bigint - 30::bigint * 86400000)
+        and (d.estado in ('pendiente', 'pedido', 'llego') or d.updated_at > (extract(epoch from now()) * 1000)::bigint - 30::bigint * 86400000)
     ), '[]'::jsonb)
   );
 end $$;
@@ -469,7 +478,8 @@ grant execute on function portal_alumno(text) to anon, authenticated;
 
 -- Apartar un producto desde el portal. Valida el enlace, que el producto esté en línea, la talla/color,
 -- existencias y un máximo de 5 apartados pendientes por alumno (para que nadie llene la lista).
-create or replace function portal_pedir(p_token text, p_producto uuid, p_opcion text, p_cantidad int) returns jsonb
+drop function if exists portal_pedir(text, uuid, text, int);
+create or replace function portal_pedir(p_token text, p_producto uuid, p_opcion text, p_cantidad int, p_nota text default null) returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
 declare
   a alumnos;
@@ -487,15 +497,16 @@ begin
   if not found then return jsonb_build_object('error', 'producto'); end if;
   tiene_opciones := coalesce(array_length(p.opciones, 1), 0) > 0;
   if tiene_opciones and (p_opcion is null or not (p_opcion = any (p.opciones))) then return jsonb_build_object('error', 'opcion'); end if;
-  if (select count(*) from pedidos where alumno_id = a.id and estado = 'pendiente' and deleted_at is null) >= 5 then
+  if (select count(*) from pedidos where alumno_id = a.id and estado in ('pendiente', 'pedido', 'llego') and deleted_at is null) >= 5 then
     return jsonb_build_object('error', 'muchos');
   end if;
   disp := disponibles_producto(p);
   if disp is not null and disp < p_cantidad then return jsonb_build_object('error', 'agotado', 'disponibles', greatest(disp, 0)); end if;
-  insert into pedidos (id, academia_id, alumno_id, producto_id, opcion, cantidad, precio, estado, created_at, updated_at)
-  values (gen_random_uuid(), a.academia_id, a.id, p.id, case when tiene_opciones then p_opcion end, p_cantidad, p.precio, 'pendiente', ahora, ahora);
+  insert into pedidos (id, academia_id, alumno_id, producto_id, opcion, nota, cantidad, precio, estado, created_at, updated_at)
+  values (gen_random_uuid(), a.academia_id, a.id, p.id, case when tiene_opciones then p_opcion end, nullif(left(trim(coalesce(p_nota, '')), 200), ''),
+          p_cantidad, p.precio, 'pendiente', ahora, ahora);
   return jsonb_build_object('ok', true);
 end $$;
 
-revoke execute on function portal_pedir(text, uuid, text, int) from public;
-grant execute on function portal_pedir(text, uuid, text, int) to anon, authenticated;
+revoke execute on function portal_pedir(text, uuid, text, int, text) from public;
+grant execute on function portal_pedir(text, uuid, text, int, text) to anon, authenticated;

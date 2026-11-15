@@ -53,8 +53,8 @@ export interface DatosPortal {
   academia: { nombre: string; color: string | null; logo: string | null };
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];
-  tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null }[];
-  pedidos?: { producto: string; emoji: string; opcion: string | null; cantidad: number; precio: number; estado: 'pendiente' | 'entregado' | 'cancelado'; creado: number }[];
+  tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null; sobre_pedido?: boolean; dias_entrega?: number | null }[];
+  pedidos?: { producto: string; emoji: string; opcion: string | null; nota?: string | null; cantidad: number; precio: number; anticipo?: number; estado: 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado'; creado: number }[];
 }
 
 export const ERRORES_PEDIDO: Record<string, string> = {
