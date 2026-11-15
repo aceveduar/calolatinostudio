@@ -49,7 +49,7 @@ export async function regenerarPortal(alumnoId: ID): Promise<string> {
 /** Lo que devuelve la función portal_alumno de la base. */
 export interface DatosPortal {
   hoy: string;
-  alumno: { nombre: string; codigo: string };
+  alumno: { nombre: string; codigo: string; foto?: string | null };
   academia: { nombre: string; color: string | null; logo: string | null };
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];

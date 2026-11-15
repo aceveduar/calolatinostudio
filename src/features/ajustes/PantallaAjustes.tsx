@@ -42,8 +42,8 @@ export function PantallaAjustes() {
     const Comp = s.comp;
     return (
       <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
-        <button onClick={() => nav('/ajustes')} className="mt-3 -ml-2 flex items-center gap-1 rounded-full p-2 font-semibold text-ink-700 active:bg-ink-100">
-          <ArrowLeft size={20} /> Ajustes
+        <button onClick={() => nav('/mas')} className="mt-3 -ml-2 flex items-center gap-1 rounded-full p-2 font-semibold text-ink-700 active:bg-ink-100">
+          <ArrowLeft size={20} /> Más
         </button>
         <h1 className="mt-1 mb-4 text-2xl font-extrabold">{s.titulo}</h1>
         <Comp />

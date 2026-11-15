@@ -31,6 +31,9 @@ export function PantallaReportes() {
   const sedes = useSedes();
   // 'todas' | PRINCIPAL | id
   const [verSede, setVerSede] = useState<string>('todas');
+  // listas largas: se ven 5 y se despliegan al tocar
+  const [todosVencen, setTodosVencen] = useState(false);
+  const [todosPerdidos, setTodosPerdidos] = useState(false);
   const dia = hoy();
   const { actual, anterior } = periodos(rango, dia);
 
@@ -266,7 +269,7 @@ export function PantallaReportes() {
             </Tarjeta>
           ) : (
             <Tarjeta className="divide-y divide-ink-100">
-              {r.vencen.map(({ alumno, membresia, enDias }) => (
+              {(todosVencen ? r.vencen : r.vencen.slice(0, 5)).map(({ alumno, membresia, enDias }) => (
                 <FilaContacto
                   key={membresia.id}
                   alumnoId={alumno.id}
@@ -276,6 +279,7 @@ export function PantallaReportes() {
                   wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'vence'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre, plan: (planes.find((p) => p.id === membresia.planId)?.nombre ?? 'plan').toLowerCase(), vence: fechaLarga(membresia.fin) }))}
                 />
               ))}
+              {r.vencen.length > 5 && <VerMas abierto={todosVencen} total={r.vencen.length} onClick={() => setTodosVencen(!todosVencen)} />}
             </Tarjeta>
           )}
         </Seccion>
@@ -287,7 +291,7 @@ export function PantallaReportes() {
             </Tarjeta>
           ) : (
             <Tarjeta className="divide-y divide-ink-100">
-              {r.perdidos.slice(0, 30).map(({ alumno, ultima, veces }) => (
+              {(todosPerdidos ? r.perdidos : r.perdidos.slice(0, 5)).map(({ alumno, ultima, veces }) => (
                 <FilaContacto
                   key={alumno.id}
                   alumnoId={alumno.id}
@@ -296,6 +300,7 @@ export function PantallaReportes() {
                   wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'extrañamos'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre }))}
                 />
               ))}
+              {r.perdidos.length > 5 && <VerMas abierto={todosPerdidos} total={r.perdidos.length} onClick={() => setTodosPerdidos(!todosPerdidos)} />}
             </Tarjeta>
           )}
         </Seccion>
@@ -334,6 +339,14 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
         Gastos <ChevronRight size={18} />
       </span>
     </Link>
+  );
+}
+
+function VerMas({ abierto, total, onClick }: { abierto: boolean; total: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full py-3 text-center text-sm font-semibold text-brand-600 active:bg-ink-50">
+      {abierto ? 'Ver menos' : `Ver los ${total}`}
+    </button>
   );
 }
 

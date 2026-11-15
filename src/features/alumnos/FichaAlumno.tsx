@@ -19,6 +19,7 @@ import { VenderPlan } from './VenderPlan';
 import { CredencialQR } from './CredencialQR';
 import { EnviarWhatsApp } from './EnviarWhatsApp';
 import { TarjetaAdeudos } from './Adeudos';
+import { FotoAlumno } from './FotoAlumno';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -88,7 +89,7 @@ export function FichaAlumno() {
       )}
 
       <div className="mt-1 flex items-center gap-4">
-        <Avatar nombre={alumno.nombre} tam={64} />
+        <FotoAlumno alumno={alumno} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-extrabold">{alumno.nombre}</h1>
           <div className="mt-1 flex items-center gap-2">
@@ -271,7 +272,7 @@ function Fusionar({ actual, onHecho }: { actual: Alumno; onHecho: (destinoId: st
         </div>
         {candidatos.map((a) => (
           <Tarjeta key={a.id} onClick={() => setOtro(a)} className="flex items-center gap-3 p-3">
-            <Avatar nombre={a.nombre} tam={36} />
+            <Avatar nombre={a.nombre} foto={a.foto} tam={36} />
             <span className="flex-1 font-semibold">{a.nombre}</span>
             {!a.activo && <Etiqueta>Baja</Etiqueta>}
           </Tarjeta>
@@ -295,7 +296,7 @@ function Fusionar({ actual, onHecho }: { actual: Alumno; onHecho: (destinoId: st
               onClick={() => setQuedarse(k)}
               className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie p-3 text-left ring-1', quedarse === k ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
             >
-              <Avatar nombre={a.nombre} tam={40} />
+              <Avatar nombre={a.nombre} foto={a.foto} tam={40} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{a.nombre}</span>
                 <span className="block text-xs text-ink-500">{c ? `${c.asistencias} clases · ${c.pagos} pagos · ${c.membresias} planes` : '…'}</span>

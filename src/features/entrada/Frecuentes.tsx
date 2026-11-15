@@ -129,7 +129,7 @@ function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; e
       )}
     >
       <span className={cx('relative', entro && 'opacity-50')}>
-        <Avatar nombre={alumno.nombre} tam={48} />
+        <Avatar nombre={alumno.nombre} foto={alumno.foto} tam={48} />
         {entro && (
           <span className="absolute -right-1 -bottom-1 flex h-6 w-6 animate-pop items-center justify-center rounded-full bg-ok-600 text-white ring-2 ring-ok-50">
             <Check size={14} strokeWidth={3} />

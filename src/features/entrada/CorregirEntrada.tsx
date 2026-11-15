@@ -151,7 +151,7 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
               }
               className="flex items-center gap-3 p-3"
             >
-              <Avatar nombre={a.nombre} tam={36} />
+              <Avatar nombre={a.nombre} foto={a.foto} tam={36} />
               <span className="font-semibold">{a.nombre}</span>
             </Tarjeta>
           ))}

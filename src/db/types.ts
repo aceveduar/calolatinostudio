@@ -238,6 +238,8 @@ export interface Alumno extends Base {
   activo: boolean;
   /** token secreto de su portal (/p/<token>); se crea al enviarle el enlace */
   portal?: string | null;
+  /** foto pequeña (JPEG en data URL, ~10 KB) para que recepción y maestros lo reconozcan */
+  foto?: string | null;
 }
 
 export interface Membresia extends Base {

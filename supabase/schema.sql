@@ -345,6 +345,7 @@ alter table academias add column if not exists slug text;
 alter table academias add column if not exists whatsapp text;
 alter table productos add column if not exists costo int;
 alter table pagos add column if not exists costo int;
+alter table alumnos add column if not exists foto text;
 create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
@@ -457,7 +458,7 @@ begin
   if not found then return null; end if;
   return jsonb_build_object(
     'hoy', hoy,
-    'alumno', jsonb_build_object('nombre', a.nombre, 'codigo', a.codigo),
+    'alumno', jsonb_build_object('nombre', a.nombre, 'codigo', a.codigo, 'foto', a.foto),
     'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', x.logo) from academias x where x.id = a.academia_id),
     'planes', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -604,3 +605,24 @@ end $$;
 
 revoke execute on function inscribir_interesado(text, text, text, uuid, text) from public;
 grant execute on function inscribir_interesado(text, text, text, uuid, text) to anon, authenticated;
+
+-- El alumno pone (o quita) su foto desde su portal, para que en recepción lo reconozcan.
+-- Solo una imagen JPEG pequeña (la app la reduce a ~200 px); nada más se puede cambiar por aquí.
+create or replace function portal_foto(p_token text, p_foto text) returns jsonb
+language plpgsql volatile security definer set search_path = public as $$
+declare
+  a alumnos;
+  ahora bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+begin
+  if p_token is null or length(p_token) < 20 then return jsonb_build_object('error', 'enlace'); end if;
+  select * into a from alumnos where portal = p_token and deleted_at is null and activo;
+  if not found then return jsonb_build_object('error', 'enlace'); end if;
+  if p_foto is not null and (p_foto not like 'data:image/jpeg;base64,%' or length(p_foto) > 80000) then
+    return jsonb_build_object('error', 'foto');
+  end if;
+  update alumnos set foto = p_foto, updated_at = ahora where id = a.id;
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function portal_foto(text, text) from public;
+grant execute on function portal_foto(text, text) to anon, authenticated;

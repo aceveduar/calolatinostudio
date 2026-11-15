@@ -66,7 +66,7 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
   return (
     <div>
       <div className="flex items-center gap-3 pb-4">
-        <Avatar nombre={alumno.nombre} tam={56} />
+        <Avatar nombre={alumno.nombre} foto={alumno.foto} tam={56} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xl font-bold">{alumno.nombre}</p>
           <div className="mt-1 flex items-center gap-2">

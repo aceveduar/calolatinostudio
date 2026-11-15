@@ -74,21 +74,14 @@ export function PantallaAgenda() {
     <div className="px-4 pb-8">
       <div className="-mx-4">
         <Encabezado
-          titulo="Agenda del salón"
-          sub={nombreSede(null, sedes, academia)}
+          titulo="Agenda"
+          sub={`Salón · ${nombreSede(null, sedes, academia)}`}
           accion={
-            <div className="flex gap-2">
-              <Link to="/agenda/eventos">
-                <Boton variante="secundario">
-                  <PartyPopper size={18} /> Eventos
-                </Boton>
-              </Link>
-              {esDueno && (
-                <Boton onClick={() => setEditar('nueva')}>
-                  <Plus size={18} /> Apartar
-                </Boton>
-              )}
-            </div>
+            esDueno && (
+              <Boton onClick={() => setEditar('nueva')}>
+                <Plus size={18} /> Apartar
+              </Boton>
+            )
           }
         />
       </div>
@@ -106,8 +99,11 @@ export function PantallaAgenda() {
         </button>
       </div>
 
-      {(salones.length > 0 || esDueno) && (
+      {(
         <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+          <Link to="/agenda/eventos" className="flex shrink-0 items-center gap-1.5 rounded-full bg-superficie px-4 py-2 text-sm font-semibold ring-1 ring-ink-100">
+            <PartyPopper size={16} className="text-brand-600" /> Eventos
+          </Link>
           {salones.length > 0 &&
             [null, ...salones.map((x) => x.id)].map((id) => (
               <button

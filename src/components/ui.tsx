@@ -135,7 +135,8 @@ export function Tarjeta({ className, children, onClick }: { className?: string; 
 }
 
 const coloresAvatar = ['#e8445a', '#7c4ddb', '#1f8fd6', '#15924b', '#d97706', '#db2777', '#0d9488'];
-export function Avatar({ nombre, tam = 44 }: { nombre: string; tam?: number }) {
+export function Avatar({ nombre, tam = 44, foto }: { nombre: string; tam?: number; foto?: string | null }) {
+  if (foto) return <img src={foto} alt="" width={tam} height={tam} className="shrink-0 rounded-full object-cover" style={{ width: tam, height: tam }} />;
   const iniciales = nombre
     .trim()
     .split(/\s+/)
@@ -273,5 +274,29 @@ export function Interruptor({ valor, onChange, texto }: { valor: boolean; onChan
         <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-superficie shadow transition-all', valor ? 'left-[22px]' : 'left-0.5')} />
       </span>
     </button>
+  );
+}
+
+/**
+ * Filtros como chips en una fila que se desliza (mejor que Segmentos cuando son más de 3 opciones en celular).
+ */
+export function Chips<T extends string>({ opciones, valor, onChange, etiqueta }: { opciones: { valor: T; texto: string }[]; valor: T; onChange: (v: T) => void; etiqueta?: string }) {
+  return (
+    <div role="group" aria-label={etiqueta} className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
+      {opciones.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          aria-pressed={valor === o.valor}
+          onClick={() => onChange(o.valor)}
+          className={cx(
+            'h-10 shrink-0 rounded-full px-4 text-sm font-semibold whitespace-nowrap ring-1 transition',
+            valor === o.valor ? 'bg-panel text-white ring-panel' : 'bg-superficie text-ink-700 ring-ink-100',
+          )}
+        >
+          {o.texto}
+        </button>
+      ))}
+    </div>
   );
 }

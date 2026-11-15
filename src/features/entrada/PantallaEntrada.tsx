@@ -391,7 +391,7 @@ export function PantallaEntrada() {
               return (
                 <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                   <button onClick={() => entrarAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
-                    <Avatar nombre={a.nombre} />
+                    <Avatar nombre={a.nombre} foto={a.foto} />
                     <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
                     {entro ? (
                       <Etiqueta tono="ok">Adentro</Etiqueta>
@@ -414,7 +414,7 @@ export function PantallaEntrada() {
                     onClick={() => entrarAlumno(a)}
                     className="flex w-full items-center gap-3 rounded-2xl bg-warn-50 p-3 text-left ring-1 ring-warn-600/20 active:brightness-95"
                   >
-                    <Avatar nombre={a.nombre} />
+                    <Avatar nombre={a.nombre} foto={a.foto} />
                     <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
                     <Etiqueta tono="pronto">Parecido</Etiqueta>
                   </button>

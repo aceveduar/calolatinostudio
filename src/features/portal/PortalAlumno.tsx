@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { CalendarCheck, PackageCheck, Sun, WifiOff, X } from 'lucide-react';
+import { Camera, CalendarCheck, PackageCheck, Sun, WifiOff, X } from 'lucide-react';
+import { useRef } from 'react';
+import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
@@ -235,11 +237,15 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         <div className="rounded-3xl bg-white p-5 text-center text-[#16141c] shadow-xl shadow-black/10">
           <p className="text-xs font-bold tracking-wider text-[#6e6a7c] uppercase">Tu pase de entrada</p>
           <div className="mx-auto mt-3 aspect-square w-full max-w-[17rem]">{qr ? <img src={qr} alt="Tu código QR" className="h-full w-full" /> : <div className="h-full w-full animate-pulse rounded-2xl bg-[#ecebf0]" />}</div>
-          <p className="mt-3 text-xl font-extrabold">{datos.alumno.nombre}</p>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={!!guardadoEl} onListo={recargar} />
+            <p className="text-xl font-extrabold">{datos.alumno.nombre}</p>
+          </div>
           <p className="font-mono text-sm tracking-[0.3em] text-[#6e6a7c]">{datos.alumno.codigo}</p>
           <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[#6e6a7c]">
             <Sun size={14} /> Sube el brillo y muéstralo en recepción
           </p>
+          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-xs font-semibold text-brand-600">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
 
         {/* Plan */}
@@ -396,5 +402,46 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         />
       )}
     </div>
+  );
+}
+
+/** Su foto en la credencial: si no tiene, se la pide (para que en recepción lo reconozcan). */
+function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: string; foto: string | null; nombre: string; sinConexion: boolean; onListo: () => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [estado, setEstado] = useState<'listo' | 'subiendo' | 'error'>('listo');
+  const subir = async (f: File | undefined) => {
+    if (!f || !supabase) return;
+    setEstado('subiendo');
+    try {
+      const { data, error } = await supabase.rpc('portal_foto', { p_token: token, p_foto: await prepararFoto(f) });
+      if (error || data?.error) throw new Error('foto');
+      setEstado('listo');
+      onListo();
+    } catch {
+      setEstado('error');
+    }
+  };
+  return (
+    <>
+      <button
+        type="button"
+        disabled={sinConexion || estado === 'subiendo'}
+        onClick={() => input.current?.click()}
+        className="relative shrink-0 rounded-full"
+        aria-label={foto ? 'Cambiar mi foto' : 'Poner mi foto'}
+      >
+        {foto ? (
+          <img src={foto} alt={nombre} className="h-14 w-14 rounded-full object-cover" />
+        ) : (
+          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-2 ring-dashed ring-brand-500/40">
+            <Camera size={20} />
+            <span className="text-[9px] font-bold">FOTO</span>
+          </span>
+        )}
+        {estado === 'subiendo' && <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-[10px] font-bold text-white">…</span>}
+      </button>
+      <input ref={input} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />
+      {estado === 'error' && <span className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
+    </>
   );
 }

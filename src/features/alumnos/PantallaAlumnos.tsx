@@ -6,7 +6,7 @@ import { esAdeudo } from '../../domain/adeudos';
 import { ChevronRight, ClipboardList, Megaphone, Plus, Search, Users } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
-import { Avatar, Boton, Encabezado, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Boton, Chips, Encabezado, Etiqueta, Hoja, Tarjeta, Vacio } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
 
@@ -78,15 +78,17 @@ export function PantallaAlumnos() {
           className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
-      <Link
-        to="/alumnos/interesados"
-        className={cx('mb-3 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm ring-1', interesadosNuevos ? 'bg-brand-50 font-semibold text-brand-600 ring-brand-500/30' : 'bg-superficie text-ink-700 ring-ink-100')}
-      >
-        <Megaphone size={18} className="shrink-0" />
-        <span className="flex-1">{interesadosNuevos ? `${interesadosNuevos} ${interesadosNuevos === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar` : 'Interesados (página pública)'}</span>
-        <ChevronRight size={18} />
-      </Link>
-      <Segmentos<Filtro>
+      {interesadosNuevos > 0 && (
+        <Link to="/alumnos/interesados" className="mb-3 flex items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600 ring-1 ring-brand-500/30">
+          <Megaphone size={18} className="shrink-0" />
+          <span className="flex-1">
+            {interesadosNuevos} {interesadosNuevos === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar
+          </span>
+          <ChevronRight size={18} />
+        </Link>
+      )}
+      <Chips<Filtro>
+        etiqueta="Filtrar alumnos"
         opciones={[
           { valor: 'todos', texto: 'Todos' },
           { valor: 'ok', texto: 'Al corriente' },
@@ -106,7 +108,7 @@ export function PantallaAlumnos() {
           <Tarjeta className="divide-y divide-ink-100">
             {filas.map(({ a, s, beca }) => (
               <button key={a.id} onClick={() => nav(`/alumnos/${a.id}`)} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-ink-50">
-                <Avatar nombre={a.nombre} tam={40} />
+                <Avatar nombre={a.nombre} foto={a.foto} tam={40} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
                 {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
