@@ -5,7 +5,7 @@ import { rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useExistencias, usePedidosPendientes, useMaestros, usePlanes, useProductos, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Interruptor, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
 import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type Sede, type TipoPlan, type Usuario } from '../../db/types';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -17,7 +17,7 @@ import { DIAS_CORTOS } from '../../domain/fechas';
 import { describirPlan } from '../alumnos/VenderPlan';
 import { EMOJIS_PRODUCTO, estadoExistencia } from '../../domain/tienda';
 import { PRINCIPAL, nombreSede, useSedes } from '../../app/sedes';
-import { conSede } from '../../domain/sedes';
+import { conSede, sueltaPara } from '../../domain/sedes';
 import { VIGENCIA_BECA, esBeca } from '../../domain/becas';
 
 /** Lista + hoja de edición: patrón común de todos los catálogos. */
@@ -404,6 +404,8 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const [activo, setActivo] = useState(clase?.activo ?? true);
   const sedes = useSedes();
   const [sedeId, setSedeId] = useState<string>(clase?.sedeId ?? '');
+  const [precioPropio, setPrecioPropio] = useState(clase?.precioSuelta ? aPesosTexto(clase.precioSuelta) : '');
+  const precioSede = sueltaPara(usePlanes(), sedeId || null)?.precio;
   const rentas = useRentas();
   const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null }, rentas);
 
@@ -412,7 +414,19 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
     if (maestroId === NUEVO && maestroNuevo.trim()) {
       idMaestro = (await crear('maestros', { nombre: maestroNuevo.trim().replace(/\s+/g, ' '), telefono: '', notas: '', activo: true })).id;
     }
-    const datos = { ...conSede(sedeId, clase?.sedeId), disciplinaId, nivel: nivel.trim(), maestroId: idMaestro, dias: [...dias].sort(), horaInicio: hora, duracionMin: Number(duracion) || 60, activo };
+    const propio = aCentavos(precioPropio);
+    const datos = {
+      ...conSede(sedeId, clase?.sedeId),
+      disciplinaId,
+      nivel: nivel.trim(),
+      maestroId: idMaestro,
+      dias: [...dias].sort(),
+      horaInicio: hora,
+      duracionMin: Number(duracion) || 60,
+      activo,
+      // solo se manda si tiene precio propio (o si lo tenía y se quitó)
+      ...(propio > 0 ? { precioSuelta: propio } : clase?.precioSuelta ? { precioSuelta: null } : {}),
+    };
     if (clase) await actualizar('clases', clase.id, datos);
     else await crear('clases', datos);
     avisar('Clase guardada');
@@ -469,6 +483,9 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           </Selector>
         </Campo>
       )}
+      <Campo etiqueta="Precio de clase suelta (opcional)" ayuda={`Si el maestro pone su propia tarifa. Vacío = el de la sede${precioSede ? ` (${dinero(precioSede)})` : ''}.`}>
+        <Entrada inputMode="decimal" value={precioPropio} onChange={(e) => setPrecioPropio(e.target.value)} placeholder={precioSede ? aPesosTexto(precioSede) : '$'} />
+      </Campo>
       <Campo etiqueta="Maestro">
         <Selector value={maestroId} onChange={(e) => setMaestroId(e.target.value)}>
           <option value="">Sin asignar</option>
@@ -505,6 +522,8 @@ export function EditorPlanes() {
   const planes = usePlanes();
   const orden: Record<TipoPlan, number> = { suelta: 0, mensual: 1, paquete: 2 };
   return (
+    <>
+    <Recargo />
     <Catalogo
       items={[...planes].sort((a, b) => (esBeca(a) ? 3 : orden[a.tipo]) - (esBeca(b) ? 3 : orden[b.tipo]))}
       textoNuevo="Nuevo plan"
@@ -523,6 +542,27 @@ export function EditorPlanes() {
       )}
       form={(p, cerrar) => <FormPlan plan={p} onHecho={cerrar} />}
     />
+    </>
+  );
+}
+
+/** Recargo por día de atraso en mensualidades (p. ej. $10). Se sugiere al renovar; se puede quitar en cada cobro. */
+function Recargo() {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const [txt, setTxt] = useState(academia.recargoDiario ? aPesosTexto(academia.recargoDiario) : '');
+  const guardar = async () => {
+    const v = aCentavos(txt);
+    if (v === (academia.recargoDiario ?? 0)) return;
+    await actualizar('academias', academia.id, { recargoDiario: v || null });
+    avisar(v ? `Recargo: ${dinero(v)} por día de atraso` : 'Sin recargo por atraso');
+  };
+  return (
+    <Tarjeta className="mb-3 p-4">
+      <Campo etiqueta="Recargo por día de atraso (mensualidades)" ayuda="Se suma al renovar una mensualidad vencida; en cada cobro se puede quitar. Vacío = sin recargo.">
+        <Entrada inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={guardar} placeholder="Ej. 10" />
+      </Campo>
+    </Tarjeta>
   );
 }
 
@@ -540,9 +580,12 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
   const { academia } = useSesion();
   const sedes = useSedes();
   const [alcance, setAlcance] = useState<string>(plan?.sedeId ?? '');
+  const [grupos, setGrupos] = useState<string>(String(plan?.grupos ?? ''));
 
   const guardar = async () => {
+    const g = tipo === 'mensual' ? Number(grupos) || 0 : 0;
     const datos = {
+      ...(g ? { grupos: g } : plan?.grupos ? { grupos: null } : {}),
       ...conSede(alcance, plan?.sedeId),
       nombre: nombre.trim(),
       tipo: tipo === 'beca' ? ('paquete' as const) : tipo,
@@ -589,6 +632,20 @@ function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void })
       ) : (
         <Campo etiqueta="Precio">
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
+        </Campo>
+      )}
+      {tipo === 'mensual' && (
+        <Campo etiqueta="¿Cuántas clases cubre?" ayuda="Para cobrar por clase: p. ej. una clase $300, dos clases $450. Al cobrar se eligen cuáles." grupo>
+          <Segmentos<string>
+            opciones={[
+              { valor: '', texto: 'Todas' },
+              { valor: '1', texto: '1 clase' },
+              { valor: '2', texto: '2 clases' },
+              { valor: '3', texto: '3 clases' },
+            ]}
+            valor={grupos}
+            onChange={setGrupos}
+          />
         </Campo>
       )}
       {tipo === 'paquete' && (
@@ -813,13 +870,3 @@ function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onHecho: (
   );
 }
 
-function Interruptor({ valor, onChange, texto }: { valor: boolean; onChange: (v: boolean) => void; texto: string }) {
-  return (
-    <button type="button" onClick={() => onChange(!valor)} className="flex w-full items-center justify-between rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100">
-      <span className="font-medium">{texto}</span>
-      <span className={cx('relative h-7 w-12 rounded-full transition', valor ? 'bg-ok-600' : 'bg-ink-300')}>
-        <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-superficie shadow transition-all', valor ? 'left-[22px]' : 'left-0.5')} />
-      </span>
-    </button>
-  );
-}

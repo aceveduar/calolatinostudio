@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db/db';
+import { esAdeudo } from '../../domain/adeudos';
+import { ClipboardList, Plus, Search, Users } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
 import { Avatar, Boton, Encabezado, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio } from '../../components/ui';
@@ -8,12 +11,22 @@ import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-type Filtro = 'todos' | Semaforo | 'beca';
+type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
 
 export function PantallaAlumnos() {
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));
+  // Clases fiadas sin pagar, por alumno
+  const deben = useLiveQuery(
+    async () => {
+      const m = new Map<string, number>();
+      for (const a of await db.asistencias.filter((x) => esAdeudo(x)).toArray()) if (a.alumnoId) m.set(a.alumnoId, (m.get(a.alumnoId) ?? 0) + 1);
+      return m;
+    },
+    [],
+    new Map<string, number>(),
+  );
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
@@ -30,9 +43,9 @@ export function PantallaAlumnos() {
         return { a, s: semaforoAlumno(est), beca: est.some((e) => e.vigente && planesBeca.has(e.membresia.planId)) };
       })
       .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || a.telefono.includes(t))
-      .filter(({ s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : s.tono === filtro));
+      .filter(({ a, s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : filtro === 'debe' ? deben.has(a.id) : s.tono === filtro));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alumnos, estados, q, filtro, verBajas, planesBeca.size]);
+  }, [alumnos, estados, q, filtro, verBajas, planesBeca.size, deben]);
 
   return (
     <div className="px-4 pb-6 lg:mx-auto lg:max-w-3xl">
@@ -41,9 +54,16 @@ export function PantallaAlumnos() {
           titulo="Alumnos"
           sub={`${alumnos.filter((a) => a.activo).length} registrados`}
           accion={
-            <Boton onClick={() => setNuevo(true)}>
-              <Plus size={18} /> Nuevo
-            </Boton>
+            <div className="flex gap-2">
+              <Link to="/alumnos/listas">
+                <Boton variante="secundario">
+                  <ClipboardList size={18} /> Listas
+                </Boton>
+              </Link>
+              <Boton onClick={() => setNuevo(true)}>
+                <Plus size={18} /> Nuevo
+              </Boton>
+            </div>
           }
         />
       </div>
@@ -63,6 +83,7 @@ export function PantallaAlumnos() {
           { valor: 'ok', texto: 'Al corriente' },
           { valor: 'pronto', texto: 'Por vencer' },
           { valor: 'sin', texto: 'Sin plan' },
+          ...(deben.size ? [{ valor: 'debe' as const, texto: `Deben (${deben.size})` }] : []),
           ...(planesBeca.size ? [{ valor: 'beca' as const, texto: 'Becados' }] : []),
         ]}
         valor={filtro}
@@ -78,6 +99,7 @@ export function PantallaAlumnos() {
               <button key={a.id} onClick={() => nav(`/alumnos/${a.id}`)} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-ink-50">
                 <Avatar nombre={a.nombre} tam={40} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
+                {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
                 <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>
               </button>

@@ -441,6 +441,16 @@ export async function agregarSedeDemo(): Promise<{ sede: string; clasesMovidas: 
   if (suelta) await guardar('planes', { ...suelta, nombre: 'Clase suelta', precio: 6000, sedeId: PRINCIPAL });
   await guardar('planes', { ...base(), nombre: 'Clase suelta Casa de Cultura', tipo: 'suelta', precio: 4000, clases: 1, vigenciaDias: null, disciplinaId: null, sedeId: cdc.id, activo: true });
 
+  // Planes reales que platicó Calo:
+  //  Estudio: bloque completo 8 clases $400, medio bloque 4 clases $200 (+ clase $60)
+  //  Casa de Cultura: mensual 1 clase $300, 2 clases $450 (+ clase $40); recargo $10 por día de atraso
+  for (const p of (await db.planes.toArray()).filter((x) => !x.deletedAt && x.tipo !== 'suelta' && x.precio > 0)) await guardar('planes', { ...p, activo: false });
+  await guardar('planes', { ...base(), nombre: 'Bloque completo', tipo: 'paquete', precio: 40000, clases: 8, vigenciaDias: 30, disciplinaId: null, sedeId: PRINCIPAL, activo: true });
+  await guardar('planes', { ...base(), nombre: 'Medio bloque', tipo: 'paquete', precio: 20000, clases: 4, vigenciaDias: 30, disciplinaId: null, sedeId: PRINCIPAL, activo: true });
+  await guardar('planes', { ...base(), nombre: 'Mensual 1 clase', tipo: 'mensual', precio: 30000, clases: null, vigenciaDias: null, disciplinaId: null, sedeId: cdc.id, grupos: 1, activo: true });
+  await guardar('planes', { ...base(), nombre: 'Mensual 2 clases', tipo: 'mensual', precio: 45000, clases: null, vigenciaDias: null, disciplinaId: null, sedeId: cdc.id, grupos: 2, activo: true });
+  await guardar('academias', { ...(await db.academias.get(A))!, recargoDiario: 1000 });
+
   // Las clases de sábado temprano pasan a Casa de Cultura (con su historia)
   const clases = await db.clases.filter((c) => !c.deletedAt && c.activo && c.dias.includes(6) && c.horaInicio >= '10:00' && c.horaInicio <= '14:00').toArray();
   const ids = new Set(clases.map((c) => c.id));
@@ -599,4 +609,20 @@ export async function agregarPedidosDemo(): Promise<{ enLinea: number; pedidos: 
   }));
   for (const p of pedidos) await guardar('pedidos', p);
   return { enLinea: articulos.length, pedidos: pedidos.length };
+}
+
+/** Fiados de ejemplo: a 4 alumnos su última clase pagada pasa a "debe" (para ver la libreta y los adeudos). */
+export async function agregarFiadosDemo(): Promise<{ fiados: number }> {
+  const desde = sumarDias(hoy(), -14);
+  const pagadas = await db.asistencias.where('fecha').aboveOrEqual(desde).filter((a) => !!a.alumnoId && !!a.pagoId && !a.anuladaAt && !a.deletedAt).toArray();
+  const porAlumno = new Map<ID, Asistencia>();
+  for (const a of pagadas.sort((x, y) => (x.fecha < y.fecha ? 1 : -1))) if (!porAlumno.has(a.alumnoId!)) porAlumno.set(a.alumnoId!, a);
+  const elegidas = [...porAlumno.values()].slice(0, 4);
+  const ahora = Date.now();
+  for (const a of elegidas) {
+    const p = await db.pagos.get(a.pagoId!);
+    if (p) await guardar('pagos', { ...p, deletedAt: ahora });
+    await guardar('asistencias', { ...a, pagoId: null, debe: true });
+  }
+  return { fiados: elegidas.length };
 }

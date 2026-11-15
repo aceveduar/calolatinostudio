@@ -12,6 +12,7 @@ import { MENSAJES, armarMensaje, plantilla, type ClaveMensaje } from '../../doma
 import { waLink } from '../../domain/reportes';
 import { asegurarPortal, enlacePortal, regenerarPortal } from '../../domain/portal';
 import { useAvisos } from '../../components/avisos';
+import { useAdeudos } from './Adeudos';
 
 /** Datos del alumno para llenar los mensajes. */
 export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
@@ -52,16 +53,17 @@ export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
 export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno; estados: EstadoMembresia[]; onEnviado: () => void }) {
   const { academia, datos, tienePlan, tieneRecibo } = useDatosMensaje(alumno, estados);
   const avisar = useAvisos();
+  const { total: debe } = useAdeudos(alumno.id);
   // El enlace del portal se crea al abrir esta hoja, para que el mensaje ya lo lleve al tocarlo
   useEffect(() => {
     if (!alumno.portal) void asegurarPortal(alumno);
   }, [alumno]);
-  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, extrañamos: true, recibo: tieneRecibo };
+  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo };
 
   return (
     <div className="space-y-2">
       {MENSAJES.filter((m) => disponible[m.clave]).map((m) => {
-        const texto = armarMensaje(plantilla(academia, m.clave), datos);
+        const texto = armarMensaje(plantilla(academia, m.clave), m.clave === 'adeudo' ? { ...datos, monto: dinero(debe) } : datos);
         const link = waLink(alumno.telefono, texto);
         return (
           <a

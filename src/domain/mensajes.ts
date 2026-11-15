@@ -1,7 +1,7 @@
 /** Mensajes de WhatsApp: plantillas editables por la academia con datos del alumno. */
 import type { Academia } from '../db/types';
 
-export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'extrañamos' | 'recibo';
+export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'adeudo' | 'extrañamos' | 'recibo';
 
 export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; base: string }[] = [
   {
@@ -27,6 +27,12 @@ export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; ba
     titulo: 'Plan por vencer',
     cuando: 'Recordatorio antes de que termine su plan',
     base: 'Hola {nombre}, tu {plan} en {academia} vence el {vence}. ¿La renovamos para que sigas bailando? 💃🕺',
+  },
+  {
+    clave: 'adeudo',
+    titulo: 'Recordatorio de pago',
+    cuando: 'A quien entró y quedó a deber (fiado)',
+    base: 'Hola {nombre}, te recordamos que tienes pendiente {monto} de tus clases en {academia}. Puedes pagarlo en tu próxima clase. ¡Gracias! 💃🕺',
   },
   {
     clave: 'extrañamos',

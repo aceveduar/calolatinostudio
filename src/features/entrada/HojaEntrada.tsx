@@ -1,8 +1,10 @@
-import { sueltaPara } from '../../domain/sedes';
+import { sueltaDeClase } from '../../domain/sedes';
+import { adeudosDe, cobrarAdeudos, entrarFiado } from '../../domain/adeudos';
+import { db } from '../../db/db';
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CheckCircle2, Ticket, CalendarPlus, AlertTriangle } from 'lucide-react';
-import { nombreClase, useDisciplinas, useEstadosDeAlumno, usePlanes } from '../../app/datos';
+import { CheckCircle2, Ticket, CalendarPlus, AlertTriangle, Clock } from 'lucide-react';
+import { nombreClase, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Etiqueta, Hoja, Segmentos } from '../../components/ui';
@@ -38,7 +40,11 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
   const [ocupado, setOcupado] = useState(false);
 
   const cubre = clase ? membresiaQueCubre(estados, clase) : null;
-  const suelta = sueltaPara(planes, clase?.sedeId);
+  const suelta = sueltaDeClase(planes, clase);
+  const todasClases = useClases();
+  const asis = useLiveQuery(() => db.asistencias.where('alumnoId').equals(alumno.id).toArray(), [alumno.id], []);
+  const adeudos = adeudosDe(asis, todasClases, planes);
+  const totalDebe = adeudos.reduce((s, a) => s + a.monto, 0);
   const sem = semaforoAlumno(estados);
   const nClase = nombreClase(clase ?? undefined, disciplinas);
 
@@ -69,6 +75,29 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
           </div>
         </div>
       </div>
+
+      {adeudos.length > 0 && vista !== 'vender' && (
+        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-bad-50 p-3 text-sm text-bad-600">
+          <Clock size={18} className="shrink-0" />
+          <span className="min-w-0 flex-1">
+            <b>
+              Debe {adeudos.length} {adeudos.length === 1 ? 'clase' : 'clases'} · {dinero(totalDebe)}
+            </b>
+            <span className="block text-xs">{adeudos.map((a) => fechaCorta(a.asistencia.fecha)).join(', ')}</span>
+          </span>
+          <Boton
+            variante="secundario"
+            disabled={ocupado}
+            onClick={() =>
+              ejecutar(async () => {
+                await cobrarAdeudos({ adeudos, metodo, usuarioId: usuario.id, planes });
+              }, `Adeudo cobrado · ${dinero(totalDebe)}`)
+            }
+          >
+            Cobrar {dinero(totalDebe)}
+          </Boton>
+        </div>
+      )}
 
       {vista === 'vender' ? (
         <VenderPlan alumno={alumno} estados={estados} claseId={clase?.id} onHecho={onCerrar} />
@@ -133,6 +162,14 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
           )}
           <Boton grande bloque variante="secundario" onClick={() => setVista('vender')}>
             <CalendarPlus size={20} /> Vender mensualidad o paquete
+          </Boton>
+          <Boton
+            bloque
+            variante="fantasma"
+            disabled={ocupado}
+            onClick={() => ejecutar(() => entrarFiado({ alumnoId: alumno.id, claseId: clase.id, usuarioId: usuario.id }), `${nombreCorto} entró · queda debiendo ${suelta ? dinero(suelta.precio) : 'la clase'}`)}
+          >
+            <Clock size={18} /> Entra y paga después
           </Boton>
         </div>
       )}

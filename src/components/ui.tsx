@@ -258,3 +258,20 @@ export function Seccion({ titulo, accion, children }: { titulo: string; accion?:
     </section>
   );
 }
+
+export function Interruptor({ valor, onChange, texto }: { valor: boolean; onChange: (v: boolean) => void; texto: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={valor}
+      onClick={() => onChange(!valor)}
+      className="flex w-full items-center justify-between gap-3 rounded-xl bg-superficie px-4 py-3 text-left text-ink-900 ring-1 ring-ink-100"
+    >
+      <span className="font-medium">{texto}</span>
+      <span className={cx('relative h-7 w-12 shrink-0 rounded-full transition', valor ? 'bg-ok-600' : 'bg-ink-300')}>
+        <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-superficie shadow transition-all', valor ? 'left-[22px]' : 'left-0.5')} />
+      </span>
+    </button>
+  );
+}

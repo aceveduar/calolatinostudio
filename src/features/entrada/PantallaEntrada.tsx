@@ -4,7 +4,7 @@ import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, A
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { mismaSede, nombreSede, useSedeActual, useSedes } from '../../app/sedes';
-import { sueltaPara } from '../../domain/sedes';
+import { sueltaDeClase, sueltaPara } from '../../domain/sedes';
 import { useAngosta, useEsEscritorio } from '../../app/pantalla';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
@@ -52,12 +52,13 @@ export function PantallaEntrada() {
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const planes = usePlanes();
-  const suelta = sueltaPara(planes, sedeActual);
   const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
 
   const [claseId, setClaseId] = useState<ID | null>(null);
   const [verTodas, setVerTodas] = useState(false);
   const clase: Clase | null = clases.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
+  // precio de la clase elegida (cada maestro puede tener su tarifa); si no hay clase, el de la sede
+  const suelta = clase ? sueltaDeClase(planes, clase) : sueltaPara(planes, sedeActual);
 
   const [q, setQ] = useState('');
   const [vista, setVista] = useState<'llegan' | 'adentro'>('llegan');
@@ -635,7 +636,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
 function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () => void }) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
-  const suelta = sueltaPara(usePlanes(), clase?.sedeId);
+  const suelta = sueltaDeClase(usePlanes(), clase);
   const [nombre, setNombre] = useState('');
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [ocupado, setOcupado] = useState(false);

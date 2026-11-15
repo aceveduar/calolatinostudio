@@ -91,14 +91,19 @@ export async function venderPlan(p: {
   entrarAClaseId?: ID;
   /** dónde se cobró (si entra a una clase, la de esa clase) */
   sedeId?: ID | null;
+  /** planes por clase: qué clases cubre */
+  claseIds?: ID[];
+  /** recargo por atraso incluido en el monto (solo para el concepto del cobro) */
+  recargo?: number;
 }): Promise<{ pago: Pago; membresia: Membresia }> {
+  if (p.plan.grupos && (p.claseIds?.length ?? 0) !== p.plan.grupos) throw new Error(`Elige ${p.plan.grupos === 1 ? 'la clase' : `las ${p.plan.grupos} clases`} que cubre`);
   return enTransaccion(async () => {
     const clase = p.entrarAClaseId ? await db.clases.get(p.entrarAClaseId) : undefined;
     const pago = await crear('pagos', {
       ...conSede(clase ? clase.sedeId : p.sedeId),
       alumnoId: p.alumnoId,
       planId: p.plan.id,
-      concepto: p.plan.nombre,
+      concepto: p.recargo ? `${p.plan.nombre} + recargo` : p.plan.nombre,
       monto: p.monto ?? p.plan.precio,
       metodo: p.metodo,
       usuarioId: p.usuarioId,
@@ -117,6 +122,7 @@ export async function venderPlan(p: {
       fin: calcularFin(p.plan, p.inicio),
       clasesTotal: p.plan.tipo === 'mensual' ? null : p.plan.clases,
       anuladaAt: null,
+      ...(p.claseIds?.length ? { claseIds: p.claseIds } : {}),
     });
     if (p.entrarAClaseId && p.inicio <= hoy()) {
       await entrarConMembresia({

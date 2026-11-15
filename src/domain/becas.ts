@@ -5,7 +5,7 @@
  * Solo la dirección puede darlas; recepción solo ve que el alumno es becado.
  */
 import type { Asistencia, Clase, Fecha, ID, Membresia, Plan } from '../db/types';
-import { sueltaPara } from './sedes';
+import { sueltaDeClase } from './sedes';
 
 export const VIGENCIA_BECA = 180;
 
@@ -34,13 +34,13 @@ export function resumenBecas(p: {
   const planesBeca = new Set(p.planes.filter(esBeca).map((x) => x.id));
   const becas = p.mems.filter((m) => planesBeca.has(m.planId) && !m.anuladaAt && !m.deletedAt);
   const ids = new Set(becas.map((m) => m.id));
-  const sedeDe = new Map(p.clases.map((c) => [c.id, c.sedeId ?? null]));
+  const claseDe = new Map(p.clases.map((c) => [c.id, c]));
   const enPeriodo = p.asis.filter((a) => a.membresiaId && ids.has(a.membresiaId) && !a.anuladaAt && !a.deletedAt && a.fecha >= p.desde && a.fecha <= p.hasta);
   const porMem = new Map<ID, number>();
   let valor = 0;
   for (const a of enPeriodo) {
     porMem.set(a.membresiaId!, (porMem.get(a.membresiaId!) ?? 0) + 1);
-    valor += sueltaPara(p.planes, sedeDe.get(a.claseId) ?? null)?.precio ?? 0;
+    valor += sueltaDeClase(p.planes, claseDe.get(a.claseId))?.precio ?? 0;
   }
   const activas = becas
     .filter((m) => m.inicio <= p.hoy && m.fin >= p.hoy)

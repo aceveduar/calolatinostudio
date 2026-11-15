@@ -25,10 +25,15 @@ export function estadoMembresia(m: Membresia, asistencias: Asistencia[], dia: Fe
  */
 export function membresiaQueCubre(
   estados: EstadoMembresia[],
-  clase: Pick<Clase, 'disciplinaId' | 'sedeId'>,
+  clase: Pick<Clase, 'id' | 'disciplinaId' | 'sedeId'>,
 ): EstadoMembresia | null {
   const aplicables = estados.filter(
-    (e) => e.vigente && (e.membresia.disciplinaId === null || e.membresia.disciplinaId === clase.disciplinaId) && sirveEn(e.membresia.sedeId, clase.sedeId),
+    (e) =>
+      e.vigente &&
+      (e.membresia.disciplinaId === null || e.membresia.disciplinaId === clase.disciplinaId) &&
+      sirveEn(e.membresia.sedeId, clase.sedeId) &&
+      // mensual por clase (1 o 2 grupos): solo las clases elegidas al pagar
+      (!e.membresia.claseIds?.length || e.membresia.claseIds.includes(clase.id)),
   );
   aplicables.sort((a, b) => {
     if (a.membresia.fin !== b.membresia.fin) return a.membresia.fin < b.membresia.fin ? -1 : 1;

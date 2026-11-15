@@ -9,6 +9,7 @@ import { Bloqueo } from './features/acceso/Bloqueo';
 import { PantallaAjustes } from './features/ajustes/PantallaAjustes';
 import { FichaAlumno } from './features/alumnos/FichaAlumno';
 import { PantallaAlumnos } from './features/alumnos/PantallaAlumnos';
+import { PantallaListas } from './features/alumnos/PantallaListas';
 import { PantallaCaja } from './features/caja/PantallaCaja';
 import { PantallaReportes } from './features/reportes/PantallaReportes';
 import { PantallaGastos } from './features/gastos/PantallaGastos';
@@ -51,6 +52,7 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route index element={<PantallaEntrada />} />
                 <Route path="alumnos" element={<PantallaAlumnos />} />
+                <Route path="alumnos/listas" element={<PantallaListas />} />
                 <Route path="alumnos/:id" element={<FichaAlumno />} />
                 <Route path="caja" element={<PantallaCaja />} />
                 <Route path="agenda" element={<PantallaAgenda />} />

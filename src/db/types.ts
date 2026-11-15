@@ -25,6 +25,8 @@ export interface Academia {
   logo?: string | null;
   /** Textos de WhatsApp personalizados por la academia (clave → plantilla). */
   mensajes?: Record<string, string> | null;
+  /** recargo por día de atraso en mensualidades (centavos); vacío o 0 = sin recargo */
+  recargoDiario?: number | null;
   /** Nombre del lugar principal (las demás sedes están en `sedes`). */
   sedePrincipal?: string | null;
   createdAt: number;
@@ -80,6 +82,8 @@ export interface Clase extends Base {
   horaInicio: string; // 'HH:mm'
   duracionMin: number;
   activo: boolean;
+  /** precio de clase suelta propio (cada maestro pone su tarifa); vacío = el de la sede */
+  precioSuelta?: number | null;
 }
 
 export type TipoPlan = 'suelta' | 'mensual' | 'paquete';
@@ -97,6 +101,8 @@ export interface Plan extends Base {
   /** null = sirve para todas las disciplinas */
   disciplinaId: ID | null;
   activo: boolean;
+  /** mensual por clase: cuántas clases (grupos) cubre, p. ej. 1 = $300, 2 = $450; vacío = todas */
+  grupos?: number | null;
 }
 
 export type CategoriaProducto = 'consumo' | 'articulo';
@@ -164,6 +170,8 @@ export interface Membresia extends Base {
   fin: Fecha;
   clasesTotal: number | null;
   anuladaAt: number | null;
+  /** clases que cubre (planes por clase); vacío = todas las que permita el plan */
+  claseIds?: ID[] | null;
 }
 
 export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta';
@@ -199,6 +207,8 @@ export interface Asistencia extends Base {
   pagoId: ID | null;
   usuarioId: ID;
   anuladaAt: number | null;
+  /** entró sin pagar (fiado). Queda saldada cuando se le liga un pago (pagoId). */
+  debe?: boolean | null;
 }
 
 export interface Corte extends Base {

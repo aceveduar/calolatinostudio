@@ -11,7 +11,7 @@ import { db } from '../db/db';
 import { actualizar, borrar, crear, enTransaccion } from '../db/repo';
 import type { Clase, ID, MetodoPago, Plan } from '../db/types';
 import { hoy } from './fechas';
-import { sueltaPara } from './sedes';
+import { sueltaDeClase, sueltaPara } from './sedes';
 import { estadoMembresia, membresiaQueCubre } from './membresias';
 import { cobrarClaseSuelta, entrarConMembresia, generarCodigo, yaEntroHoy } from './operaciones';
 
@@ -54,7 +54,7 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
     return { tipo: 'ok', mov: { ...base, monto: 0, metodo: null, pagoId: null, asistenciaId: a.id, ...(beca && { beca }) } };
   }
 
-  const suelta = await planSuelta(p.clase.sedeId);
+  const suelta = sueltaDeClase(await db.planes.toArray(), p.clase);
   if (!suelta) return { tipo: 'sin-precio' };
   const r = await cobrarClaseSuelta({ alumnoId: p.alumnoId, claseId: p.clase.id, plan: suelta, metodo: 'efectivo', usuarioId: p.usuarioId });
   return { tipo: 'ok', mov: { ...base, monto: r.pago.monto, metodo: 'efectivo', pagoId: r.pago.id, asistenciaId: r.asistencia.id } };
@@ -62,7 +62,7 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
 
 /** La tarjeta de siempre: cobra sin pedir nombre. */
 export async function entradaSinNombre(clase: Clase, usuarioId: ID): Promise<Resultado> {
-  const suelta = await planSuelta(clase.sedeId);
+  const suelta = sueltaDeClase(await db.planes.toArray(), clase);
   if (!suelta) return { tipo: 'sin-precio' };
   const r = await cobrarClaseSuelta({ alumnoId: null, claseId: clase.id, plan: suelta, metodo: 'efectivo', usuarioId });
   return {

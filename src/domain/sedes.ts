@@ -1,5 +1,5 @@
 /** Reglas de sede para planes y precios. */
-import type { ID, Plan } from '../db/types';
+import type { Clase, ID, Plan } from '../db/types';
 
 /** Alcance de planes: vacío = todas · PRINCIPAL = solo la principal · id = esa sede. */
 export const PRINCIPAL = '00000000-0000-4000-8000-000000000000';
@@ -9,6 +9,15 @@ export const claveSede = (sedeId: ID | null | undefined): ID => sedeId ?? PRINCI
 
 /** ¿Un plan/membresía con este alcance sirve en esta sede? */
 export const sirveEn = (alcance: ID | null | undefined, sedeId: ID | null | undefined) => !alcance || alcance === claveSede(sedeId);
+
+/**
+ * Clase suelta de una clase: el plan de su sede, con el precio propio de la clase si el maestro puso su tarifa.
+ * (El plan sigue siendo el de la sede, para que los reportes lo agrupen igual.)
+ */
+export function sueltaDeClase(planes: Plan[], clase: Pick<Clase, 'sedeId' | 'precioSuelta'> | null | undefined): Plan | undefined {
+  const base = sueltaPara(planes, clase?.sedeId);
+  return base && clase?.precioSuelta ? { ...base, precio: clase.precioSuelta } : base;
+}
 
 /** Precio de clase suelta para una sede: el de esa sede si existe; si no, el general. */
 export function sueltaPara(planes: Plan[], sedeId: ID | null | undefined): Plan | undefined {

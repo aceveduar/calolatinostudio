@@ -18,6 +18,7 @@ import { FormAlumno } from './FormAlumno';
 import { VenderPlan } from './VenderPlan';
 import { CredencialQR } from './CredencialQR';
 import { EnviarWhatsApp } from './EnviarWhatsApp';
+import { TarjetaAdeudos } from './Adeudos';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -106,6 +107,8 @@ export function FichaAlumno() {
         </p>
       ))}
       {alumno.notas && <p className="mt-3 rounded-xl bg-superficie px-4 py-2 text-sm text-ink-700 ring-1 ring-ink-100">{alumno.notas}</p>}
+
+      <TarjetaAdeudos alumno={alumno} />
 
       <div className="mt-5 grid grid-cols-2 gap-2">
         <Boton grande onClick={() => setVender(true)} className="col-span-2">
