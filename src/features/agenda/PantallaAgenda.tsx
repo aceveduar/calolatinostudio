@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, PartyPopper, Plus } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, useRentas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -64,7 +65,10 @@ export function PantallaAgenda() {
   const metaMes = (academia.metaDiaria ?? 0) * Number(hasta.slice(8));
   const esMesActual = mes === mesDe(hoy());
   const cobrado = cobros.filter((c) => c.pago).reduce((s, c) => s + c.pago!.monto, 0);
-  const otras = rentas.filter((r) => !cobros.some((c) => c.renta.id === r.id));
+  const otras = rentas.filter((r) => !r.eventoId && !cobros.some((c) => c.renta.id === r.id));
+  const nav = useNavigate();
+  // tocar un bloque: evento de la academia → su pantalla; renta → editarla (dirección)
+  const abrirBloque = (r: Renta) => (r.eventoId ? nav(`/agenda/eventos/${r.eventoId}`) : esDueno ? setEditar(r) : undefined);
 
   return (
     <div className="px-4 pb-8">
@@ -73,11 +77,18 @@ export function PantallaAgenda() {
           titulo="Agenda del salón"
           sub={nombreSede(null, sedes, academia)}
           accion={
-            esDueno && (
-              <Boton onClick={() => setEditar('nueva')}>
-                <Plus size={18} /> Apartar
-              </Boton>
-            )
+            <div className="flex gap-2">
+              <Link to="/agenda/eventos">
+                <Boton variante="secundario">
+                  <PartyPopper size={18} /> Eventos
+                </Boton>
+              </Link>
+              {esDueno && (
+                <Boton onClick={() => setEditar('nueva')}>
+                  <Plus size={18} /> Apartar
+                </Boton>
+              )}
+            </div>
           }
         />
       </div>
@@ -119,7 +130,7 @@ export function PantallaAgenda() {
       </p>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {dias.map((f) => (
-          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined} onRenta={esDueno ? (r) => setEditar(r) : undefined} />
+          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined} onRenta={abrirBloque} />
         ))}
       </div>
 
@@ -246,7 +257,7 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: 
               <span className="w-[5.6rem] shrink-0 text-xs font-semibold text-ink-500 tabular-nums">{r && r.duracionMin >= TODO_EL_DIA.duracionMin ? 'Todo el día' : `${horaTexto(b.inicio)}–${horaTexto(b.fin)}`}</span>
               <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: color }} />
               <span className="line-clamp-2 min-w-0 flex-1 text-sm leading-tight font-semibold break-words">{r ? r.nombre : nombreClase(b.clase, disciplinas)}</span>
-              {r?.tipo === 'evento' && <span className="shrink-0 text-[11px] font-bold text-[#7c4ddb]">Evento</span>}
+              {r?.tipo === 'evento' && <span className="shrink-0 text-[11px] font-bold text-[#7c4ddb]">{r.eventoId ? 'Evento propio' : 'Evento'}</span>}
             </>
           );
           return r && onRenta ? (

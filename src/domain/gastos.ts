@@ -100,6 +100,7 @@ export function registrarGasto(p: {
   metodo: MetodoPago;
   sedeId: ID | null;
   fijoId?: ID | null;
+  eventoId?: ID | null;
   notas?: string;
   usuarioId: ID;
 }): Promise<Gasto> {
@@ -115,5 +116,6 @@ export function registrarGasto(p: {
     metodo: p.metodo,
     notas: (p.notas ?? '').trim(),
     usuarioId: p.usuarioId,
+    ...(p.eventoId ? { eventoId: p.eventoId } : {}),
   });
 }

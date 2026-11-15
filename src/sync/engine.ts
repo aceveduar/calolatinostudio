@@ -71,6 +71,11 @@ async function push(): Promise<void> {
         for (const r of regs) if (r.productoId) retenidos.add(r.id as ID);
         regs = regs.filter((r) => !r.productoId);
       }
+      // Boletos de eventos: igual, esperan a que la base tenga eventos
+      if (tabla === 'pagos' && (tablasFaltantes.has('eventos') || columnasFaltantes.has('pagos.evento_id'))) {
+        for (const r of regs) if (r.eventoId) retenidos.add(r.id as ID);
+        regs = regs.filter((r) => !r.eventoId);
+      }
       // Cobros de renta: igual, esperan a que la base tenga rentas (si no, perderían a qué renta y mes pertenecen)
       if (tabla === 'pagos' && (tablasFaltantes.has('rentas') || columnasFaltantes.has('pagos.renta_id') || columnasFaltantes.has('pagos.periodo'))) {
         for (const r of regs) if (r.rentaId) retenidos.add(r.id as ID);

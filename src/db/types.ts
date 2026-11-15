@@ -141,6 +141,39 @@ export interface Producto extends Base {
   opciones?: string[] | null;
 }
 
+/**
+ * Evento de la academia (p. ej. fiesta de Día de Muertos, baile de diciembre): cupo, boletos y su propio dinero.
+ * Aparta el salón con una renta interna (`rentaId`) para que la agenda y los empalmes lo tomen en cuenta.
+ */
+export interface Evento extends Base {
+  sedeId?: ID | null;
+  salonId?: ID | null;
+  nombre: string;
+  fecha: Fecha;
+  horaInicio: string;
+  duracionMin: number;
+  /** null = sin límite */
+  cupo: number | null;
+  /** precio del boleto (centavos) */
+  precio: number;
+  descripcion: string;
+  activo: boolean;
+  rentaId: ID | null;
+}
+
+/** Un boleto = una persona. Se venden juntos en un cobro (pagoId) y se marcan al entrar. */
+export interface Boleto extends Base {
+  eventoId: ID;
+  nombre: string;
+  telefono: string;
+  alumnoId: ID | null;
+  pagoId: ID | null;
+  /** código corto para buscarlo en la entrada */
+  codigo: string;
+  usadoAt: number | null;
+  anuladoAt: number | null;
+}
+
 export type EstadoPedido = 'pendiente' | 'entregado' | 'cancelado';
 
 /**
@@ -195,6 +228,8 @@ export interface Pago extends Base {
   /** venta de tienda: qué producto y cuántas piezas */
   productoId?: ID | null;
   cantidad?: number | null;
+  /** venta de boletos de un evento */
+  eventoId?: ID | null;
   /** cobro de renta del salón: qué renta y de qué mes ('YYYY-MM') */
   rentaId?: ID | null;
   periodo?: string | null;
@@ -267,6 +302,8 @@ export interface Renta extends Base {
   maestroId?: ID | null;
   /** salón del estudio; vacío = salón principal */
   salonId?: ID | null;
+  /** renta interna que aparta el salón para un evento de la academia */
+  eventoId?: ID | null;
 }
 
 export type CategoriaGasto = 'renta' | 'luz' | 'agua' | 'internet' | 'maestros' | 'limpieza' | 'otro';
@@ -293,6 +330,8 @@ export interface Gasto extends Base {
   fecha: Fecha;
   /** si viene de un gasto fijo, cuál (para saber qué falta pagar en el mes) */
   fijoId: ID | null;
+  /** gasto de un evento (decoración, DJ…): cuenta para la utilidad del evento */
+  eventoId?: ID | null;
   metodo: MetodoPago;
   notas: string;
   usuarioId: ID;
@@ -328,6 +367,8 @@ export interface TablaMap {
   gastos: Gasto;
   rentas: Renta;
   pedidos: Pedido;
+  eventos: Evento;
+  boletos: Boleto;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -350,4 +391,6 @@ export const SYNC_TABLES: SyncTable[] = [
   'gastos',
   'rentas',
   'pedidos',
+  'eventos',
+  'boletos',
 ];

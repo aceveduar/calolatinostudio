@@ -42,7 +42,7 @@ export function PantallaCaja() {
     const visitantes = new Map(asis.filter((a) => a.pagoId).map((a) => [a.pagoId!, a.nombreVisitante]));
     return {
       pagos: pagos
-        .map((p, i) => ({ p, quien: alumnos[i]?.nombre ?? visitantes.get(p.id) ?? (p.rentaId ? p.concepto.split(' · ')[1] || 'Renta' : 'Visitante') }))
+        .map((p, i) => ({ p, quien: alumnos[i]?.nombre ?? visitantes.get(p.id) ?? (p.rentaId ? p.concepto.split(' · ')[1] || 'Renta' : p.eventoId ? 'Boletos' : 'Visitante') }))
         .sort((a, b) => b.p.createdAt - a.p.createdAt),
       asis,
       corte: cortes[cortes.length - 1],
@@ -111,9 +111,16 @@ export function PantallaCaja() {
       <div className="rounded-3xl bg-panel p-5 text-white">
         <p className="text-sm text-white/60">Total cobrado</p>
         <p className="mt-1 text-4xl font-extrabold tracking-tight">{dinero(r.total)}</p>
-        {(r.tienda > 0 || r.rentas > 0) && (
+        {(r.tienda > 0 || r.rentas > 0 || r.eventos > 0) && (
           <p className="mt-1 text-sm text-white/70">
-            {[`Clases ${dinero(r.total - r.tienda - r.rentas)}`, r.tienda > 0 && `Tienda ${dinero(r.tienda)}`, r.rentas > 0 && `Renta del salón ${dinero(r.rentas)}`].filter(Boolean).join(' · ')}
+            {[
+              `Clases ${dinero(r.total - r.tienda - r.rentas - r.eventos)}`,
+              r.tienda > 0 && `Tienda ${dinero(r.tienda)}`,
+              r.rentas > 0 && `Renta del salón ${dinero(r.rentas)}`,
+              r.eventos > 0 && `Eventos ${dinero(r.eventos)}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         )}
         <div className="mt-4 grid grid-cols-3 gap-3 text-sm">

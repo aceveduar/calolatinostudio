@@ -158,7 +158,8 @@ export function cobrosDelMes(rentas: Renta[], pagos: Pago[], mes: Mes, ctx: CtxC
   const { desde, hasta } = rangoMes(mes);
   const pagados = pagos.filter((p) => vivo(p) && !p.anuladoAt && p.rentaId && p.periodo === mes);
   return rentas
-    .filter((r) => vivo(r) && r.desde <= hasta && (r.hasta === null || r.hasta >= desde) && (r.activo || pagados.some((p) => p.rentaId === r.id)))
+    // las rentas internas de eventos de la academia no se cobran (el evento tiene sus boletos)
+    .filter((r) => vivo(r) && !r.eventoId && r.desde <= hasta && (r.hasta === null || r.hasta >= desde) && (r.activo || pagados.some((p) => p.rentaId === r.id)))
     .map((renta) => ({ renta, pago: pagados.find((p) => p.rentaId === renta.id) ?? null, ...montoDelMes(renta, mes, ctx) }))
     .sort((a, b) => Number(!!a.pago) - Number(!!b.pago) || a.renta.nombre.localeCompare(b.renta.nombre));
 }

@@ -9,6 +9,8 @@ export interface ResumenCaja {
   tienda: number;
   /** cobros de renta del salón */
   rentas: number;
+  /** boletos de eventos (dinero aparte) */
+  eventos: number;
   cobros: number;
   anulados: number;
   porConcepto: { concepto: string; cantidad: number; monto: number }[];
@@ -34,6 +36,7 @@ export function resumenCaja(pagos: Pago[]): ResumenCaja {
     total: efectivo + transferencia + tarjeta,
     tienda: validos.filter((p) => p.productoId).reduce((s, p) => s + p.monto, 0),
     rentas: validos.filter((p) => p.rentaId).reduce((s, p) => s + p.monto, 0),
+    eventos: validos.filter((p) => p.eventoId).reduce((s, p) => s + p.monto, 0),
     cobros: validos.length,
     anulados: pagos.length - validos.length,
     porConcepto: [...conceptos.entries()]

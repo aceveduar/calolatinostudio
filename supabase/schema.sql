@@ -251,6 +251,39 @@ create table if not exists pedidos (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+create table if not exists eventos (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  sede_id uuid,
+  salon_id uuid,
+  nombre text not null,
+  fecha date not null,
+  hora_inicio text not null,
+  duracion_min int not null default 180,
+  cupo int,
+  precio int not null default 0,
+  descripcion text not null default '',
+  activo boolean not null default true,
+  renta_id uuid,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
+create table if not exists boletos (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  evento_id uuid not null,
+  nombre text not null,
+  telefono text not null default '',
+  alumno_id uuid,
+  pago_id uuid,
+  codigo text not null,
+  usado_at bigint,
+  anulado_at bigint,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
@@ -283,6 +316,9 @@ alter table rentas add column if not exists maestro_id uuid;
 alter table academias add column if not exists salones jsonb;
 alter table clases add column if not exists salon_id uuid;
 alter table rentas add column if not exists salon_id uuid;
+alter table pagos add column if not exists evento_id uuid;
+alter table gastos add column if not exists evento_id uuid;
+alter table rentas add column if not exists evento_id uuid;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------
@@ -296,7 +332,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -322,7 +358,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
   end loop;
@@ -353,7 +389,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;

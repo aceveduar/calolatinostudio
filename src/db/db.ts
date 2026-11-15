@@ -17,6 +17,8 @@ import type {
   GastoFijo,
   Renta,
   Pedido,
+  Evento,
+  Boleto,
   Sede,
   Usuario,
 } from './types';
@@ -35,6 +37,8 @@ export class CompasDB extends Dexie {
   gastos!: EntityTable<Gasto, 'id'>;
   rentas!: EntityTable<Renta, 'id'>;
   pedidos!: EntityTable<Pedido, 'id'>;
+  eventos!: EntityTable<Evento, 'id'>;
+  boletos!: EntityTable<Boleto, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -109,6 +113,14 @@ export class CompasDB extends Dexie {
 
     // v7: apartados de la tienda hechos desde el portal del alumno
     this.version(7).stores({ pedidos: 'id, academiaId, estado, alumnoId' });
+
+    // v8: eventos con boletos; ventas y gastos ligados a un evento
+    this.version(8).stores({
+      eventos: 'id, academiaId, fecha',
+      boletos: 'id, academiaId, eventoId',
+      pagos: 'id, academiaId, fecha, alumnoId, productoId, rentaId, eventoId',
+      gastos: 'id, academiaId, fecha, eventoId',
+    });
   }
 }
 

@@ -635,3 +635,38 @@ export async function agregarFiadosDemo(): Promise<{ fiados: number }> {
   }
   return { fiados: elegidas.length };
 }
+
+/** Eventos de ejemplo: la fiesta de Día de Muertos (ya pasó, con entradas) y el baile de diciembre (vendiéndose). */
+export async function agregarEventosDemo(): Promise<{ eventos: number; boletos: number }> {
+  const { crearEvento, venderBoletos, marcarEntrada } = await import('../domain/eventos');
+  const { registrarGasto } = await import('../domain/gastos');
+  if (await db.eventos.filter((e) => !e.deletedAt).count()) throw new Error('Ya hay eventos');
+  const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt);
+  if (!dueno) throw new Error('No hay usuario de dirección');
+  const hoyF = hoy();
+  const anio = hoyF.slice(0, 4);
+  const muertos = await crearEvento({ nombre: 'Fiesta de Día de Muertos', fecha: `${anio}-11-01`, horaInicio: '18:00', duracionMin: 300, cupo: 50, precio: 15000, descripcion: 'Concurso de disfraces y baile', salonId: null });
+  const navidad = await crearEvento({ nombre: 'Baile de Navidad', fecha: `${anio}-12-13`, horaInicio: '19:00', duracionMin: 240, cupo: 60, precio: 18000, descripcion: 'Social de salsa y bachata con DJ', salonId: null });
+  const r = generador(11);
+  const nombre = () => `${PILAS[Math.floor(r() * PILAS.length)]} ${APELLIDOS[Math.floor(r() * APELLIDOS.length)]}`;
+  let n = 0;
+  // Día de Muertos: se llenó (50) y entraron 46
+  while (n < 50) {
+    const cant = Math.min(50 - n, r() < 0.3 ? 2 : 1);
+    const { boletos, pago } = await venderBoletos({ evento: muertos, nombre: nombre(), telefono: r() < 0.7 ? `55${Math.floor(10000000 + r() * 89999999)}` : '', cantidad: cant, metodo: r() < 0.8 ? 'efectivo' : 'transferencia', usuarioId: dueno.id });
+    await guardar('pagos', { ...pago, fecha: `${anio}-10-${String(20 + Math.floor(r() * 12)).padStart(2, '0')}` });
+    for (const b of boletos) if (n++ < 46) await marcarEntrada(b.id, true);
+  }
+  await registrarGasto({ concepto: 'Decoración (Fiesta de Día de Muertos)', categoria: 'otro', monto: 120000, fecha: `${anio}-10-30`, metodo: 'efectivo', sedeId: null, eventoId: muertos.id, usuarioId: dueno.id });
+  await registrarGasto({ concepto: 'Premios del concurso (Fiesta de Día de Muertos)', categoria: 'otro', monto: 60000, fecha: `${anio}-11-01`, metodo: 'efectivo', sedeId: null, eventoId: muertos.id, usuarioId: dueno.id });
+  // Navidad: 23 vendidos hasta ahora
+  let m = 0;
+  while (m < 23) {
+    const cant = Math.min(23 - m, r() < 0.3 ? 2 : 1);
+    const { pago } = await venderBoletos({ evento: navidad, nombre: nombre(), telefono: `55${Math.floor(10000000 + r() * 89999999)}`, cantidad: cant, metodo: 'efectivo', usuarioId: dueno.id });
+    await guardar('pagos', { ...pago, fecha: sumarDias(hoyF, -Math.floor(r() * 10)) });
+    m += cant;
+  }
+  await registrarGasto({ concepto: 'Anticipo DJ (Baile de Navidad)', categoria: 'otro', monto: 75000, fecha: hoyF, metodo: 'transferencia', sedeId: null, eventoId: navidad.id, usuarioId: dueno.id });
+  return { eventos: 2, boletos: n + m };
+}
