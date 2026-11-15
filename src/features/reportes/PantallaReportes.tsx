@@ -13,6 +13,7 @@ import { aFecha, diasEntre, fechaCorta, fechaLarga, hoy, sumarDias } from '../..
 import { textoDias } from '../../domain/membresias';
 import { dejaronDeVenir, indicadores, ingresosPorDia, periodos, porClase, variacion, vencenPronto, waLink } from '../../domain/reportes';
 import { GraficaBarras } from './GraficaBarras';
+import { TendenciaAnual } from './TendenciaAnual';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { esBeca, resumenBecas } from '../../domain/becas';
 import { mesDe, nombreMes, rangoMes, resumenMes } from '../../domain/gastos';
@@ -191,6 +192,8 @@ export function PantallaReportes() {
           )}
         </Seccion>
       )}
+
+      <TendenciaAnual verSede={verSede} />
 
       <Seccion titulo="Ingresos por día">
         <Tarjeta className="p-4">
