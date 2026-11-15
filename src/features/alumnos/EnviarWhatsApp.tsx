@@ -51,14 +51,14 @@ export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
 
 /** Elegir qué mensaje mandar: se abre WhatsApp con el texto ya escrito. */
 export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno; estados: EstadoMembresia[]; onEnviado: () => void }) {
-  const { academia, datos, tienePlan, tieneRecibo } = useDatosMensaje(alumno, estados);
+  const { academia, datos, tienePlan, tieneRecibo, vencido } = useDatosMensaje(alumno, estados);
   const avisar = useAvisos();
   const { total: debe } = useAdeudos(alumno.id);
   // El enlace del portal se crea al abrir esta hoja, para que el mensaje ya lo lleve al tocarlo
   useEffect(() => {
     if (!alumno.portal) void asegurarPortal(alumno);
   }, [alumno]);
-  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
+  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan && !vencido, vencio: vencido, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
 
   return (
     <div className="space-y-2">

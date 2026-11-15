@@ -15,6 +15,7 @@ import {
   Globe,
   GraduationCap,
   LayoutGrid,
+  ListChecks,
   MapPin,
   Megaphone,
   MessageCircle,
@@ -40,7 +41,7 @@ export const GRUPOS: { id: Grupo; titulo: string }[] = [
 ];
 
 /** Contadores que la pantalla "Más" sabe calcular (ver PantallaMas). */
-export type Contador = 'interesados' | 'encargos';
+export type Contador = 'interesados' | 'encargos' | 'pendientes';
 
 export interface Modulo {
   id: string;
@@ -67,6 +68,7 @@ export const MODULOS: Modulo[] = [
   { id: 'caja', titulo: 'Caja', icono: Wallet, ruta: '/caja', para: ['dueno', 'recepcion'], pestana: { dueno: 2, recepcion: 2 } },
   { id: 'reportes', titulo: 'Reportes', icono: ChartColumn, ruta: '/reportes', para: ['dueno'], pestana: { dueno: 3 } },
   // ---------- el negocio ----------
+  { id: 'pendientes', titulo: 'Pendientes', ayuda: 'A quién escribir y qué cobrar', icono: ListChecks, ruta: '/pendientes', para: ['dueno', 'recepcion'], grupo: 'negocio', contador: 'pendientes' },
   { id: 'agenda', titulo: 'Agenda del salón', corto: 'Agenda', ayuda: 'Clases, rentas y huecos libres', icono: CalendarDays, ruta: '/agenda', para: ['dueno', 'recepcion'], pestana: { recepcion: 3 }, grupo: 'negocio' },
   { id: 'eventos', titulo: 'Eventos', ayuda: 'Boletos, cupo y entrada', icono: PartyPopper, ruta: '/agenda/eventos', para: ['dueno', 'recepcion'], grupo: 'negocio' },
   { id: 'gastos', titulo: 'Gastos y utilidad', ayuda: 'Renta, luz y lo que queda', icono: WalletCards, ruta: '/reportes/gastos', para: ['dueno'], grupo: 'negocio' },

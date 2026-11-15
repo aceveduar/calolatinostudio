@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag, MapPin, ChevronDown, Check } from 'lucide-react';
+import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag, MapPin, ChevronDown, Check, ListChecks } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { usePendientes } from '../pendientes/PantallaPendientes';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { mismaSede, nombreSede, useSedeActual, useSedes } from '../../app/sedes';
@@ -71,6 +73,7 @@ export function PantallaEntrada() {
   const [escanear, setEscanear] = useState(false);
   const [tienda, setTienda] = useState(false);
   const porRecoger = usePedidosPendientes().length;
+  const pendientes = usePendientes(false)?.total ?? 0;
   const [movs, setMovs] = useState<Movimiento[]>([]);
   const enCurso = useRef(new Set<string>());
   const busca = useRef<HTMLInputElement>(null);
@@ -257,16 +260,30 @@ export function PantallaEntrada() {
         titulo="Entrada"
         sub={fechaLarga(hoy())}
         accion={
-          sedes.length > 0 ? (
-            <button
-              onClick={() => setElegirSede(true)}
-              className="mr-0 flex max-w-[55%] items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
-              aria-label="Cambiar sede"
-            >
-              <MapPin size={16} style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} />
-              <span className="truncate">{nombreSede(sedeActual, sedes, academia)}</span>
-              <ChevronDown size={14} className="shrink-0 text-ink-500" />
-            </button>
+          pendientes || sedes.length > 0 ? (
+            <div className="flex max-w-[65%] min-w-0 items-center gap-2">
+              {pendientes > 0 && (
+                <Link
+                  to="/pendientes"
+                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-500 py-2 pr-3 pl-2.5 text-sm font-bold text-white shadow-sm shadow-brand-500/30 active:scale-95"
+                  aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
+                >
+                  <ListChecks size={16} /> {pendientes}
+                  {sedes.length === 0 && <span className="font-semibold">{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>}
+                </Link>
+              )}
+              {sedes.length > 0 && (
+                <button
+                  onClick={() => setElegirSede(true)}
+                  className="flex min-w-0 items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+                  aria-label="Cambiar sede"
+                >
+                  <MapPin size={16} className="shrink-0" style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} />
+                  <span className="truncate">{nombreSede(sedeActual, sedes, academia)}</span>
+                  <ChevronDown size={14} className="shrink-0 text-ink-500" />
+                </button>
+              )}
+            </div>
           ) : undefined
         }
       />

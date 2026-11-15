@@ -1,7 +1,7 @@
 /** Mensajes de WhatsApp: plantillas editables por la academia con datos del alumno. */
 import type { Academia } from '../db/types';
 
-export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'adeudo' | 'extrañamos' | 'recibo' | 'interesado' | 'grupo';
+export type ClaveMensaje = 'bienvenida' | 'credencial' | 'portal' | 'vence' | 'vencio' | 'adeudo' | 'extrañamos' | 'recibo' | 'interesado' | 'grupo';
 
 export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; base: string }[] = [
   {
@@ -20,13 +20,19 @@ export const MENSAJES: { clave: ClaveMensaje; titulo: string; cuando: string; ba
     clave: 'portal',
     titulo: 'Su portal (QR y plan)',
     cuando: 'Enlace personal donde ve su QR, su plan y sus clases',
-    base: 'Hola {nombre}, este es tu acceso personal a {academia} 💃🕺 Ahí tienes tu QR para entrar, tu plan y tus clases: {enlace} (Es solo tuyo, no lo compartas.)',
+    base: 'Hola {nombre}, este es tu acceso personal a {academia} 💃🕺 Ahí tienes tu QR para entrar, tu plan y tus clases, y puedes poner tu foto: {enlace} (Es solo tuyo, no lo compartas.)',
   },
   {
     clave: 'vence',
     titulo: 'Plan por vencer',
     cuando: 'Recordatorio antes de que termine su plan',
     base: 'Hola {nombre}, tu {plan} en {academia} vence el {vence}. ¿La renovamos para que sigas bailando? 💃🕺',
+  },
+  {
+    clave: 'vencio',
+    titulo: 'Plan vencido',
+    cuando: 'A quien ya se le terminó su plan y no ha renovado',
+    base: 'Hola {nombre}, tu {plan} en {academia} venció el {vence}. ¿La renovamos para que sigas bailando? 💃🕺',
   },
   {
     clave: 'adeudo',

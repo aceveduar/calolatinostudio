@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
@@ -20,6 +20,7 @@ import { CredencialQR } from './CredencialQR';
 import { EnviarWhatsApp } from './EnviarWhatsApp';
 import { TarjetaAdeudos } from './Adeudos';
 import { FotoAlumno } from './FotoAlumno';
+import { Bienvenida } from './Bienvenida';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -40,6 +41,13 @@ export function FichaAlumno() {
   const [qr, setQr] = useState(false);
   const [whats, setWhats] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
+  // recién dado de alta (desde Alumnos o Interesados): ofrecer mandarle su acceso
+  const loc = useLocation();
+  const [bienvenida, setBienvenida] = useState(!!(loc.state as { recien?: boolean } | null)?.recien);
+  const cerrarBienvenida = () => {
+    setBienvenida(false);
+    nav(loc.pathname, { replace: true, state: null }); // que "atrás" o recargar no lo vuelva a abrir
+  };
 
   const historial = useLiveQuery(async () => {
     if (!id) return { pagos: [], asistencias: [], totalAsistencias: 0, repetidas: [] as { claseId: string; fecha: string }[] };
@@ -225,6 +233,9 @@ export function FichaAlumno() {
       </Hoja>
       <Hoja abierta={whats} onCerrar={() => setWhats(false)} titulo={`WhatsApp a ${nombre1}`}>
         {whats && <EnviarWhatsApp alumno={alumno} estados={estados} onEnviado={() => setWhats(false)} />}
+      </Hoja>
+      <Hoja abierta={bienvenida} onCerrar={cerrarBienvenida} titulo={`¡${nombre1} ya es alumno!`}>
+        {bienvenida && <Bienvenida alumno={alumno} onCerrar={cerrarBienvenida} />}
       </Hoja>
       <Hoja abierta={qr} onCerrar={() => setQr(false)} titulo="Credencial">
         {qr && <CredencialQR alumno={alumno} academia={academia} />}

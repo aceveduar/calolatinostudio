@@ -6,7 +6,7 @@ import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePla
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, sirveEn } from '../../domain/sedes';
-import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, VerMas, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { dinero } from '../../domain/dinero';
 import { aFecha, diasEntre, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
@@ -209,7 +209,14 @@ export function PantallaReportes() {
       </Seccion>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-        <Seccion titulo="Por clase · alumnos por sesión">
+        <Seccion
+          titulo="Por clase · alumnos por sesión"
+          accion={
+            <Link to="/reportes/gastos" className="text-sm font-semibold text-brand-600">
+              ¿Cuánto deja cada una?
+            </Link>
+          }
+        >
           {r.clases.length === 0 ? (
             <Tarjeta className="p-4 text-sm text-ink-500">Sin clases en este periodo.</Tarjeta>
           ) : (
@@ -339,14 +346,6 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
         Gastos <ChevronRight size={18} />
       </span>
     </Link>
-  );
-}
-
-function VerMas({ abierto, total, onClick }: { abierto: boolean; total: number; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="w-full py-3 text-center text-sm font-semibold text-brand-600 active:bg-ink-50">
-      {abierto ? 'Ver menos' : `Ver los ${total}`}
-    </button>
   );
 }
 

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, Repeat, Wallet } from 'lucide-react';
+import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros } from '../../app/datos';
+import { rentabilidadPorClase } from '../../domain/rentabilidad';
+import type { Maestro } from '../../db/types';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { useAvisos } from '../../components/avisos';
@@ -10,7 +13,7 @@ import { db } from '../../db/db';
 import { actualizar, borrar, crear } from '../../db/repo';
 import type { CategoriaGasto, Fecha, Gasto, GastoFijo, MetodoPago, Sede } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
-import { fechaCorta, hoy } from '../../domain/fechas';
+import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { CATEGORIAS, categoria, estadoFijos, mesDe, nombreMes, rangoMes, registrarGasto, resumenMes, sumarMes, type Mes } from '../../domain/gastos';
 import { PRINCIPAL, claveSede, conSede } from '../../domain/sedes';
 import { METODOS } from '../alumnos/VenderPlan';
@@ -21,6 +24,9 @@ type Borrador = { gasto?: Gasto; fijo?: GastoFijo; fecha: Fecha };
 export function PantallaGastos() {
   const { academia } = useSesion();
   const sedes = useSedes();
+  const clases = useClases();
+  const disciplinas = useDisciplinas();
+  const maestros = useMaestros();
   const [mes, setMes] = useState<Mes>(mesDe(hoy()));
   const [verSede, setVerSede] = useState<string>('todas');
   const [borrador, setBorrador] = useState<Borrador | null>(null);
@@ -34,7 +40,13 @@ export function PantallaGastos() {
       db.gastos.where('fecha').between(desde, hasta, true, true).toArray(),
       db.gastosFijos.toArray(),
     ]);
-    return { pagos, gastos, fijos };
+    // para lo que deja cada clase: las entradas del mes y de antes (cuántas clases cubrió cada plan)
+    const [asistencias, rentas] = await Promise.all([db.asistencias.where('fecha').between(sumarDias(desde, -120), hasta, true, true).toArray(), db.rentas.toArray()]);
+    const memIds = [...new Set(asistencias.flatMap((a) => (a.membresiaId ? [a.membresiaId] : [])))];
+    const membresias = (await db.membresias.bulkGet(memIds)).filter((m) => !!m);
+    const pagoIds = [...new Set([...membresias.map((m) => m.pagoId), ...asistencias.flatMap((a) => (a.pagoId ? [a.pagoId] : []))])];
+    const pagosClase = (await db.pagos.bulkGet(pagoIds)).filter((x) => !!x);
+    return { pagos, gastos, fijos, asistencias, rentas, membresias, pagosClase };
   }, [desde, hasta]);
   if (!datos) return null;
 
@@ -47,6 +59,17 @@ export function PantallaGastos() {
   const sedeNueva = verSede === 'todas' ? null : verSede === PRINCIPAL ? null : verSede;
   const fechaNueva = esMesActual ? hoy() : hasta < hoy() ? hasta : desde;
   const verSedes = sedes.length > 0;
+  const rent = rentabilidadPorClase({
+    mes,
+    clases: clases.filter((c) => enSede(c.sedeId)),
+    asistencias: datos.asistencias,
+    membresias: datos.membresias,
+    pagos: datos.pagosClase,
+    gastos,
+    fijos: fijosS,
+    rentas: datos.rentas,
+  });
+  const sinPagoMaestro = rent.filas.some((f) => f.sinCosto);
 
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-4xl">
@@ -175,6 +198,40 @@ export function PantallaGastos() {
         </div>
 
         <div className="min-w-0 lg:[&>section]:mt-0">
+          {rent.filas.length > 0 && (
+            <Seccion titulo="Lo que deja cada clase">
+              <Tarjeta className="divide-y divide-ink-100">
+                {rent.filas.map((f) => (
+                  <div key={f.clase.id} className="flex items-center gap-3 px-4 py-3">
+                    <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(f.clase, disciplinas) }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">
+                        {nombreClase(f.clase, disciplinas)}
+                        {nombreMaestro(f.clase, maestros) && <span className="font-normal text-ink-500"> · {nombreMaestro(f.clase, maestros)}</span>}
+                      </span>
+                      <span className="block truncate text-xs text-ink-500">
+                        {f.sesiones} {f.sesiones === 1 ? 'clase' : 'clases'} · {Math.round(f.asistencias / f.sesiones)} alumnos en promedio
+                      </span>
+                      <span className="block truncate text-xs text-ink-500">
+                        Entra {dinero(f.ingresos)}
+                        {f.renta > 0 && ` (renta ${dinero(f.renta)})`}
+                        {f.costo > 0 ? ` · maestro ${f.estimado ? '~' : ''}${dinero(f.costo)}${f.estimado ? ' por pagar' : ''}` : f.sinCosto ? ' · sin pago al maestro' : ''}
+                      </span>
+                    </span>
+                    <span className={cx('text-right font-extrabold', f.ganancia < 0 ? 'text-bad-600' : 'text-ink-900')}>
+                      {dinero(f.ganancia)}
+                      {f.ganancia < 0 && <span className="block text-[11px] font-semibold">pierde</span>}
+                    </span>
+                  </div>
+                ))}
+              </Tarjeta>
+              <p className="mt-2 px-1 text-xs leading-relaxed text-ink-500">
+                Lo que entra (clases sueltas y la parte de cada plan) menos lo pagado al maestro. Sin contar renta del local, luz, etc.
+                {(sinPagoMaestro || rent.sinAsignar > 0) && ' Para que se reste el pago del maestro, al registrarlo en Gastos (categoría Maestros) elige a qué maestro fue.'}
+                {rent.sinAsignar > 0 && ` Hay ${dinero(rent.sinAsignar)} pagados a maestros sin elegir maestro.`}
+              </p>
+            </Seccion>
+          )}
           <Seccion titulo={`Gastos registrados · ${gastos.length}`}>
             {gastos.length === 0 ? (
               <Tarjeta>
@@ -228,6 +285,22 @@ function SelectorSede({ valor, onChange, sedes }: { valor: string | null; onChan
   );
 }
 
+function SelectorMaestro({ valor, onChange, maestros }: { valor: string | null; onChange: (v: string | null) => void; maestros: Maestro[] }) {
+  if (!maestros.length) return null;
+  return (
+    <Campo etiqueta="¿A qué maestro?">
+      <Selector value={valor ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">Sin elegir</option>
+        {maestros.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.nombre}
+          </option>
+        ))}
+      </Selector>
+    </Campo>
+  );
+}
+
 function Categorias({ valor, onChange }: { valor: CategoriaGasto; onChange: (c: CategoriaGasto) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -257,6 +330,8 @@ function FormGasto({ borrador, sedeInicial, sedes, onHecho }: { borrador: Borrad
   const [metodo, setMetodo] = useState<MetodoPago>(g?.metodo ?? 'transferencia');
   const [sede, setSede] = useState<string | null>(g ? (g.sedeId ?? null) : sedeInicial);
   const [notas, setNotas] = useState(g?.notas ?? '');
+  const [maestro, setMaestro] = useState<string | null>(g ? (g.maestroId ?? null) : (f?.maestroId ?? null));
+  const maestros = useMaestros();
   const [ocupado, setOcupado] = useState(false);
   const centavos = aCentavos(monto);
   // Si no escriben concepto, se usa el nombre de la categoría ("Luz")
@@ -267,10 +342,11 @@ function FormGasto({ borrador, sedeInicial, sedes, onHecho }: { borrador: Borrad
     setOcupado(true);
     try {
       if (g) {
-        await actualizar('gastos', g.id, { ...conSede(sede, g.sedeId), concepto: conceptoFinal, categoria: cat, monto: centavos, fecha, metodo, notas: notas.trim() });
+        const elMaestro = cat === 'maestros' ? maestro : null;
+        await actualizar('gastos', g.id, { ...conSede(sede, g.sedeId), concepto: conceptoFinal, categoria: cat, monto: centavos, fecha, metodo, notas: notas.trim(), ...(elMaestro || g.maestroId ? { maestroId: elMaestro } : {}) });
         avisar('Gasto actualizado');
       } else {
-        await registrarGasto({ concepto: conceptoFinal, categoria: cat, monto: centavos, fecha, metodo, sedeId: sede, fijoId: f?.id ?? null, notas, usuarioId: usuario.id });
+        await registrarGasto({ concepto: conceptoFinal, categoria: cat, monto: centavos, fecha, metodo, sedeId: sede, fijoId: f?.id ?? null, notas, usuarioId: usuario.id, maestroId: cat === 'maestros' ? maestro : null });
         avisar(`Gasto registrado · ${dinero(centavos)}`);
       }
       onHecho();
@@ -304,6 +380,7 @@ function FormGasto({ borrador, sedeInicial, sedes, onHecho }: { borrador: Borrad
         <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Ojo: es más del doble de lo normal. ¿Se teclearon ceros de más?</p>
       )}
       <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
+      {!f && cat === 'maestros' && <SelectorMaestro valor={maestro} onChange={setMaestro} maestros={maestros} />}
       {!f && <SelectorSede valor={sede} onChange={setSede} sedes={sedes} />}
       <Campo etiqueta="Notas (opcional)">
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Folio, a quién se pagó…" />
@@ -370,12 +447,15 @@ function FormFijo({ fijo, sedes, sedeInicial, onHecho }: { fijo: GastoFijo | nul
   const [dia, setDia] = useState(String(fijo?.dia ?? 1));
   const [sede, setSede] = useState<string | null>(fijo ? (fijo.sedeId ?? null) : sedeInicial);
   const [activo, setActivo] = useState(fijo?.activo ?? true);
+  const [maestro, setMaestro] = useState<string | null>(fijo?.maestroId ?? null);
+  const maestros = useMaestros();
   const { academia } = useSesion();
   const sugerido = `${categoria(cat).texto}${sedes.length ? ` ${nombreSede(sede, sedes, academia)}` : ''}`;
   const diaN = Math.min(28, Math.max(1, Number(dia) || 1));
 
   const guardar = async () => {
-    const datos = { ...conSede(sede, fijo?.sedeId), concepto: concepto.trim() || sugerido, categoria: cat, monto: aCentavos(monto), dia: diaN, activo };
+    const elMaestro = cat === 'maestros' ? maestro : null;
+    const datos = { ...conSede(sede, fijo?.sedeId), concepto: concepto.trim() || sugerido, categoria: cat, monto: aCentavos(monto), dia: diaN, activo, ...(elMaestro || fijo?.maestroId ? { maestroId: elMaestro } : {}) };
     if (fijo) await actualizar('gastosFijos', fijo.id, datos);
     else await crear('gastosFijos', datos);
     avisar('Gasto fijo guardado');
@@ -385,6 +465,7 @@ function FormFijo({ fijo, sedes, sedeInicial, onHecho }: { fijo: GastoFijo | nul
   return (
     <div className="space-y-4">
       <Categorias valor={cat} onChange={setCat} />
+      {cat === 'maestros' && <SelectorMaestro valor={maestro} onChange={setMaestro} maestros={maestros} />}
       <SelectorSede valor={sede} onChange={setSede} sedes={sedes} />
       <Campo etiqueta="Nombre">
         <Entrada value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder={sugerido} />

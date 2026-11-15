@@ -125,7 +125,7 @@ export function PantallaAlumnos() {
       </div>
 
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Alumno nuevo">
-        <FormAlumno onGuardado={(a) => { setNuevo(false); nav(`/alumnos/${a.id}`); }} />
+        <FormAlumno onGuardado={(a) => { setNuevo(false); nav(`/alumnos/${a.id}`, { state: { recien: true } }); }} />
       </Hoja>
     </div>
   );

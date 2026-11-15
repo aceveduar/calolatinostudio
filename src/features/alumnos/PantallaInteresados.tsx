@@ -121,7 +121,7 @@ export function PantallaInteresados() {
                           onClick={async () => {
                             const a = await registrarComoAlumno(i);
                             avisar(`${i.nombre.split(' ')[0]} ya es alumno`);
-                            nav(`/alumnos/${a.id}`);
+                            nav(`/alumnos/${a.id}`, { state: { recien: true } });
                           }}
                           className="rounded-full bg-brand-50 p-2 text-brand-600"
                           aria-label={`Registrar a ${i.nombre} como alumno`}

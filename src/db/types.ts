@@ -240,6 +240,8 @@ export interface Alumno extends Base {
   portal?: string | null;
   /** foto pequeña (JPEG en data URL, ~10 KB) para que recepción y maestros lo reconozcan */
   foto?: string | null;
+  /** cuándo se le mandó cada recordatorio desde Pendientes ("vence:<membresiaId>", "adeudo", "extrañamos") → ms */
+  avisos?: Record<string, number> | null;
 }
 
 export interface Membresia extends Base {
@@ -359,6 +361,8 @@ export interface GastoFijo extends Base {
   /** día del mes en que se paga (1–28) */
   dia: number;
   activo: boolean;
+  /** pago a un maestro: a quién (para saber cuánto deja cada clase) */
+  maestroId?: ID | null;
 }
 
 /** Salida de dinero de la academia. */
@@ -373,6 +377,8 @@ export interface Gasto extends Base {
   fijoId: ID | null;
   /** gasto de un evento (decoración, DJ…): cuenta para la utilidad del evento */
   eventoId?: ID | null;
+  /** pago a un maestro: a quién (para saber cuánto deja cada clase) */
+  maestroId?: ID | null;
   metodo: MetodoPago;
   notas: string;
   usuarioId: ID;

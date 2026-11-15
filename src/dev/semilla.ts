@@ -528,6 +528,12 @@ export async function agregarGastosDemo(): Promise<{ fijos: number; gastos: numb
     { ...base(), concepto: 'Luz', categoria: 'luz', monto: 85000, dia: 15, activo: true },
     { ...base(), concepto: 'Internet', categoria: 'internet', monto: 49900, dia: 10, activo: true },
     ...(cdc ? [{ ...base(), sedeId: cdc.id, concepto: `Renta ${cdc.nombre}`, categoria: 'renta' as const, monto: 150000, dia: 5, activo: true }] : []),
+    // pago mensual a los maestros de la academia (Karla renta el salón por comisión: no se le paga)
+    ...(await db.maestros.toArray())
+      .flatMap((m) => {
+        const monto = /Luis/.test(m.nombre) ? 400000 : /Iván/.test(m.nombre) ? 320000 : /Daniela/.test(m.nombre) ? 180000 : 0;
+        return monto ? [{ ...base(), concepto: `Pago ${m.nombre.split(' ').slice(0, 2).join(' ')}`, categoria: 'maestros' as const, monto, dia: 15, activo: true, maestroId: m.id }] : [];
+      }),
   ];
   for (const f of fijos) await guardar('gastosFijos', f);
   const r = generador(7);
@@ -539,7 +545,7 @@ export async function agregarGastosDemo(): Promise<{ fijos: number; gastos: numb
       const fecha = `${mes}-${String(f.dia).padStart(2, '0')}`;
       if (fecha > hoyF) continue;
       const monto = f.categoria === 'luz' ? Math.round((70000 + r() * 35000) / 100) * 100 : f.monto;
-      await guardar('gastos', { ...base(), ...(f.sedeId ? { sedeId: f.sedeId } : {}), concepto: f.concepto, categoria: f.categoria, monto, fecha, fijoId: f.id, metodo: 'transferencia', notas: '', usuarioId: dueno.id });
+      await guardar('gastos', { ...base(), ...(f.sedeId ? { sedeId: f.sedeId } : {}), concepto: f.concepto, categoria: f.categoria, monto, fecha, fijoId: f.id, ...(f.maestroId ? { maestroId: f.maestroId } : {}), metodo: 'transferencia', notas: '', usuarioId: dueno.id });
       n++;
     }
     for (const dia of ['04', '18']) {

@@ -346,6 +346,9 @@ alter table academias add column if not exists whatsapp text;
 alter table productos add column if not exists costo int;
 alter table pagos add column if not exists costo int;
 alter table alumnos add column if not exists foto text;
+alter table alumnos add column if not exists avisos jsonb;
+alter table gastos add column if not exists maestro_id uuid;
+alter table gastos_fijos add column if not exists maestro_id uuid;
 create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 

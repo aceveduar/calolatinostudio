@@ -1,31 +1,11 @@
 import { Link } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronRight, LockKeyhole } from 'lucide-react';
-import { GRUPOS, modulosDe, type Contador, type Modulo } from '../../app/modulos';
+import { GRUPOS, modulosDe, type Modulo } from '../../app/modulos';
+import { useContadores } from '../../app/contadores';
+import { usePendientes } from '../pendientes/PantallaPendientes';
 import { useSesion } from '../../app/sesion';
 import { Avatar, Encabezado, Tarjeta, cx } from '../../components/ui';
-import { db } from '../../db/db';
 import { NOMBRE_ROL } from '../../db/types';
-
-/** Cuántos pendientes tiene cada módulo (se muestran como globo en "Más" y en la pestaña). */
-export function useContadores(): Record<Contador, number> {
-  return useLiveQuery(
-    async () => {
-      const [interesados, encargos] = await Promise.all([
-        db.interesados.where('estado').equals('nuevo').filter((i) => !i.deletedAt).count(),
-        // encargos sobre pedido que aún hay que pedir al proveedor
-        (async () => {
-          const pend = await db.pedidos.where('estado').equals('pendiente').filter((p) => !p.deletedAt).toArray();
-          const prods = await db.productos.bulkGet(pend.map((p) => p.productoId));
-          return pend.filter((_, i) => prods[i]?.sobrePedido).length;
-        })(),
-      ]);
-      return { interesados, encargos };
-    },
-    [],
-    { interesados: 0, encargos: 0 },
-  );
-}
 
 /**
  * "Más": todo lo que no cabe en la barra de abajo, en grupos claros.
@@ -33,7 +13,7 @@ export function useContadores(): Record<Contador, number> {
  */
 export function PantallaMas() {
   const { usuario, bloquear } = useSesion();
-  const contadores = useContadores();
+  const contadores = { ...useContadores(), pendientes: usePendientes(false)?.total ?? 0 };
   // lo que ya es pestaña no se repite aquí
   const modulos = modulosDe(usuario.rol).filter((m) => m.grupo && m.pestana?.[usuario.rol] === undefined);
 

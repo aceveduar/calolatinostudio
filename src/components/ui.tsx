@@ -300,3 +300,12 @@ export function Chips<T extends string>({ opciones, valor, onChange, etiqueta }:
     </div>
   );
 }
+
+/** Al pie de una lista larga: se ven unos cuantos y se despliegan todos al tocar. */
+export function VerMas({ abierto, total, onClick }: { abierto: boolean; total: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full py-3 text-center text-sm font-semibold text-brand-600 active:bg-ink-50">
+      {abierto ? 'Ver menos' : `Ver los ${total}`}
+    </button>
+  );
+}

@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { pestanaActiva, pestanasDe } from './modulos';
-import { useContadores } from '../features/mas/PantallaMas';
+import { useContadores } from './contadores';
 import { useAvisosEnVivo } from './avisosEnVivo';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, LockKeyhole } from 'lucide-react';

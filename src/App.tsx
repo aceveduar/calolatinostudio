@@ -18,6 +18,7 @@ import { PantallaAgenda } from './features/agenda/PantallaAgenda';
 import { PantallaEventos } from './features/eventos/PantallaEventos';
 import { PantallaEncargos } from './features/tienda/PantallaEncargos';
 import { PantallaMas } from './features/mas/PantallaMas';
+import { PantallaPendientes } from './features/pendientes/PantallaPendientes';
 import { PantallaEvento } from './features/eventos/PantallaEvento';
 import { PantallaMaestro } from './features/maestro/PantallaMaestro';
 import { PantallaEntrada } from './features/entrada/PantallaEntrada';
@@ -68,6 +69,7 @@ export default function App() {
                 <Route path="reportes" element={estado.usuario.rol === 'dueno' ? <PantallaReportes /> : <Navigate to="/" replace />} />
                 <Route path="reportes/gastos" element={estado.usuario.rol === 'dueno' ? <PantallaGastos /> : <Navigate to="/" replace />} />
                 <Route path="mas" element={<PantallaMas />} />
+                <Route path="pendientes" element={<PantallaPendientes />} />
                 <Route path="ajustes" element={<Navigate to="/mas" replace />} />
                 <Route path="ajustes/:seccion" element={<PantallaAjustes />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

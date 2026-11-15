@@ -101,6 +101,7 @@ export function registrarGasto(p: {
   sedeId: ID | null;
   fijoId?: ID | null;
   eventoId?: ID | null;
+  maestroId?: ID | null;
   notas?: string;
   usuarioId: ID;
 }): Promise<Gasto> {
@@ -117,5 +118,6 @@ export function registrarGasto(p: {
     notas: (p.notas ?? '').trim(),
     usuarioId: p.usuarioId,
     ...(p.eventoId ? { eventoId: p.eventoId } : {}),
+    ...(p.maestroId ? { maestroId: p.maestroId } : {}),
   });
 }
