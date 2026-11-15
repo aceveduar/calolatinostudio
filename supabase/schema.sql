@@ -280,6 +280,9 @@ alter table academias add column if not exists meta_diaria int;
 alter table rentas add column if not exists cobro text;
 alter table rentas add column if not exists tarifa int;
 alter table rentas add column if not exists maestro_id uuid;
+alter table academias add column if not exists salones jsonb;
+alter table clases add column if not exists salon_id uuid;
+alter table rentas add column if not exists salon_id uuid;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
 -- ---------- cursor de sincronización ----------

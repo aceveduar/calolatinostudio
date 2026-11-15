@@ -405,9 +405,11 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
   const sedes = useSedes();
   const [sedeId, setSedeId] = useState<string>(clase?.sedeId ?? '');
   const [precioPropio, setPrecioPropio] = useState(clase?.precioSuelta ? aPesosTexto(clase.precioSuelta) : '');
+  const salones = academia.salones ?? [];
+  const [salonId, setSalonId] = useState<string>(clase?.salonId ?? '');
   const precioSede = sueltaPara(usePlanes(), sedeId || null)?.precio;
   const rentas = useRentas();
-  const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null }, rentas);
+  const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null, salonId: salonId || null }, rentas);
 
   const guardar = async () => {
     let idMaestro: ID | null = maestroId && maestroId !== NUEVO ? maestroId : null;
@@ -426,6 +428,7 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
       activo,
       // solo se manda si tiene precio propio (o si lo tenía y se quitó)
       ...(propio > 0 ? { precioSuelta: propio } : clase?.precioSuelta ? { precioSuelta: null } : {}),
+      ...(salonId && !sedeId ? { salonId } : clase?.salonId ? { salonId: null } : {}),
     };
     if (clase) await actualizar('clases', clase.id, datos);
     else await crear('clases', datos);
@@ -476,6 +479,18 @@ function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null; disci
           <Selector value={sedeId} onChange={(e) => setSedeId(e.target.value)}>
             <option value="">{nombreSede(null, sedes, academia)}</option>
             {sedes.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nombre}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
+      )}
+      {!sedeId && salones.length > 0 && (
+        <Campo etiqueta="Salón">
+          <Selector value={salonId} onChange={(e) => setSalonId(e.target.value)}>
+            <option value="">Salón principal</option>
+            {salones.map((x) => (
               <option key={x.id} value={x.id}>
                 {x.nombre}
               </option>

@@ -29,6 +29,8 @@ export interface Academia {
   recargoDiario?: number | null;
   /** meta de lo que deben dejar las rentas del salón por día (centavos), p. ej. $500 para cubrir la renta */
   metaDiaria?: number | null;
+  /** salones extra del estudio (el principal no se lista); vacío = un solo salón */
+  salones?: Salon[] | null;
   /** Nombre del lugar principal (las demás sedes están en `sedes`). */
   sedePrincipal?: string | null;
   createdAt: number;
@@ -65,6 +67,11 @@ export interface Maestro extends Base {
  * Lugar donde se dan clases (Estudio, Casa de Cultura…). El lugar principal NO es un registro:
  * `sedeId = null` significa "sede principal". Así una academia de un solo lugar no nota nada.
  */
+export interface Salon {
+  id: ID;
+  nombre: string;
+}
+
 export interface Sede extends Base {
   nombre: string;
   color: string;
@@ -86,6 +93,8 @@ export interface Clase extends Base {
   activo: boolean;
   /** precio de clase suelta propio (cada maestro pone su tarifa); vacío = el de la sede */
   precioSuelta?: number | null;
+  /** salón del estudio; vacío = salón principal */
+  salonId?: ID | null;
 }
 
 export type TipoPlan = 'suelta' | 'mensual' | 'paquete';
@@ -256,6 +265,8 @@ export interface Renta extends Base {
   tarifa?: number | null;
   /** maestro de la academia al que corresponde (por alumno: se cuentan los alumnos de sus clases) */
   maestroId?: ID | null;
+  /** salón del estudio; vacío = salón principal */
+  salonId?: ID | null;
 }
 
 export type CategoriaGasto = 'renta' | 'luz' | 'agua' | 'internet' | 'maestros' | 'limpieza' | 'otro';

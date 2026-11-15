@@ -16,9 +16,13 @@ export const TODO_EL_DIA = { horaInicio: '07:00', duracionMin: CIERRA - ABRE };
 export const diaSemana = (f: Fecha) => deFecha(f).getDay();
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
-/** Clases que usan el salón del estudio (las de otras sedes no). */
-export const clasesDelSalon = (clases: Clase[]) => clases.filter((c) => vivo(c) && c.activo && !c.sedeId);
-export const rentasVigentes = (rentas: Renta[]) => rentas.filter((r) => vivo(r) && r.activo);
+/** Mismo salón (vacío = salón principal). */
+export const mismoSalon = (a: ID | null | undefined, b: ID | null | undefined) => (a ?? null) === (b ?? null);
+/** Clases del estudio (las de otras sedes no); con `salonId`, solo las de ese salón. */
+export const clasesDelSalon = (clases: Clase[], salonId?: ID | null) =>
+  clases.filter((c) => vivo(c) && c.activo && !c.sedeId && (salonId === undefined || mismoSalon(c.salonId, salonId)));
+export const rentasVigentes = (rentas: Renta[], salonId?: ID | null) =>
+  rentas.filter((r) => vivo(r) && r.activo && (salonId === undefined || mismoSalon(r.salonId, salonId)));
 
 export function rentaOcupa(r: Pick<Renta, 'desde' | 'hasta' | 'dias'>, f: Fecha): boolean {
   return r.desde <= f && (r.hasta === null || f <= r.hasta) && r.dias.includes(diaSemana(f));
@@ -35,13 +39,13 @@ export interface Bloque {
   renta?: Renta;
 }
 
-export function bloquesDelDia(f: Fecha, clases: Clase[], rentas: Renta[]): Bloque[] {
+export function bloquesDelDia(f: Fecha, clases: Clase[], rentas: Renta[], salonId?: ID | null): Bloque[] {
   const d = diaSemana(f);
   return [
-    ...clasesDelSalon(clases)
+    ...clasesDelSalon(clases, salonId)
       .filter((c) => c.dias.includes(d))
       .map((c) => ({ inicio: minutosDelDia(c.horaInicio), fin: finMin(c.horaInicio, c.duracionMin), clase: c })),
-    ...rentasVigentes(rentas)
+    ...rentasVigentes(rentas, salonId)
       .filter((r) => rentaOcupa(r, f))
       .map((r) => ({ inicio: minutosDelDia(r.horaInicio), fin: finMin(r.horaInicio, r.duracionMin), renta: r })),
   ].sort((a, b) => a.inicio - b.inicio || a.fin - b.fin);
@@ -75,7 +79,7 @@ export interface Empalme {
 }
 
 /** Con qué choca una renta (nueva o editada). Vacío = el salón está libre. */
-export function empalmes(c: Pick<Renta, 'dias' | 'horaInicio' | 'duracionMin' | 'desde' | 'hasta'> & { id?: ID }, clases: Clase[], rentas: Renta[]): Empalme[] {
+export function empalmes(c: Pick<Renta, 'dias' | 'horaInicio' | 'duracionMin' | 'desde' | 'hasta'> & { id?: ID; salonId?: ID | null }, clases: Clase[], rentas: Renta[]): Empalme[] {
   const ini = minutosDelDia(c.horaInicio);
   const fin = ini + c.duracionMin;
   const seTraslapa = (h: string, d: number) => {
@@ -84,11 +88,11 @@ export function empalmes(c: Pick<Renta, 'dias' | 'horaInicio' | 'duracionMin' | 
   };
   const posibles = diasEnRango(c.desde, c.hasta);
   const choques: Empalme[] = [];
-  for (const k of clasesDelSalon(clases)) {
+  for (const k of clasesDelSalon(clases, c.salonId ?? null)) {
     const dias = c.dias.filter((d) => k.dias.includes(d) && posibles.has(d));
     if (dias.length && seTraslapa(k.horaInicio, k.duracionMin)) choques.push({ clase: k, dias });
   }
-  for (const r of rentasVigentes(rentas)) {
+  for (const r of rentasVigentes(rentas, c.salonId ?? null)) {
     if (r.id === c.id) continue;
     // rangos de fechas que se cruzan
     const desde = r.desde > c.desde ? r.desde : c.desde;
@@ -102,7 +106,7 @@ export function empalmes(c: Pick<Renta, 'dias' | 'horaInicio' | 'duracionMin' | 
 }
 
 /** Rentas de una clase que se empalman con ella (para avisar al editar el horario de clases). */
-export function rentasQueChocanConClase(k: Pick<Clase, 'dias' | 'horaInicio' | 'duracionMin' | 'sedeId'> & { id?: ID }, rentas: Renta[]): Renta[] {
+export function rentasQueChocanConClase(k: Pick<Clase, 'dias' | 'horaInicio' | 'duracionMin' | 'sedeId' | 'salonId'> & { id?: ID }, rentas: Renta[]): Renta[] {
   if (k.sedeId) return [];
   return empalmes({ ...k, desde: hoy(), hasta: null }, [], rentas)
     .map((e) => e.renta!)

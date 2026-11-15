@@ -8,7 +8,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import { actualizar, borrar, crear } from '../../db/repo';
-import type { Clase, CobroRenta, Disciplina, Fecha, MetodoPago, Renta, TipoRenta } from '../../db/types';
+import type { Clase, CobroRenta, Disciplina, Fecha, ID, MetodoPago, Renta, Salon, TipoRenta } from '../../db/types';
 import { TODO_EL_DIA, bloquesDelDia, cobrarRenta, cobrosDelMes, diaSemana, empalmes, horaTexto, huecos, rangoHora, type Empalme } from '../../domain/agenda';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, deFecha, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
@@ -46,6 +46,11 @@ export function PantallaAgenda() {
   const [editar, setEditar] = useState<Renta | 'nueva' | { extraDe: Renta } | null>(null);
   const [cobrar, setCobrar] = useState<{ renta: Renta; monto: number } | null>(null);
   const [meta, setMeta] = useState(false);
+  const salones = academia.salones ?? [];
+  // salón que se ve (null = principal); con un solo salón se ve todo
+  const [salon, setSalon] = useState<ID | null>(null);
+  const [gestionSalones, setGestionSalones] = useState(false);
+  const nombreSalon = (id: ID | null | undefined) => (id ? (salones.find((x) => x.id === id)?.nombre ?? 'Salón') : 'Salón principal');
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i)), [lunes]);
   const estaSemana = lunes === lunesDe(hoy());
   // El mes de los cobros: el de la semana que se ve (el jueves decide si la semana cruza de mes)
@@ -90,12 +95,31 @@ export function PantallaAgenda() {
         </button>
       </div>
 
+      {(salones.length > 0 || esDueno) && (
+        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+          {salones.length > 0 &&
+            [null, ...salones.map((x) => x.id)].map((id) => (
+              <button
+                key={id ?? 'principal'}
+                onClick={() => setSalon(id)}
+                className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', salon === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+              >
+                {nombreSalon(id)}
+              </button>
+            ))}
+          {esDueno && (
+            <button onClick={() => setGestionSalones(true)} className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-brand-600 ring-1 ring-ink-100">
+              {salones.length ? 'Salones…' : '+ Otro salón'}
+            </button>
+          )}
+        </div>
+      )}
       <p className="mb-2 flex items-center gap-1.5 px-1 text-xs text-ink-500">
         <span className="h-3 w-3 rounded bg-[#7c4ddb]/20 ring-1 ring-[#7c4ddb]/40" /> Renta del salón
       </p>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {dias.map((f) => (
-          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} onRenta={esDueno ? (r) => setEditar(r) : undefined} />
+          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined} onRenta={esDueno ? (r) => setEditar(r) : undefined} />
         ))}
       </div>
 
@@ -125,7 +149,10 @@ export function PantallaAgenda() {
                     <span className="block truncate font-semibold">
                       {r.nombre} {r.tipo === 'evento' && <Etiqueta tono="marca">Evento</Etiqueta>}
                     </span>
-                    <span className="block truncate text-xs text-ink-500">{describirRenta(r)}</span>
+                    <span className="block truncate text-xs text-ink-500">
+                      {describirRenta(r)}
+                      {salones.length > 0 && r.cobro !== 'alumno' && ` · ${nombreSalon(r.salonId)}`}
+                    </span>
                     {r.cobro && r.cobro !== 'fijo' && r.tipo === 'mensual' && (
                       <span className="block truncate text-xs font-semibold text-ink-700">
                         {esMesActual && !pago && r.cobro === 'alumno' ? 'Va en ' : r.cobro === 'hora' ? 'Este mes: ' : ''}
@@ -180,6 +207,7 @@ export function PantallaAgenda() {
             clases={clases}
             rentas={rentas}
             disciplinas={disciplinas}
+            salonInicial={salon}
             onHecho={() => setEditar(null)}
             onHoraExtra={(r) => setEditar({ extraDe: r })}
           />
@@ -188,6 +216,9 @@ export function PantallaAgenda() {
       <Hoja abierta={!!cobrar} onCerrar={() => setCobrar(null)} titulo={cobrar ? `Cobrar renta · ${cobrar.renta.nombre}` : ''}>
         {cobrar && <FormCobro key={cobrar.renta.id} renta={cobrar.renta} monto={cobrar.monto} mes={mes} usuarioId={usuario.id} onHecho={() => setCobrar(null)} />}
       </Hoja>
+      <Hoja abierta={gestionSalones} onCerrar={() => setGestionSalones(false)} titulo="Salones del estudio">
+        {gestionSalones && <FormSalones clases={clases} rentas={rentas} onHecho={() => setGestionSalones(false)} />}
+      </Hoja>
       <Hoja abierta={meta} onCerrar={() => setMeta(false)} titulo="Meta diaria de rentas">
         {meta && <FormMeta onHecho={() => setMeta(false)} />}
       </Hoja>
@@ -195,8 +226,8 @@ export function PantallaAgenda() {
   );
 }
 
-function Dia({ fecha, clases, rentas, disciplinas, onRenta }: { fecha: Fecha; clases: Clase[]; rentas: Renta[]; disciplinas: Disciplina[]; onRenta?: (r: Renta) => void }) {
-  const bloques = bloquesDelDia(fecha, clases, rentas);
+function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: Fecha; clases: Clase[]; rentas: Renta[]; disciplinas: Disciplina[]; salonId?: ID | null; onRenta?: (r: Renta) => void }) {
+  const bloques = bloquesDelDia(fecha, clases, rentas, salonId);
   const libres = huecos(bloques);
   const esHoy = fecha === hoy();
   return (
@@ -251,6 +282,7 @@ function FormRenta({
   clases,
   rentas,
   disciplinas,
+  salonInicial,
   onHecho,
   onHoraExtra,
 }: {
@@ -260,11 +292,15 @@ function FormRenta({
   clases: Clase[];
   rentas: Renta[];
   disciplinas: Disciplina[];
+  salonInicial: ID | null;
   onHecho: () => void;
   onHoraExtra: (r: Renta) => void;
 }) {
   const avisar = useAvisos();
   const maestros = useMaestros();
+  const { academia } = useSesion();
+  const salones = academia.salones ?? [];
+  const [salonId, setSalonId] = useState<ID | null>(renta ? (renta.salonId ?? null) : extraDe ? (extraDe.salonId ?? null) : salonInicial);
   const [tipo, setTipo] = useState<TipoRenta>(extraDe ? 'evento' : (renta?.tipo ?? 'mensual'));
   const [nombre, setNombre] = useState(renta?.nombre ?? extraDe?.nombre ?? '');
   const [telefono, setTelefono] = useState(renta?.telefono ?? extraDe?.telefono ?? '');
@@ -301,6 +337,7 @@ function FormRenta({
     // solo se mandan si no es cuota fija (o si cambió de esquema), para no depender de columnas nuevas
     ...(!evento && cobro !== 'fijo' ? { cobro, tarifa: tarifaC, maestroId: porAlumno ? maestroId || null : null } : renta?.cobro ? { cobro: null, tarifa: null } : {}),
     ...(maestroId && !porAlumno && (extraDe || renta?.maestroId) ? { maestroId } : {}),
+    ...(salonId ? { salonId } : renta?.salonId ? { salonId: null } : {}),
   };
   const choques = datos.dias.length && datos.horaInicio ? empalmes({ ...datos, id: renta?.id }, clases, rentas) : [];
   const fechasMal = !evento && datos.hasta !== null && datos.hasta < datos.desde;
@@ -368,6 +405,19 @@ function FormRenta({
           </Campo>
           <p className="-mt-2 px-1 text-xs text-ink-500">Se cuentan los alumnos que entran a sus clases cada mes. Sus clases deben estar dadas de alta con este maestro.</p>
         </>
+      )}
+
+      {!porAlumno && salones.length > 0 && (
+        <Campo etiqueta="Salón">
+          <Selector value={salonId ?? ''} onChange={(e) => setSalonId(e.target.value || null)}>
+            <option value="">Salón principal</option>
+            {salones.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nombre}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
       )}
 
       {porAlumno ? null : evento ? (
@@ -582,6 +632,48 @@ function FormMeta({ onHecho }: { onHecho: () => void }) {
           onHecho();
         }}
       >
+        Guardar
+      </Boton>
+    </div>
+  );
+}
+
+/** Salones del estudio: el principal siempre existe; aquí se agregan otros (p. ej. el de arriba). */
+function FormSalones({ clases, rentas, onHecho }: { clases: Clase[]; rentas: Renta[]; onHecho: () => void }) {
+  const { academia } = useSesion();
+  const avisar = useAvisos();
+  const [lista, setLista] = useState<Salon[]>(academia.salones ?? []);
+  const [nuevo, setNuevo] = useState('');
+  const enUso = (id: ID) => clases.some((c) => !c.deletedAt && c.salonId === id) || rentas.some((r) => !r.deletedAt && r.activo && r.salonId === id);
+  const guardar = async () => {
+    const limpia = lista.map((x) => ({ ...x, nombre: x.nombre.trim() })).filter((x) => x.nombre);
+    const extra = nuevo.trim() ? [{ id: crypto.randomUUID(), nombre: nuevo.trim() }] : [];
+    await actualizar('academias', academia.id, { salones: [...limpia, ...extra] });
+    avisar('Salones guardados');
+    onHecho();
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-500">Cada salón tiene su propia agenda: una clase o renta solo choca con lo que está en el mismo salón.</p>
+      <div className="rounded-xl bg-superficie px-4 py-3 font-medium text-ink-500 ring-1 ring-ink-100">Salón principal</div>
+      {lista.map((x, i) => (
+        <div key={x.id} className="flex gap-2">
+          <Entrada value={x.nombre} onChange={(e) => setLista(lista.map((y, j) => (j === i ? { ...y, nombre: e.target.value } : y)))} aria-label="Nombre del salón" />
+          <Boton
+            variante="fantasma"
+            disabled={enUso(x.id)}
+            onClick={() => setLista(lista.filter((_, j) => j !== i))}
+            aria-label={`Quitar ${x.nombre}`}
+          >
+            <span className={enUso(x.id) ? 'text-ink-300' : 'text-bad-600'}>Quitar</span>
+          </Boton>
+        </div>
+      ))}
+      {lista.some((x) => enUso(x.id)) && <p className="text-xs text-ink-500">Un salón con clases o rentas no se puede quitar; muévelas primero.</p>}
+      <Campo etiqueta="Agregar salón">
+        <Entrada value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="Ej. Salón de arriba" />
+      </Campo>
+      <Boton grande bloque onClick={guardar}>
         Guardar
       </Boton>
     </div>
