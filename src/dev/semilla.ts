@@ -779,11 +779,83 @@ export async function demoCompleta(p: { academiaId?: ID; logo?: string | null; s
   r.fiados = await agregarFiadosDemo();
   r.eventos = await agregarEventosDemo();
   r.interesados = await agregarInteresadosDemo();
+  r.web = await agregarWebDemo();
   const academia = (await db.academias.toCollection().first())!;
   await guardar('academias', { ...academia, ...(p.logo ? { logo: p.logo } : {}), ...(p.sedePrincipal ? { sedePrincipal: p.sedePrincipal } : {}) });
   // Usuarios de los maestros (ven sus clases y pasan lista)
   const PINES: Record<string, string> = { 'Profe Luis Herrera': '5555', 'Profa Karla Méndez': '6666', 'Profe Iván Ruiz': '7777', 'Profa Daniela Soto': '8888' };
   for (const m of await db.maestros.toArray()) if (PINES[m.nombre]) await crearUsuario({ nombre: m.nombre, rol: 'maestro', pin: PINES[m.nombre], academiaId: academia.id, maestroId: m.id });
   r.usuarios = await db.usuarios.count();
+  return r;
+}
+
+/**
+ * Datos de ejemplo de lo nuevo (página oficial, cursos y pagos a maestros) sobre una demo que YA existe,
+ * sin borrar nada. Los textos dicen "(cámbiala)" donde hay que poner el dato real.
+ */
+export async function agregarWebDemo(): Promise<Record<string, unknown>> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  const r: Record<string, unknown> = {};
+  const sedes = (await db.sedes.toArray()).filter((x) => !x.deletedAt && x.activo);
+  const actual = academia.pagina ?? {};
+  await guardar('academias', {
+    ...academia,
+    slug: academia.slug ?? 'calo-latino',
+    whatsapp: academia.whatsapp ?? '5512345678',
+    pagina: {
+      frase: actual.frase ?? 'Aprende a bailar salsa y bachata',
+      intro: actual.intro ?? 'Clases para todos los niveles, desde cero. Ambiente familiar, buena música y mucho sabor.',
+      primera: actual.primera ?? 'Tu primera clase es gratis',
+      ...(actual.portada ? { portada: actual.portada } : {}),
+      ubicaciones: {
+        principal: { direccion: 'Av. Ejemplo 123, Col. Centro (cambia esta dirección)', referencias: 'Segundo piso. Hay estacionamiento en la calle.' },
+        ...Object.fromEntries(sedes.map((x) => [x.id, { direccion: `Calle Ejemplo 45, ${x.nombre} (cambia esta dirección)`, referencias: '' }])),
+        ...(actual.ubicaciones ?? {}),
+      },
+      preguntas: actual.preguntas?.length
+        ? actual.preguntas
+        : (await import('../domain/publica')).PREGUNTAS_SUGERIDAS,
+      redes: { instagram: '@calolatinostudio', facebook: 'calolatinostudio', tiktok: '@calolatinostudio', ...(actual.redes ?? {}) },
+    },
+  });
+  r.pagina = 'ok';
+
+  // cursos: Salsa 0 va a medio curso (los nuevos esperan al siguiente) y Bachata 0 abre grupo pronto
+  const clases = (await db.clases.toArray()).filter((c) => !c.deletedAt && c.activo);
+  const disciplinas = await db.disciplinas.toArray();
+  const hoyF = hoy();
+  let cursos = 0;
+  for (const [nombre, curso] of [
+    ['Salsa 0', { inicio: sumarDias(hoyF, -35), fin: sumarDias(hoyF, 49), semanas: 2 }],
+    ['Bachata 0', { inicio: sumarDias(hoyF, 10), fin: sumarDias(hoyF, 94), semanas: 2 }],
+  ] as const) {
+    for (const c of clases.filter((x) => `${disciplinas.find((d) => d.id === x.disciplinaId)?.nombre} ${x.nivel}` === nombre && !x.curso)) {
+      await guardar('clases', { ...c, curso });
+      cursos++;
+    }
+  }
+  r.cursos = cursos;
+
+  // pago mensual a maestros (con su maestro) y lo ya pagado los 2 meses anteriores
+  const fijos = (await db.gastosFijos.toArray()).filter((f) => !f.deletedAt);
+  const dueno = (await db.usuarios.toArray()).find((u) => u.rol === 'dueno' && !u.deletedAt);
+  let pagosMaestros = 0;
+  if (dueno && !fijos.some((f) => f.categoria === 'maestros' && f.maestroId)) {
+    for (const m of await db.maestros.toArray()) {
+      const monto = /Luis/.test(m.nombre) ? 400000 : /Iván/.test(m.nombre) ? 320000 : /Daniela/.test(m.nombre) ? 180000 : 0;
+      if (!monto || m.deletedAt) continue;
+      const ahora = Date.now();
+      const fijo: GastoFijo = { id: crypto.randomUUID(), academiaId: academia.id, createdAt: ahora, updatedAt: ahora, deletedAt: null, concepto: `Pago ${m.nombre.split(' ').slice(0, 2).join(' ')}`, categoria: 'maestros', monto, dia: 15, activo: true, maestroId: m.id };
+      await guardar('gastosFijos', fijo);
+      for (let k = -2; k <= 0; k++) {
+        const fecha = `${sumarMeses(hoyF, k).slice(0, 7)}-15`;
+        if (fecha > hoyF) continue;
+        await guardar('gastos', { id: crypto.randomUUID(), academiaId: academia.id, createdAt: ahora, updatedAt: ahora, deletedAt: null, concepto: fijo.concepto, categoria: 'maestros', monto, fecha, fijoId: fijo.id, maestroId: m.id, metodo: 'transferencia', notas: '', usuarioId: dueno.id });
+        pagosMaestros++;
+      }
+    }
+  }
+  r.pagosMaestros = pagosMaestros;
   return r;
 }

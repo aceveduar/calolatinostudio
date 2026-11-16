@@ -135,3 +135,73 @@ textarea {
 .no-scrollbar {
   scrollbar-width: none;
 }
+
+/* ---------- Página pública (/a/<slug>) ---------- */
+/* Desplazamiento suave a las secciones, salvo para quien pidió menos movimiento */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.pp) {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Las secciones aparecen suavemente al entrar a la pantalla. Es decorativo:
+   sin soporte (o con "reducir movimiento") simplemente se ven, sin respaldo en JS. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes pp-revela {
+      from {
+        opacity: 0;
+        translate: 0 28px;
+      }
+    }
+    .pp-revela {
+      animation: pp-revela auto ease-out backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+  }
+}
+
+/* Preguntas frecuentes: details nativo; marcador junto al texto y apertura animada */
+.pp-faq summary {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.pp-faq summary::-webkit-details-marker {
+  display: none;
+}
+.pp-faq summary::before {
+  content: "";
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin-block-start: 0.1rem;
+  flex-shrink: 0;
+  background-color: var(--marca);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat center / contain;
+  rotate: -90deg;
+}
+.pp-faq details[open] > summary::before {
+  rotate: 0deg;
+}
+.pp-faq details::details-content {
+  interpolate-size: allow-keywords;
+  overflow: clip;
+  contain: layout;
+}
+.pp-faq details:not([open])::details-content {
+  block-size: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pp-faq summary::before {
+    transition: rotate 0.2s;
+  }
+  .pp-faq details::details-content {
+    transition: block-size, content-visibility;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
+    transition-behavior: allow-discrete;
+  }
+}
