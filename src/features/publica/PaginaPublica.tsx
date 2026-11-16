@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, AtSign, Check, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
+import { ArrowRight, AtSign, Check, ChevronDown, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
@@ -16,8 +16,8 @@ const horaFin = (h: string, min: number) => {
   const t = Number(h.slice(0, 2)) * 60 + Number(h.slice(3)) + min;
   return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 };
-/** "Salsa 0" → "Salsa": la disciplina es la primera palabra del nombre de la clase. */
-const disciplinaDe = (clase: string) => clase.split(' ')[0];
+/** La disciplina de una clase (la manda la base; si es una base vieja, la primera palabra del nombre). */
+const disciplinaDe = (c: { clase: string; disciplina?: string | null }) => c.disciplina || c.clase.split(' ')[0];
 const diasTexto = (dias: number[]) => SEMANA.filter((x) => dias.includes(x)).map((x) => DIAS_CORTOS[x]).join(' · ');
 const DESDE_CERO = /\b(0|b[aá]sico|principiantes?|inicial|desde cero)\b/i;
 type Estados = Map<string, ReturnType<typeof estadoCurso>>;
@@ -64,7 +64,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const [sede, setSede] = useState<string | null>(null);
   const [disciplina, setDisciplina] = useState<string | null>(null);
   const clasesSede = d.clases.filter((c) => (c.sede_id ?? null) === sede);
-  const clasesVista = clasesSede.filter((c) => !disciplina || disciplinaDe(c.clase) === disciplina);
+  const clasesVista = clasesSede.filter((c) => !disciplina || disciplinaDe(c) === disciplina);
   // los planes "solo de la sede principal" llevan un id fijo (no hay registro de la sede principal)
   const planesSede = d.planes.filter((x) => !x.sede_id || x.sede_id === (sede ?? PRINCIPAL));
   const suelta = planesSede.find((x) => x.tipo === 'suelta' && x.sede_id) ?? planesSede.find((x) => x.tipo === 'suelta');
@@ -88,7 +88,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const disciplinas = useMemo(() => {
     const m = new Map<string, { nombre: string; color: string; niveles: string[]; dias: Set<number>; veces: number }>();
     for (const c of d.clases) {
-      const n = disciplinaDe(c.clase);
+      const n = disciplinaDe(c);
       const v = m.get(n) ?? { nombre: n, color: c.color ?? 'var(--marca)', niveles: [], dias: new Set<number>(), veces: 0 };
       v.veces += c.dias.length;
       const nivel = c.clase.slice(n.length).trim();
@@ -184,7 +184,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
       <header ref={portada} className="relative isolate flex min-h-[92svh] overflow-hidden bg-panel text-white">
         {p.portada ? (
           <>
-            <img src={p.portada} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" fetchPriority="high" />
+            <img src={p.portada} alt="" className="pp-paralaje absolute inset-0 -z-10 h-full w-full object-cover" fetchPriority="high" />
             <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/90 via-black/45 to-black/30" />
           </>
         ) : (
@@ -195,7 +195,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             </svg>
           </div>
         )}
-        <div className="mx-auto flex w-full max-w-5xl flex-col justify-end px-5 pt-28 pb-12 sm:pb-16">
+        <div className="pp-sube mx-auto flex w-full max-w-5xl flex-col justify-end px-5 pt-28 pb-14 sm:pb-16">
           {disciplinas.length > 0 && (
             <p className="mb-4 w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-widest uppercase ring-1 ring-white/25 backdrop-blur">
               {disciplinas
@@ -223,23 +223,42 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </div>
           {/* datos que dan confianza, calculados de la app */}
           <dl className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/20 pt-6">
-            <Dato valor={String(clasesPorSemana)} texto="clases por semana" />
-            <Dato valor={String(disciplinas.length)} texto={disciplinas.length === 1 ? 'disciplina' : 'disciplinas'} />
-            {desdeCero ? <Dato valor="0" texto="experiencia necesaria" /> : <Dato valor={String(sedes.length)} texto={sedes.length === 1 ? 'sede' : 'sedes'} />}
+            <Dato valor={clasesPorSemana} texto="clases por semana" />
+            <Dato valor={disciplinas.length} texto={disciplinas.length === 1 ? 'disciplina' : 'disciplinas'} />
+            {desdeCero ? <Dato valor={0} texto="experiencia necesaria" /> : <Dato valor={sedes.length} texto={sedes.length === 1 ? 'sede' : 'sedes'} />}
           </dl>
         </div>
+        <a href="#clases" className="pp-rebote absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full p-2 text-white/70 hover:text-white" aria-label="Ver las clases">
+          <ChevronDown size={28} />
+        </a>
       </header>
+
+      {/* cinta de disciplinas: avanza con el scroll */}
+      {disciplinas.length > 1 && (
+        <div className="overflow-hidden bg-ink-900 py-4 text-white select-none" aria-hidden="true">
+          <div className="pp-cinta flex w-max gap-8 pl-5 text-2xl font-extrabold tracking-tight whitespace-nowrap uppercase sm:text-3xl">
+            {Array.from({ length: 4 }, () => disciplinas.map((x) => x.nombre))
+              .flat()
+              .map((n, i) => (
+                <span key={i} className="flex items-center gap-8">
+                  <span className={i % 2 ? 'text-transparent [-webkit-text-stroke:1.5px_white]' : ''}>{n}</span>
+                  <Sparkle size={22} className="text-brand-500" />
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
 
       <main>
         {/* ---------- disciplinas ---------- */}
         {disciplinas.length > 1 && (
           <Seccion id="clases" eyebrow="Nuestras clases" titulo="¿Qué quieres bailar?">
-            <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
+            <div className="pp-carrusel no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[14%] pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
               {disciplinas.map((x) => (
                 <button
                   key={x.nombre}
                   onClick={() => verHorario(x.nombre)}
-                  className="pp-revela group relative flex min-h-44 w-[72%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-3xl p-5 text-left text-white shadow-lg active:scale-[0.98] sm:w-auto"
+                  className="group relative flex min-h-48 w-[72vw] shrink-0 snap-center flex-col justify-end overflow-hidden rounded-3xl p-5 text-left text-white shadow-lg active:scale-[0.98] sm:w-auto"
                   style={{ background: `linear-gradient(150deg in oklab, color-mix(in oklab, ${x.color} 80%, white), ${x.color} 45%, color-mix(in oklab, ${x.color} 55%, #120f18))` }}
                 >
                   <svg className="absolute -top-8 -right-8 h-36 w-36 opacity-20 transition group-hover:rotate-12" viewBox="0 0 64 64" aria-hidden="true">
@@ -305,35 +324,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           {clasesVista.length === 0 ? (
             <p className="mt-6 text-ink-500">Pronto publicaremos horarios aquí.</p>
           ) : (
-            <div className="mt-6 grid gap-x-6 gap-y-5 lg:grid-cols-2">
-              {SEMANA.map((x) => ({ dia: x, clases: clasesVista.filter((c) => c.dias.includes(x)).sort((a, b) => a.hora.localeCompare(b.hora)) }))
-                .filter((x) => x.clases.length)
-                .map(({ dia: dd, clases }) => (
-                  <div key={dd} className="pp-revela">
-                    <p className="mb-2 text-xs font-extrabold tracking-widest text-ink-500 uppercase">{DIAS_LARGOS[dd]}</p>
-                    <ul className="space-y-2">
-                      {clases.map((c) => {
-                        const e = estados.get(c.id);
-                        return (
-                          <li key={c.id} className="flex items-center gap-3 rounded-2xl bg-superficie px-4 py-3 shadow-sm ring-1 ring-ink-100">
-                            <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block font-bold">{c.clase}</span>
-                              {e?.texto && <span className={cx('block text-xs font-semibold', e.aceptaNuevos ? 'text-ok-600' : 'text-ink-500')}>{e.texto}</span>}
-                            </span>
-                            <span className="text-right">
-                              <span className="block text-sm font-semibold text-ink-700 tabular-nums">
-                                {c.hora}–{horaFin(c.hora, c.duracion)}
-                              </span>
-                              {c.precio ? <span className="block text-sm font-bold text-brand-600">{dinero(c.precio)}</span> : null}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
-            </div>
+            <Horario clases={clasesVista} estados={estados} />
           )}
         </Seccion>
 
@@ -360,6 +351,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                   );
                 })}
             </div>
+            {suelta && <Calculadora planes={planesSede} suelta={suelta} />}
           </Seccion>
         )}
 
@@ -551,12 +543,13 @@ function Seccion({ id, idAlterno, eyebrow, titulo, fondo, children }: { id?: str
   );
 }
 
-function Dato({ valor, texto }: { valor: string; texto: string }) {
+function Dato({ valor, texto }: { valor: number; texto: string }) {
   return (
     <div>
       <dt className="sr-only">{texto}</dt>
       <dd>
-        <span className="block text-3xl font-extrabold tracking-tight">{valor}</span>
+        <span className="sr-only">{valor}</span>
+        <Contador n={valor} />
         <span className="block text-xs leading-tight text-white/75">{texto}</span>
       </dd>
     </div>
@@ -678,3 +671,227 @@ function Inscripcion({ d, slug, clases, primera, estados }: { d: DatosPublica; s
   );
 }
 
+
+/** Número que cuenta hasta su valor al aparecer (sin animación si se pidió menos movimiento). */
+function Contador({ n }: { n: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [v, setV] = useState(n);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || n < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setV(0);
+    let raf = 0;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const paso = (t: number) => {
+        const k = Math.min(1, (t - t0) / 1100);
+        setV(Math.round(n * (1 - Math.pow(1 - k, 3))));
+        if (k < 1) raf = requestAnimationFrame(paso);
+      };
+      raf = requestAnimationFrame(paso);
+    });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [n]);
+  return (
+    <span ref={ref} aria-hidden="true" className="block text-3xl font-extrabold tracking-tight tabular-nums">
+      {v}
+    </span>
+  );
+}
+
+const minutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
+const enCuanto = (m: number) => (m < 60 ? `En ${m} min` : m < 120 ? 'En 1 h' : `En ${Math.round(m / 60)} h`);
+
+/**
+ * Horario por día: abre en hoy (o el siguiente día con clases), con "Ahora" y "Siguiente" en vivo.
+ * "Toda la semana" muestra todo junto, para quien quiere planear.
+ */
+function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados: Estados }) {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const hoyDia = ahora.getDay();
+  const min = ahora.getHours() * 60 + ahora.getMinutes();
+  const conClase = SEMANA.filter((x) => clases.some((c) => c.dias.includes(x)));
+  // hoy, o el siguiente día que tenga clases
+  const porDefecto = [0, 1, 2, 3, 4, 5, 6].map((k) => (hoyDia + k) % 7).find((x) => conClase.includes(x)) ?? 'semana';
+  const [elegido, setElegido] = useState<number | 'semana' | null>(null);
+  const dia = elegido !== null && (elegido === 'semana' || conClase.includes(elegido)) ? elegido : porDefecto;
+  const delDia = (x: number) => clases.filter((c) => c.dias.includes(x)).sort((a, b) => a.hora.localeCompare(b.hora));
+  // en vivo (solo hoy): la que está pasando y la siguiente
+  const deHoy = delDia(hoyDia);
+  const enCurso = new Set(deHoy.filter((c) => minutos(c.hora) <= min && min < minutos(c.hora) + c.duracion).map((c) => c.id));
+  const siguiente = deHoy.find((c) => minutos(c.hora) > min);
+
+  const fila = (c: DatosPublica['clases'][number], vivo: boolean) => {
+    const e = estados.get(c.id);
+    const esAhora = vivo && enCurso.has(c.id);
+    const esSiguiente = vivo && siguiente?.id === c.id;
+    return (
+      <li key={c.id} className={cx('flex items-center gap-3 rounded-2xl bg-superficie px-4 py-3 shadow-sm ring-1 transition', esAhora ? 'ring-2 ring-ok-600' : 'ring-ink-100')}>
+        <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 font-bold">
+            {c.clase}
+            {esAhora && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-50 px-2 py-0.5 text-[11px] font-extrabold text-ok-600 uppercase">
+                <span className="pp-pulso h-2 w-2 rounded-full bg-ok-600" /> Ahora
+              </span>
+            )}
+            {esSiguiente && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold text-brand-600">{enCuanto(minutos(c.hora) - min)}</span>}
+          </span>
+          {e?.texto && <span className={cx('block text-xs font-semibold', e.aceptaNuevos ? 'text-ok-600' : 'text-ink-500')}>{e.texto}</span>}
+        </span>
+        <span className="text-right">
+          <span className="block text-sm font-semibold text-ink-700 tabular-nums">
+            {c.hora}–{horaFin(c.hora, c.duracion)}
+          </span>
+          {c.precio ? <span className="block text-sm font-bold text-brand-600">{dinero(c.precio)}</span> : null}
+        </span>
+      </li>
+    );
+  };
+
+  return (
+    <div className="mt-6">
+      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Día">
+        {conClase.map((x) => (
+          <button
+            key={x}
+            aria-pressed={dia === x}
+            onClick={() => setElegido(x)}
+            className={cx(
+              'flex shrink-0 flex-col items-center rounded-2xl px-4 py-2 ring-1 transition',
+              dia === x ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50',
+            )}
+          >
+            <span className="text-sm font-extrabold">{x === hoyDia ? 'Hoy' : DIAS_CORTOS[x]}</span>
+            <span className={cx('text-[11px]', dia === x ? 'text-white/70' : 'text-ink-500')}>
+              {delDia(x).length} {delDia(x).length === 1 ? 'clase' : 'clases'}
+            </span>
+          </button>
+        ))}
+        <button
+          aria-pressed={dia === 'semana'}
+          onClick={() => setElegido('semana')}
+          className={cx('shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold ring-1 transition', dia === 'semana' ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50')}
+        >
+          Toda la semana
+        </button>
+      </div>
+      {dia === 'semana' ? (
+        <div className="mt-5 grid gap-x-6 gap-y-5 lg:grid-cols-2">
+          {conClase.map((x) => (
+            <div key={x}>
+              <p className="mb-2 text-xs font-extrabold tracking-widest text-ink-500 uppercase">{DIAS_LARGOS[x]}</p>
+              <ul className="space-y-2">{delDia(x).map((c) => fila(c, x === hoyDia))}</ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-extrabold tracking-widest text-ink-500 uppercase">
+            {DIAS_LARGOS[dia]}
+            {dia === hoyDia ? ' · hoy' : ''}
+          </p>
+          <ul className="grid gap-2 lg:grid-cols-2">{delDia(dia).map((c) => fila(c, dia === hoyDia))}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "¿Qué plan te conviene?": según cuántas veces por semana quiere venir, cuánto le cuesta al mes
+ * cada forma de pagar y cuál le sale más barata. Usa los precios reales de la sede.
+ */
+function Calculadora({ planes, suelta }: { planes: DatosPublica['planes']; suelta: DatosPublica['planes'][number] }) {
+  const [veces, setVeces] = useState(2);
+  const alMes = veces * 4;
+  const opciones = [
+    { nombre: 'Clase suelta', costo: suelta.precio * alMes, detalle: `${alMes} × ${dinero(suelta.precio)}` },
+    ...planes
+      .filter((x) => x.tipo === 'paquete' && x.clases)
+      .map((x) => {
+        const k = Math.ceil(alMes / x.clases!);
+        return { nombre: x.nombre, costo: k * x.precio, detalle: k === 1 ? `${x.clases} clases` : `${k} paquetes de ${x.clases} clases` };
+      }),
+    ...planes.filter((x) => x.tipo === 'mensual' && !x.grupos).map((x) => ({ nombre: x.nombre, costo: x.precio, detalle: 'ilimitado' })),
+  ];
+  if (opciones.length < 2) return null;
+  const mejor = opciones.reduce((a, b) => (b.costo < a.costo ? b : a));
+  const maximo = Math.max(...opciones.map((o) => o.costo));
+  const ahorro = suelta.precio * alMes - mejor.costo;
+
+  return (
+    <div className="pp-revela mt-8 grid gap-6 rounded-3xl bg-superficie p-5 shadow-sm ring-1 ring-ink-100 sm:p-7 md:grid-cols-2">
+      <div>
+        <p className="text-xs font-extrabold tracking-widest text-brand-600 uppercase">Calculadora</p>
+        <p className="mt-1 text-2xl font-extrabold tracking-tight">¿Qué plan te conviene?</p>
+        <label htmlFor="pp-veces" className="mt-5 block text-sm font-semibold text-ink-700">
+          ¿Cuántas veces por semana quieres venir?
+        </label>
+        <p className="mt-1 text-4xl font-extrabold tracking-tight">
+          {veces} <span className="text-lg font-bold text-ink-500">{veces === 1 ? 'vez' : 'veces'} por semana</span>
+        </p>
+        <input
+          id="pp-veces"
+          type="range"
+          min={1}
+          max={6}
+          step={1}
+          value={veces}
+          onChange={(e) => setVeces(Number(e.target.value))}
+          aria-valuetext={`${veces} ${veces === 1 ? 'vez' : 'veces'} por semana`}
+          className="pp-slider mt-2"
+          style={{ ['--slider-progress' as string]: `${((veces - 1) / 5) * 100}%` }}
+        />
+        <div className="flex justify-between text-xs font-semibold text-ink-500" aria-hidden="true">
+          {[1, 2, 3, 4, 5, 6].map((x) => (
+            <span key={x}>{x}</span>
+          ))}
+        </div>
+        <p className="mt-2 text-sm text-ink-500">Son unas {alMes} clases al mes.</p>
+      </div>
+      <div aria-live="polite">
+        <div className="rounded-2xl bg-panel p-5 text-white">
+          <p className="text-sm text-white/70">Te conviene</p>
+          <p className="text-2xl font-extrabold">{mejor.nombre}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight">
+            {dinero(mejor.costo)} <span className="text-base font-bold text-white/70">al mes</span>
+          </p>
+          <p className="text-sm text-white/70">≈ {dinero(Math.round(mejor.costo / alMes / 100) * 100)} por clase</p>
+          {ahorro > 0 && <p className="mt-2 inline-block rounded-full bg-ok-600 px-3 py-1 text-sm font-bold">Ahorras {dinero(ahorro)} vs. pagar por clase</p>}
+        </div>
+        <ul className="mt-4 space-y-2">
+          {opciones
+            .slice()
+            .sort((a, b) => a.costo - b.costo)
+            .map((o) => (
+              <li key={o.nombre}>
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className={cx('font-semibold', o === mejor && 'text-brand-600')}>{o.nombre}</span>
+                  <span className="font-bold tabular-nums">{dinero(o.costo)}</span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-ink-100">
+                  <div
+                    className={cx('h-full origin-left rounded-full transition-transform duration-500', o === mejor ? 'bg-brand-500' : 'bg-ink-300')}
+                    style={{ transform: `scaleX(${o.costo / maximo})` }}
+                  />
+                </div>
+                <p className="text-[11px] text-ink-500">{o.detalle}</p>
+              </li>
+            ))}
+        </ul>
+      </div>
+    </div>
+  );
+}

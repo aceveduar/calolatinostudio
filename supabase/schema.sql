@@ -556,7 +556,7 @@ begin
                        from sedes s where s.academia_id = ac.id and s.activo and s.deleted_at is null), '[]'::jsonb),
     'clases', coalesce((
       select jsonb_agg(jsonb_build_object('id', k.id, 'clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
-                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta, 'curso', k.curso) order by k.hora_inicio)
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta, 'curso', k.curso, 'disciplina', d.nombre) order by k.hora_inicio)
       from clases k left join disciplinas d on d.id = k.disciplina_id
       where k.academia_id = ac.id and k.activo and k.deleted_at is null
     ), '[]'::jsonb),

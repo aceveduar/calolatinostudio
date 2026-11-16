@@ -205,3 +205,143 @@ textarea {
     transition-behavior: allow-discrete;
   }
 }
+
+/* Portada con profundidad: la foto baja más lento que el texto al hacer scroll (decorativo, sin respaldo) */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    @keyframes pp-paralaje {
+      to {
+        translate: 0 28%;
+        scale: 1.06;
+      }
+    }
+    .pp-paralaje {
+      animation: pp-paralaje linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100svh;
+    }
+    @keyframes pp-desvanece {
+      to {
+        opacity: 0;
+        translate: 0 -40px;
+      }
+    }
+    .pp-sube {
+      animation: pp-desvanece linear both;
+      animation-timeline: scroll(root);
+      animation-range: 20svh 80svh;
+    }
+
+    /* Cinta de disciplinas: avanza con el scroll (no se mueve sola, así no hace falta botón de pausa) */
+    @keyframes pp-cinta {
+      from {
+        translate: 0 0;
+      }
+      to {
+        translate: -35% 0;
+      }
+    }
+    .pp-cinta {
+      animation: pp-cinta linear both;
+      animation-timeline: view();
+    }
+
+    /* Carrusel de disciplinas (celular): la tarjeta del centro se agranda */
+    @keyframes pp-carrusel {
+      0%,
+      100% {
+        scale: 0.9;
+        opacity: 0.75;
+      }
+      50% {
+        scale: 1;
+        opacity: 1;
+      }
+    }
+    @media (max-width: 639px) {
+      .pp-carrusel > * {
+        animation: pp-carrusel linear both;
+        animation-timeline: view(inline);
+      }
+    }
+  }
+
+  /* Flecha de "desliza" en la portada */
+  @keyframes pp-rebote {
+    50% {
+      translate: 0 6px;
+    }
+  }
+  .pp-rebote {
+    animation: pp-rebote 1.6s ease-in-out 3;
+  }
+  /* Punto de "ahora" en el horario */
+  @keyframes pp-pulso {
+    70% {
+      box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-ok-600) 0%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  .pp-pulso {
+    animation: pp-pulso 1.8s ease-out infinite;
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok-600) 50%, transparent);
+  }
+}
+
+/* Control deslizante de "¿Qué plan te conviene?": input range nativo con los colores de la academia */
+.pp-slider {
+  --slider-track-size: 0.5rem;
+  --slider-thumb-size: 1.75rem;
+  --slider-track-color: var(--color-ink-100);
+  --slider-fill-color: var(--marca);
+  --slider-progress: 50%;
+  appearance: none;
+  inline-size: 100%;
+  block-size: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.pp-slider::-webkit-slider-runnable-track {
+  block-size: var(--slider-track-size);
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--slider-fill-color) var(--slider-progress), var(--slider-track-color) var(--slider-progress));
+}
+.pp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2);
+  border: 4px solid white;
+  border-radius: 50%;
+  background: var(--slider-fill-color);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+.pp-slider::-moz-range-track {
+  block-size: var(--slider-track-size);
+  border-radius: 999px;
+  background: var(--slider-track-color);
+}
+.pp-slider::-moz-range-progress {
+  block-size: var(--slider-track-size);
+  border-radius: 999px;
+  background: var(--slider-fill-color);
+}
+.pp-slider::-moz-range-thumb {
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  border: 4px solid white;
+  border-radius: 50%;
+  background: var(--slider-fill-color);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+.pp-slider:focus-visible {
+  outline: 2px solid var(--slider-fill-color);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
