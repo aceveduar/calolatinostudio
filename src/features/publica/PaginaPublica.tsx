@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, AtSign, Check, ChevronDown, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
+import { ArrowRight, AtSign, Check, ChevronDown, ChevronLeft, ChevronRight, Map as IconoMapa, MapPin, Quote, X, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
@@ -138,6 +138,14 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     };
   }, []);
 
+  // tocar una clase del horario: queda elegida en el formulario
+  const [claseSel, setClaseSel] = useState('');
+  const apartar = (id: string) => {
+    setClaseSel(id);
+    document.getElementById('inscribete')?.scrollIntoView({ block: 'start' });
+    setTimeout(() => document.getElementById('pp-nombre')?.focus({ preventScroll: true }), 450);
+  };
+  const waCon = (texto: string) => (d.academia.whatsapp ? `https://wa.me/52${d.academia.whatsapp}?text=${encodeURIComponent(texto)}` : null);
   const verHorario = (n: string) => {
     setDisciplina(n);
     document.getElementById('horarios')?.scrollIntoView({ block: 'start' });
@@ -287,7 +295,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     role="tab"
                     aria-selected={sede === s.id}
                     onClick={() => setSede(s.id)}
-                    className={cx('flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100')}
+                    className={cx('flex min-h-11 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100')}
                   >
                     <MapPin size={14} /> {s.nombre}
                   </button>
@@ -301,7 +309,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     key={n ?? 'todas'}
                     aria-pressed={disciplina === n}
                     onClick={() => setDisciplina(n)}
-                    className={cx('shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold ring-1', disciplina === n ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie text-ink-700 ring-ink-100')}
+                    className={cx('min-h-11 shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', disciplina === n ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie text-ink-700 ring-ink-100')}
                   >
                     {n ?? 'Todas'}
                   </button>
@@ -324,7 +332,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           {clasesVista.length === 0 ? (
             <p className="mt-6 text-ink-500">Pronto publicaremos horarios aquí.</p>
           ) : (
-            <Horario clases={clasesVista} estados={estados} />
+            <Horario clases={clasesVista} estados={estados} onApartar={apartar} wa={(c, dd) => waCon(`Hola, quiero información de la clase de ${c.clase} (${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}) en ${d.academia.nombre}.`)} />
           )}
         </Seccion>
 
@@ -355,6 +363,13 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </Seccion>
         )}
 
+        {/* ---------- comunidad: fotos y lo que dicen los alumnos ---------- */}
+        {((p.galeria?.length ?? 0) > 0 || (p.testimonios?.length ?? 0) > 0) && (
+          <Seccion id="comunidad" eyebrow="Comunidad" titulo="Así se vive la clase" fondo="superficie">
+            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} />
+          </Seccion>
+        )}
+
         {/* ---------- franja de la primera clase ---------- */}
         <section className="pp-revela relative overflow-hidden bg-brand-500 text-white">
           <div className="mx-auto flex max-w-5xl flex-col gap-5 px-5 py-12 sm:flex-row sm:items-center sm:justify-between">
@@ -374,7 +389,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             <div className="space-y-6">
               {lugares.map((l) => (
                 <div key={l.nombre} className="pp-revela grid overflow-hidden rounded-3xl bg-superficie shadow-sm ring-1 ring-ink-100 md:grid-cols-[1.4fr_1fr]">
-                  <iframe title={`Mapa de ${l.nombre}`} src={mapaEmbed(l.direccion)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/10] h-full w-full bg-ink-100 md:aspect-auto md:min-h-72" />
+                  <MapaLigero nombre={l.nombre} direccion={l.direccion} />
                   <div className="flex flex-col gap-3 p-5">
                     {lugares.length > 1 && <p className="text-xs font-extrabold tracking-widest text-brand-600 uppercase">{l.nombre}</p>}
                     <p className="flex gap-2 text-lg font-bold">
@@ -410,7 +425,21 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                         {e.hora} · boleto {dinero(e.precio)}
                       </span>
                       {e.descripcion && <span className="mt-1 block text-sm">{e.descripcion}</span>}
-                      {e.quedan !== null && <span className={cx('mt-1 block text-sm font-bold', e.quedan === 0 ? 'text-bad-600' : 'text-brand-600')}>{e.quedan === 0 ? 'Agotado' : `Quedan ${e.quedan} lugares`}</span>}
+                      {e.quedan !== null && (
+                        <span className={cx('mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-extrabold', e.quedan === 0 ? 'bg-bad-50 text-bad-600' : e.quedan <= 20 ? 'bg-warn-50 text-warn-600' : 'bg-brand-50 text-brand-600')}>
+                          {e.quedan === 0 ? 'Agotado' : e.quedan <= 20 ? `¡Últimos ${e.quedan} lugares!` : `Quedan ${e.quedan} lugares`}
+                        </span>
+                      )}
+                      {e.quedan !== 0 && waCon(`Hola, quiero boletos para ${e.nombre} (${dd} de ${MESES[mm - 1]}, ${e.hora}).`) && (
+                        <a
+                          href={waCon(`Hola, quiero boletos para ${e.nombre} (${dd} de ${MESES[mm - 1]}, ${e.hora}).`)!}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#25d366] px-4 text-sm font-bold text-white active:scale-[0.98]"
+                        >
+                          <MessageCircle size={18} /> Quiero ir
+                        </a>
+                      )}
                     </span>
                   </li>
                 );
@@ -470,7 +499,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               )}
             </div>
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
-              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} />
+              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} />
             </div>
           </div>
         </section>
@@ -491,7 +520,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           {redes.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {redes.map((r) => (
-                <a key={r.red} href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/15 hover:bg-white/15">
+                <a key={r.red} href={r.url} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/15 hover:bg-white/15">
                   <AtSign size={15} /> {{ instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' }[r.red]}
                 </a>
               ))}
@@ -579,15 +608,21 @@ function Punto({ children }: { children: ReactNode }) {
   );
 }
 
-function Inscripcion({ d, slug, clases, primera, estados }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados }) {
+function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
-  const [claseId, setClaseId] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviado'>('listo');
   const [error, setError] = useState<string | null>(null);
   const tel = telefono.replace(/\D/g, '');
-  const valido = nombre.trim().length >= 2 && tel.length === 10;
+  // errores junto a cada campo (no un botón apagado sin explicación)
+  const errNombre = nombre.trim().length < 2 ? 'Escribe tu nombre' : null;
+  const errTel = tel.length === 0 ? 'Escribe tu WhatsApp' : tel.length < 10 ? `Falta${10 - tel.length === 1 ? '' : 'n'} ${10 - tel.length} dígito${10 - tel.length === 1 ? '' : 's'}` : tel.length > 10 ? 'Son 10 dígitos, sin lada' : null;
+  const valido = !errNombre && !errTel;
+  const [intento, setIntento] = useState(false);
+  const [tocado, setTocado] = useState({ nombre: false, tel: false });
+  const verNombre = (intento || tocado.nombre) && errNombre;
+  const verTel = (intento || tocado.tel) && errTel;
   // clase a medio curso: se anota igual, como lista de espera para el siguiente grupo
   const espera = claseId && estados.get(claseId)?.aceptaNuevos === false ? clases.find((c) => c.id === claseId) : null;
   const [esperaEnviada, setEsperaEnviada] = useState<string | null>(null);
@@ -621,7 +656,12 @@ function Inscripcion({ d, slug, clases, primera, estados }: { d: DatosPublica; s
         className="mt-5 space-y-3"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!supabase || !valido) return;
+          if (!valido) {
+            setIntento(true);
+            document.getElementById(errNombre ? 'pp-nombre' : 'pp-tel')?.focus();
+            return;
+          }
+          if (!supabase) return;
           setEstado('enviando');
           setError(null);
           const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim() });
@@ -636,15 +676,44 @@ function Inscripcion({ d, slug, clases, primera, estados }: { d: DatosPublica; s
       >
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink-700">Nombre</span>
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="name" className={campo} />
+          <input
+            id="pp-nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            onBlur={() => setTocado((t) => ({ ...t, nombre: true }))}
+            autoComplete="name"
+            aria-invalid={!!verNombre}
+            aria-describedby={verNombre ? 'pp-nombre-error' : undefined}
+            className={cx(campo, verNombre && 'ring-2 ring-bad-600')}
+          />
+          {verNombre && (
+            <span id="pp-nombre-error" className="mt-1 block text-sm font-semibold text-bad-600">
+              {errNombre}
+            </span>
+          )}
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink-700">WhatsApp (10 dígitos)</span>
-          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" autoComplete="tel" className={campo} />
+          <input
+            id="pp-tel"
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
+            onBlur={() => setTocado((t) => ({ ...t, tel: true }))}
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={!!verTel}
+            aria-describedby={verTel ? 'pp-tel-error' : undefined}
+            className={cx(campo, verTel && 'ring-2 ring-bad-600')}
+          />
+          {verTel && (
+            <span id="pp-tel-error" className="mt-1 block text-sm font-semibold text-bad-600">
+              {errTel}
+            </span>
+          )}
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink-700">¿Qué clase te interesa?</span>
-          <select value={claseId} onChange={(e) => setClaseId(e.target.value)} className={cx(campo, 'px-3')}>
+          <select value={claseId} onChange={(e) => onClase(e.target.value)} className={cx(campo, 'px-3', claseId && 'ring-2 ring-brand-500')}>
             <option value="">Todavía no sé / cualquiera</option>
             {clases.map((c) => (
               <option key={c.id} value={c.id}>
@@ -660,7 +729,7 @@ function Inscripcion({ d, slug, clases, primera, estados }: { d: DatosPublica; s
           <input value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={300} placeholder="Ej. nunca he bailado, voy en pareja…" className={campo} />
         </label>
         {error && <p className="rounded-xl bg-bad-50 px-3 py-2 text-sm font-medium text-bad-600">{error}</p>}
-        <button type="submit" disabled={!valido || estado === 'enviando'} className="h-14 w-full rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-lg shadow-brand-500/30 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none">
+        <button type="submit" disabled={estado === 'enviando'} className="h-14 w-full rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-lg shadow-brand-500/30 active:scale-[0.98] disabled:opacity-60">
           {estado === 'enviando' ? 'Enviando…' : espera ? 'Avísenme del siguiente grupo' : 'Quiero inscribirme'}
         </button>
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink-500">
@@ -712,7 +781,7 @@ const enCuanto = (m: number) => (m < 60 ? `En ${m} min` : m < 120 ? 'En 1 h' : `
  * Horario por día: abre en hoy (o el siguiente día con clases), con "Ahora" y "Siguiente" en vivo.
  * "Toda la semana" muestra todo junto, para quien quiere planear.
  */
-function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados: Estados }) {
+function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['clases']; estados: Estados; onApartar: (id: string) => void; wa: (c: DatosPublica['clases'][number], dia: number) => string | null }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setAhora(new Date()), 60_000);
@@ -731,12 +800,18 @@ function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados:
   const enCurso = new Set(deHoy.filter((c) => minutos(c.hora) <= min && min < minutos(c.hora) + c.duracion).map((c) => c.id));
   const siguiente = deHoy.find((c) => minutos(c.hora) > min);
 
-  const fila = (c: DatosPublica['clases'][number], vivo: boolean) => {
+  const fila = (c: DatosPublica['clases'][number], vivo: boolean, dd: number) => {
     const e = estados.get(c.id);
     const esAhora = vivo && enCurso.has(c.id);
     const esSiguiente = vivo && siguiente?.id === c.id;
     return (
-      <li key={c.id} className={cx('flex items-center gap-3 rounded-2xl bg-superficie px-4 py-3 shadow-sm ring-1 transition', esAhora ? 'ring-2 ring-ok-600' : 'ring-ink-100')}>
+      <li key={c.id} className={cx('flex items-stretch overflow-hidden rounded-2xl bg-superficie shadow-sm ring-1 transition', esAhora ? 'ring-2 ring-ok-600' : 'ring-ink-100')}>
+        <button
+          type="button"
+          onClick={() => onApartar(c.id)}
+          aria-label={`Apartar lugar en ${c.clase}, ${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}`}
+          className="group flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left hover:bg-ink-50 active:bg-ink-50"
+        >
         <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 font-bold">
@@ -756,6 +831,19 @@ function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados:
           </span>
           {c.precio ? <span className="block text-sm font-bold text-brand-600">{dinero(c.precio)}</span> : null}
         </span>
+        <ChevronRight size={18} className="shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden="true" />
+        </button>
+        {wa(c, dd) && (
+          <a
+            href={wa(c, dd)!}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Preguntar por WhatsApp por ${c.clase}`}
+            className="flex w-12 shrink-0 items-center justify-center border-l border-ink-100 text-[#1fae55] hover:bg-ink-50"
+          >
+            <MessageCircle size={20} />
+          </a>
+        )}
       </li>
     );
   };
@@ -782,17 +870,18 @@ function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados:
         <button
           aria-pressed={dia === 'semana'}
           onClick={() => setElegido('semana')}
-          className={cx('shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold ring-1 transition', dia === 'semana' ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50')}
+          className={cx('min-h-11 shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold ring-1 transition', dia === 'semana' ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50')}
         >
           Toda la semana
         </button>
       </div>
+      <p className="mt-3 text-xs text-ink-500">Toca una clase para apartar tu lugar.</p>
       {dia === 'semana' ? (
         <div className="mt-5 grid gap-x-6 gap-y-5 lg:grid-cols-2">
           {conClase.map((x) => (
             <div key={x}>
               <p className="mb-2 text-xs font-extrabold tracking-widest text-ink-500 uppercase">{DIAS_LARGOS[x]}</p>
-              <ul className="space-y-2">{delDia(x).map((c) => fila(c, x === hoyDia))}</ul>
+              <ul className="space-y-2">{delDia(x).map((c) => fila(c, x === hoyDia, x))}</ul>
             </div>
           ))}
         </div>
@@ -802,7 +891,7 @@ function Horario({ clases, estados }: { clases: DatosPublica['clases']; estados:
             {DIAS_LARGOS[dia]}
             {dia === hoyDia ? ' · hoy' : ''}
           </p>
-          <ul className="grid gap-2 lg:grid-cols-2">{delDia(dia).map((c) => fila(c, dia === hoyDia))}</ul>
+          <ul className="grid gap-2 lg:grid-cols-2">{delDia(dia).map((c) => fila(c, dia === hoyDia, dia))}</ul>
         </div>
       )}
     </div>
@@ -892,6 +981,106 @@ function Calculadora({ planes, suelta }: { planes: DatosPublica['planes']; suelt
             ))}
         </ul>
       </div>
+    </div>
+  );
+}
+
+/** El mapa de Google pesa: primero una vista ligera y se carga solo si la persona lo pide. */
+function MapaLigero({ nombre, direccion }: { nombre: string; direccion: string }) {
+  const [ver, setVer] = useState(false);
+  if (ver)
+    return <iframe title={`Mapa de ${nombre}`} src={mapaEmbed(direccion)} referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/10] h-full w-full bg-ink-100 md:aspect-auto md:min-h-72" />;
+  return (
+    <button
+      type="button"
+      onClick={() => setVer(true)}
+      className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-ink-100 md:aspect-auto md:min-h-72"
+      style={{
+        backgroundImage:
+          'linear-gradient(color-mix(in oklab, var(--marca) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--marca) 8%, transparent) 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+      }}
+    >
+      <span className="flex flex-col items-center gap-2">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-white shadow-lg">
+          <MapPin size={26} />
+        </span>
+        <span className="flex min-h-11 items-center gap-2 rounded-full bg-superficie px-4 text-sm font-bold shadow ring-1 ring-ink-100">
+          <IconoMapa size={16} /> Ver mapa
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Fotos (se abren en grande) y lo que dicen los alumnos; todo en carruseles para no alargar la página. */
+function Comunidad({ galeria, testimonios }: { galeria: string[]; testimonios: { texto: string; nombre: string; detalle?: string }[] }) {
+  const visor = useRef<HTMLDialogElement>(null);
+  const [i, setI] = useState(0);
+  const abrir = (k: number) => {
+    setI(k);
+    visor.current?.showModal();
+  };
+  const mover = (d: number) => setI((x) => (x + d + galeria.length) % galeria.length);
+  return (
+    <div className="space-y-6">
+      {galeria.length > 0 && (
+        <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1" aria-label="Fotos">
+          {galeria.map((f, k) => (
+            <li key={k} className="shrink-0 snap-start">
+              <button onClick={() => abrir(k)} className="block h-56 overflow-hidden rounded-3xl ring-1 ring-ink-100 sm:h-64" aria-label={`Ver foto ${k + 1} de ${galeria.length}`}>
+                <img src={f} alt="" loading="lazy" className="h-full w-auto max-w-[80vw] object-cover transition duration-300 hover:scale-105" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {testimonios.length > 0 && (
+        <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1" aria-label="Lo que dicen nuestros alumnos">
+          {testimonios.map((t, k) => (
+            <li key={k} className="pp-revela flex w-[82vw] max-w-sm shrink-0 snap-start flex-col rounded-3xl bg-ink-50 p-5 ring-1 ring-ink-100">
+              <Quote size={26} className="text-brand-500" aria-hidden="true" />
+              <p className="mt-2 flex-1 text-lg leading-snug font-semibold text-pretty">{t.texto}</p>
+              <p className="mt-4 font-extrabold">{t.nombre}</p>
+              {t.detalle && <p className="text-sm text-ink-500">{t.detalle}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* visor de fotos: <dialog> nativo (Esc lo cierra, el foco queda adentro) */}
+      <dialog
+        ref={visor}
+        className="m-auto max-h-[92dvh] w-[min(96vw,64rem)] overflow-visible bg-transparent p-0 backdrop:bg-black/85"
+        onClick={(e) => e.target === visor.current && visor.current?.close()}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') mover(1);
+          if (e.key === 'ArrowLeft') mover(-1);
+        }}
+        aria-label="Fotos"
+      >
+        {galeria.length > 0 && (
+          <div className="relative">
+            <img src={galeria[i]} alt={`Foto ${i + 1} de ${galeria.length}`} className="mx-auto max-h-[86dvh] w-auto rounded-2xl object-contain" />
+            <p className="mt-2 text-center text-sm font-semibold text-white/80" aria-live="polite">
+              {i + 1} / {galeria.length}
+            </p>
+            <button onClick={() => visor.current?.close()} className="absolute -top-2 right-0 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white" aria-label="Cerrar">
+              <X size={22} />
+            </button>
+            {galeria.length > 1 && (
+              <>
+                <button onClick={() => mover(-1)} className="absolute top-1/2 left-1 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white" aria-label="Foto anterior">
+                  <ChevronLeft size={24} />
+                </button>
+                <button onClick={() => mover(1)} className="absolute top-1/2 right-1 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white" aria-label="Foto siguiente">
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </dialog>
     </div>
   );
 }

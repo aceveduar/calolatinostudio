@@ -40,3 +40,20 @@ export async function prepararPortada(archivo: File): Promise<string> {
   }
   return lienzo.toDataURL('image/jpeg', 0.4);
 }
+
+/** Foto para la galería de la página: sin recortar, máximo 900 px y ~110 KB. */
+export async function prepararFotoGaleria(archivo: File): Promise<string> {
+  if (!archivo.type.startsWith('image/')) throw new Error('Elige una foto.');
+  const bmp = await createImageBitmap(archivo);
+  const k = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.round(bmp.width * k);
+  lienzo.height = Math.round(bmp.height * k);
+  lienzo.getContext('2d')!.drawImage(bmp, 0, 0, lienzo.width, lienzo.height);
+  bmp.close();
+  for (const q of [0.78, 0.68, 0.58, 0.5]) {
+    const url = lienzo.toDataURL('image/jpeg', q);
+    if (url.length < 150_000) return url;
+  }
+  return lienzo.toDataURL('image/jpeg', 0.4);
+}

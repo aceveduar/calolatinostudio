@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { ImagePlus, Plus, Trash2 } from 'lucide-react';
-import { prepararPortada } from '../../app/fotos';
+import { prepararFotoGaleria, prepararPortada } from '../../app/fotos';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -11,6 +11,9 @@ import { PREGUNTAS_SUGERIDAS } from '../../domain/publica';
 
 const areaTexto =
   'w-full rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-300 resize-y';
+
+/** Fotos de la galería: pocas y ligeras (viajan con la academia a todos los equipos). */
+const MAX_GALERIA = 8;
 
 /** Quita lo vacío para no guardar basura (y que "sin cambios" se compare bien). */
 function limpio(c: ContenidoPagina): ContenidoPagina {
@@ -25,6 +28,9 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
   if (pr.length) o.preguntas = pr;
   const redes = Object.fromEntries(Object.entries(c.redes ?? {}).filter(([, v]) => v?.trim()).map(([k, v]) => [k, v!.trim()]));
   if (Object.keys(redes).length) o.redes = redes;
+  if (c.galeria?.length) o.galeria = c.galeria.slice(0, MAX_GALERIA);
+  const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}) }));
+  if (te.length) o.testimonios = te;
   return o;
 }
 
@@ -40,6 +46,7 @@ export function EditorContenido() {
   const [c, setC] = useState<ContenidoPagina>(() => ({ ...guardado, preguntas: guardado.preguntas ?? PREGUNTAS_SUGERIDAS.map((x) => ({ ...x })) }));
   const [ocupado, setOcupado] = useState(false);
   const archivo = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
   const cambios = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
   const pon = (p: Partial<ContenidoPagina>) => setC((x) => ({ ...x, ...p }));
   const lugares = [{ clave: 'principal', nombre: nombreSede(null, sedes, academia) }, ...sedes.map((s) => ({ clave: s.id, nombre: s.nombre }))];
@@ -120,6 +127,69 @@ export function EditorContenido() {
         ))}
         <Boton variante="secundario" bloque onClick={() => pon({ preguntas: [...preguntas, { p: '', r: '' }] })}>
           <Plus size={18} /> Agregar pregunta
+        </Boton>
+      </Bloque>
+
+      <Bloque titulo="Galería" ayuda={`Fotos de clases y eventos (hasta ${MAX_GALERIA}). A la gente le gusta ver el ambiente: grupos, parejas bailando, eventos.`}>
+        {(c.galeria?.length ?? 0) > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {c.galeria!.map((f, i) => (
+              <div key={i} className="relative">
+                <img src={f} alt={`Foto ${i + 1} de la galería`} className="aspect-square w-full rounded-xl object-cover" />
+                <button
+                  onClick={() => pon({ galeria: c.galeria!.filter((_, j) => j !== i) })}
+                  className="absolute top-1 right-1 rounded-full bg-black/60 p-1.5 text-white"
+                  aria-label={`Quitar foto ${i + 1}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {(c.galeria?.length ?? 0) < MAX_GALERIA && (
+          <Boton variante="secundario" bloque onClick={() => galeria.current?.click()}>
+            <ImagePlus size={18} /> Agregar fotos
+          </Boton>
+        )}
+        <input
+          ref={galeria}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={async (e) => {
+            const archivos = [...(e.target.files ?? [])];
+            e.target.value = '';
+            try {
+              const nuevas = await Promise.all(archivos.slice(0, MAX_GALERIA - (c.galeria?.length ?? 0)).map(prepararFotoGaleria));
+              setC((x) => ({ ...x, galeria: [...(x.galeria ?? []), ...nuevas] }));
+            } catch (err) {
+              avisar(err instanceof Error ? err.message : 'No se pudo usar esa foto', 'error');
+            }
+          }}
+        />
+      </Bloque>
+
+      <Bloque titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
+        {(c.testimonios ?? []).map((x, i) => {
+          const lista = c.testimonios ?? [];
+          const ponT = (p: Partial<typeof x>) => pon({ testimonios: lista.map((y, j) => (j === i ? { ...y, ...p } : y)) });
+          return (
+            <Tarjeta key={i} className="space-y-2 p-3">
+              <textarea className={areaTexto} rows={2} value={x.texto} onChange={(e) => ponT({ texto: e.target.value })} maxLength={240} placeholder="¿Qué dijo?" aria-label={`Testimonio ${i + 1}`} />
+              <div className="flex items-center gap-2">
+                <Entrada value={x.nombre} onChange={(e) => ponT({ nombre: e.target.value })} placeholder="Nombre" aria-label={`Nombre ${i + 1}`} />
+                <Entrada value={x.detalle ?? ''} onChange={(e) => ponT({ detalle: e.target.value })} placeholder="Ej. Alumna de bachata" aria-label={`Detalle ${i + 1}`} />
+                <button onClick={() => pon({ testimonios: lista.filter((_, j) => j !== i) })} className="rounded-xl p-3 text-ink-500 active:bg-ink-100" aria-label={`Quitar testimonio ${i + 1}`}>
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </Tarjeta>
+          );
+        })}
+        <Boton variante="secundario" bloque onClick={() => pon({ testimonios: [...(c.testimonios ?? []), { texto: '', nombre: '' }] })}>
+          <Plus size={18} /> Agregar testimonio
         </Boton>
       </Bloque>
 

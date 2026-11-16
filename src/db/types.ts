@@ -58,6 +58,10 @@ export interface ContenidoPagina {
   ubicaciones?: Record<string, { direccion: string; referencias?: string }>;
   preguntas?: { p: string; r: string }[];
   redes?: { instagram?: string; facebook?: string; tiktok?: string };
+  /** fotos de clases y eventos (JPEG en data URL, ≤900 px) */
+  galeria?: string[];
+  /** lo que dicen los alumnos */
+  testimonios?: { texto: string; nombre: string; detalle?: string }[];
 }
 
 export type Rol = 'dueno' | 'recepcion' | 'maestro';
