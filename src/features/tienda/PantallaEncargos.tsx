@@ -7,6 +7,7 @@ import { useSedeActual } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import { db } from '../../db/db';
 import type { Alumno, ID, MetodoPago, Pedido, Producto } from '../../db/types';
 import { aCentavos, dinero } from '../../domain/dinero';
@@ -49,7 +50,7 @@ export function PantallaEncargos() {
     return (
       <div className="flex items-center gap-3 px-3 py-2.5">
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setSel(p)}>
-          <span className="text-2xl leading-none">{prod?.emoji ?? '🛍️'}</span>
+          <ImagenProducto foto={prod?.foto} emoji={prod?.emoji} tam={40} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">
               {nombrePedido(p, prod)}

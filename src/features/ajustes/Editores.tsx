@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Barcode, Plus, Truck } from 'lucide-react';
+import { useRef, useState, type ReactNode } from 'react';
+import { Barcode, Camera, ImagePlus, Plus, Trash2, Truck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLectorUSB } from '../../app/codigos';
 import { EscanerCodigo } from '../../components/EscanerCodigo';
@@ -9,6 +9,8 @@ import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useE
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { SEMANAS_PARA_ENTRAR } from '../../domain/cursos';
+import { prepararFoto } from '../../app/fotos';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import { Avatar, Boton, Campo, Entrada, EntradaClave, Etiqueta, Hoja, Interruptor, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
 import { NOMBRE_ROL, type CategoriaProducto, type Clase, type Disciplina, type ID, type Maestro, type Plan, type Producto, type Rol, type Sede, type TipoPlan, type Usuario } from '../../db/types';
@@ -285,7 +287,7 @@ export function EditorProductos() {
           const est = estadoExistencia(p, d);
           return (
             <>
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-50 text-2xl">{p.emoji}</span>
+              <ImagenProducto foto={p.foto} emoji={p.emoji} tam={40} />
               <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
                 <span className="block truncate font-semibold">{p.nombre}</span>
                 <span className="block text-sm text-ink-500">
@@ -306,12 +308,56 @@ export function EditorProductos() {
   );
 }
 
+/** Foto real del producto: con la cámara o de la galería; se guarda pequeña (400 px). */
+function FotoDeProducto({ foto, emoji, onChange }: { foto: string | null; emoji: string; onChange: (f: string | null) => void }) {
+  const avisar = useAvisos();
+  const camara = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const usar = async (f: File | undefined) => {
+    if (!f) return;
+    setOcupado(true);
+    try {
+      onChange(await prepararFoto(f, 400, 70_000));
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo usar esa foto', 'error');
+    } finally {
+      setOcupado(false);
+    }
+  };
+  return (
+    <Campo etiqueta="Foto del producto" ayuda="Una foto real vende más: así la ven en el portal y en la página. Fondo liso y buena luz." grupo>
+      <div className="flex items-center gap-3">
+        <ImagenProducto foto={foto} emoji={emoji} tam={88} className="ring-1 ring-ink-100" />
+        <div className="grid flex-1 gap-2">
+          <Boton variante="secundario" disabled={ocupado} onClick={() => camara.current?.click()}>
+            <Camera size={18} /> {foto ? 'Tomar otra' : 'Tomar foto'}
+          </Boton>
+          <div className="flex gap-2">
+            <Boton variante="secundario" className="flex-1" disabled={ocupado} onClick={() => galeria.current?.click()}>
+              <ImagePlus size={18} /> Galería
+            </Boton>
+            {foto && (
+              <Boton variante="fantasma" onClick={() => onChange(null)} aria-label="Quitar foto">
+                <Trash2 size={18} className="text-bad-600" />
+              </Boton>
+            )}
+          </div>
+        </div>
+      </div>
+      <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void usar(e.target.files?.[0]); e.target.value = ''; }} />
+      <input ref={galeria} type="file" accept="image/*" hidden onChange={(e) => { void usar(e.target.files?.[0]); e.target.value = ''; }} />
+    </Campo>
+  );
+}
+
 function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas, onHecho }: { producto: Producto | null; codigoInicial?: string; disponibles: number | null; reservadas: number; onHecho: () => void }) {
   // En el anaquel también están las piezas apartadas: el conteo físico las incluye
   const disponibles = libres === null ? null : libres + reservadas;
   const avisar = useAvisos();
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
+  const [foto, setFoto] = useState<string | null>(producto?.foto ?? null);
   const [precio, setPrecio] = useState(producto ? aPesosTexto(producto.precio) : '');
   const [costo, setCosto] = useState(producto?.costo ? aPesosTexto(producto.costo) : '');
   const ganancia = aCentavos(precio) - aCentavos(costo);
@@ -339,6 +385,8 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
     const datos = {
       nombre: nombre.trim(),
       emoji,
+      // foto real del producto (si se tomó o se quitó)
+      ...(foto || producto?.foto ? { foto } : {}),
       precio: aCentavos(precio),
       // costo: solo se manda si lo tiene (o si lo tenía y se quitó)
       ...(aCentavos(costo) > 0 ? { costo: aCentavos(costo) } : producto?.costo ? { costo: null } : {}),
@@ -362,7 +410,8 @@ function FormProducto({ producto, codigoInicial, disponibles: libres, reservadas
 
   return (
     <div className="space-y-4">
-      <Campo etiqueta="Ícono" grupo>
+      <FotoDeProducto foto={foto} emoji={emoji} onChange={setFoto} />
+      <Campo etiqueta={foto ? 'Ícono (por si no carga la foto)' : 'Ícono (mientras no tenga foto)'} grupo>
         <div className="grid grid-cols-7 gap-1.5">
           {EMOJIS_PRODUCTO.map((e) => (
             <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}

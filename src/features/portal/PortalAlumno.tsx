@@ -6,6 +6,7 @@ import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
@@ -120,7 +121,7 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
       <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
       <div className="relative w-full max-w-md rounded-t-3xl bg-ink-50 p-5 pb-safe animate-sube sm:rounded-3xl">
         <div className="flex items-center gap-3">
-          <span className="text-4xl leading-none">{producto.emoji}</span>
+          <ImagenProducto foto={producto.foto} emoji={producto.emoji} tam={64} />
           <span className="min-w-0 flex-1">
             <span className="block text-lg font-bold">{producto.nombre}</span>
             <span className="block font-bold text-brand-600">{dinero(producto.precio)}</span>
@@ -361,7 +362,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                 const agotado = !p.sobre_pedido && p.disponibles !== null && p.disponibles <= 0;
                 return (
                   <div key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
-                    {p.foto ? <img src={p.foto} alt="" className="mx-auto h-20 w-20 rounded-xl object-cover" /> : <span className="block text-4xl leading-tight">{p.emoji}</span>}
+                    <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
                     <p className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</p>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}
                     {p.sobre_pedido && <p className="text-[11px] font-semibold text-brand-600">Sobre pedido{p.dias_entrega ? ` · ~${p.dias_entrega} días` : ''}</p>}
