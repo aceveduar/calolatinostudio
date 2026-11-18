@@ -31,3 +31,4 @@ dist-ssr
 # pruebas
 dist-prueba
 tests/e2e/salida
+dist-nube
