@@ -1,0 +1,27 @@
+import { chromium } from 'playwright-core';
+const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const browser = await chromium.launch({ channel: 'msedge' });
+const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: 'es-MX', acceptDownloads: true });
+const page = await ctx.newPage();
+const ok = (c) => (c ? 'OK' : 'MAL');
+await ctx.route('https://wa.me/**', (r) => r.fulfill({ body: 'wa' }));
+await page.goto('http://localhost:4173/');
+await page.waitForFunction(() => !!window.compasDev);
+await page.evaluate(() => window.compasDev.sembrar());
+await page.reload();
+await page.getByText('Monse', { exact: true }).click();
+for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
+await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByPlaceholder('Buscar por nombre o teléfono').fill('Carlos Ruiz');
+await page.getByText('Carlos Ruiz').click();
+await page.getByRole('button', { name: /Credencial con QR/ }).click();
+await page.waitForTimeout(500);
+await page.screenshot({ path: `${OUT}wa-credencial.png` });
+const descarga = page.waitForEvent('download');
+await page.getByRole('button', { name: 'Enviar por WhatsApp' }).click();
+const d = await descarga;
+let p = null;
+for (let i = 0; i < 40 && !p; i++) { p = ctx.pages().find((x) => x.url().includes('wa.me')) ?? null; if (!p) await page.waitForTimeout(250); }
+console.log('PC: descarga la imagen:', ok(/credencial-carlos-ruiz\.png/.test(d.suggestedFilename())), '· abre chat:', ok(!!p && /wa\.me\/52\d{10}\?text=.*c%C3%B3digo/.test(p.url())));
+console.log('mensaje:', decodeURIComponent(p.url().split('text=')[1]));
+await browser.close();

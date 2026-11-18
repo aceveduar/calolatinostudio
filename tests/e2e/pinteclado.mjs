@@ -1,0 +1,28 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ channel: 'msedge' });
+const page = await (await browser.newContext({ viewport: { width: 1366, height: 820 }, locale: 'es-MX' })).newPage();
+const errores = []; page.on('pageerror', (e) => errores.push(e.message));
+const ok = (c) => (c ? 'OK' : 'MAL');
+await page.goto('http://localhost:4173/');
+await page.waitForFunction(() => !!window.compasDev);
+await page.evaluate(() => window.compasDev.sembrar());
+await page.reload();
+await page.getByText('Dirección Calo', { exact: true }).click();
+await page.getByText('puedes usar el teclado').waitFor();
+await page.keyboard.type('12');
+await page.keyboard.press('Backspace');
+await page.keyboard.type('9');          // 1 9 → mal hasta completar
+await page.keyboard.press('Backspace');
+await page.keyboard.press('Backspace');
+await page.keyboard.press('Numpad1'); await page.keyboard.press('Numpad2'); await page.keyboard.press('Numpad3'); await page.keyboard.press('Numpad4');
+await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor({ timeout: 5000 });
+console.log('PIN con teclado (numérico y retroceso):', 'OK');
+await page.getByRole('button', { name: /cambiar usuario/i }).first().click();
+await page.getByText('Monse', { exact: true }).click();
+await page.keyboard.type('9999');
+await page.getByText('PIN incorrecto').waitFor();
+console.log('PIN equivocado con teclado avisa: OK');
+await page.keyboard.press('Escape');
+console.log('Esc regresa a elegir usuario:', ok((await page.getByText('¿Quién eres?').count()) === 1));
+console.log('errores:', errores.length ? errores : 'ninguno');
+await browser.close();

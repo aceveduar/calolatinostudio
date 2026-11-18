@@ -1,0 +1,15 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ channel: 'msedge' });
+const page = await (await browser.newContext({ viewport: { width: 1366, height: 820 }, locale: 'es-MX' })).newPage();
+page.on('console', (m) => console.log('CONSOLE', m.text()));
+await page.goto('http://localhost:4173/');
+await page.waitForFunction(() => !!window.compasDev);
+await page.evaluate(() => window.compasDev.sembrar());
+await page.reload();
+await page.getByText('Dirección Calo', { exact: true }).click();
+await page.getByText('puedes usar el teclado').waitFor();
+await page.evaluate(() => window.addEventListener('keydown', (e) => console.log('key', e.key, e.defaultPrevented), true));
+for (const k of ['Numpad1','Numpad2','Numpad3','Numpad4']) await page.keyboard.press(k);
+await page.waitForTimeout(1500);
+console.log('entró:', await page.getByPlaceholder(/Quién llegó|Buscar…/).count());
+await browser.close();

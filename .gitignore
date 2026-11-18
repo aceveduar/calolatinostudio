@@ -27,3 +27,7 @@ dist-ssr
 
 # emulador local de Cloudflare
 .wrangler
+
+# pruebas
+dist-prueba
+tests/e2e/salida
