@@ -7,6 +7,7 @@ import App from './App';
 import { db } from './db/db';
 import { BORRAR_AL_INICIAR } from './sync/engine';
 import { hayActualizacion } from './app/actualizacion';
+import { Tropiezo } from './components/Tropiezo';
 
 // Versión nueva: se avisa y se aplica sin interrumpir un cobro (ver app/actualizacion.ts)
 const actualizarSW = registerSW({ immediate: true, onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true)) });
@@ -34,7 +35,9 @@ async function arrancar() {
     const { PortalAlumno } = await import('./features/portal/PortalAlumno');
     createRoot(document.getElementById('root')!).render(
       <StrictMode>
-        <PortalAlumno token={portal[1]} />
+        <Tropiezo nivel="app">
+          <PortalAlumno token={portal[1]} />
+        </Tropiezo>
       </StrictMode>,
     );
     return;
@@ -51,7 +54,9 @@ async function arrancar() {
   }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <Tropiezo nivel="app">
+        <App />
+      </Tropiezo>
     </StrictMode>,
   );
 }

@@ -10,6 +10,7 @@ import { useSesion } from './sesion';
 import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
 import { useHoy } from './reloj';
 import { Avatar, cx } from '../components/ui';
+import { Tropiezo } from '../components/Tropiezo';
 import { LogoAcademia } from '../components/LogoAcademia';
 
 /** Pestañas de la barra de abajo / lateral: salen del registro de módulos (app/modulos.ts). */
@@ -23,7 +24,8 @@ export function Layout() {
   const { usuario } = useSesion();
   const dia = useHoy();
   const tabs = pestanasDe(usuario.rol);
-  const activa = pestanaActiva(usuario.rol, useLocation().pathname);
+  const ruta = useLocation().pathname;
+  const activa = pestanaActiva(usuario.rol, ruta);
   const c = useContadores();
   // globo en "Más" si hay algo que atender ahí
   const pendientesMas = c.interesados + c.encargos;
@@ -37,7 +39,12 @@ export function Layout() {
         <main className={cx('mx-auto w-full flex-1 lg:max-w-6xl lg:px-6 lg:pb-10', tabs.length < 2 ? 'pb-8' : 'pb-24')}>
           {/* key = fecha: a medianoche la pantalla se vuelve a montar con el día nuevo */}
           <div key={dia} className="contents">
-            <Outlet />
+            {/* si una pantalla falla, solo esa muestra el aviso; al cambiar de pantalla se reintenta */}
+            <Tropiezo nivel="pantalla" key={ruta}>
+              <Outlet />
+              {/* solo en compilaciones de prueba: ?romper simula una pantalla que falla */}
+              {import.meta.env.VITE_SEMILLA === '1' && new URLSearchParams(location.search).has('romper') && <Romper />}
+            </Tropiezo>
           </div>
         </main>
       </div>
@@ -158,4 +165,8 @@ function IndicadorSync() {
       <Icono size={14} /> {cfg.texto}
     </NavLink>
   );
+}
+
+function Romper(): never {
+  throw new Error('Falla de prueba');
 }
