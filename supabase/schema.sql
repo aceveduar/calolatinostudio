@@ -469,7 +469,24 @@ begin
   return jsonb_build_object(
     'hoy', hoy,
     'alumno', jsonb_build_object('nombre', a.nombre, 'codigo', a.codigo, 'foto', a.foto),
-    'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', case when base is null then x.logo else img_publica(base, 'logo', x.logo) end) from academias x where x.id = a.academia_id),
+    'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', case when base is null then x.logo else img_publica(base, 'logo', x.logo) end,
+                                           'whatsapp', x.whatsapp, 'slug', x.slug) from academias x where x.id = a.academia_id),
+    -- su horario: las clases a las que ha ido en las últimas semanas y las de su plan (para "tu próxima clase")
+    'horario', coalesce((
+      select jsonb_agg(jsonb_build_object('clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min) order by k.hora_inicio)
+      from clases k left join disciplinas d on d.id = k.disciplina_id
+      where k.academia_id = a.academia_id and k.activo and k.deleted_at is null and (
+        k.id in (select s.clase_id from asistencias s where s.alumno_id = a.id and s.anulada_at is null and s.deleted_at is null and s.fecha >= hoy - 45)
+        or k.id in (select unnest(m.clase_ids) from membresias m where m.alumno_id = a.id and m.anulada_at is null and m.deleted_at is null and m.fin >= hoy))
+    ), '[]'::jsonb),
+    -- sus logros: cuántas clases lleva y en qué semanas vino (para la racha)
+    'logros', (
+      select jsonb_build_object('total', count(*), 'desde', min(s.fecha),
+        'semanas', coalesce((select jsonb_agg(w order by w desc) from (
+          select distinct date_trunc('week', s2.fecha)::date w from asistencias s2
+          where s2.alumno_id = a.id and s2.anulada_at is null and s2.deleted_at is null and s2.fecha >= hoy - 210) t), '[]'::jsonb))
+      from asistencias s where s.alumno_id = a.id and s.anulada_at is null and s.deleted_at is null),
     'planes', coalesce((
       select jsonb_agg(jsonb_build_object(
         'plan', p.nombre, 'tipo', p.tipo, 'beca', (p.precio = 0 and p.tipo <> 'suelta'),

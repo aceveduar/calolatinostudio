@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Camera, CalendarCheck, PackageCheck, Sun, WifiOff, X } from 'lucide-react';
+import { Camera, CalendarCheck, Clock, MessageCircle, PackageCheck, QrCode, Sun, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
@@ -11,6 +11,8 @@ import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
 import { ERRORES_PEDIDO, type DatosPortal } from '../../domain/portal';
+import { INSIGNIAS, insignias, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
+import { waLink } from '../../domain/reportes';
 
 type Estado = { fase: 'cargando' } | { fase: 'listo'; datos: DatosPortal; guardadoEl: number | null } | { fase: 'no-existe' } | { fase: 'error' };
 
@@ -212,42 +214,59 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
   const vigentes = datos.planes.filter((p) => p.inicio <= hoy && p.fin >= hoy && (p.clases === null || p.usadas < p.clases));
   const proximos = datos.planes.filter((p) => p.inicio > hoy);
   const vencido = !vigentes.length ? datos.planes.find((p) => p.fin < hoy || (p.clases !== null && p.usadas >= p.clases)) : undefined;
+  const [pase, setPase] = useState(false);
+  const wa = datos.academia.whatsapp ?? null;
+  const renovar = (plan: string | null) => (wa ? waLink(wa, mensajeRenovar(datos.alumno.nombre, datos.alumno.codigo, plan)) : null);
 
   return (
     <div className="min-h-dvh bg-ink-50 pb-10">
-      <div className="bg-brand-500 px-5 pt-6 pb-24 text-white">
-        <div className="mx-auto flex max-w-md items-center gap-3">
+      <div className="relative overflow-hidden bg-brand-500 px-5 pt-6 pb-20 text-white">
+        <div className="absolute -top-16 -right-10 h-48 w-48 rounded-full bg-white/10" aria-hidden="true" />
+        <div className="absolute top-10 -left-12 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
+        <div className="relative mx-auto flex max-w-md items-center gap-3">
           <span className="rounded-2xl bg-white p-1.5">
             <LogoAcademia academia={{ nombre: datos.academia.nombre, logo: datos.academia.logo }} tam={36} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-lg font-extrabold">{datos.academia.nombre}</span>
-            <span className="block text-sm text-white/80">Hola, {nombre1} 👋</span>
+            <span className="block truncate text-sm font-semibold text-white/80">{datos.academia.nombre}</span>
+            <span className="block text-2xl leading-tight font-extrabold">
+              {saludo(new Date())}, {nombre1}
+            </span>
           </span>
         </div>
       </div>
 
-      <div className="mx-auto -mt-20 max-w-md space-y-3 px-4">
+      <div className="relative mx-auto -mt-14 max-w-md space-y-3 px-4">
         {guardadoEl && (
           <p className="flex items-center gap-2 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm font-medium text-warn-600">
-            <WifiOff size={16} className="shrink-0" /> Sin conexión: datos del {fechaCorta(new Date(guardadoEl).toISOString().slice(0, 10))}. Tu QR sí sirve.
+            <WifiOff size={16} className="shrink-0" /> Sin conexión: datos del {fechaCorta(new Date(guardadoEl).toISOString().slice(0, 10))}. Tu pase sí sirve.
           </p>
         )}
 
-        {/* Credencial */}
-        <div className="rounded-3xl bg-white p-5 text-center text-[#16141c] shadow-xl shadow-black/10">
-          <p className="text-xs font-bold tracking-wider text-[#6e6a7c] uppercase">Tu pase de entrada</p>
-          <div className="mx-auto mt-3 aspect-square w-full max-w-[17rem]">{qr ? <img src={qr} alt="Tu código QR" className="h-full w-full" /> : <div className="h-full w-full animate-pulse rounded-2xl bg-[#ecebf0]" />}</div>
-          <div className="mt-3 flex items-center justify-center gap-3">
+        {/* Pase de entrada: compacto; a pantalla completa al tocarlo */}
+        <div className="rounded-3xl bg-white p-4 text-[#16141c] shadow-xl shadow-black/10">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setPase(true)} className="shrink-0 rounded-2xl ring-1 ring-[#ecebf0]" aria-label="Mostrar mi pase en grande">
+              {qr ? <img src={qr} alt="" className="h-24 w-24 rounded-2xl" /> : <span className="block h-24 w-24 animate-pulse rounded-2xl bg-[#ecebf0]" />}
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold tracking-wider text-[#6e6a7c] uppercase">Tu pase de entrada</p>
+              <p className="truncate text-lg leading-tight font-extrabold">{datos.alumno.nombre}</p>
+              <p className="font-mono text-sm tracking-[0.25em] text-[#6e6a7c]">{datos.alumno.codigo}</p>
+            </div>
             <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={!!guardadoEl} onListo={recargar} />
-            <p className="text-xl font-extrabold">{datos.alumno.nombre}</p>
           </div>
-          <p className="font-mono text-sm tracking-[0.3em] text-[#6e6a7c]">{datos.alumno.codigo}</p>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[#6e6a7c]">
-            <Sun size={14} /> Sube el brillo y muéstralo en recepción
-          </p>
-          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-xs font-semibold text-brand-600">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
+          <button
+            type="button"
+            onClick={() => setPase(true)}
+            className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-lg shadow-brand-500/30 active:scale-[0.98]"
+          >
+            <QrCode size={22} aria-hidden="true" /> Mostrar mi pase
+          </button>
+          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-brand-600">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
+
+        <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
 
         {/* Plan */}
         <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
@@ -255,31 +274,31 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           {vigentes.length === 0 ? (
             <div className="mt-2">
               <p className="text-lg font-bold">{vencido ? `Tu ${vencido.plan.toLowerCase()} terminó` : 'Pagas por clase'}</p>
-              <p className="text-sm text-ink-500">{vencido ? 'Renuévalo en recepción para seguir bailando.' : 'Pregunta en recepción por las mensualidades y paquetes.'}</p>
+              <p className="text-sm text-ink-500">{vencido ? 'Renuévalo para seguir bailando.' : 'Con una mensualidad o paquete te sale más barato.'}</p>
+              <BotonWhats href={renovar(vencido?.plan ?? null)} texto={vencido ? 'Renovar por WhatsApp' : 'Preguntar por planes'} />
             </div>
           ) : (
             vigentes.map((p, i) => {
+              const r = restante(p, hoy);
               const dias = diasEntre(hoy, p.fin);
-              const quedan = p.clases !== null ? p.clases - p.usadas : null;
               return (
-                <div key={i} className={cx('mt-2', i > 0 && 'border-t border-ink-100 pt-3')}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-lg font-bold">{p.plan}</p>
-                    <span className={cx('rounded-full px-2.5 py-0.5 text-xs font-bold', dias <= 3 || (quedan !== null && quedan <= 1) ? 'bg-warn-50 text-warn-600' : 'bg-ok-50 text-ok-600')}>
-                      {p.beca ? 'Beca' : 'Vigente'}
-                    </span>
-                  </div>
-                  {quedan !== null && (
-                    <>
-                      <p className="mt-1 text-sm">
-                        Te quedan <b>{quedan}</b> de {p.clases} clases
-                      </p>
-                      <div className="mt-1.5 h-2 rounded-full bg-ink-100">
-                        <div className="h-full rounded-full bg-brand-500" style={{ width: `${(quedan / (p.clases || 1)) * 100}%` }} />
+                <div key={i} className={cx('mt-3', i > 0 && 'border-t border-ink-100 pt-4')}>
+                  <div className="flex items-center gap-4">
+                    <Anillo fraccion={r.fraccion} urgente={r.urgente} valor={r.valor} unidad={r.unidad} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg leading-tight font-bold">{p.plan}</p>
+                        <span className={cx('rounded-full px-2.5 py-0.5 text-xs font-bold', r.urgente ? 'bg-warn-50 text-warn-600' : 'bg-ok-50 text-ok-600')}>
+                          {p.beca ? 'Beca' : r.urgente ? 'Por terminar' : 'Vigente'}
+                        </span>
                       </div>
-                    </>
-                  )}
-                  <p className="mt-1.5 text-sm text-ink-500">{dias === 0 ? 'Vence hoy' : dias === 1 ? 'Vence mañana' : `Vigente hasta el ${fechaLarga(p.fin)}`}</p>
+                      <p className="mt-1 text-sm text-ink-500">
+                        {p.clases !== null && `${p.usadas} de ${p.clases} clases usadas · `}
+                        {dias === 0 ? 'vence hoy' : dias === 1 ? 'vence mañana' : `hasta el ${fechaLarga(p.fin)}`}
+                      </p>
+                    </div>
+                  </div>
+                  {r.urgente && !p.beca && !proximos.length && <BotonWhats href={renovar(p.plan)} texto="Renovar por WhatsApp" />}
                 </div>
               );
             })
@@ -290,6 +309,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             </p>
           ))}
         </div>
+
+        {datos.logros && datos.logros.total > 0 && <Logros total={datos.logros.total} desde={datos.logros.desde} semanas={datos.logros.semanas} hoy={hoy} />}
 
         {/* Últimas clases */}
         {datos.clases.length > 0 && (
@@ -390,6 +411,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
 
         <p className="pt-2 text-center text-xs text-ink-300">Este enlace es solo tuyo · Compás</p>
       </div>
+      {pase && <PaseCompleto qr={qr} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} foto={datos.alumno.foto ?? null} onCerrar={() => setPase(false)} />}
       {apartar && (
         <HojaApartar
           producto={apartar}
@@ -434,7 +456,7 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: strin
         {foto ? (
           <img src={foto} alt={nombre} className="h-14 w-14 rounded-full object-cover" />
         ) : (
-          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-2 ring-dashed ring-brand-500/40">
+          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--marca)_12%,white)] text-[var(--marca)] ring-2 ring-[color-mix(in_oklab,var(--marca)_40%,white)]">
             <Camera size={20} />
             <span className="text-[9px] font-bold">FOTO</span>
           </span>
@@ -444,5 +466,186 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: strin
       <input ref={input} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />
       {estado === 'error' && <span className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
     </>
+  );
+}
+
+function saludo(d: Date): string {
+  const h = d.getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+function BotonWhats({ href, texto }: { href: string | null; texto: string }) {
+  if (!href) return <p className="mt-2 text-sm text-ink-500">Pregunta en recepción.</p>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1fa855] font-bold text-white active:scale-[0.98]">
+      <MessageCircle size={20} aria-hidden="true" /> {texto}
+    </a>
+  );
+}
+
+/** Círculo de lo que le queda del plan. */
+function Anillo({ fraccion, urgente, valor, unidad }: { fraccion: number; urgente: boolean; valor: number; unidad: string }) {
+  const r = 34;
+  const largo = 2 * Math.PI * r;
+  return (
+    <div className="relative h-20 w-20 shrink-0" role="img" aria-label={`Te quedan ${valor} ${unidad}`}>
+      <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle cx="40" cy="40" r={r} fill="none" strokeWidth="8" className="stroke-ink-100" />
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          strokeWidth="8"
+          strokeLinecap="round"
+          className={urgente ? 'stroke-warn-600' : 'stroke-brand-500'}
+          strokeDasharray={largo}
+          strokeDashoffset={largo * (1 - Math.max(0.02, fraccion))}
+          style={{ transition: 'stroke-dashoffset 900ms ease-out' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex flex-col items-center justify-center leading-none" aria-hidden="true">
+        <span className="text-2xl font-extrabold">{valor}</span>
+        <span className="text-[10px] font-semibold text-ink-500">{unidad}</span>
+      </span>
+    </div>
+  );
+}
+
+/** "Tu próxima clase" con cuánto falta (se actualiza solo) y su semana. */
+function ProximaClaseTarjeta({ horario, slug }: { horario: ClaseHorario[]; slug: string | null }) {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const prox = proximaClase(horario, ahora);
+  const dias = semana(horario);
+  if (!prox)
+    return slug ? (
+      <a href={`/a/${slug}#horario`} className="flex items-center gap-3 rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+        <Clock size={22} className="text-brand-600" aria-hidden="true" />
+        <span className="flex-1 font-semibold">Ver el horario de clases</span>
+        <span aria-hidden="true" className="text-ink-300">›</span>
+      </a>
+    ) : null;
+  const color = prox.clase.color ?? 'var(--marca)';
+  return (
+    <div className="overflow-hidden rounded-3xl bg-superficie ring-1 ring-ink-100">
+      <div className="flex gap-4 p-5" style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${color} 16%, transparent), transparent 70%)` }}>
+        <span className="w-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tu próxima clase</p>
+          <p className="mt-1 text-2xl leading-tight font-extrabold">{prox.clase.clase}</p>
+          <p className={cx('mt-1 flex items-center gap-2 font-semibold', prox.estado === 'ahora' ? 'text-ok-600' : 'text-ink-700')}>
+            {prox.estado === 'ahora' && <span className="pp-pulso h-2.5 w-2.5 rounded-full bg-ok-600" aria-hidden="true" />}
+            {prox.texto}
+          </p>
+          <p className="text-sm text-ink-500">
+            {prox.clase.hora} – {horaFin(prox.clase.hora, prox.clase.duracion)}
+          </p>
+        </div>
+      </div>
+      {dias.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto border-t border-ink-100 px-5 py-3">
+          {dias.map((d) => (
+            <span key={d.dia} className="shrink-0 rounded-xl bg-ink-50 px-3 py-1.5 text-xs">
+              <b className="text-ink-900">{d.dia}</b> <span className="text-ink-500">{d.clases.map((c) => `${c.hora} ${c.clase}`).join(' · ')}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const horaFin = (h: string, min: number) => {
+  const t = Number(h.slice(0, 2)) * 60 + Number(h.slice(3)) + min;
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
+
+/** Cuántas clases lleva, su racha y sus insignias. */
+function Logros({ total, desde, semanas, hoy }: { total: number; desde: string | null; semanas: string[]; hoy: string }) {
+  const n = racha(semanas, hoy);
+  const ins = insignias(total);
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return (
+    <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tus logros</p>
+      <div className="mt-2 flex items-end gap-4">
+        <p className="leading-none">
+          <span className="text-5xl font-extrabold tracking-tight tabular-nums">{total}</span>{' '}
+          <span className="font-semibold text-ink-500">{total === 1 ? 'clase' : 'clases'}</span>
+        </p>
+        {n >= 2 && (
+          <p className="mb-1 rounded-full bg-warn-50 px-3 py-1 text-sm font-bold text-warn-600">
+            🔥 {n} semanas seguidas
+          </p>
+        )}
+      </div>
+      {desde && <p className="mt-1 text-sm text-ink-500">Bailando con nosotros desde {MESES[Number(desde.slice(5, 7)) - 1]} de {desde.slice(0, 4)}</p>}
+      <ul className="mt-4 grid grid-cols-6 gap-1.5" aria-label="Insignias">
+        {INSIGNIAS.map((i) => {
+          const ganada = total >= i.meta;
+          return (
+            <li key={i.meta} className="flex flex-col items-center gap-1 text-center" title={`${i.nombre}: ${i.meta} ${i.meta === 1 ? 'clase' : 'clases'}`}>
+              <span className={cx('flex h-11 w-11 items-center justify-center rounded-full text-2xl', ganada ? 'bg-brand-50 ring-2 ring-brand-500/40' : 'bg-ink-50 opacity-40 grayscale')} aria-hidden="true">
+                {i.emoji}
+              </span>
+              <span className={cx('text-[10px] leading-tight font-semibold', ganada ? 'text-ink-900' : 'text-ink-300')}>{i.meta}</span>
+              <span className="sr-only">
+                {i.nombre}, {ganada ? 'ganada' : 'por ganar'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {ins.siguiente && (
+        <div className="mt-4">
+          <p className="text-sm">
+            Te {ins.faltan === 1 ? 'falta' : 'faltan'} <b>{ins.faltan}</b> {ins.faltan === 1 ? 'clase' : 'clases'} para {ins.siguiente.emoji} <b>{ins.siguiente.nombre}</b>
+          </p>
+          <div className="mt-1.5 h-2 rounded-full bg-ink-100">
+            <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(4, ins.avance * 100)}%` }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** El pase en grande: fondo blanco, QR al centro y la pantalla encendida mientras se muestra. */
+function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | null; nombre: string; codigo: string; foto: string | null; onCerrar: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    d?.showModal();
+    let lock: { release: () => Promise<void> } | null = null;
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } };
+    nav.wakeLock?.request('screen').then((l) => (lock = l)).catch(() => {});
+    return () => {
+      void lock?.release().catch(() => {});
+      if (d?.open) d.close();
+    };
+  }, []);
+  return (
+    <dialog ref={ref} onClose={onCerrar} aria-label="Mi pase de entrada" className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-[#16141c] backdrop:bg-white">
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="flex items-center gap-3">
+          {foto && <img src={foto} alt="" className="h-14 w-14 rounded-full object-cover" />}
+          <div className="text-left">
+            <p className="text-xl font-extrabold">{nombre}</p>
+            <p className="font-mono tracking-[0.3em] text-[#6e6a7c]">{codigo}</p>
+          </div>
+        </div>
+        {qr && <img src={qr} alt="Tu código QR" className="aspect-square w-full max-w-[min(85vw,26rem)]" />}
+        <p className="flex items-center gap-1.5 text-sm text-[#6e6a7c]">
+          <Sun size={16} aria-hidden="true" /> Sube el brillo y muéstralo en recepción
+        </p>
+        <button type="button" onClick={() => ref.current?.close()} className="mt-2 h-12 rounded-2xl bg-[#ecebf0] px-8 font-bold" autoFocus>
+          Listo
+        </button>
+      </div>
+    </dialog>
   );
 }

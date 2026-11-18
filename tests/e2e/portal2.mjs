@@ -38,7 +38,7 @@ await page.goto(`http://localhost:4173/p/${TOKEN}`);
 await page.getByText('Tu pase de entrada').waitFor();
 await page.waitForTimeout(500);
 let t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-console.log('1) portal: QR, plan, clases, tienda:', ok(tokenPedido === TOKEN && /Hola, Ana/.test(t) && /Te quedan 3 de 8 clases/.test(t) && /Después sigue: Mensualidad/.test(t) && /Bachata 0/.test(t) && /Playera Calo/.test(t) && (await page.locator('img[alt="Tu código QR"]').count()) === 1));
+console.log('1) portal: QR, plan, clases, tienda:', ok(tokenPedido === TOKEN && /(días|tardes|noches), Ana/.test(t) && /5 de 8 clases usadas/.test(t) && (await page.getByRole('img', { name: 'Te quedan 3 clases' }).count()) === 1 && /Después sigue: Mensualidad/.test(t) && /Bachata 0/.test(t) && /Playera Calo/.test(t) && (await page.getByRole('button', { name: 'Mostrar mi pase en grande' }).count()) === 1));
 await page.screenshot({ path: `${OUT}portal-1.png`, fullPage: true });
 
 // 2) sin internet: se ve lo último guardado
@@ -47,7 +47,7 @@ await page.reload();
 await page.getByText('Tu pase de entrada').waitFor();
 await page.waitForTimeout(500);
 t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-console.log('2) sin conexión muestra lo guardado:', ok(/Sin conexión/.test(t) && /Te quedan 3 de 8/.test(t)));
+console.log('2) sin conexión muestra lo guardado:', ok(/Sin conexión/.test(t) && /5 de 8 clases usadas/.test(t)));
 
 // 3) enlace regenerado: ya no funciona y borra lo guardado
 respuesta = null;

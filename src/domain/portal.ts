@@ -5,6 +5,7 @@
  */
 import { actualizar } from '../db/repo';
 import type { Alumno, ID } from '../db/types';
+import type { ClaseHorario } from './miPortal';
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 const LARGO = 26;
@@ -50,7 +51,10 @@ export async function regenerarPortal(alumnoId: ID): Promise<string> {
 export interface DatosPortal {
   hoy: string;
   alumno: { nombre: string; codigo: string; foto?: string | null };
-  academia: { nombre: string; color: string | null; logo: string | null };
+  academia: { nombre: string; color: string | null; logo: string | null; whatsapp?: string | null; slug?: string | null };
+  /** clases a las que va (base 20261120+; puede faltar en datos guardados por una versión anterior) */
+  horario?: ClaseHorario[];
+  logros?: { total: number; desde: string | null; semanas: string[] };
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];
   tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null; sobre_pedido?: boolean; dias_entrega?: number | null }[];
