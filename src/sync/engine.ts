@@ -172,42 +172,53 @@ async function subirCambios(tabla: SyncTable, reg: Record<string, unknown>, camp
 
 const TRASLAPE_MS = 2 * 60_000;
 
+/** Lo más que entrega Supabase por consulta. */
+const POR_PAGINA = 1000;
+
+/**
+ * Baja de la nube lo que cambió. Todas las tablas a la vez (antes iban una tras otra: ~20 idas y vueltas
+ * de ~0.12 s aunque no hubiera nada nuevo). Si una falla, las demás terminan y luego se reporta el error.
+ */
 async function pull(academiaId: ID): Promise<void> {
   if (!supabase) return;
-  for (const tabla of SYNC_TABLES) {
-    const claveCursor = `cursor:${tabla}`;
-    const guardado = await getMeta<string>(claveCursor);
-    // Traslape: volver a revisar los últimos 2 min. Una subida grande de otro teléfono puede
-    // terminar DESPUÉS de que leímos filas más nuevas, dejando filas con hora anterior al cursor.
-    // Repetirlas es inofensivo (se ignoran si no son más nuevas que las locales).
-    let cursor = guardado ? new Date(new Date(guardado).getTime() - TRASLAPE_MS).toISOString() : '1970-01-01T00:00:00Z';
-    for (;;) {
-      const { data, error } = await supabase
-        .from(aSnake(tabla))
-        .select('*')
-        .eq(tabla === 'academias' ? 'id' : 'academia_id', academiaId)
-        .gt('server_updated_at', cursor)
-        .order('server_updated_at', { ascending: true })
-        .limit(500);
-      if (error && esTablaFaltante(error.message)) {
-        tablasFaltantes.add(tabla);
-        break;
-      }
-      if (error) throw new Error(`${tabla}: ${error.message}`);
-      if (!data.length) break;
+  const r = await Promise.allSettled(SYNC_TABLES.map((t) => bajarTabla(t, academiaId)));
+  const falla = r.find((x): x is PromiseRejectedResult => x.status === 'rejected');
+  if (falla) throw falla.reason;
+}
 
-      // La nube manda, salvo en lo que este teléfono aún no sube. Revisar la cola y guardar en la misma
-      // transacción: un cobro hecho justo en este momento no se puede perder.
-      await db.transaction('rw', db.table(tabla), db.outbox, async () => {
-        const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
-        const aGuardar = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
-        if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
-      });
-
-      cursor = data[data.length - 1].server_updated_at as string;
-      await setMeta(claveCursor, cursor);
-      if (data.length < 500) break;
+async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
+  const claveCursor = `cursor:${tabla}`;
+  const guardado = await getMeta<string>(claveCursor);
+  // Traslape: volver a revisar los últimos 2 min. Una subida grande de otro teléfono puede
+  // terminar DESPUÉS de que leímos filas más nuevas, dejando filas con hora anterior al cursor.
+  // Repetirlas es inofensivo (la nube manda, salvo en lo que este teléfono aún no sube).
+  let cursor = guardado ? new Date(new Date(guardado).getTime() - TRASLAPE_MS).toISOString() : '1970-01-01T00:00:00Z';
+  for (;;) {
+    const { data, error } = await supabase!
+      .from(aSnake(tabla))
+      .select('*')
+      .eq(tabla === 'academias' ? 'id' : 'academia_id', academiaId)
+      .gt('server_updated_at', cursor)
+      .order('server_updated_at', { ascending: true })
+      .limit(POR_PAGINA);
+    if (error && esTablaFaltante(error.message)) {
+      tablasFaltantes.add(tabla);
+      return;
     }
+    if (error) throw new Error(`${tabla}: ${error.message}`);
+    if (!data.length) return;
+
+    // La nube manda, salvo en lo que este teléfono aún no sube. Revisar la cola y guardar en la misma
+    // transacción: un cobro hecho justo en este momento no se puede perder.
+    await db.transaction('rw', db.table(tabla), db.outbox, async () => {
+      const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
+      const aGuardar = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
+      if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
+    });
+
+    cursor = data[data.length - 1].server_updated_at as string;
+    await setMeta(claveCursor, cursor);
+    if (data.length < POR_PAGINA) return;
   }
 }
 

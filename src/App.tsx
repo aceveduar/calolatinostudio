@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './app/Layout';
 import { ProveedorSesion, useEstadoApp } from './app/sesion';
@@ -6,23 +6,41 @@ import { ProveedorAvisos } from './components/avisos';
 import { pedirAlmacenamientoPersistente } from './db/db';
 import { Alta } from './features/acceso/Alta';
 import { Bloqueo } from './features/acceso/Bloqueo';
-import { PantallaAjustes } from './features/ajustes/PantallaAjustes';
-import { FichaAlumno } from './features/alumnos/FichaAlumno';
-import { PantallaAlumnos } from './features/alumnos/PantallaAlumnos';
-import { PantallaListas } from './features/alumnos/PantallaListas';
-import { PantallaInteresados } from './features/alumnos/PantallaInteresados';
-import { PantallaCaja } from './features/caja/PantallaCaja';
-import { PantallaReportes } from './features/reportes/PantallaReportes';
-import { PantallaGastos } from './features/gastos/PantallaGastos';
-import { PantallaAgenda } from './features/agenda/PantallaAgenda';
-import { PantallaEventos } from './features/eventos/PantallaEventos';
-import { PantallaEncargos } from './features/tienda/PantallaEncargos';
-import { PantallaMas } from './features/mas/PantallaMas';
-import { PantallaPendientes } from './features/pendientes/PantallaPendientes';
-import { PantallaEvento } from './features/eventos/PantallaEvento';
-import { PantallaMaestro } from './features/maestro/PantallaMaestro';
+const PantallaAjustes = lazy(() => import('./features/ajustes/PantallaAjustes').then((m) => ({ default: m.PantallaAjustes })));
+const FichaAlumno = lazy(() => import('./features/alumnos/FichaAlumno').then((m) => ({ default: m.FichaAlumno })));
+const PantallaAlumnos = lazy(() => import('./features/alumnos/PantallaAlumnos').then((m) => ({ default: m.PantallaAlumnos })));
+const PantallaListas = lazy(() => import('./features/alumnos/PantallaListas').then((m) => ({ default: m.PantallaListas })));
+const PantallaInteresados = lazy(() => import('./features/alumnos/PantallaInteresados').then((m) => ({ default: m.PantallaInteresados })));
+const PantallaCaja = lazy(() => import('./features/caja/PantallaCaja').then((m) => ({ default: m.PantallaCaja })));
+const PantallaReportes = lazy(() => import('./features/reportes/PantallaReportes').then((m) => ({ default: m.PantallaReportes })));
+const PantallaGastos = lazy(() => import('./features/gastos/PantallaGastos').then((m) => ({ default: m.PantallaGastos })));
+const PantallaAgenda = lazy(() => import('./features/agenda/PantallaAgenda').then((m) => ({ default: m.PantallaAgenda })));
+const PantallaEventos = lazy(() => import('./features/eventos/PantallaEventos').then((m) => ({ default: m.PantallaEventos })));
+const PantallaEncargos = lazy(() => import('./features/tienda/PantallaEncargos').then((m) => ({ default: m.PantallaEncargos })));
+const PantallaMas = lazy(() => import('./features/mas/PantallaMas').then((m) => ({ default: m.PantallaMas })));
+const PantallaPendientes = lazy(() => import('./features/pendientes/PantallaPendientes').then((m) => ({ default: m.PantallaPendientes })));
+const PantallaEvento = lazy(() => import('./features/eventos/PantallaEvento').then((m) => ({ default: m.PantallaEvento })));
+const PantallaMaestro = lazy(() => import('./features/maestro/PantallaMaestro').then((m) => ({ default: m.PantallaMaestro })));
 import { PantallaEntrada } from './features/entrada/PantallaEntrada';
 import { iniciarSync } from './sync/engine';
+
+const PRECARGAR = [
+  () => import('./features/ajustes/PantallaAjustes'),
+  () => import('./features/alumnos/FichaAlumno'),
+  () => import('./features/alumnos/PantallaAlumnos'),
+  () => import('./features/alumnos/PantallaListas'),
+  () => import('./features/alumnos/PantallaInteresados'),
+  () => import('./features/caja/PantallaCaja'),
+  () => import('./features/reportes/PantallaReportes'),
+  () => import('./features/gastos/PantallaGastos'),
+  () => import('./features/agenda/PantallaAgenda'),
+  () => import('./features/eventos/PantallaEventos'),
+  () => import('./features/tienda/PantallaEncargos'),
+  () => import('./features/mas/PantallaMas'),
+  () => import('./features/pendientes/PantallaPendientes'),
+  () => import('./features/eventos/PantallaEvento'),
+  () => import('./features/maestro/PantallaMaestro'),
+];
 
 export default function App() {
   const { estado, abrir, bloquear } = useEstadoApp();
@@ -33,6 +51,13 @@ export default function App() {
     if (color) document.documentElement.style.setProperty('--marca', color);
     else document.documentElement.style.removeProperty('--marca');
   }, [color]);
+
+  // Entrada viene en el archivo principal; las demás pantallas se cargan aparte y se precargan
+  // al poco de abrir, para que cambiar de pantalla sea instantáneo (y quedan guardadas sin internet).
+  useEffect(() => {
+    const t = setTimeout(() => PRECARGAR.forEach((f) => void f()), 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     iniciarSync();

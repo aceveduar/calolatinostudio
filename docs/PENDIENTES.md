@@ -13,7 +13,8 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 | 5 | **Errores recientes en Ajustes** | Ver los últimos errores anotados en el teléfono (`compas:errores`) y mandarlos por WhatsApp a soporte. | Pequeño. |
 | 6 | **Tienda del portal en carrusel** | Que el portal no se alargue con muchos productos. | |
 | 7 | **Revisión de la página como página de anuncios** (skill ads-landing) | Antes de pagar publicidad. | Cuando ya tenga datos reales. |
-| 8 | **Cargar por partes las pantallas poco usadas** | Que la app abra más rápido la primera vez. | Prioridad baja: queda instalada. |
+| 8 | ~~Cargar por partes las pantallas poco usadas~~ | Hecho en la auditoría de velocidad. | |
+| 9 | **Agente de WhatsApp / chatbot para ayudar a Monse** (por evaluar) | Que responda solo lo repetitivo: horarios, precios, "¿cuándo vence mi plan?", apartar clase de prueba, y le pase a Monse lo que necesite una persona. | Evaluar antes de hacer: WhatsApp Business API (costo por conversación), qué datos puede consultar (página pública, portal), cómo se le pasa a Monse, y límites para que no prometa cosas. |
 
 ## Lo que depende de la academia
 

@@ -15,6 +15,7 @@ Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y 
 
 | Versión | Qué cambió |
 |---|---|
+| 20261121 | Velocidad: las reglas de acceso (RLS) calculan las academias del usuario una vez por consulta en lugar de fila por fila, e índices para portal, tienda, eventos e inscripciones. Se puede correr antes o después del push. |
 | 20261120 | `portal_alumno` manda el logo y las fotos de la tienda como enlaces `/img/…` cuando la academia tiene página pública (la foto del alumno sigue incrustada), y además su horario, sus logros (total de clases y semanas en que vino) y el WhatsApp y slug de la academia. También **después del push**. |
 | 20261119 | `pagina_publica` manda las fotos como enlaces `/img/<slug>/<clave>.<huella>` (antes, ~1 MB de fotos en cada visita). Nueva `imagen_publica(slug, clave)` que usa Cloudflare para servirlas. **Correr después del push**: la versión anterior de la página no sabe leer esos enlaces. |
 | 20261118 | Se agrega `esquema_version()`, para que la app sepa si la base está al día. |

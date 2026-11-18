@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { pestanaActiva, pestanasDe } from './modulos';
 import { useContadores } from './contadores';
@@ -41,7 +42,9 @@ export function Layout() {
           <div key={dia} className="contents">
             {/* si una pantalla falla, solo esa muestra el aviso; al cambiar de pantalla se reintenta */}
             <Tropiezo nivel="pantalla" key={ruta}>
-              <Outlet />
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
               {/* solo en compilaciones de prueba: ?romper simula una pantalla que falla */}
               {import.meta.env.VITE_SEMILLA === '1' && new URLSearchParams(location.search).has('romper') && <Romper />}
             </Tropiezo>

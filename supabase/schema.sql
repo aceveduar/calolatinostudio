@@ -385,18 +385,34 @@ alter table miembros enable row level security;
 drop policy if exists miembros_propios on miembros;
 create policy miembros_propios on miembros for select using (user_id = auth.uid());
 
+-- Las academias del usuario se calculan UNA vez por consulta (subconsulta con (select auth.uid())),
+-- no fila por fila: con miles de filas por sincronización, es la recomendación de Supabase para RLS rápido.
 drop policy if exists academia_miembros on academias;
 create policy academia_miembros on academias for all
-  using (es_miembro(id)) with check (es_miembro(id));
+  using (id in (select m.academia_id from miembros m where m.user_id = (select auth.uid())))
+  with check (id in (select m.academia_id from miembros m where m.user_id = (select auth.uid())));
 
 do $$
 declare t text;
 begin
   foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
-    execute format('create policy acceso_miembros on %I for all using (es_miembro(academia_id)) with check (es_miembro(academia_id))', t);
+    execute format('create policy acceso_miembros on %I for all '
+                   'using (academia_id in (select m.academia_id from miembros m where m.user_id = (select auth.uid()))) '
+                   'with check (academia_id in (select m.academia_id from miembros m where m.user_id = (select auth.uid())))', t);
   end loop;
 end $$;
+
+-- Índices para lo que consultan el portal del alumno, la tienda y los eventos (sin ellos, cada consulta
+-- recorre la tabla completa de la academia; con años de datos se nota).
+create index if not exists asistencias_alumno_idx on asistencias (alumno_id, fecha);
+create index if not exists asistencias_membresia_idx on asistencias (membresia_id) where membresia_id is not null;
+create index if not exists membresias_alumno_idx on membresias (alumno_id);
+create index if not exists pagos_producto_idx on pagos (producto_id) where producto_id is not null;
+create index if not exists pedidos_alumno_idx on pedidos (alumno_id);
+create index if not exists pedidos_producto_idx on pedidos (producto_id);
+create index if not exists boletos_evento_idx on boletos (evento_id);
+create index if not exists interesados_telefono_idx on interesados (academia_id, telefono, created_at);
 
 -- ---------- alta de academia desde el teléfono ----------
 create or replace function vincular_academia(p_id uuid, p_nombre text) returns void
@@ -705,7 +721,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261120 $$;
+language sql immutable as $$ select 20261121 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;
