@@ -7,6 +7,7 @@
 // prueba puede escribir en la nube real aunque se le olvide bloquear la red.
 // Requiere Microsoft Edge instalado (lo usa playwright-core con channel 'msedge').
 import { spawn, spawnSync } from 'node:child_process';
+import { leerEncabezados, servir } from './servidor.mjs';
 import { readdirSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -39,16 +40,11 @@ if (!sinBuild) {
   if (b.status !== 0) process.exit(1);
 }
 
-const servidor = spawn('npx', ['vite', 'preview', '--outDir', SALIDA, '--port', String(PUERTO), '--strictPort'], { cwd: RAIZ, env, shell: true });
-let salidaServidor = '';
-servidor.stdout.on('data', (d) => (salidaServidor += d));
-servidor.stderr.on('data', (d) => (salidaServidor += d));
-const listo = await esperarServidor();
-if (!listo) {
-  console.error(`No arrancó el servidor en el puerto ${PUERTO} (¿ya hay otro corriendo?).\n${salidaServidor}`);
-  apagar();
+// Se sirve como Cloudflare Pages: con los encabezados de public/_headers (incluida la política de seguridad)
+const servidor = await servir({ carpeta: path.join(RAIZ, SALIDA), puerto: PUERTO, encabezados: leerEncabezados(path.join(RAIZ, 'public', '_headers')) }).catch((e) => {
+  console.error(`No arrancó el servidor en el puerto ${PUERTO} (¿ya hay otro corriendo?): ${e.message}`);
   process.exit(1);
-}
+});
 
 const resultados = [];
 for (const s of suites) {
@@ -67,10 +63,16 @@ for (const s of suites) {
   }
 }
 
-apagar();
+servidor.cerrar();
+const bloqueos = [...new Set(servidor.avisos)];
+if (bloqueos.length) {
+  console.log(`
+✘ La política de seguridad (public/_headers) bloqueó ${bloqueos.length} cosa(s):`);
+  for (const b of bloqueos.slice(0, 15)) console.log('    ' + b);
+}
 const fallidas = resultados.filter((r) => !r.paso);
 console.log(`\n${resultados.length - fallidas.length}/${resultados.length} pruebas pasaron.` + (fallidas.length ? ` Fallaron: ${fallidas.map((r) => r.s).join(', ')}` : ''));
-process.exit(fallidas.length ? 1 : 0);
+process.exit(fallidas.length || bloqueos.length ? 1 : 0);
 
 function correrSuite(nombre) {
   return new Promise((res) => {
@@ -87,22 +89,4 @@ function correrSuite(nombre) {
       res({ codigo: codigo ?? 1, texto });
     });
   });
-}
-
-async function esperarServidor() {
-  for (let i = 0; i < 60; i++) {
-    try {
-      const r = await fetch(`http://localhost:${PUERTO}/`);
-      if (r.ok) return true;
-    } catch {
-      /* todavía no */
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return false;
-}
-
-function apagar() {
-  if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(servidor.pid), '/T', '/F']);
-  else servidor.kill();
 }

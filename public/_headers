@@ -1,0 +1,11 @@
+# Encabezados de seguridad (Cloudflare Pages los aplica a todo el sitio).
+# La política de contenido solo permite lo que la app usa: su propio código, la nube (Supabase),
+# el mapa de Google en la página pública y el lector de códigos (WebAssembly propio).
+# Si agregas un servicio externo, agrégalo aquí y corre `npm run test:e2e`: el servidor de pruebas
+# aplica este mismo archivo y falla si algo queda bloqueado.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co; frame-src https://maps.google.com https://www.google.com; worker-src 'self' blob:; media-src 'self' blob: mediastream:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()
+  X-Content-Type-Options: nosniff

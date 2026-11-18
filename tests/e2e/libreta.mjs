@@ -23,9 +23,9 @@ const entrar = async (nombre, pin) => {
   await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 };
 // lectura/escritura directa a IndexedDB (preparar casos)
-const idb = (fn, arg) => page.evaluate(([f, a]) => new Promise((res, rej) => { const q = indexedDB.open('compas'); q.onsuccess = () => { try { (new Function('db', 'a', 'res', f))(q.result, a, res); } catch (e) { rej(e); } }; }), [fn, arg]);
+// lectura y escritura directa en la base del teléfono (sin evaluar texto: la política de seguridad lo prohíbe)
 const local = (d = new Date('2026-11-14T12:00:00')) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const todos = (store) => idb(`db.transaction('${store}').objectStore('${store}').getAll().onsuccess = (e) => res(e.target.result);`);
+const todos = (store) => page.evaluate((t) => window.compasDev.db.table(t).toArray(), store);
 
 await page.goto('http://localhost:4173/');
 await page.waitForFunction(() => !!window.compasDev);
@@ -113,7 +113,7 @@ console.log('5) mensual 2 clases pide elegir y guarda las 2:', ok(pide && mem?.c
 // 6) recargo por atraso: su mensual de 1 clase venció hace 5 días
 const p1 = planes.find((p) => p.nombre === 'Mensual 1 clase');
 const hoyF = new Date('2026-11-14T12:00:00'); const f = (d) => { const x = new Date(hoyF); x.setDate(x.getDate() + d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
-await idb(`const t = db.transaction('membresias','readwrite'); t.objectStore('membresias').put(a); t.oncomplete = () => res(true);`, { id: crypto.randomUUID(), academiaId: p1.academiaId, alumnoId: sinPlan[2].id, planId: p1.id, pagoId: crypto.randomUUID(), disciplinaId: null, sedeId: p1.sedeId, inicio: f(-35), fin: f(-5), clasesTotal: null, anuladaAt: null, claseIds: [c.id], createdAt: Date.now(), updatedAt: Date.now(), deletedAt: null });
+await page.evaluate((a) => window.compasDev.db.membresias.put(a), { id: crypto.randomUUID(), academiaId: p1.academiaId, alumnoId: sinPlan[2].id, planId: p1.id, pagoId: crypto.randomUUID(), disciplinaId: null, sedeId: p1.sedeId, inicio: f(-35), fin: f(-5), clasesTotal: null, anuladaAt: null, claseIds: [c.id], createdAt: Date.now(), updatedAt: Date.now(), deletedAt: null });
 await page.reload();
 await page.getByText('Monse', { exact: true }).click().catch(() => {});
 for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click().catch(() => {});

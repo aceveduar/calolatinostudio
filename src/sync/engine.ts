@@ -323,5 +323,7 @@ function traducirError(m: string): string {
   if (/already registered/i.test(m)) return 'Ese correo ya tiene cuenta. Usa "Ya tengo cuenta".';
   if (/password/i.test(m) && /6/.test(m)) return 'La contraseña debe tener al menos 6 caracteres.';
   if (/ya está vinculada/i.test(m)) return m;
+  // el registro de cuentas se cierra en Supabase cuando ya no se esperan academias nuevas
+  if (/signups? not allowed|signup is disabled/i.test(m)) return 'Por ahora no se pueden crear cuentas nuevas. Si ya tienes cuenta, usa "Ya tengo cuenta"; si no, pide acceso a soporte.';
   return m;
 }
