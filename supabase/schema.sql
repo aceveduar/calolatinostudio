@@ -458,14 +458,18 @@ language plpgsql stable security definer set search_path = public as $$
 declare
   a alumnos;
   hoy date := (now() at time zone 'America/Mexico_City')::date;
+  base text;
 begin
   if p_token is null or length(p_token) < 20 then return null; end if;
   select * into a from alumnos where portal = p_token and deleted_at is null and activo;
   if not found then return null; end if;
+  -- logo y fotos de la tienda como enlaces /img (ligeros y en caché) si la academia tiene página pública;
+  -- si no, van incrustadas como antes. La foto del alumno siempre va incrustada: es pequeña y solo suya.
+  select '/img/' || lower(x.slug) || '/' into base from academias x where x.id = a.academia_id and x.slug is not null;
   return jsonb_build_object(
     'hoy', hoy,
     'alumno', jsonb_build_object('nombre', a.nombre, 'codigo', a.codigo, 'foto', a.foto),
-    'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', x.logo) from academias x where x.id = a.academia_id),
+    'academia', (select jsonb_build_object('nombre', x.nombre, 'color', x.color, 'logo', case when base is null then x.logo else img_publica(base, 'logo', x.logo) end) from academias x where x.id = a.academia_id),
     'planes', coalesce((
       select jsonb_agg(jsonb_build_object(
         'plan', p.nombre, 'tipo', p.tipo, 'beca', (p.precio = 0 and p.tipo <> 'suelta'),
@@ -484,7 +488,8 @@ begin
       ) t
     ), '[]'::jsonb),
     'tienda', coalesce((
-      select jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion,
+      select jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji,
+                                          'foto', case when base is null then p.foto else img_publica(base, 'p_' || p.id, p.foto) end, 'descripcion', p.descripcion,
                                           'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'disponibles', disponibles_producto(p),
                                           'sobre_pedido', coalesce(p.sobre_pedido, false), 'dias_entrega', p.dias_entrega) order by p.categoria, p.nombre)
       from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
@@ -683,7 +688,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261119 $$;
+language sql immutable as $$ select 20261120 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

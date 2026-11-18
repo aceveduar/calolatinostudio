@@ -15,6 +15,7 @@ Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y 
 
 | Versión | Qué cambió |
 |---|---|
+| 20261120 | `portal_alumno` manda el logo y las fotos de la tienda como enlaces `/img/…` cuando la academia tiene página pública (la foto del alumno sigue incrustada). También **después del push**. |
 | 20261119 | `pagina_publica` manda las fotos como enlaces `/img/<slug>/<clave>.<huella>` (antes, ~1 MB de fotos en cada visita). Nueva `imagen_publica(slug, clave)` que usa Cloudflare para servirlas. **Correr después del push**: la versión anterior de la página no sabe leer esos enlaces. |
 | 20261118 | Se agrega `esquema_version()`, para que la app sepa si la base está al día. |
 | (antes) | Historial en git: `git log -- supabase/schema.sql`. Lo último: alumnos.avisos, gastos.maestro_id, gastos_fijos.maestro_id, academias.pagina, clases.curso, y `pagina_publica` con curso y disciplina por clase (15 nov 2026). |
