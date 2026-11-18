@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag, MapPin, ChevronDown, Check, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePendientes } from '../pendientes/PantallaPendientes';
+import { useNoActualizarMientras } from '../../app/actualizacion';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { mismaSede, nombreSede, useSedeActual, useSedes } from '../../app/sedes';
@@ -75,6 +76,8 @@ export function PantallaEntrada() {
   const porRecoger = usePedidosPendientes().length;
   const pendientes = usePendientes(false)?.total ?? 0;
   const [movs, setMovs] = useState<Movimiento[]>([]);
+  // con una cuenta abierta la app no se actualiza sola (se perdería el total que se está cobrando)
+  useNoActualizarMientras(movs.length > 0);
   const enCurso = useRef(new Set<string>());
   const busca = useRef<HTMLInputElement>(null);
 
