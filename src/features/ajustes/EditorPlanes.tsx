@@ -6,7 +6,7 @@ import { Boton, Campo, Entrada, Etiqueta, Interruptor, Segmentos, Selector, Tarj
 import { actualizar, crear } from '../../db/repo';
 import { type ID, type Plan, type TipoPlan } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
-import { describirPlan } from '../alumnos/VenderPlan';
+import { describirPlan } from '../../domain/planes';
 import { PRINCIPAL, nombreSede, useSedes } from '../../app/sedes';
 import { conSede } from '../../domain/sedes';
 import { VIGENCIA_BECA, esBeca } from '../../domain/becas';

@@ -12,10 +12,10 @@ import { MENSAJES, armarMensaje, plantilla, type ClaveMensaje } from '../../doma
 import { waLink } from '../../domain/reportes';
 import { asegurarPortal, enlacePortal, regenerarPortal } from '../../domain/portal';
 import { useAvisos } from '../../components/avisos';
-import { useAdeudos } from './Adeudos';
+import { useAdeudos } from '../../app/adeudos';
 
 /** Datos del alumno para llenar los mensajes. */
-export function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
+function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
   const { academia } = useSesion();
   const planes = usePlanes();
   const ultimoPlan = useLiveQuery(

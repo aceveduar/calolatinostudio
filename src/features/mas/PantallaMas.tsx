@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, LockKeyhole } from 'lucide-react';
 import { GRUPOS, modulosDe, type Modulo } from '../../app/modulos';
 import { useContadores } from '../../app/contadores';
-import { usePendientes } from '../pendientes/PantallaPendientes';
+import { usePendientes } from '../../app/pendientes';
 import { useSesion } from '../../app/sesion';
 import { Avatar, Encabezado, Tarjeta, cx } from '../../components/ui';
 import { NOMBRE_ROL } from '../../db/types';

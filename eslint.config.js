@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'dist-prueba', 'dist-nube'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -21,7 +21,8 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true },
+        // los hooks que acompañan a su proveedor (sesión, avisos) y `cx` viven a propósito junto a sus componentes
+        { allowConstantExport: true, allowExportNames: ['useSesion', 'useEstadoApp', 'useAvisos', 'cx'] },
       ],
     },
   },

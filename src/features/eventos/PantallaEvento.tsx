@@ -13,7 +13,7 @@ import { boletoValido, cancelarEvento, cancelarVenta, marcarEntrada, resumenEven
 import { fechaCorta, fechaLarga, hoy } from '../../domain/fechas';
 import { registrarGasto } from '../../domain/gastos';
 import { waLink } from '../../domain/reportes';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 import { FormEvento } from './PantallaEventos';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

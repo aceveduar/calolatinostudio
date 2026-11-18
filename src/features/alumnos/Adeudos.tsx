@@ -1,25 +1,15 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Clock } from 'lucide-react';
-import { nombreClase, useClases, useDisciplinas, usePlanes } from '../../app/datos';
+import { nombreClase, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Segmentos } from '../../components/ui';
-import { db } from '../../db/db';
 import type { Alumno, MetodoPago } from '../../db/types';
-import { adeudosDe, cobrarAdeudos } from '../../domain/adeudos';
+import { cobrarAdeudos } from '../../domain/adeudos';
 import { dinero } from '../../domain/dinero';
 import { fechaCorta } from '../../domain/fechas';
-import { METODOS } from './VenderPlan';
-
-/** Hook: clases que debe un alumno (fiado) y el total. */
-export function useAdeudos(alumnoId: string) {
-  const clases = useClases();
-  const planes = usePlanes();
-  const asis = useLiveQuery(() => db.asistencias.where('alumnoId').equals(alumnoId).toArray(), [alumnoId], []);
-  const adeudos = adeudosDe(asis, clases, planes);
-  return { adeudos, total: adeudos.reduce((s, a) => s + a.monto, 0), planes };
-}
+import { METODOS } from '../../domain/planes';
+import { useAdeudos } from '../../app/adeudos';
 
 /** Tarjeta en la ficha del alumno: qué clases debe y cobrarlas. */
 export function TarjetaAdeudos({ alumno }: { alumno: Alumno }) {

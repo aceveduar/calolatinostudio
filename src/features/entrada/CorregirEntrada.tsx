@@ -10,7 +10,7 @@ import type { Asistencia, MetodoPago } from '../../db/types';
 import { cambiarMetodoPago, cambiarPersona, moverDeClase, quitarEntrada } from '../../domain/correcciones';
 import { dinero } from '../../domain/dinero';
 import { horaDe } from '../../domain/fechas';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 

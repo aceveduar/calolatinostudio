@@ -13,7 +13,8 @@ import { dinero } from '../../domain/dinero';
 import { fechaCorta } from '../../domain/fechas';
 import { membresiaQueCubre, semaforoAlumno, textoDias } from '../../domain/membresias';
 import { cobrarClaseSuelta, entrarConMembresia, yaEntroHoy } from '../../domain/operaciones';
-import { METODOS, VenderPlan } from '../alumnos/VenderPlan';
+import { VenderPlan } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 
 /**
  * El corazón de recepción. Decide solo qué ofrecer:

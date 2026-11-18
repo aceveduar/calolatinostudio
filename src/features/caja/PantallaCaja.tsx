@@ -11,7 +11,7 @@ import { db } from '../../db/db';
 import { crear } from '../../db/repo';
 import type { MetodoPago, Pago } from '../../db/types';
 import { cambiarMetodoPago, restaurarPago } from '../../domain/correcciones';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 import { asistenciasValidas, resumenCaja } from '../../domain/caja';
 import { aCentavos, dinero } from '../../domain/dinero';
 import { fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';

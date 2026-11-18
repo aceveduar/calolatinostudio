@@ -1,77 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Check, ChevronRight, Megaphone, MessageCircle, PackageCheck, PartyPopper, Truck, WalletCards } from 'lucide-react';
-import { useClases, usePedidosPendientes, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Encabezado, Seccion, Tarjeta, Vacio, VerMas } from '../../components/ui';
-import { db } from '../../db/db';
 import type { Alumno } from '../../db/types';
 import { dinero } from '../../domain/dinero';
-import { fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
-import { nombreMes, rangoMes, sumarMes, mesDe } from '../../domain/gastos';
+import { fechaCorta, fechaLarga, hoy } from '../../domain/fechas';
+import { nombreMes } from '../../domain/gastos';
 import { armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
-import { DIAS_ENTRE_COBROS, deudores, marcarAvisado, porExtranar, porRenovar, quitarAviso, rentasPorCobrar, type ClaveAviso } from '../../domain/pendientes';
+import { DIAS_ENTRE_COBROS, marcarAvisado, quitarAviso, type ClaveAviso } from '../../domain/pendientes';
 import { waLink } from '../../domain/reportes';
-import { useContadores } from '../../app/contadores';
-
-/** Lee de la base lo necesario para calcular los pendientes. */
-async function cargar(dia: string) {
-  const inicioMesPasado = rangoMes(sumarMes(mesDe(dia), -1)).desde;
-  const desde = [sumarDias(dia, -90), inicioMesPasado].sort()[0];
-  const [mems, alumnos, asistencias, fiados, rentas, pagosRenta] = await Promise.all([
-    db.membresias.where('fin').aboveOrEqual(sumarDias(dia, -7)).toArray(),
-    db.alumnos.toArray(),
-    db.asistencias.where('fecha').aboveOrEqual(desde).toArray(),
-    // lo fiado puede ser de hace meses
-    db.asistencias.where('deuda').equals(1).toArray(),
-    db.rentas.toArray(),
-    db.pagos.where('fecha').aboveOrEqual(inicioMesPasado).filter((p) => !!p.rentaId).toArray(),
-  ]);
-  return { mems, alumnos, asistencias, fiados, rentas, pagosRenta };
-}
-
-/**
- * Todo lo pendiente de hoy, para la pantalla y para el número en Entrada y en "Más".
- * `vivo`: se recalcula con cada cambio (pantalla de Pendientes). Si no, cada minuto y al volver a la app:
- * en Entrada no debe frenar los cobros (cada venta volvería a leer cientos de registros).
- */
-export function usePendientes(vivo = true) {
-  const dia = hoy();
-  const clases = useClases();
-  const planes = usePlanes();
-  const porEntregar = usePedidosPendientes().length;
-  const { interesados, encargos: porPedir } = useContadores();
-  const enVivo = useLiveQuery(() => (vivo ? cargar(dia) : undefined), [dia, vivo]);
-  const [foto, setFoto] = useState<Awaited<ReturnType<typeof cargar>>>();
-  useEffect(() => {
-    if (vivo) return;
-    let activo = true;
-    const leer = () => void cargar(dia).then((d) => activo && setFoto(d));
-    leer();
-    const t = setInterval(leer, 60_000);
-    const alVolver = () => document.visibilityState === 'visible' && leer();
-    document.addEventListener('visibilitychange', alVolver);
-    return () => {
-      activo = false;
-      clearInterval(t);
-      document.removeEventListener('visibilitychange', alVolver);
-    };
-  }, [dia, vivo]);
-  const datos = vivo ? enVivo : foto;
-
-  return useMemo(() => {
-    if (!datos) return null;
-    const porId = new Map(datos.alumnos.map((a) => [a.id, a]));
-    const renovar = porRenovar({ mems: datos.mems, alumnos: porId, planes, hoy: dia });
-    const deben = deudores({ asistencias: datos.fiados, alumnos: porId, clases, planes });
-    const extranar = porExtranar({ asistencias: datos.asistencias, alumnos: porId, hoy: dia });
-    const rentas = rentasPorCobrar({ rentas: datos.rentas, pagos: datos.pagosRenta, asistencias: datos.asistencias, clases, hoy: dia });
-    const total = renovar.length + deben.length + extranar.length + rentas.length + interesados + porEntregar + porPedir;
-    return { renovar, deben, extranar, rentas, interesados, porEntregar, porPedir, total };
-  }, [datos, planes, clases, dia, interesados, porEntregar, porPedir]);
-}
+import { usePendientes } from '../../app/pendientes';
 
 const cuandoVence = (n: number) =>
   n < 0 ? `venció hace ${-n} ${n === -1 ? 'día' : 'días'}` : n === 0 ? 'vence hoy' : n === 1 ? 'vence mañana' : `vence en ${n} días`;

@@ -7,7 +7,8 @@ import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui'
 import { actualizar } from '../../db/repo';
 import { RespaldoLocal } from './Respaldo';
 import { NOMBRE_ROL } from '../../db/types';
-import { LogoAcademia, prepararLogo } from '../../components/LogoAcademia';
+import { LogoAcademia } from '../../components/LogoAcademia';
+import { prepararLogo } from '../../app/fotos';
 import { EditorClases } from './EditorClases';
 import { EditorDisciplinas } from './EditorDisciplinas';
 import { EditorMaestros } from './EditorMaestros';

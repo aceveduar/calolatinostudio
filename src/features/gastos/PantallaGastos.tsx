@@ -16,7 +16,7 @@ import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { CATEGORIAS, categoria, estadoFijos, mesDe, nombreMes, rangoMes, registrarGasto, resumenMes, sumarMes, type Mes } from '../../domain/gastos';
 import { PRINCIPAL, claveSede, conSede } from '../../domain/sedes';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 
 /** Borrador para el formulario: un gasto nuevo, uno de un gasto fijo, o uno existente. */
 type Borrador = { gasto?: Gasto; fijo?: GastoFijo; fecha: Fecha };

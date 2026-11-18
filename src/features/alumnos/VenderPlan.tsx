@@ -14,19 +14,7 @@ import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { waLink } from '../../domain/reportes';
 import { esBeca } from '../../domain/becas';
 import { atrasoEnPlan } from '../../domain/adeudos';
-
-export const METODOS: { valor: MetodoPago; texto: string }[] = [
-  { valor: 'efectivo', texto: 'Efectivo' },
-  { valor: 'transferencia', texto: 'Transferencia' },
-  { valor: 'tarjeta', texto: 'Tarjeta' },
-];
-
-export function describirPlan(p: Plan): string {
-  if (esBeca(p)) return `Clases ilimitadas por ${p.vigenciaDias} días, sin costo`;
-  if (p.tipo === 'mensual') return p.grupos ? `${p.grupos === 1 ? 'Una clase' : `${p.grupos} clases`} por un mes` : 'Clases ilimitadas por un mes';
-  if (p.tipo === 'paquete') return `${p.clases} clases · vigencia ${p.vigenciaDias} días`;
-  return 'Una clase';
-}
+import { METODOS, describirPlan } from '../../domain/planes';
 
 /**
  * Venta de mensualidad, bloque o beca.
@@ -217,9 +205,11 @@ export function VenderPlan({
       {beca ? (
         <>
           <p className="rounded-xl bg-ok-50 px-3 py-2 text-sm text-ok-600">{alumno.nombre.split(' ')[0]} entrará a sus clases sin pagar durante la vigencia. No se registra dinero en caja.</p>
-          <Boton grande bloque onClick={cobrar} disabled={ocupado || faltanClases}>
-            Dar beca{daEntrada ? ' y dar entrada' : ''}
-          </Boton>
+          <BarraCobro>
+            <Boton grande bloque onClick={cobrar} disabled={ocupado || faltanClases}>
+              Dar beca{daEntrada ? ' y dar entrada' : ''}
+            </Boton>
+          </BarraCobro>
         </>
       ) : (
         <>
@@ -234,12 +224,19 @@ export function VenderPlan({
           {base > 0 && base < plan.precio * 0.5 && (
             <p className="-mt-3 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Descuento de más de la mitad. Revisa que sea correcto.</p>
           )}
-          <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
-          <Boton grande bloque onClick={cobrar} disabled={ocupado || monto <= 0 || faltanClases}>
-            {faltanClases ? (plan.grupos === 1 ? 'Elige la clase' : `Elige ${plan.grupos} clases`) : `Cobrar ${dinero(monto)}${recargo ? ' (con recargo)' : ''}${daEntrada ? ' y dar entrada' : ''}`}
-          </Boton>
+          <BarraCobro>
+            <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
+            <Boton grande bloque onClick={cobrar} disabled={ocupado || monto <= 0 || faltanClases}>
+              {faltanClases ? (plan.grupos === 1 ? 'Elige la clase' : `Elige ${plan.grupos} clases`) : `Cobrar ${dinero(monto)}${recargo ? ' (con recargo)' : ''}${daEntrada ? ' y dar entrada' : ''}`}
+            </Boton>
+          </BarraCobro>
         </>
       )}
     </div>
   );
+}
+
+/** Método de pago y botón de cobrar, siempre visibles abajo aunque la hoja sea larga (recargo, varias clases). */
+function BarraCobro({ children }: { children: React.ReactNode }) {
+  return <div className="sticky bottom-0 -mx-5 space-y-3 border-t border-ink-100 bg-ink-50/95 px-5 pt-3 pb-4 backdrop-blur">{children}</div>;
 }

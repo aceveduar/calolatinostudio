@@ -225,7 +225,7 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
         <div className="sticky top-0 z-10 flex items-center gap-2 bg-ink-50/95 px-5 pt-3 pb-2 backdrop-blur">
           <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-ink-300 sm:hidden" />
           <div className="mt-2 flex-1 text-lg font-bold">{titulo}</div>
-          <button onClick={onCerrar} className="mt-2 rounded-full p-2 text-ink-500 active:bg-ink-100" aria-label="Cerrar">
+          <button onClick={onCerrar} className="-mr-1 mt-2 rounded-full p-2.5 text-ink-500 active:bg-ink-100" aria-label="Cerrar">
             <X size={20} />
           </button>
         </div>

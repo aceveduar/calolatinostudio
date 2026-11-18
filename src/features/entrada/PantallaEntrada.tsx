@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, AlertTriangle, ScanLine, ShoppingBag, MapPin, ChevronDown, Check, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { usePendientes } from '../pendientes/PantallaPendientes';
+import { usePendientes } from '../../app/pendientes';
 import { useNoActualizarMientras } from '../../app/actualizacion';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
@@ -20,7 +20,7 @@ import { semaforoAlumno } from '../../domain/membresias';
 import { cobrarClaseSuelta } from '../../domain/operaciones';
 import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
 import { FormAlumno } from '../alumnos/FormAlumno';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
 import { Escaner, type LecturaQR } from './Escaner';
@@ -60,7 +60,12 @@ export function PantallaEntrada() {
   const planes = usePlanes();
   const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
 
-  const [claseId, setClaseId] = useState<ID | null>(null);
+  // la clase elegida a mano se recuerda al ir y volver de otras pantallas (90 min; luego vuelve a sugerir la de la hora)
+  const [claseId, setClaseIdEstado] = useState<ID | null>(leerClaseElegida);
+  const setClaseId = useCallback((id: ID | null) => {
+    setClaseIdEstado(id);
+    guardarClaseElegida(id);
+  }, []);
   const [verTodas, setVerTodas] = useState(false);
   const clase: Clase | null = clases.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
   // precio de la clase elegida (cada maestro puede tener su tarifa); si no hay clase, el de la sede
@@ -714,4 +719,23 @@ function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () =>
       </Boton>
     </div>
   );
+}
+
+const CLAVE_CLASE = 'compas:clase-elegida';
+const RECORDAR_CLASE_MS = 90 * 60_000;
+function leerClaseElegida(): ID | null {
+  try {
+    const g = JSON.parse(sessionStorage.getItem(CLAVE_CLASE) ?? 'null') as { id: ID; at: number } | null;
+    return g && Date.now() - g.at < RECORDAR_CLASE_MS ? g.id : null;
+  } catch {
+    return null;
+  }
+}
+function guardarClaseElegida(id: ID | null) {
+  try {
+    if (id) sessionStorage.setItem(CLAVE_CLASE, JSON.stringify({ id, at: Date.now() }));
+    else sessionStorage.removeItem(CLAVE_CLASE);
+  } catch {
+    /* sin almacenamiento: solo no se recuerda */
+  }
 }

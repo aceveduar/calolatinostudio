@@ -15,7 +15,7 @@ import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, deFecha, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { mesDe, nombreMes, rangoMes, type Mes } from '../../domain/gastos';
 import { waLink } from '../../domain/reportes';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 
 const COLOR_RENTA = '#7c4ddb';
 const lunesDe = (f: Fecha) => sumarDias(f, -((diaSemana(f) + 6) % 7));
@@ -27,7 +27,7 @@ function textoDias(dias: number[]): string {
   return orden.length <= 1 ? (orden[0] ?? '') : `${orden.slice(0, -1).join(', ')} y ${orden[orden.length - 1]}`;
 }
 
-export function describirRenta(r: Renta): string {
+function describirRenta(r: Renta): string {
   const hora = r.duracionMin >= TODO_EL_DIA.duracionMin ? 'todo el día' : rangoHora(r.horaInicio, r.duracionMin);
   if (r.tipo === 'evento') return `${DIAS_CORTOS[diaSemana(r.desde)]} ${fechaCorta(r.desde)} · ${hora}`;
   const fin = r.hasta ? ` · hasta ${fechaCorta(r.hasta)}` : '';

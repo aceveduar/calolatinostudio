@@ -6,18 +6,14 @@ import { db } from '../../db/db';
 import type { Alumno, Clase, ID } from '../../db/types';
 import { hoy, sumarDias } from '../../domain/fechas';
 import { membresiaQueCubre } from '../../domain/membresias';
+import { nombreCorto } from '../../domain/nombres';
 
 const MAX = 30;
 
-/** Nombre corto para la cuadrícula: "Ana López" → "Ana L." */
-export function nombreCorto(n: string): string {
-  const [a, b] = n.trim().split(/\s+/);
-  return b ? `${a} ${b[0]}.` : a;
-}
-
 /**
- * Los alumnos que suelen venir a esta clase, en un orden que no cambia durante el día
- * (memoria muscular: Monse aprende dónde está cada quien).
+ * Los alumnos que suelen venir a esta clase, en un orden que no cambia mientras se cobra
+ * (memoria muscular: Monse aprende dónde está cada quien, y un toque nunca cae en otra persona).
+ * Solo en momentos seguros (al abrir la Entrada o cambiar de clase) quienes ya entraron pasan al final.
  * Toque = entrada/cobro rápido · mantener presionado = todas las opciones.
  */
 export function Frecuentes({
@@ -39,7 +35,10 @@ export function Frecuentes({
 
   // Ranking con la historia ANTERIOR a hoy, calculado una vez por clase (no en vivo):
   // así el orden no se mueve mientras se cobra y no se recorre el historial en cada toque.
-  const [ranking, setRanking] = useState<{ claseId: ID; enClase: Map<ID, number>; general: Map<ID, number> } | null>(null);
+  const [ranking, setRanking] = useState<{ claseId: ID; enClase: Map<ID, number>; general: Map<ID, number>; yaAdentro: Set<ID> } | null>(null);
+  // quiénes estaban adentro al abrir: esos van al final; los que se marcan después se quedan en su lugar
+  const adentroAhora = useRef(adentro);
+  adentroAhora.current = adentro;
   useEffect(() => {
     let vivo = true;
     const dia = hoy();
@@ -55,7 +54,7 @@ export function Frecuentes({
           general.set(a.alumnoId!, (general.get(a.alumnoId!) ?? 0) + 1);
           if (a.claseId === clase.id) enClase.set(a.alumnoId!, (enClase.get(a.alumnoId!) ?? 0) + 1);
         }
-        if (vivo) setRanking({ claseId: clase.id, enClase, general });
+        if (vivo) setRanking({ claseId: clase.id, enClase, general, yaAdentro: new Set(adentroAhora.current) });
       });
     return () => {
       vivo = false;
@@ -84,7 +83,8 @@ export function Frecuentes({
   // se agregan sin mover a nadie de su lugar.
   const enLista = new Set(historicos.map((a) => a.id));
   const porId = new Map(alumnos.map((a) => [a.id, a]));
-  const mostrar = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
+  const todos = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
+  const mostrar = [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
 
   if (!mostrar.length) return null;
 
@@ -125,7 +125,7 @@ function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; e
       onClick={() => !largo.current && onToque()}
       className={cx(
         'relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 transition select-none active:scale-95 [-webkit-touch-callout:none]',
-        entro ? 'bg-ok-50 ring-ok-600/20' : 'bg-superficie ring-ink-100',
+        entro ? 'bg-ok-50/60 ring-ok-600/15' : 'bg-superficie ring-ink-100',
       )}
     >
       <span className={cx('relative', entro && 'opacity-50')}>
@@ -136,7 +136,7 @@ function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; e
           </span>
         )}
       </span>
-      <span className="w-full truncate px-1 text-center text-sm leading-tight font-semibold">{nombreCorto(alumno.nombre)}</span>
+      <span className={cx('w-full truncate px-1 text-center text-sm leading-tight font-semibold', entro && 'text-ink-500')}>{nombreCorto(alumno.nombre)}</span>
       <span className={cx('text-[11px] font-bold', entro ? 'text-ok-600' : plan ? 'text-ok-600' : 'text-brand-600')}>
         {entro ? 'Adentro' : plan ? 'Plan' : 'Paga'}
       </span>

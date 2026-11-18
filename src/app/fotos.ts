@@ -57,3 +57,17 @@ export async function prepararFotoGaleria(archivo: File): Promise<string> {
   }
   return lienzo.toDataURL('image/jpeg', 0.4);
 }
+
+/** Reduce una imagen subida a ≤ max px y la devuelve como data URL (PNG si tiene transparencia). */
+export async function prepararLogo(archivo: File, max = 256): Promise<string> {
+  if (!archivo.type.startsWith('image/')) throw new Error('Elige una imagen (PNG o JPG).');
+  const bmp = await createImageBitmap(archivo);
+  const escala = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.round(bmp.width * escala);
+  lienzo.height = Math.round(bmp.height * escala);
+  lienzo.getContext('2d')!.drawImage(bmp, 0, 0, lienzo.width, lienzo.height);
+  bmp.close();
+  const tipo = archivo.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+  return lienzo.toDataURL(tipo, 0.9);
+}

@@ -14,7 +14,7 @@ import { aCentavos, dinero } from '../../domain/dinero';
 import { fechaCorta } from '../../domain/fechas';
 import { cambiarEstado, cancelarPedido, crearEncargo, entregarPedido, listaProveedor, listoParaEntregar, nombrePedido, registrarAnticipo, restaPorPagar, textoProveedor, totalPedido } from '../../domain/pedidos';
 import { waLink } from '../../domain/reportes';
-import { METODOS } from '../alumnos/VenderPlan';
+import { METODOS } from '../../domain/planes';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
