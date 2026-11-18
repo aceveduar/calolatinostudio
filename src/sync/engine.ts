@@ -1,9 +1,12 @@
 /**
  * Sincronización local-first.
- *  push: el outbox se envía en orden (upsert idempotente por id).
+ *  push: el outbox se envía en orden. Un alta sube el registro completo (upsert idempotente por id);
+ *        un cambio sube SOLO los campos que cambiaron (ver subida.ts), así un teléfono que estuvo
+ *        sin red no pisa lo que otro cambió en el mismo registro mientras tanto.
  *  pull: se baja lo cambiado desde el último cursor (server_updated_at, por tabla).
- * Conflictos: gana el `updatedAt` más reciente; un registro con cambios locales
- * pendientes nunca se sobrescribe hasta que se sube.
+ * Conflictos: la nube es la verdad. Un registro con cambios locales pendientes nunca se sobrescribe
+ * hasta que se sube; si dos teléfonos cambian el MISMO campo, queda el que llegó al último.
+ * No se compara la hora de cada teléfono: un reloj adelantado ya no puede ganar siempre.
  */
 import { useSyncExternalStore } from 'react';
 import { db, getMeta, setMeta } from '../db/db';
@@ -11,6 +14,7 @@ import { SYNC_TABLES, type ID, type SyncTable } from '../db/types';
 import { alCambiarLocal } from './bus';
 import { supabase } from './supabase';
 import { avisoEsquema } from './esquema';
+import { planearSubida, soloCampos } from './subida';
 
 /** Versión de la base: una vez que está al día no se vuelve a preguntar en esta sesión. */
 let esquemaAlDia = false;
@@ -95,8 +99,14 @@ async function push(): Promise<void> {
         regs = regs.filter((r) => !r.rentaId);
       }
       if (!regs.length) continue;
+      const plan = planearSubida(items.filter((o) => o.table === tabla));
       try {
-        await subirTolerante(tabla, regs.map(aRemoto));
+        const completos = regs.filter((r) => !plan.parciales.has(r.id as ID));
+        if (completos.length) await subirTolerante(tabla, completos.map(aRemoto));
+        const parciales = regs.filter((r) => plan.parciales.has(r.id as ID));
+        for (let i = 0; i < parciales.length; i += 8) {
+          await Promise.all(parciales.slice(i, i + 8).map((r) => subirCambios(tabla, r, plan.parciales.get(r.id as ID)!)));
+        }
       } catch (e) {
         // Tabla o columna que la base aún no conoce: esa tabla espera en la cola, las demás siguen
         if (!esTablaFaltante(e) && !/Could not find the '\w+' column/.test(e instanceof Error ? e.message : String(e))) throw e;
@@ -128,10 +138,11 @@ function esTablaFaltante(e: unknown): boolean {
  */
 const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'academias.sede_principal', 'usuarios.maestro_id', 'clases.maestro_id', 'clases.curso', 'alumnos.portal', 'productos.opciones', 'academias.recargo_diario', 'academias.meta_diaria', 'academias.salones', 'academias.slug', 'academias.whatsapp', 'academias.pagina', 'pagos.costo', 'alumnos.foto', 'alumnos.avisos', 'gastos.maestro_id', 'gastos_fijos.maestro_id']);
 
-async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
+/** Reintenta quitando columnas opcionales que la base aún no tiene. */
+async function tolerante(tabla: SyncTable, enviar: (limpiar: (f: Record<string, unknown>) => Record<string, unknown>) => Promise<{ message: string } | null>): Promise<void> {
+  const limpiar = (f: Record<string, unknown>) => Object.fromEntries(Object.entries(f).filter(([k]) => !columnasFaltantes.has(`${tabla}.${k}`)));
   for (let intento = 0; intento < OMITIBLES.size + 1; intento++) {
-    const limpias = filas.map((f) => Object.fromEntries(Object.entries(f).filter(([k]) => !columnasFaltantes.has(`${tabla}.${k}`))));
-    const { error } = await supabase!.from(aSnake(tabla)).upsert(limpias, { onConflict: 'id' });
+    const error = await enviar(limpiar);
     if (!error) return;
     const col = error.message.match(/Could not find the '(\w+)' column/)?.[1];
     const clave = `${tabla}.${col}`;
@@ -140,6 +151,21 @@ async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]
   }
   // Nunca dar por buena una subida que no se confirmó: la cola se conserva para reintentar
   throw new Error(`${tabla}: no se pudo subir`);
+}
+
+async function subirTolerante(tabla: SyncTable, filas: Record<string, unknown>[]): Promise<void> {
+  await tolerante(tabla, async (limpiar) => (await supabase!.from(aSnake(tabla)).upsert(filas.map(limpiar), { onConflict: 'id' })).error);
+}
+
+/** Solo los campos que cambiaron. Si el registro aún no está en la nube (no lo encontró), sube completo. */
+async function subirCambios(tabla: SyncTable, reg: Record<string, unknown>, campos: string[]): Promise<void> {
+  let existe = true;
+  await tolerante(tabla, async (limpiar) => {
+    const { data, error } = await supabase!.from(aSnake(tabla)).update(limpiar(aRemoto(soloCampos(reg, campos)))).eq('id', reg.id as string).select('id');
+    if (!error) existe = !!data?.length;
+    return error;
+  });
+  if (!existe) await subirTolerante(tabla, [aRemoto(reg)]);
 }
 
 const TRASLAPE_MS = 2 * 60_000;
@@ -168,13 +194,13 @@ async function pull(academiaId: ID): Promise<void> {
       if (error) throw new Error(`${tabla}: ${error.message}`);
       if (!data.length) break;
 
-      const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
-      const locales = await db.table(tabla).bulkGet(data.map((r) => r.id as string));
-      const aGuardar = data
-        .map((r, i) => ({ remoto: aLocal(r), local: locales[i] as { updatedAt: number } | undefined }))
-        .filter(({ remoto, local }) => !pendientes.has(remoto.id as string) && (!local || (remoto.updatedAt as number) >= local.updatedAt))
-        .map(({ remoto }) => remoto);
-      if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
+      // La nube manda, salvo en lo que este teléfono aún no sube. Revisar la cola y guardar en la misma
+      // transacción: un cobro hecho justo en este momento no se puede perder.
+      await db.transaction('rw', db.table(tabla), db.outbox, async () => {
+        const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
+        const aGuardar = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
+        if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
+      });
 
       cursor = data[data.length - 1].server_updated_at as string;
       await setMeta(claveCursor, cursor);

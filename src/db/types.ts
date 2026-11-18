@@ -415,6 +415,8 @@ export interface OutboxItem {
   table: SyncTable;
   id: ID;
   at: number;
+  /** campos que cambió este registro; vacío/ausente = registro completo (alta o cambio sin detalle) */
+  campos?: string[] | null;
 }
 
 export interface Meta {
