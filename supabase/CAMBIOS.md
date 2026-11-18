@@ -1,0 +1,19 @@
+# Cambios a la base de datos
+
+`schema.sql` se puede correr completo las veces que sea: crea lo que falta y no borra nada. Para actualizar una base, se pega el archivo completo en Supabase → SQL Editor → Run.
+
+Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y el de `ESQUEMA_REQUERIDO` en `src/sync/esquema.ts`. Si la app encuentra una base atrasada, avisa en pantalla "Actualiza la base de datos" en lugar de fallar sin decir nada.
+
+## Para cambiar la base
+
+1. Edita `schema.sql`. Usa siempre formas que se puedan repetir: `add column if not exists`, `create or replace function`, `drop constraint if exists` antes de `add constraint`.
+2. Si la app manda una columna nueva, agrégala a `OMITIBLES` en `src/sync/engine.ts`, para que un teléfono con la app nueva siga subiendo lo demás mientras se corre el SQL.
+3. Sube el número en los dos lugares y anota aquí abajo qué cambió.
+4. Corre el SQL en Supabase **antes** de hacer push de la app.
+
+## Bitácora
+
+| Versión | Qué cambió |
+|---|---|
+| 20261118 | Se agrega `esquema_version()`, para que la app sepa si la base está al día. |
+| (antes) | Historial en git: `git log -- supabase/schema.sql`. Lo último: alumnos.avisos, gastos.maestro_id, gastos_fijos.maestro_id, academias.pagina, clases.curso, y `pagina_publica` con curso y disciplina por clase (15 nov 2026). |

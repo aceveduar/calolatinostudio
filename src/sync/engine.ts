@@ -10,6 +10,19 @@ import { db, getMeta, setMeta } from '../db/db';
 import { SYNC_TABLES, type ID, type SyncTable } from '../db/types';
 import { alCambiarLocal } from './bus';
 import { supabase } from './supabase';
+import { avisoEsquema } from './esquema';
+
+/** Versión de la base: una vez que está al día no se vuelve a preguntar en esta sesión. */
+let esquemaAlDia = false;
+async function revisarEsquema(): Promise<string | null> {
+  if (esquemaAlDia || !supabase) return null;
+  const { data, error } = await supabase.rpc('esquema_version');
+  // función inexistente = base anterior a la versión; otro error (red) = no molestar, se reintenta
+  if (error && !/esquema_version|PGRST202|does not exist/i.test(`${error.code} ${error.message}`)) return null;
+  const aviso = avisoEsquema(error ? null : Number(data));
+  esquemaAlDia = aviso === null;
+  return aviso;
+}
 
 /** solo-local: instalación sin nube · desconectada: hay nube pero este equipo no está conectado (o caducó la sesión) */
 export type Fase = 'solo-local' | 'desconectada' | 'sin-red' | 'sincronizando' | 'al-dia' | 'error';
@@ -192,7 +205,8 @@ export async function sincronizar(): Promise<void> {
       // Solo avisar si algo quedó esperando por la base vieja (si no hay nada de la tienda, no molestar)
       const esperando = await db.outbox.count();
       const falta = esperando ? [...tablasFaltantes, ...columnasFaltantes] : [...columnasFaltantes];
-      setEstado({ fase: 'al-dia', ultimo: Date.now(), error: falta.length ? `Actualiza la base de datos: falta ${falta.join(', ')} (corre supabase/schema.sql)` : null });
+      const atrasada = await revisarEsquema();
+      setEstado({ fase: 'al-dia', ultimo: Date.now(), error: falta.length ? `Actualiza la base de datos: falta ${falta.join(', ')} (corre supabase/schema.sql)` : atrasada });
     } catch (e) {
       setEstado({ fase: navigator.onLine ? 'error' : 'sin-red', error: e instanceof Error ? e.message : String(e) });
     } finally {

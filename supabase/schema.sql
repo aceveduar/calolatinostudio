@@ -5,6 +5,7 @@
 -- a los miembros de esa academia.
 -- Timestamps de negocio en ms (bigint) generados en el teléfono.
 -- server_updated_at lo pone el servidor y es el cursor de sincronización.
+-- Versión y bitácora de cambios: ver esquema_version() al final y supabase/CAMBIOS.md.
 -- =============================================================
 
 create table if not exists academias (
@@ -633,3 +634,14 @@ end $$;
 
 revoke execute on function portal_foto(text, text) from public;
 grant execute on function portal_foto(text, text) to anon, authenticated;
+
+-- ---------- versión del esquema ----------
+-- La app compara este número con ESQUEMA_REQUERIDO (src/sync/esquema.ts) y, si la base está atrasada,
+-- avisa "corre supabase/schema.sql" en lugar de fallar en silencio. Al cambiar este archivo:
+--   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
+--   2) anota qué cambió en supabase/CAMBIOS.md.
+create or replace function esquema_version() returns int
+language sql immutable as $$ select 20261118 $$;
+
+revoke execute on function esquema_version() from public;
+grant execute on function esquema_version() to anon, authenticated;
