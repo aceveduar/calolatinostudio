@@ -345,3 +345,13 @@ textarea {
   outline-offset: 4px;
   border-radius: 999px;
 }
+
+/* Página pública en modo oscuro: el azul/rojo de la marca oscurecido no se lee sobre fondo oscuro */
+@media (prefers-color-scheme: dark) {
+  .pp .text-brand-600 {
+    color: color-mix(in oklab, var(--marca) 55%, white);
+  }
+  .pp .bg-brand-50 {
+    background-color: color-mix(in oklab, var(--marca) 28%, transparent);
+  }
+}

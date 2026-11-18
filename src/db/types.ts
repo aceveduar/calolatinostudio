@@ -60,6 +60,8 @@ export interface ContenidoPagina {
   redes?: { instagram?: string; facebook?: string; tiktok?: string };
   /** fotos de clases y eventos (JPEG en data URL, ≤900 px) */
   galeria?: string[];
+  /** crédito de las fotos si no son propias (p. ej. licencias Creative Commons) */
+  creditos?: string;
   /** lo que dicen los alumnos */
   testimonios?: { texto: string; nombre: string; detalle?: string }[];
 }

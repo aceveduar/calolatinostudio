@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, AtSign, Check, ChevronDown, ChevronLeft, ChevronRight, Map as IconoMapa, MapPin, Quote, X, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
+import { ArrowRight, AtSign, Check, ChevronLeft, ChevronRight, Map as IconoMapa, MapPin, Quote, X, MessageCircle, Navigation, ShoppingBag, Sparkle, Users } from 'lucide-react';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
@@ -112,6 +112,14 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     return e.tipo === 'pronto' || e.tipo === 'iniciando' ? [{ c, e }] : [];
   });
 
+  // siguiente clase de hoy (para la etiqueta en vivo de la portada)
+  const siguienteHoy = useMemo(() => {
+    const ahora = new Date();
+    const min = ahora.getHours() * 60 + ahora.getMinutes();
+    return d.clases
+      .filter((c) => c.dias.includes(ahora.getDay()) && Number(c.hora.slice(0, 2)) * 60 + Number(c.hora.slice(3)) > min)
+      .sort((x, y) => x.hora.localeCompare(y.hora))[0];
+  }, [d.clases]);
   // barra de arriba sólida al pasar la portada; botón fijo abajo cuando no se ve la portada ni el formulario
   const hero = useRef<HTMLDivElement>(null);
   const form = useRef<HTMLDivElement>(null);
@@ -188,62 +196,77 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         </div>
       </nav>
 
-      {/* ---------- portada ---------- */}
-      <header ref={portada} className="relative isolate flex min-h-[92svh] overflow-hidden bg-panel text-white">
-        {p.portada ? (
-          <>
-            <img src={p.portada} alt="" className="pp-paralaje absolute inset-0 -z-10 h-full w-full object-cover" fetchPriority="high" />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/90 via-black/45 to-black/30" />
-          </>
-        ) : (
-          <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(120% 80% at 80% 0%, color-mix(in oklab, var(--marca) 85%, white) 0%, var(--marca) 35%, color-mix(in oklab, var(--marca) 45%, #120f18) 100%)' }}>
-            <svg className="absolute -top-24 -right-24 h-[34rem] w-[34rem] opacity-15" viewBox="0 0 64 64" aria-hidden="true">
-              <circle cx="32" cy="32" r="17" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="70 37" strokeLinecap="round" transform="rotate(-30 32 32)" />
-              <circle cx="32" cy="32" r="27" fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="4 6" />
-            </svg>
-          </div>
-        )}
-        <div className="pp-sube mx-auto flex w-full max-w-5xl flex-col justify-end px-5 pt-28 pb-14 sm:pb-16">
-          {disciplinas.length > 0 && (
-            <p className="mb-4 w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-widest uppercase ring-1 ring-white/25 backdrop-blur">
-              {disciplinas
-                .map((x) => x.nombre)
-                .slice(0, 4)
-                .join(' · ')}
-            </p>
-          )}
-          <h1 className="max-w-3xl text-[2.75rem] leading-[1.02] font-extrabold tracking-tight text-balance sm:text-7xl">{p.frase || 'Clases de baile'}</h1>
-          {p.intro && <p className="mt-4 max-w-xl text-lg text-pretty text-white/85 sm:text-xl">{p.intro}</p>}
-          {primera && (
-            <p className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-sm font-extrabold text-brand-600 shadow-lg">
-              <Sparkle size={15} /> {primera}
-            </p>
-          )}
-          <div ref={hero} className="mt-6 flex gap-3">
-            <a href="#inscribete" className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-black/20 ring-1 ring-white/20 active:scale-[0.98] sm:flex-none">
-              Tu primera clase <ArrowRight size={20} aria-hidden="true" />
-            </a>
-            {wa && (
-              <a href={wa} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="flex h-14 w-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white/10 font-bold text-white ring-1 ring-white/30 backdrop-blur active:scale-[0.98] sm:w-auto sm:px-5">
-                <MessageCircle size={22} /> <span className="hidden sm:inline">WhatsApp</span>
-              </a>
+      {/* ---------- portada: texto sobre fondo limpio y la foto como tarjeta ---------- */}
+      <header ref={portada} className="relative isolate overflow-hidden bg-panel text-white">
+        {/* resplandor del color de la academia (decorativo) */}
+        <div className="absolute inset-0 -z-10" aria-hidden="true" style={{ background: 'radial-gradient(60% 70% at 85% 30%, color-mix(in oklab, var(--marca) 55%, transparent), transparent 70%), radial-gradient(50% 60% at 0% 100%, color-mix(in oklab, var(--marca) 30%, transparent), transparent 70%)' }} />
+        <div className="mx-auto grid max-w-5xl items-center gap-8 px-5 pt-20 pb-12 md:grid-cols-[1.1fr_1fr] md:gap-12 md:pt-28 md:pb-20">
+          {/* foto (en el celular va primero) */}
+          <div className="relative order-first md:order-last">
+            {p.portada ? (
+              <div className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/40 ring-1 ring-white/15 md:rotate-1">
+                <img src={p.portada} alt={`Clase en ${d.academia.nombre}`} className="aspect-[4/3] w-full object-cover md:aspect-[4/5]" fetchPriority="high" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              </div>
+            ) : (
+              <div className="flex aspect-[4/3] items-center justify-center rounded-[2rem] bg-white/5 ring-1 ring-white/10 md:aspect-[4/5]">
+                <span className="rounded-3xl bg-white p-5 shadow-2xl">
+                  <LogoAcademia academia={{ nombre: d.academia.nombre, logo: d.academia.logo }} tam={120} />
+                </span>
+              </div>
+            )}
+            {/* etiquetas flotantes: la oferta y la siguiente clase de hoy */}
+            {primera && (
+              <p className="absolute -bottom-4 left-4 flex items-center gap-2 rounded-2xl bg-superficie px-4 py-3 text-sm font-extrabold text-ink-900 shadow-xl ring-1 ring-ink-100 md:-left-6">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white">
+                  <Sparkle size={16} />
+                </span>
+                {primera}
+              </p>
+            )}
+            {siguienteHoy && (
+              <p className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/20 backdrop-blur md:-right-4">
+                <span className="pp-pulso h-2 w-2 rounded-full bg-ok-600" />
+                Hoy {siguienteHoy.hora} · {siguienteHoy.clase}
+              </p>
             )}
           </div>
-          {/* datos que dan confianza, calculados de la app */}
-          <dl className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/20 pt-6">
-            <Dato valor={clasesPorSemana} texto="clases por semana" />
-            <Dato valor={disciplinas.length} texto={disciplinas.length === 1 ? 'disciplina' : 'disciplinas'} />
-            {desdeCero ? <Dato valor={0} texto="experiencia necesaria" /> : <Dato valor={sedes.length} texto={sedes.length === 1 ? 'sede' : 'sedes'} />}
-          </dl>
+
+          {/* texto */}
+          <div className="pp-sube">
+            {disciplinas.length > 0 && (
+              <p className="mb-3 text-xs font-extrabold tracking-[0.2em] text-white/60 uppercase">
+                {disciplinas
+                  .map((x) => x.nombre)
+                  .slice(0, 4)
+                  .join(' · ')}
+              </p>
+            )}
+            <h1 className="text-[2.6rem] leading-[1.03] font-extrabold tracking-tight text-balance sm:text-6xl">{p.frase || 'Clases de baile'}</h1>
+            {p.intro && <p className="mt-4 line-clamp-3 max-w-xl text-lg text-pretty text-white/75">{p.intro}</p>}
+            <div ref={hero} className="mt-7 flex gap-3">
+              <a href="#inscribete" className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98] sm:flex-none">
+                Tu primera clase <ArrowRight size={20} aria-hidden="true" />
+              </a>
+              {wa && (
+                <a href={wa} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="flex h-14 w-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white/10 font-bold text-white ring-1 ring-white/20 active:scale-[0.98] sm:w-auto sm:px-5">
+                  <MessageCircle size={22} /> <span className="hidden sm:inline">WhatsApp</span>
+                </a>
+              )}
+            </div>
+            {/* datos que dan confianza, calculados de la app */}
+            <dl className="mt-9 grid max-w-md grid-cols-3 gap-3">
+              <Dato valor={clasesPorSemana} texto="clases por semana" />
+              <Dato valor={disciplinas.length} texto={disciplinas.length === 1 ? 'disciplina' : 'disciplinas'} />
+              {desdeCero ? <Dato valor={0} texto="experiencia necesaria" /> : <Dato valor={sedes.length} texto={sedes.length === 1 ? 'sede' : 'sedes'} />}
+            </dl>
+          </div>
         </div>
-        <a href="#clases" className="pp-rebote absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full p-2 text-white/70 hover:text-white" aria-label="Ver las clases">
-          <ChevronDown size={28} />
-        </a>
       </header>
 
       {/* cinta de disciplinas: avanza con el scroll */}
       {disciplinas.length > 1 && (
-        <div className="overflow-hidden bg-ink-900 py-4 text-white select-none" aria-hidden="true">
+        <div className="overflow-hidden bg-panel py-4 text-white select-none" aria-hidden="true">
           <div className="pp-cinta flex w-max gap-8 pl-5 text-2xl font-extrabold tracking-tight whitespace-nowrap uppercase sm:text-3xl">
             {Array.from({ length: 4 }, () => disciplinas.map((x) => x.nombre))
               .flat()
@@ -295,7 +318,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     role="tab"
                     aria-selected={sede === s.id}
                     onClick={() => setSede(s.id)}
-                    className={cx('flex min-h-11 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100')}
+                    className={cx('flex min-h-11 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100')}
                   >
                     <MapPin size={14} /> {s.nombre}
                   </button>
@@ -366,7 +389,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         {/* ---------- comunidad: fotos y lo que dicen los alumnos ---------- */}
         {((p.galeria?.length ?? 0) > 0 || (p.testimonios?.length ?? 0) > 0) && (
           <Seccion id="comunidad" eyebrow="Comunidad" titulo="Así se vive la clase" fondo="superficie">
-            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} />
+            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} creditos={p.creditos} />
           </Seccion>
         )}
 
@@ -377,7 +400,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               <p className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">{primera ?? '¿Listo para tu primera clase?'}</p>
               <p className="mt-1 text-white/85">{desdeCero ? 'No necesitas experiencia ni pareja. Te acompañamos desde el primer paso.' : 'Ven a conocer al grupo y bailar con nosotros.'}</p>
             </div>
-            <a href="#inscribete" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-6 text-lg font-bold text-brand-600 shadow-xl active:scale-[0.98]">
+            <a href="#inscribete" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-6 text-lg font-bold text-[var(--marca)] shadow-xl active:scale-[0.98]">
               Apartar mi lugar <ArrowRight size={20} aria-hidden="true" />
             </a>
           </div>
@@ -397,7 +420,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     </p>
                     {l.referencias && <p className="text-ink-500">{l.referencias}</p>}
                     <span className="flex-1" />
-                    <a href={comoLlegar(l.direccion)} target="_blank" rel="noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-ink-900 font-bold text-white active:scale-[0.98]">
+                    <a href={comoLlegar(l.direccion)} target="_blank" rel="noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-ink-900 font-bold text-ink-50 active:scale-[0.98]">
                       <Navigation size={18} /> Cómo llegar
                     </a>
                   </div>
@@ -814,14 +837,14 @@ function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['cla
         >
         <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2 font-bold">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
             {c.clase}
             {esAhora && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-50 px-2 py-0.5 text-[11px] font-extrabold text-ok-600 uppercase">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-50 px-2 py-0.5 text-[11px] font-extrabold whitespace-nowrap text-ok-600 uppercase">
                 <span className="pp-pulso h-2 w-2 rounded-full bg-ok-600" /> Ahora
               </span>
             )}
-            {esSiguiente && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold text-brand-600">{enCuanto(minutos(c.hora) - min)}</span>}
+            {esSiguiente && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold whitespace-nowrap text-brand-600">{enCuanto(minutos(c.hora) - min)}</span>}
           </span>
           {e?.texto && <span className={cx('block text-xs font-semibold', e.aceptaNuevos ? 'text-ok-600' : 'text-ink-500')}>{e.texto}</span>}
         </span>
@@ -858,11 +881,11 @@ function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['cla
             onClick={() => setElegido(x)}
             className={cx(
               'flex shrink-0 flex-col items-center rounded-2xl px-4 py-2 ring-1 transition',
-              dia === x ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50',
+              dia === x ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50',
             )}
           >
             <span className="text-sm font-extrabold">{x === hoyDia ? 'Hoy' : DIAS_CORTOS[x]}</span>
-            <span className={cx('text-[11px]', dia === x ? 'text-white/70' : 'text-ink-500')}>
+            <span className={cx('text-[11px]', dia === x ? 'text-ink-50/70' : 'text-ink-500')}>
               {delDia(x).length} {delDia(x).length === 1 ? 'clase' : 'clases'}
             </span>
           </button>
@@ -870,7 +893,7 @@ function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['cla
         <button
           aria-pressed={dia === 'semana'}
           onClick={() => setElegido('semana')}
-          className={cx('min-h-11 shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold ring-1 transition', dia === 'semana' ? 'bg-ink-900 text-white ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50')}
+          className={cx('min-h-11 shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold ring-1 transition', dia === 'semana' ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100 hover:bg-ink-50')}
         >
           Toda la semana
         </button>
@@ -1014,7 +1037,7 @@ function MapaLigero({ nombre, direccion }: { nombre: string; direccion: string }
 }
 
 /** Fotos (se abren en grande) y lo que dicen los alumnos; todo en carruseles para no alargar la página. */
-function Comunidad({ galeria, testimonios }: { galeria: string[]; testimonios: { texto: string; nombre: string; detalle?: string }[] }) {
+function Comunidad({ galeria, testimonios, creditos }: { galeria: string[]; testimonios: { texto: string; nombre: string; detalle?: string }[]; creditos?: string }) {
   const visor = useRef<HTMLDialogElement>(null);
   const [i, setI] = useState(0);
   const abrir = (k: number) => {
@@ -1035,6 +1058,7 @@ function Comunidad({ galeria, testimonios }: { galeria: string[]; testimonios: {
           ))}
         </ul>
       )}
+      {galeria.length > 0 && creditos && <p className="-mt-4 text-[11px] text-ink-500">{creditos}</p>}
       {testimonios.length > 0 && (
         <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1" aria-label="Lo que dicen nuestros alumnos">
           {testimonios.map((t, k) => (

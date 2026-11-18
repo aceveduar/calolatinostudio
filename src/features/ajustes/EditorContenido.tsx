@@ -29,6 +29,7 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
   const redes = Object.fromEntries(Object.entries(c.redes ?? {}).filter(([, v]) => v?.trim()).map(([k, v]) => [k, v!.trim()]));
   if (Object.keys(redes).length) o.redes = redes;
   if (c.galeria?.length) o.galeria = c.galeria.slice(0, MAX_GALERIA);
+  if (c.creditos?.trim()) o.creditos = c.creditos.trim();
   const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}) }));
   if (te.length) o.testimonios = te;
   return o;
@@ -170,6 +171,10 @@ export function EditorContenido() {
           }}
         />
       </Bloque>
+
+      <Campo etiqueta="Créditos de las fotos (solo si no son tuyas)" ayuda="Algunas licencias piden nombrar al autor. Si las fotos son tuyas, déjalo vacío.">
+        <Entrada value={c.creditos ?? ''} onChange={(e) => pon({ creditos: e.target.value })} placeholder="Ej. Fotos: Ana Pérez (CC BY-SA 4.0)" />
+      </Campo>
 
       <Bloque titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
         {(c.testimonios ?? []).map((x, i) => {
