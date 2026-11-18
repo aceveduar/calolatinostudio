@@ -253,7 +253,7 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: 
               <span className="w-[5.6rem] shrink-0 text-xs font-semibold text-ink-500 tabular-nums">{r && r.duracionMin >= TODO_EL_DIA.duracionMin ? 'Todo el día' : `${horaTexto(b.inicio)}–${horaTexto(b.fin)}`}</span>
               <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: color }} />
               <span className="line-clamp-2 min-w-0 flex-1 text-sm leading-tight font-semibold break-words">{r ? r.nombre : nombreClase(b.clase, disciplinas)}</span>
-              {r?.tipo === 'evento' && <span className="shrink-0 text-[11px] font-bold text-[#7c4ddb]">{r.eventoId ? 'Evento propio' : 'Evento'}</span>}
+              {r?.tipo === 'evento' && <span className="shrink-0 text-[11px] font-bold text-[#7c4ddb] dark:text-[#b49cf2]">{r.eventoId ? 'Evento propio' : 'Evento'}</span>}
             </>
           );
           return r && onRenta ? (

@@ -306,12 +306,13 @@ export function PantallaEntrada() {
               key={c.id}
               onClick={() => setClaseId(c.id)}
               className={cx('flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-left ring-1 transition', activa ? 'text-white ring-transparent' : 'bg-superficie ring-ink-100')}
-              style={activa ? { background: color } : undefined}
+              // el color de la disciplina un poco más oscuro: el texto blanco se lee con cualquier color que elijan
+              style={activa ? { background: `color-mix(in oklab, ${color} 80%, black)` } : undefined}
             >
               {!activa && <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />}
               <span>
                 <span className="block text-[15px] leading-tight font-bold">{nombreClase(c, disciplinas)}</span>
-                <span className={cx('block text-xs', activa ? 'text-white/80' : 'text-ink-500')}>
+                <span className={cx('block text-xs', activa ? 'text-white/90' : 'text-ink-500')}>
                   {verTodas ? c.dias.map((d) => DIAS_CORTOS[d]).join(' ') + ' · ' : ''}
                   {c.horaInicio}
                   {!verTodas && ` · ${conteo.get(c.id) ?? 0}`}
@@ -402,7 +403,7 @@ export function PantallaEntrada() {
             aria-label={`Cobrar ${dinero(suelta.precio)} sin nombre`}
           >
             <span className="text-lg font-extrabold">+{dinero(suelta.precio)}</span>
-            <span className="mt-0.5 text-[10px] font-semibold text-white/85">sin nombre</span>
+            <span className="mt-0.5 text-[10px] font-semibold text-white">sin nombre</span>
           </button>
         )}
       </div>

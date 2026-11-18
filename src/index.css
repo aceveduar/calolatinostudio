@@ -12,7 +12,7 @@
   --color-brand-100: color-mix(in oklab, var(--marca) 18%, var(--fondo-tinte));
   --color-brand-200: color-mix(in oklab, var(--marca) 32%, var(--fondo-tinte));
   --color-brand-500: var(--marca);
-  --color-brand-600: color-mix(in oklab, var(--marca) 86%, black);
+  --color-brand-600: var(--t-brand-600);
   --color-brand-700: color-mix(in oklab, var(--marca) 72%, black);
 
   --color-ink-900: var(--t-ink-900);
@@ -59,17 +59,20 @@
 
   --t-ink-900: #1c1a24;
   --t-ink-700: #3d3a48;
-  --t-ink-500: #6e6a7c;
+  --t-ink-500: #6b6778;
   --t-ink-300: #b9b5c6;
   --t-ink-100: #ecebf1;
   --t-ink-50: #f6f5f9;
   --t-superficie: #ffffff;
+  /* texto y botones con el color de la academia: más oscuro en claro, más claro en oscuro (para que se lea) */
+  --t-brand-600: color-mix(in oklab, var(--marca) 86%, black);
   --t-panel: #1c1a24;
 
   --t-ok-50: #e9f8ef;
-  --t-ok-600: #15924b;
+  /* tonos de texto con contraste AA (4.5:1) sobre su fondo claro */
+  --t-ok-600: #127f41;
   --t-warn-50: #fff6e0;
-  --t-warn-600: #b7791f;
+  --t-warn-600: #98641a;
   --t-bad-50: #fdecec;
   --t-bad-600: #c53030;
 
@@ -87,6 +90,7 @@
     --t-ink-100: #2c2936;
     --t-ink-50: #110f16;
     --t-superficie: #1c1a24;
+    --t-brand-600: color-mix(in oklab, var(--marca) 62%, white);
     --t-panel: #2a2734;
 
     --t-ok-50: #11301f;
@@ -346,11 +350,8 @@ textarea {
   border-radius: 999px;
 }
 
-/* Página pública en modo oscuro: el azul/rojo de la marca oscurecido no se lee sobre fondo oscuro */
+/* Página pública en modo oscuro: el fondo suave de la marca, un poco más visible */
 @media (prefers-color-scheme: dark) {
-  .pp .text-brand-600 {
-    color: color-mix(in oklab, var(--marca) 55%, white);
-  }
   .pp .bg-brand-50 {
     background-color: color-mix(in oklab, var(--marca) 28%, transparent);
   }

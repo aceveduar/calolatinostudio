@@ -106,7 +106,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
               </span>
             ) : (
               <>
-                <button className="px-1 text-xs font-semibold text-ink-500" onClick={() => setCancelando(x.pedido.id)} aria-label={`Cancelar apartado de ${x.alumno?.nombre ?? 'alumno'}`}>
+                <button className="min-h-10 min-w-10 rounded-lg px-2 text-xs font-semibold text-ink-500 active:bg-ink-100" onClick={() => setCancelando(x.pedido.id)} aria-label={`Cancelar apartado de ${x.alumno?.nombre ?? 'alumno'}`}>
                   ✕
                 </button>
                 <Boton onClick={() => entregar(x)} disabled={ocupado || !x.producto}>

@@ -55,7 +55,7 @@ export function PantallaMaestro() {
               key={c.id}
               onClick={() => setClaseId(c.id)}
               className={cx('shrink-0 rounded-2xl px-4 py-2.5 text-left ring-1', clase?.id === c.id ? 'text-white ring-transparent' : 'bg-superficie ring-ink-100')}
-              style={clase?.id === c.id ? { background: colorClase(c, disciplinas) } : undefined}
+              style={clase?.id === c.id ? { background: `color-mix(in oklab, ${colorClase(c, disciplinas)} 80%, black)` } : undefined}
             >
               <span className="block text-[15px] font-bold">{nombreClase(c, disciplinas)}</span>
               <span className="block text-xs opacity-80">{c.horaInicio}</span>

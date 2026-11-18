@@ -228,7 +228,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             <LogoAcademia academia={{ nombre: datos.academia.nombre, logo: datos.academia.logo }} tam={36} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-white/80">{datos.academia.nombre}</span>
+            <span className="block truncate text-sm font-semibold text-white">{datos.academia.nombre}</span>
             <span className="block text-2xl leading-tight font-extrabold">
               {saludo(new Date())}, {nombre1}
             </span>
@@ -250,9 +250,9 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
               {qr ? <img src={qr} alt="" className="h-24 w-24 rounded-2xl" /> : <span className="block h-24 w-24 animate-pulse rounded-2xl bg-[#ecebf0]" />}
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold tracking-wider text-[#6e6a7c] uppercase">Tu pase de entrada</p>
+              <p className="text-[11px] font-bold tracking-wider text-[#6b6778] uppercase">Tu pase de entrada</p>
               <p className="truncate text-lg leading-tight font-extrabold">{datos.alumno.nombre}</p>
-              <p className="font-mono text-sm tracking-[0.25em] text-[#6e6a7c]">{datos.alumno.codigo}</p>
+              <p className="font-mono text-sm tracking-[0.25em] text-[#6b6778]">{datos.alumno.codigo}</p>
             </div>
             <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={!!guardadoEl} onListo={recargar} />
           </div>
@@ -263,7 +263,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           >
             <QrCode size={22} aria-hidden="true" /> Mostrar mi pase
           </button>
-          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-brand-600">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
+          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-[color-mix(in_oklab,var(--marca)_80%,black)]">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
 
         <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
@@ -409,7 +409,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           </div>
         )}
 
-        <p className="pt-2 text-center text-xs text-ink-300">Este enlace es solo tuyo · Compás</p>
+        <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
       </div>
       {pase && <PaseCompleto qr={qr} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} foto={datos.alumno.foto ?? null} onCerrar={() => setPase(false)} />}
       {apartar && (
@@ -456,7 +456,7 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: strin
         {foto ? (
           <img src={foto} alt={nombre} className="h-14 w-14 rounded-full object-cover" />
         ) : (
-          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--marca)_12%,white)] text-[var(--marca)] ring-2 ring-[color-mix(in_oklab,var(--marca)_40%,white)]">
+          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--marca)_12%,white)] text-[color-mix(in_oklab,var(--marca)_80%,black)] ring-2 ring-[color-mix(in_oklab,var(--marca)_40%,white)]">
             <Camera size={20} />
             <span className="text-[9px] font-bold">FOTO</span>
           </span>
@@ -477,7 +477,7 @@ function saludo(d: Date): string {
 function BotonWhats({ href, texto }: { href: string | null; texto: string }) {
   if (!href) return <p className="mt-2 text-sm text-ink-500">Pregunta en recepción.</p>;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1fa855] font-bold text-white active:scale-[0.98]">
+    <a href={href} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15803d] font-bold text-white active:scale-[0.98]">
       <MessageCircle size={20} aria-hidden="true" /> {texto}
     </a>
   );
@@ -592,7 +592,7 @@ function Logros({ total, desde, semanas, hoy }: { total: number; desde: string |
               <span className={cx('flex h-11 w-11 items-center justify-center rounded-full text-2xl', ganada ? 'bg-brand-50 ring-2 ring-brand-500/40' : 'bg-ink-50 opacity-40 grayscale')} aria-hidden="true">
                 {i.emoji}
               </span>
-              <span className={cx('text-[10px] leading-tight font-semibold', ganada ? 'text-ink-900' : 'text-ink-300')}>{i.meta}</span>
+              <span className={cx('text-[10px] leading-tight font-semibold', ganada ? 'text-ink-900' : 'text-ink-500')}>{i.meta}</span>
               <span className="sr-only">
                 {i.nombre}, {ganada ? 'ganada' : 'por ganar'}
               </span>
@@ -635,11 +635,11 @@ function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | nul
           {foto && <img src={foto} alt="" className="h-14 w-14 rounded-full object-cover" />}
           <div className="text-left">
             <p className="text-xl font-extrabold">{nombre}</p>
-            <p className="font-mono tracking-[0.3em] text-[#6e6a7c]">{codigo}</p>
+            <p className="font-mono tracking-[0.3em] text-[#6b6778]">{codigo}</p>
           </div>
         </div>
         {qr && <img src={qr} alt="Tu código QR" className="aspect-square w-full max-w-[min(85vw,26rem)]" />}
-        <p className="flex items-center gap-1.5 text-sm text-[#6e6a7c]">
+        <p className="flex items-center gap-1.5 text-sm text-[#6b6778]">
           <Sun size={16} aria-hidden="true" /> Sube el brillo y muéstralo en recepción
         </p>
         <button type="button" onClick={() => ref.current?.close()} className="mt-2 h-12 rounded-2xl bg-[#ecebf0] px-8 font-bold" autoFocus>

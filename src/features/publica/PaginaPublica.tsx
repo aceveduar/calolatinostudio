@@ -170,7 +170,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         aria-label="Secciones"
       >
         <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-5">
-          <a href="#" className="flex min-w-0 items-center gap-2.5" aria-label={`${d.academia.nombre}, ir al inicio`}>
+          <a href="#" className="flex min-h-11 min-w-0 items-center gap-2.5" aria-label={`${d.academia.nombre}, ir al inicio`}>
             <span className="rounded-xl bg-white p-1 shadow-sm">
               <LogoAcademia academia={{ nombre: d.academia.nombre, logo: d.academia.logo }} tam={30} />
             </span>
@@ -452,7 +452,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                           href={waCon(`Hola, quiero boletos para ${e.nombre} (${dd} de ${MESES[mm - 1]}, ${e.hora}).`)!}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-3 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#25d366] px-4 text-sm font-bold text-white active:scale-[0.98]"
+                          className="mt-3 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#15803d] px-4 text-sm font-bold text-white active:scale-[0.98]"
                         >
                           <MessageCircle size={18} /> Quiero ir
                         </a>
@@ -510,7 +510,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                 <Punto>Sin compromiso: conoce al grupo y después decides tu plan</Punto>
               </ul>
               {wa && (
-                <a href={wa} target="_blank" rel="noreferrer" className="mt-6 inline-flex h-12 items-center gap-2 rounded-2xl bg-[#25d366] px-5 font-bold text-white active:scale-[0.98]">
+                <a href={wa} target="_blank" rel="noreferrer" className="mt-6 inline-flex h-12 items-center gap-2 rounded-2xl bg-[#15803d] px-5 font-bold text-white active:scale-[0.98]">
                   <MessageCircle size={20} /> Escríbenos por WhatsApp
                 </a>
               )}
@@ -544,7 +544,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             </div>
           )}
         </div>
-        <p className="mx-auto mt-8 max-w-5xl px-5 text-xs text-white/40">
+        <p className="mx-auto mt-8 max-w-5xl px-5 text-xs text-white/60">
           © {new Date().getFullYear()} {d.academia.nombre} · Hecho con Compás
         </p>
       </footer>
@@ -562,7 +562,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             Quiero mi primera clase
           </a>
           {wa && (
-            <a href={wa} target="_blank" rel="noreferrer" tabIndex={verBarra ? 0 : -1} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25d366] text-white shadow-xl" aria-label="Escríbenos por WhatsApp">
+            <a href={wa} target="_blank" rel="noreferrer" tabIndex={verBarra ? 0 : -1} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#15803d] text-white shadow-xl" aria-label="Escríbenos por WhatsApp">
               <MessageCircle size={24} />
             </a>
           )}

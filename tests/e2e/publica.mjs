@@ -67,6 +67,7 @@ await dlg.getByRole('textbox').first().fill('Rosa Prueba');
 await dlg.getByPlaceholder('10 dígitos').fill('55 1111 2222');
 await dlg.getByRole('button', { name: 'Anotar', exact: true }).click();
 await page.getByText('Anotado en interesados').waitFor();
+await page.locator('main').getByText('Rosa Prueba').first().waitFor({ timeout: 5000 }).catch(() => {});
 console.log('6) anotar a mano:', ok(/Rosa Prueba/.test(await txt())));
 
 // 6) mensajes editables

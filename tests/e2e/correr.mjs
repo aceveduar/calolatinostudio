@@ -19,7 +19,7 @@ const SALIDA = 'dist-prueba';
 const PUERTO = 4173;
 const LIMITE_MS = 6 * 60_000; // eventos tarda ~3 min
 // Ayudantes que no son pruebas por sí mismos
-const NO_SON_PRUEBAS = new Set(['correr.mjs']);
+const NO_SON_PRUEBAS = new Set(['correr.mjs', 'servidor.mjs', 'revisar.mjs']);
 
 const args = process.argv.slice(2);
 const sinBuild = args.includes('--sin-build');

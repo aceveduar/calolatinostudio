@@ -53,7 +53,7 @@ export function PantallaMas() {
         </span>
         <LockKeyhole size={18} className="text-ink-300" />
       </button>
-      <p className="mt-4 text-center text-xs text-ink-300">Compás v{__APP_VERSION__}</p>
+      <p className="mt-4 text-center text-xs text-ink-500">Compás v{__APP_VERSION__}</p>
     </div>
   );
 }

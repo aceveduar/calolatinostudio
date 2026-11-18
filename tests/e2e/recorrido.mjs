@@ -3,9 +3,10 @@
 //  · nada se sale a lo ancho (scroll horizontal) → MAL
 //  · botones y enlaces sin nombre (lectores de pantalla) → MAL
 //  · errores de la página → MAL
-//  · botones chicos para el dedo (< 40 px) → se listan como aviso
+//  · botones chicos para el dedo (< 40 px) y textos con poco contraste → se listan como aviso
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
+import { revisarPagina } from './revisar.mjs';
 const OUT = new URL('./salida/recorrido/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(OUT, { recursive: true });
 const ok = (c) => (c ? 'OK' : 'MAL');
@@ -26,6 +27,7 @@ const COMBOS = [
 const browser = await chromium.launch({ channel: 'msedge' });
 const problemas = [];
 const chicos = new Map();
+const contraste = new Map();
 let revisadas = 0;
 
 for (const [disp, tema, viewport, esquema] of COMBOS) {
@@ -50,20 +52,7 @@ for (const [disp, tema, viewport, esquema] of COMBOS) {
       await ir(r);
       await page.waitForTimeout(700);
       const antes = errores.length;
-      const rev = await page.evaluate(() => {
-        const ancho = document.documentElement.scrollWidth > window.innerWidth + 1;
-        const visibles = [...document.querySelectorAll('button, a[href], [role=button], input, select, textarea')].filter((el) => {
-          const b = el.getBoundingClientRect();
-          return b.width > 0 && b.height > 0 && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[aria-hidden="true"]');
-        });
-        const nombre = (el) => (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || el.getAttribute('placeholder') || (el.labels?.[0]?.textContent ?? '') || el.querySelector('img[alt]')?.getAttribute('alt') || '').trim();
-        const sinNombre = visibles.filter((el) => !['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName) && !nombre(el)).map((el) => el.outerHTML.slice(0, 90));
-        const chicos = visibles
-          .filter((el) => ['BUTTON', 'A'].includes(el.tagName) || el.getAttribute('role') === 'button')
-          .filter((el) => { const b = el.getBoundingClientRect(); return Math.min(b.width, b.height) < 40; })
-          .map((el) => nombre(el).slice(0, 30) || el.outerHTML.slice(0, 50));
-        return { ancho, sinNombre, chicos };
-      });
+      const rev = await revisarPagina(page);
       const id = `${disp}-${tema}-${rol}${r === '/' ? '-inicio' : r.replace(/\//g, '-').replace(/-[0-9a-f-]{36}$/, '-ficha')}`;
       await page.screenshot({ path: `${OUT}${id}.png`, fullPage: true });
       revisadas++;
@@ -71,6 +60,7 @@ for (const [disp, tema, viewport, esquema] of COMBOS) {
       if (rev.sinNombre.length) problemas.push(`${id}: ${rev.sinNombre.length} botón(es) sin nombre: ${rev.sinNombre[0]}`);
       if (errores.length > antes) problemas.push(`${id}: error: ${errores.at(-1)}`);
       for (const c of rev.chicos) chicos.set(c, [...(chicos.get(c) ?? []), id]);
+      for (const c of rev.contraste) contraste.set(c, [...(contraste.get(c) ?? []), id]);
     }
     await ir('/');
     await page.waitForTimeout(500);
@@ -87,4 +77,8 @@ for (const p of problemas.slice(0, 40)) console.log('   ', p);
 if (chicos.size) {
   console.log(`aviso: ${chicos.size} botones de menos de 40 px (difíciles de tocar):`);
   for (const [n, d] of [...chicos.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 25)) console.log(`    "${n}" en ${d.length} pantalla(s), p. ej. ${d[0]}`);
+}
+if (contraste.size) {
+  console.log(`aviso: ${contraste.size} textos con poco contraste (difíciles de leer):`);
+  for (const [n, d] of [...contraste.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 30)) console.log(`    ${n} en ${d.length} pantalla(s), p. ej. ${d[0]}`);
 }

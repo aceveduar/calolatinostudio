@@ -134,7 +134,8 @@ export function Tarjeta({ className, children, onClick }: { className?: string; 
   );
 }
 
-const coloresAvatar = ['#e8445a', '#7c4ddb', '#1f8fd6', '#15924b', '#d97706', '#db2777', '#0d9488'];
+// tonos con contraste AA (≥ 4.5:1) para las iniciales en blanco
+const coloresAvatar = ['#d13d51', '#7c4ddb', '#1a7ab6', '#138645', '#b06005', '#d92776', '#0b8278'];
 export function Avatar({ nombre, tam = 44, foto }: { nombre: string; tam?: number; foto?: string | null }) {
   if (foto) return <img src={foto} alt="" width={tam} height={tam} className="shrink-0 rounded-full object-cover" style={{ width: tam, height: tam }} />;
   const iniciales = nombre

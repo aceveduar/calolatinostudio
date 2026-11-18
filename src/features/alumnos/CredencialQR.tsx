@@ -62,7 +62,7 @@ export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: A
         <div className="px-6 pt-5 pb-6 text-center">
           {qr ? <img src={qr} alt={`QR de ${alumno.nombre}`} className="mx-auto aspect-square w-full" /> : <div className="aspect-square w-full animate-pulse rounded-xl bg-[#ecebf1]" />}
           <p className="mt-3 text-xl font-extrabold">{alumno.nombre}</p>
-          <p className="font-mono text-sm tracking-[0.3em] text-[#6e6a7c]">{alumno.codigo}</p>
+          <p className="font-mono text-sm tracking-[0.3em] text-[#6b6778]">{alumno.codigo}</p>
         </div>
       </div>
       <p className="text-center text-sm text-ink-500">En recepción escanean este código para darle entrada o cobrarle.</p>
