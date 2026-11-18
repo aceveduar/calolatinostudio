@@ -28,6 +28,7 @@ export function leerEncabezados(archivo) {
 }
 
 export function servir({ carpeta, puerto, encabezados }) {
+  carpeta = path.resolve(carpeta);
   const avisos = [];
   // la nube falsa de las pruebas también se permite (en producción solo *.supabase.co)
   const csp = encabezados['Content-Security-Policy']?.replace('https://*.supabase.co', 'https://*.supabase.co https://prueba.invalid');

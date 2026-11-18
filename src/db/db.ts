@@ -129,8 +129,34 @@ export class CompasDB extends Dexie {
 
     // v10: interesados que se inscriben en la página pública
     this.version(10).stores({ interesados: 'id, academiaId, estado, claseId' });
+
+    // v11: índices para no recorrer toda la historia (con un año de datos, cada recorrido tardaba ~1 s):
+    //  · pagoId: las entradas y planes de un cobro (anular / restaurar un cobro)
+    //  · deuda: solo las entradas fiadas sin pagar (Pendientes, lista de alumnos). Es un campo LOCAL
+    //    que se calcula solo al guardar (ver los hooks de abajo) y nunca se sube a la nube.
+    this.version(11)
+      .stores({ asistencias: 'id, academiaId, fecha, alumnoId, membresiaId, [claseId+fecha], pagoId, deuda', membresias: 'id, academiaId, alumnoId, fin, pagoId' })
+      .upgrade((tx) =>
+        tx
+          .table('asistencias')
+          .toCollection()
+          .modify((a: Asistencia) => {
+            if (esDeuda(a)) a.deuda = 1;
+            else delete a.deuda;
+          }),
+      );
+
+    // `deuda` se mantiene sola en cada escritura (cobro, fiado, anulación o bajada de la nube)
+    this.asistencias.hook('creating', (_id, a) => {
+      if (esDeuda(a)) a.deuda = 1;
+      else delete a.deuda;
+    });
+    this.asistencias.hook('updating', (cambios, _id, a) => (esDeuda({ ...a, ...(cambios as Partial<Asistencia>) }) ? { deuda: 1 } : { deuda: undefined }));
   }
 }
+
+/** Entró fiado y no ha pagado (ni se anuló). */
+export const esDeuda = (a: Pick<Asistencia, 'debe' | 'pagoId' | 'anuladaAt' | 'deletedAt'>) => !!a.debe && !a.pagoId && !a.anuladaAt && !a.deletedAt;
 
 export const db = new CompasDB();
 

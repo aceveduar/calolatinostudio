@@ -2,6 +2,7 @@
 //   npm run test:e2e              → todas
 //   npm run test:e2e -- web tienda → solo esas
 //   npm run test:e2e -- --sin-build → reutiliza la compilación anterior
+//   npm run test:e2e -- carga --ver  → muestra todo lo que imprime la prueba
 //
 // Seguridad: compila la app apuntando a una nube FALSA (prueba.invalid), así ninguna
 // prueba puede escribir en la nube real aunque se le olvide bloquear la red.
@@ -22,6 +23,7 @@ const NO_SON_PRUEBAS = new Set(['correr.mjs']);
 
 const args = process.argv.slice(2);
 const sinBuild = args.includes('--sin-build');
+const ver = args.includes('--ver'); // muestra todo lo que imprime cada prueba
 const pedidas = args.filter((a) => !a.startsWith('--')).map((a) => a.replace(/\.mjs$/, ''));
 const todas = readdirSync(AQUI).filter((f) => f.endsWith('.mjs') && !NO_SON_PRUEBAS.has(f)).map((f) => f.replace(/\.mjs$/, ''));
 const suites = pedidas.length ? pedidas : todas;
@@ -57,7 +59,8 @@ for (const s of suites) {
   const paso = r.codigo === 0 && mal === 0 && !errPagina;
   resultados.push({ s, paso, ok, mal, seg });
   console.log(`${paso ? '✔' : '✘'} ${s.padEnd(14)} ${String(ok).padStart(3)} OK  ${mal} MAL  ${seg}s`);
-  if (!paso) {
+  if (ver) console.log(r.texto.replace(/^/gm, '    '));
+  else if (!paso) {
     const lineas = r.texto.split('\n').filter((l) => /MAL|Error|errores:|Timeout/.test(l)).slice(0, 8);
     for (const l of lineas) console.log('    ' + l.trim().slice(0, 200));
   }

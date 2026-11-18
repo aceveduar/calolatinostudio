@@ -27,9 +27,9 @@ export async function restaurarPago(pagoId: ID): Promise<void> {
     const cuando = pago.anuladoAt;
     await actualizar('pagos', pagoId, { anuladoAt: null, anuladoMotivo: null, anuladoPor: null });
     // solo lo que se anuló junto con este cobro
-    const asis = await db.asistencias.filter((a) => a.pagoId === pagoId && a.anuladaAt === cuando).toArray();
+    const asis = await db.asistencias.where('pagoId').equals(pagoId).filter((a) => a.anuladaAt === cuando).toArray();
     for (const a of asis) await actualizar('asistencias', a.id, { anuladaAt: null });
-    const mems = await db.membresias.filter((m) => m.pagoId === pagoId && m.anuladaAt === cuando).toArray();
+    const mems = await db.membresias.where('pagoId').equals(pagoId).filter((m) => m.anuladaAt === cuando).toArray();
     for (const m of mems) await actualizar('membresias', m.id, { anuladaAt: null });
   });
 }

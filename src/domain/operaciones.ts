@@ -141,9 +141,9 @@ export async function anularPago(pagoId: ID, motivo: string, usuarioId: ID): Pro
   await enTransaccion(async () => {
     const ahora = Date.now();
     await actualizar('pagos', pagoId, { anuladoAt: ahora, anuladoMotivo: motivo, anuladoPor: usuarioId });
-    const asis = await db.asistencias.filter((a) => a.pagoId === pagoId && !a.anuladaAt).toArray();
+    const asis = await db.asistencias.where('pagoId').equals(pagoId).filter((a) => !a.anuladaAt).toArray();
     for (const a of asis) await actualizar('asistencias', a.id, { anuladaAt: ahora });
-    const mems = await db.membresias.filter((m) => m.pagoId === pagoId && !m.anuladaAt).toArray();
+    const mems = await db.membresias.where('pagoId').equals(pagoId).filter((m) => !m.anuladaAt).toArray();
     for (const m of mems) await actualizar('membresias', m.id, { anuladaAt: ahora });
   });
 }

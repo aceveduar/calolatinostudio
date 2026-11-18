@@ -80,6 +80,14 @@ beforeEach(async () => {
 const alta = () => crear('alumnos', { nombre: 'Ana', telefono: '5511112222', activo: true } as never);
 
 describe('sincronizar', () => {
+  it('el índice local de deudas nunca se sube', async () => {
+    await crear('asistencias', { alumnoId: 'al1', nombreVisitante: null, claseId: 'c1', fecha: '2026-11-18', membresiaId: null, pagoId: null, usuarioId: 'u1', anuladaAt: null, debe: true } as never);
+    await sincronizar();
+    const enviado = nube.envios.find((e) => e.tabla === 'asistencias')!;
+    expect(enviado.datos.debe).toBe(true);
+    expect('deuda' in enviado.datos).toBe(false);
+  });
+
   it('un alta sube completa y un cambio sube solo lo que cambió', async () => {
     const al = await alta();
     await sincronizar();

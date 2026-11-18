@@ -55,9 +55,11 @@ export function useEstadoSync(): EstadoSync {
 const aSnake = (s: string) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 const aCamel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
+/** Campos que solo existen en el teléfono (índices calculados): nunca se suben. */
+const SOLO_LOCALES = new Set(['deuda']);
 function aRemoto(r: Record<string, unknown>) {
   const o: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(r)) o[aSnake(k)] = v;
+  for (const [k, v] of Object.entries(r)) if (!SOLO_LOCALES.has(k)) o[aSnake(k)] = v;
   return o;
 }
 function aLocal(r: Record<string, unknown>) {

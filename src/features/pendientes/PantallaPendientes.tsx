@@ -25,7 +25,7 @@ async function cargar(dia: string) {
     db.alumnos.toArray(),
     db.asistencias.where('fecha').aboveOrEqual(desde).toArray(),
     // lo fiado puede ser de hace meses
-    db.asistencias.filter((a) => !!a.debe && !a.pagoId).toArray(),
+    db.asistencias.where('deuda').equals(1).toArray(),
     db.rentas.toArray(),
     db.pagos.where('fecha').aboveOrEqual(inicioMesPasado).filter((p) => !!p.rentaId).toArray(),
   ]);

@@ -324,6 +324,8 @@ export interface Asistencia extends Base {
   anuladaAt: number | null;
   /** entró sin pagar (fiado). Queda saldada cuando se le liga un pago (pagoId). */
   debe?: boolean | null;
+  /** SOLO LOCAL (índice): 1 si debe esta clase. Lo calcula la base del teléfono; nunca se sube. */
+  deuda?: 1;
 }
 
 export interface Corte extends Base {

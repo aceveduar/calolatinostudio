@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
-import { esAdeudo } from '../../domain/adeudos';
 import { ChevronRight, ClipboardList, Megaphone, Plus, Search, Users } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
@@ -22,7 +21,7 @@ export function PantallaAlumnos() {
   const deben = useLiveQuery(
     async () => {
       const m = new Map<string, number>();
-      for (const a of await db.asistencias.filter((x) => esAdeudo(x)).toArray()) if (a.alumnoId) m.set(a.alumnoId, (m.get(a.alumnoId) ?? 0) + 1);
+      for (const a of await db.asistencias.where('deuda').equals(1).toArray()) if (a.alumnoId) m.set(a.alumnoId, (m.get(a.alumnoId) ?? 0) + 1);
       return m;
     },
     [],
