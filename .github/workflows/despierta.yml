@@ -1,0 +1,25 @@
+# Una vez al día abre la página pública del estudio.
+# 1) Mantiene despierta la base (Supabase gratis se pausa tras 7 días sin uso, p. ej. en vacaciones).
+# 2) Sirve de vigilancia: si la base o la página no responden, esta tarea falla y GitHub manda un correo.
+# No usa claves: pide la página igual que cualquier visitante.
+name: Despertar y revisar
+
+on:
+  schedule:
+    - cron: '0 14 * * *' # 8:00 en Ciudad de México
+  workflow_dispatch: {}
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: La página responde con los datos del estudio
+        run: |
+          for intento in 1 2 3; do
+            html=$(curl -fsS --max-time 30 https://calolatinostudio.pages.dev/a/calo-latino) && \
+              echo "$html" | grep -q 'og:title' && { echo "Todo bien"; exit 0; }
+            echo "Intento $intento sin datos; reintento en 60 s"; sleep 60
+          done
+          echo "::error::La página no trae los datos del estudio: revisa Supabase (¿pausado?) y Cloudflare."
+          exit 1
