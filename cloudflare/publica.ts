@@ -47,6 +47,35 @@ export async function leerPublica(env: Env, slug: string): Promise<Publica | nul
   }
 }
 
+/** Una foto de la página (portada, logo, galería gN, producto p_<id>) como data URL. null si no hay. */
+export async function leerImagen(env: Env, slug: string, clave: string): Promise<string | null> {
+  if (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_ANON_KEY || !slugOk(slug)) return null;
+  try {
+    const r = await fetch(`${env.VITE_SUPABASE_URL}/rest/v1/rpc/imagen_publica`, {
+      method: 'POST',
+      headers: { apikey: env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${env.VITE_SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_slug: slug, p_clave: clave }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as string | null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * La imagen para la vista previa de Facebook/WhatsApp: la portada o, si no hay, el logo.
+ * Con la base nueva vienen como enlace /img/… ; con la vieja, incrustadas (se sirven por /og/<slug>).
+ */
+export function imagenParaVistaPrevia(d: Publica, origen: string, slug: string): { url: string; grande: boolean } | null {
+  const portada = d.pagina?.portada;
+  const v = portada || d.academia.logo;
+  if (!v) return null;
+  if (v.startsWith('/img/')) return { url: origen + v, grande: !!portada };
+  return decodificarImagen(v) ? { url: `${origen}/og/${slug}`, grande: !!decodificarImagen(portada) } : null;
+}
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** Etiquetas para la vista previa (Facebook/WhatsApp) y para Google. */

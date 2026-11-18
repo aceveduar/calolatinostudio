@@ -3,7 +3,7 @@
  * del estudio ya escritos en el HTML (para la vista previa en Facebook/WhatsApp y para Google).
  * Si algo falla, se entrega la página tal cual: nunca se rompe.
  */
-import { decodificarImagen, etiquetas, leerPublica, type Env } from '../../cloudflare/publica';
+import { etiquetas, imagenParaVistaPrevia, leerPublica, type Env } from '../../cloudflare/publica';
 
 interface Contexto {
   request: Request;
@@ -18,8 +18,8 @@ export async function onRequestGet({ request, env, params }: Contexto): Promise<
   const datos = await leerPublica(env, slug);
   if (!datos || !(pagina.headers.get('content-type') ?? '').includes('text/html')) return pagina;
 
-  const conImagen = decodificarImagen(datos.pagina?.portada) ?? decodificarImagen(datos.academia.logo);
-  const { titulo, html } = etiquetas(datos, `${url.origin}/a/${slug}`, conImagen ? `${url.origin}/og/${slug}` : null, !!decodificarImagen(datos.pagina?.portada));
+  const img = imagenParaVistaPrevia(datos, url.origin, slug);
+  const { titulo, html } = etiquetas(datos, `${url.origin}/a/${slug}`, img?.url ?? null, !!img?.grande);
 
   const res = new HTMLRewriter()
     .on('title', { element: (e) => void e.setInnerContent(titulo) })

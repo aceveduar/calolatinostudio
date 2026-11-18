@@ -540,19 +540,39 @@ grant execute on function portal_pedir(text, uuid, text, int, text) to anon, aut
 -- ---------- página pública del estudio (/a/<slug>) ----------
 -- Para compartir en Facebook: clases con horario, sede y precios, planes, próximos eventos y la tienda.
 -- Nunca nombres de maestros, alumnos ni teléfonos (salvo el WhatsApp de contacto que la academia decida mostrar).
+-- Las fotos NO viajan aquí: van como enlaces /img/<slug>/<clave>.<huella> que sirve Cloudflare (functions/img)
+-- con caché larga. Así esta respuesta pesa unos KB en lugar de ~1 MB y la página aparece al instante.
+-- La huella (md5) cambia si cambia la foto, para que nunca se vea una vieja.
+create or replace function img_publica(p_base text, p_clave text, p_dato text) returns text
+language sql immutable as $$
+  select case when p_dato like 'data:image/%' then p_base || p_clave || '.' || left(md5(p_dato), 10) else p_dato end;
+$$;
+revoke execute on function img_publica(text, text, text) from public, anon, authenticated;
+
 create or replace function pagina_publica(p_slug text) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
   ac academias;
   hoy date := (now() at time zone 'America/Mexico_City')::date;
+  base text := '/img/' || lower(p_slug) || '/';
+  pag jsonb;
 begin
   if p_slug is null or length(p_slug) < 3 then return null; end if;
   select * into ac from academias where lower(slug) = lower(p_slug) and deleted_at is null;
   if not found then return null; end if;
+  pag := coalesce(ac.pagina, '{}'::jsonb);
+  if jsonb_typeof(pag->'portada') = 'string' then
+    pag := jsonb_set(pag, '{portada}', to_jsonb(img_publica(base, 'portada', pag->>'portada')));
+  end if;
+  if jsonb_typeof(pag->'galeria') = 'array' then
+    pag := jsonb_set(pag, '{galeria}', coalesce((
+      select jsonb_agg(to_jsonb(img_publica(base, 'g' || (n - 1), g)) order by n)
+      from jsonb_array_elements_text(pag->'galeria') with ordinality t(g, n)), '[]'::jsonb));
+  end if;
   return jsonb_build_object(
-    'academia', jsonb_build_object('nombre', ac.nombre, 'color', ac.color, 'logo', ac.logo, 'whatsapp', ac.whatsapp, 'sede_principal', coalesce(ac.sede_principal, 'Sede principal')),
+    'academia', jsonb_build_object('nombre', ac.nombre, 'color', ac.color, 'logo', img_publica(base, 'logo', ac.logo), 'whatsapp', ac.whatsapp, 'sede_principal', coalesce(ac.sede_principal, 'Sede principal')),
     -- portada, frase, ubicación, preguntas y redes que la academia escribió para su página
-    'pagina', coalesce(ac.pagina, '{}'::jsonb),
+    'pagina', pag,
     'sedes', coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre, 'color', s.color) order by s.nombre)
                        from sedes s where s.academia_id = ac.id and s.activo and s.deleted_at is null), '[]'::jsonb),
     'clases', coalesce((
@@ -572,7 +592,7 @@ begin
       from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and e.fecha >= hoy
     ), '[]'::jsonb),
     'tienda', coalesce((
-      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', p.foto, 'descripcion', p.descripcion,
+      select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', img_publica(base, 'p_' || p.id, p.foto), 'descripcion', p.descripcion,
                                           'opciones', coalesce(to_jsonb(p.opciones), '[]'::jsonb), 'sobre_pedido', coalesce(p.sobre_pedido, false)) order by p.nombre)
       from productos p where p.academia_id = ac.id and p.en_linea and p.activo and p.deleted_at is null
     ), '[]'::jsonb)
@@ -581,6 +601,28 @@ end $$;
 
 revoke execute on function pagina_publica(text) from public;
 grant execute on function pagina_publica(text) to anon, authenticated;
+
+-- Una foto de la página pública (la pide Cloudflare para /img/<slug>/<clave>.<huella>).
+-- Solo lo que la página ya muestra: portada, logo, galería y fotos de productos en línea.
+create or replace function imagen_publica(p_slug text, p_clave text) returns text
+language plpgsql stable security definer set search_path = public as $$
+declare
+  ac academias;
+begin
+  select * into ac from academias where lower(slug) = lower(p_slug) and deleted_at is null;
+  if not found then return null; end if;
+  if p_clave = 'portada' then return ac.pagina->>'portada';
+  elsif p_clave = 'logo' then return ac.logo;
+  elsif p_clave ~ '^g[0-9]{1,2}$' then return ac.pagina->'galeria'->>(substr(p_clave, 2)::int);
+  elsif p_clave ~ '^p_[0-9a-f-]{36}$' then
+    return (select p.foto from productos p
+            where p.id = substr(p_clave, 3)::uuid and p.academia_id = ac.id and p.en_linea and p.activo and p.deleted_at is null);
+  end if;
+  return null;
+end $$;
+
+revoke execute on function imagen_publica(text, text) from public;
+grant execute on function imagen_publica(text, text) to anon, authenticated;
 
 -- Inscripción desde la página pública: queda en "interesados" para que la academia le escriba.
 -- Límites para que nadie la llene: teléfono de 10 dígitos, 3 por teléfono al día, 200 por academia al día.
@@ -641,7 +683,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261118 $$;
+language sql immutable as $$ select 20261119 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;
