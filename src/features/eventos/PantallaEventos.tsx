@@ -47,7 +47,7 @@ export function PantallaEventos() {
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <div className="flex items-center gap-2 pt-4 pb-3">
-        <Link to="/agenda" className="-ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Volver a la agenda">
+        <Link to="/agenda" className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Volver a la agenda">
           <ArrowLeft size={22} />
         </Link>
         <h1 className="flex-1 text-2xl font-extrabold tracking-tight">Eventos</h1>

@@ -76,7 +76,7 @@ export function FichaAlumno() {
 
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
-      <button onClick={() => nav(-1)} className="mt-3 -ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
+      <button onClick={() => nav(-1)} className="mt-3 -ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Atrás">
         <ArrowLeft />
       </button>
 
@@ -105,7 +105,7 @@ export function FichaAlumno() {
             <span className="text-xs text-ink-500">{historial?.totalAsistencias ?? 0} clases tomadas</span>
           </div>
         </div>
-        <button onClick={() => setEditar(true)} className="rounded-full p-2 text-ink-500 active:bg-ink-100" aria-label="Editar">
+        <button onClick={() => setEditar(true)} className="rounded-full p-2.5 text-ink-500 active:bg-ink-100" aria-label="Editar">
           <Pencil size={20} />
         </button>
       </div>

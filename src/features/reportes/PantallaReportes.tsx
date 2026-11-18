@@ -114,7 +114,7 @@ export function PantallaReportes() {
             <button
               key={id}
               onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
             >
               {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
             </button>
@@ -212,7 +212,7 @@ export function PantallaReportes() {
         <Seccion
           titulo="Por clase · alumnos por sesión"
           accion={
-            <Link to="/reportes/gastos" className="text-sm font-semibold text-brand-600">
+            <Link to="/reportes/gastos" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
               ¿Cuánto deja cada una?
             </Link>
           }
@@ -382,7 +382,7 @@ function FilaContacto({ alumnoId, nombre, detalle, etiqueta, wa }: { alumnoId: s
       </Link>
       {etiqueta}
       {wa ? (
-        <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-ok-50 p-2 text-ok-600" aria-label={`WhatsApp a ${nombre}`}>
+        <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-ok-50 p-3 text-ok-600" aria-label={`WhatsApp a ${nombre}`}>
           <MessageCircle size={18} />
         </a>
       ) : (

@@ -67,7 +67,7 @@ export function EntradaClave(p: Omit<InputHTMLAttributes<HTMLInputElement>, 'typ
       <button
         type="button"
         onClick={() => setVer(!ver)}
-        className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-2 text-ink-500 hover:bg-ink-50 active:bg-ink-100"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-2.5 text-ink-500 hover:bg-ink-50 active:bg-ink-100"
         aria-label={ver ? 'Ocultar' : 'Mostrar'}
         aria-pressed={ver}
       >

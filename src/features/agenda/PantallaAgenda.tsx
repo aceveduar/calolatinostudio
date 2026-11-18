@@ -101,7 +101,7 @@ export function PantallaAgenda() {
 
       {(
         <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          <Link to="/agenda/eventos" className="flex shrink-0 items-center gap-1.5 rounded-full bg-superficie px-4 py-2 text-sm font-semibold ring-1 ring-ink-100">
+          <Link to="/agenda/eventos" className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-superficie px-4 py-2 text-sm font-semibold ring-1 ring-ink-100">
             <PartyPopper size={16} className="text-brand-600" /> Eventos
           </Link>
           {salones.length > 0 &&
@@ -109,13 +109,13 @@ export function PantallaAgenda() {
               <button
                 key={id ?? 'principal'}
                 onClick={() => setSalon(id)}
-                className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', salon === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+                className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', salon === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
               >
                 {nombreSalon(id)}
               </button>
             ))}
           {esDueno && (
-            <button onClick={() => setGestionSalones(true)} className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-brand-600 ring-1 ring-ink-100">
+            <button onClick={() => setGestionSalones(true)} className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold text-brand-600 ring-1 ring-ink-100">
               {salones.length ? 'Salones…' : '+ Otro salón'}
             </button>
           )}
@@ -257,7 +257,7 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: 
             </>
           );
           return r && onRenta ? (
-            <button key={i} onClick={() => onRenta(r)} className="flex w-full items-center gap-2 rounded-lg bg-[#7c4ddb]/8 px-1.5 py-1 text-left active:bg-[#7c4ddb]/15">
+            <button key={i} onClick={() => onRenta(r)} className="flex min-h-10 w-full items-center gap-2 rounded-lg bg-[#7c4ddb]/8 px-1.5 py-2 text-left active:bg-[#7c4ddb]/15">
               {contenido}
             </button>
           ) : (

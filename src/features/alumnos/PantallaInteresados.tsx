@@ -47,7 +47,7 @@ export function PantallaInteresados() {
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <div className="flex items-center gap-2 pt-4 pb-3">
-        <Link to="/alumnos" className="-ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Volver a alumnos">
+        <Link to="/alumnos" className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Volver a alumnos">
           <ArrowLeft size={22} />
         </Link>
         <h1 className="flex-1 text-2xl font-extrabold tracking-tight">Interesados</h1>
@@ -87,7 +87,7 @@ export function PantallaInteresados() {
                   {c && <span className="font-normal normal-case"> · {horarioCorto(c)}</span>} · {gente.length}
                 </h2>
                 {c && (
-                  <button className="flex items-center gap-1 text-sm font-semibold text-brand-600" onClick={() => setGrupo({ clase: c, lista: gente })}>
+                  <button className="-mr-2 flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50" onClick={() => setGrupo({ clase: c, lista: gente })}>
                     <Megaphone size={16} /> Avisar a todos
                   </button>
                 )}
@@ -111,7 +111,7 @@ export function PantallaInteresados() {
                             target="_blank"
                             rel="noreferrer"
                             onClick={() => void marcarContactado(i.id)}
-                            className="rounded-full bg-ok-50 p-2 text-ok-600"
+                            className="rounded-full bg-ok-50 p-3 text-ok-600"
                             aria-label={`Escribirle a ${i.nombre} por WhatsApp`}
                           >
                             <MessageCircle size={18} />
@@ -123,7 +123,7 @@ export function PantallaInteresados() {
                             avisar(`${i.nombre.split(' ')[0]} ya es alumno`);
                             nav(`/alumnos/${a.id}`, { state: { recien: true } });
                           }}
-                          className="rounded-full bg-brand-50 p-2 text-brand-600"
+                          className="rounded-full bg-brand-50 p-3 text-brand-600"
                           aria-label={`Registrar a ${i.nombre} como alumno`}
                         >
                           <UserPlus size={18} />
@@ -131,7 +131,7 @@ export function PantallaInteresados() {
                       </div>
                       {i.mensaje && <p className="mt-1 rounded-lg bg-ink-50 px-2 py-1 text-sm text-ink-700">“{i.mensaje}”</p>}
                       <button
-                        className="mt-1 text-xs font-semibold text-ink-500"
+                        className="-ml-2 min-h-10 rounded-lg px-2 text-xs font-semibold text-ink-500 active:bg-ink-100"
                         onClick={async () => {
                           await descartar(i.id);
                           avisar('Quitado de la lista', 'ok', { texto: 'Deshacer', fn: () => actualizar('interesados', i.id, { estado: i.contactadoAt ? 'contactado' : 'nuevo' }).then(() => undefined) });

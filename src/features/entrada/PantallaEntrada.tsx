@@ -268,7 +268,7 @@ export function PantallaEntrada() {
               {pendientes > 0 && (
                 <Link
                   to="/pendientes"
-                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-500 py-2 pr-3 pl-2.5 text-sm font-bold text-white shadow-sm shadow-brand-500/30 active:scale-95"
+                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-brand-500 py-2 pr-3 pl-2.5 text-sm font-bold text-white shadow-sm shadow-brand-500/30 active:scale-95"
                   aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
                 >
                   <ListChecks size={16} /> {pendientes}
@@ -278,7 +278,7 @@ export function PantallaEntrada() {
               {sedes.length > 0 && (
                 <button
                   onClick={() => setElegirSede(true)}
-                  className="flex min-w-0 items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
+                  className="flex min-h-10 min-w-0 items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
                   aria-label="Cambiar sede"
                 >
                   <MapPin size={16} className="shrink-0" style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} />

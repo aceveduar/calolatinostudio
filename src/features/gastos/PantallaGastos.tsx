@@ -74,7 +74,7 @@ export function PantallaGastos() {
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-4xl">
       <div className="flex items-center gap-2 pt-4 pb-3">
-        <Link to="/reportes" className="-ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Volver a reportes">
+        <Link to="/reportes" className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Volver a reportes">
           <ArrowLeft size={22} />
         </Link>
         <h1 className="flex-1 text-2xl font-extrabold tracking-tight">Gastos y utilidad</h1>
@@ -99,7 +99,7 @@ export function PantallaGastos() {
             <button
               key={id}
               onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
             >
               {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
             </button>
@@ -135,7 +135,7 @@ export function PantallaGastos() {
           <Seccion
             titulo="Gastos fijos del mes"
             accion={
-              <button className="text-sm font-semibold text-brand-600" onClick={() => setFijos(true)}>
+              <button className="-mr-2 min-h-10 rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50" onClick={() => setFijos(true)}>
                 {datos.fijos.some((f) => !f.deletedAt) ? 'Editar' : 'Agregar'}
               </button>
             }
@@ -161,7 +161,7 @@ export function PantallaGastos() {
                       </span>
                     </span>
                     {pagado ? (
-                      <button className="flex items-center gap-1 text-right" onClick={() => setBorrador({ gasto: pagado, fecha: pagado.fecha })}>
+                      <button className="-my-1 flex min-h-10 items-center gap-1 rounded-lg px-1 text-right active:bg-ink-50" onClick={() => setBorrador({ gasto: pagado, fecha: pagado.fecha })}>
                         <Check size={16} className="text-ok-600" />
                         <span className="font-bold">{dinero(pagado.monto)}</span>
                       </button>
@@ -504,7 +504,7 @@ function FormFijo({ fijo, sedes, sedeInicial, onHecho }: { fijo: GastoFijo | nul
           <span className="text-bad-600">Eliminar (los gastos ya registrados se conservan)</span>
         </Boton>
       )}
-      <button className="w-full py-1 text-sm font-semibold text-ink-500" onClick={onHecho}>
+      <button className="w-full py-3 text-sm font-semibold text-ink-500" onClick={onHecho}>
         ← Volver a la lista
       </button>
     </div>

@@ -117,7 +117,7 @@ export function PantallaAlumnos() {
           </Tarjeta>
         )}
         {(bajas > 0 || verBajas) && (
-          <button onClick={() => setVerBajas(!verBajas)} className="mt-4 w-full py-2 text-sm font-semibold text-ink-500">
+          <button onClick={() => setVerBajas(!verBajas)} className="mt-4 w-full py-3 text-sm font-semibold text-ink-500">
             {verBajas ? '← Volver a alumnos activos' : `Ver dados de baja (${bajas})`}
           </button>
         )}

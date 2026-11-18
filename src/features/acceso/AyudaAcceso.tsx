@@ -20,7 +20,7 @@ export function AyudaAcceso({ academia, onListo }: { academia: Academia; onListo
   return (
     <div>
       {vista !== 'menu' && (
-        <button onClick={() => setVista('menu')} className="mb-2 -ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
+        <button onClick={() => setVista('menu')} className="mb-2 -ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Atrás">
           <ArrowLeft size={20} />
         </button>
       )}

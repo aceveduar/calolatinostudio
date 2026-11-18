@@ -326,7 +326,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     key={n ?? 'todas'}
                     aria-pressed={disciplina === n}
                     onClick={() => setDisciplina(n)}
-                    className={cx('min-h-11 shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', disciplina === n ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie text-ink-700 ring-ink-100')}
+                    className={cx('min-h-11 shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', disciplina === n ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie text-ink-700 ring-ink-100')}
                   >
                     {n ?? 'Todas'}
                   </button>

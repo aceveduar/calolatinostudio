@@ -65,7 +65,7 @@ export function PantallaListas() {
   return (
     <div className="px-4 pb-8">
       <div className="flex items-center gap-2 pt-4 pb-3">
-        <Link to="/alumnos" className="-ml-2 rounded-full p-2 active:bg-ink-100" aria-label="Volver a alumnos">
+        <Link to="/alumnos" className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Volver a alumnos">
           <ArrowLeft size={22} />
         </Link>
         <h1 className="flex-1 text-2xl font-extrabold tracking-tight">Listas del mes</h1>
@@ -80,7 +80,7 @@ export function PantallaListas() {
               <button
                 key={c.id}
                 onClick={() => setClaseId(c.id)}
-                className={cx('flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ring-1', clase?.id === c.id ? 'bg-panel text-white ring-panel' : 'bg-superficie ring-ink-100')}
+                className={cx('flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', clase?.id === c.id ? 'bg-panel text-white ring-panel' : 'bg-superficie ring-ink-100')}
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: colorClase(c, disciplinas) }} />
                 {nombreClase(c, disciplinas)}
@@ -139,7 +139,7 @@ export function PantallaListas() {
                     return (
                       <tr key={f.alumnoId} className="group">
                         <td className="sticky left-0 z-10 border-t border-ink-100 bg-superficie px-3 py-2">
-                          <Link to={`/alumnos/${a.id}`} className="block max-w-40 truncate font-semibold">
+                          <Link to={`/alumnos/${a.id}`} className="-my-2 block max-w-40 truncate py-2.5 font-semibold">
                             {a.nombre}
                           </Link>
                         </td>

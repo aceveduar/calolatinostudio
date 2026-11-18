@@ -121,7 +121,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
         </div>
       )}
 
-      <button onClick={() => setAyuda(true)} className="mx-auto mb-4 rounded-full px-4 py-2 text-sm font-semibold text-ink-500 active:bg-ink-100">
+      <button onClick={() => setAyuda(true)} className="mx-auto mb-4 rounded-full px-4 py-2.5 text-sm font-semibold text-ink-500 active:bg-ink-100">
         ¿Olvidaste tu PIN o es otra academia?
       </button>
       <Hoja abierta={ayuda} onCerrar={() => setAyuda(false)} titulo="¿Necesitas ayuda para entrar?">

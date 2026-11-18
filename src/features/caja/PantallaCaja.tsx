@@ -84,7 +84,7 @@ export function PantallaCaja() {
             <button
               key={id}
               onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1', k === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', k === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
             >
               {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
             </button>

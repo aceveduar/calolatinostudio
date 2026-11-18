@@ -81,7 +81,7 @@ export function GraficaBarras({ datos }: { datos: { fecha: string; monto: number
           </div>
         </div>
       )}
-      <button onClick={() => setTabla(!tabla)} className="-ml-2 mt-1 rounded-lg px-2 py-2.5 text-xs font-semibold text-brand-600 active:bg-brand-50">
+      <button onClick={() => setTabla(!tabla)} className="-ml-2 mt-1 rounded-lg px-2 py-3 text-xs font-semibold text-brand-600 active:bg-brand-50">
         {tabla ? 'Ver gráfica' : 'Ver como tabla'}
       </button>
     </div>

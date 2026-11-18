@@ -41,7 +41,7 @@ export function PantallaMaestro() {
         <Encabezado titulo={`Hola, ${nombre1}`} sub={fechaLarga(hoy())} />
         <button
           onClick={() => void sincronizar()}
-          className="mr-4 mb-4 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-ink-500 active:bg-ink-100 lg:mr-0"
+          className="mr-4 mb-4 flex items-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-semibold text-ink-500 active:bg-ink-100 lg:mr-0"
           aria-label="Actualizar lista"
         >
           <RefreshCw size={16} className={sync.fase === 'sincronizando' ? 'animate-spin' : undefined} /> Actualizar

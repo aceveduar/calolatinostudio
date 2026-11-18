@@ -139,7 +139,7 @@ function BarraSuperior() {
         <span className="flex shrink-0 items-center gap-1">
           <IndicadorSync />
           {/* Quién está cobrando, y cambiar de usuario en un toque */}
-          <button onClick={bloquear} className="flex items-center gap-1.5 rounded-full py-1 pr-1 pl-2 active:bg-ink-100" aria-label={`${usuario.nombre} · cambiar usuario`}>
+          <button onClick={bloquear} className="flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full py-1 pr-1 pl-2 active:bg-ink-100" aria-label={`${usuario.nombre} · cambiar usuario`}>
             <Avatar nombre={usuario.nombre} tam={26} />
           </button>
         </span>
@@ -164,7 +164,7 @@ function IndicadorSync() {
   }[fase];
   const Icono = cfg.icono;
   return (
-    <NavLink to="/ajustes/nube" className={cx('flex min-h-9 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', cfg.cls)}>
+    <NavLink to="/ajustes/nube" className={cx('flex min-h-10 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', cfg.cls)}>
       <Icono size={14} /> {cfg.texto}
     </NavLink>
   );
