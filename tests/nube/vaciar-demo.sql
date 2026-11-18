@@ -10,7 +10,7 @@ begin
   if not exists (select 1 from academias where id = demo and nombre ilike '%calo%') then
     raise exception 'No encontré la academia demo; no se borró nada';
   end if;
-  foreach t in array array['boletos','eventos','pedidos','interesados','asistencias','membresias','pagos','cortes',
+  foreach t in array array['boletos','eventos','pedidos','interesados','asistencias','membresias','pagos','cortes','alumnos',
                            'gastos','gastos_fijos','rentas','productos','planes','clases','maestros','disciplinas','sedes'] loop
     execute format('delete from %I where academia_id = $1', t) using demo;
   end loop;
