@@ -93,6 +93,58 @@ revisar('2) un reloj adelantado igual recibe el cambio del otro:', (await alumno
 await A.page.evaluate(([x, o]) => window.compasDev.actualizar('alumnos', x, { telefono: o.telefono, nombre: o.nombre, avisos: o.avisos ?? null }), [id, original]);
 revisar('3) se restauró el alumno:', await sincronizar(A.page));
 
+// 4) B cobra SIN internet; mientras no suba, no deja quitar la academia; al reconectar, A lo ve
+const visitante = `Visitante Nube ${String(Date.now()).slice(-5)}`;
+await B.ctx.setOffline(true);
+await B.page.getByRole('button', { name: /Elegir clase|Otra/ }).click();
+await B.page.getByRole('button', { name: /Salsa|Bachata/ }).first().click();
+await B.page.getByPlaceholder(/Quién llegó|Buscar…/).fill(visitante.toLowerCase());
+await B.page.getByText(`Nuevo: ${visitante}`).click();
+await B.page.getByRole('button', { name: 'Listo' }).click();
+await B.page.waitForTimeout(500);
+const enCola = await B.page.evaluate(() => window.compasDev.db.outbox.count());
+revisar('4a) sin internet el cobro queda guardado y en espera:', enCola > 0, `(${enCola} en cola)`);
+const ayuda = async () => {
+  await B.page.getByRole('button', { name: /cambiar usuario/ }).first().click();
+  await B.page.getByText('¿Olvidaste tu PIN o es otra academia?').click();
+  await B.page.getByRole('button', { name: /^Es otra academia/ }).click();
+};
+await ayuda();
+revisar('4b) con cobros sin subir NO deja quitar la academia:', await B.page.getByRole('button', { name: 'Quitar academia de este teléfono' }).isDisabled());
+await B.ctx.setOffline(false);
+revisar('4c) al reconectar sube todo:', await sincronizar(B.page));
+await sincronizar(A.page);
+const visto = await A.page.evaluate(async (n) => {
+  const al = await window.compasDev.db.alumnos.where('nombre').equals(n).first();
+  if (!al) return null;
+  const asis = await window.compasDev.db.asistencias.where('alumnoId').equals(al.id).toArray();
+  const pagos = await window.compasDev.db.pagos.where('alumnoId').equals(al.id).toArray();
+  return { id: al.id, asis: asis.length, pagos: pagos.map((p) => p.id) };
+}, visitante);
+revisar('4) el otro teléfono ve al visitante, su entrada y su cobro:', !!visto && visto.asis === 1 && visto.pagos.length === 1, JSON.stringify(visto));
+
+// 5) ya respaldado: quitar la academia borra SOLO este teléfono
+await B.page.waitForTimeout(800);
+const quitar = B.page.getByRole('button', { name: 'Quitar academia de este teléfono' });
+revisar('5a) ya respaldado sí deja quitarla:', await quitar.isEnabled());
+await quitar.click();
+await B.page.getByRole('button', { name: 'Toca otra vez para quitarla' }).click();
+await B.page.getByRole('button', { name: /Conectar a mi academia/ }).waitFor({ timeout: 30_000 });
+await B.page.waitForFunction(() => !!window.compasDev);
+const quedan = await B.page.evaluate(async () => ({ alumnos: await window.compasDev.db.alumnos.count(), pagos: await window.compasDev.db.pagos.count() }));
+revisar('5b) el teléfono quedó vacío:', quedan.alumnos === 0 && quedan.pagos === 0, JSON.stringify(quedan));
+await sincronizar(A.page);
+revisar('5c) la nube y el otro teléfono siguen intactos:', !!(await A.page.evaluate((x) => window.compasDev.db.alumnos.get(x), visto?.id)));
+
+// limpieza: el visitante de prueba se da de baja y su cobro se anula
+if (visto) {
+  await A.page.evaluate(async ([al, pagos]) => {
+    for (const p of pagos) await window.compasDev.actualizar('pagos', p, { anuladoAt: Date.now(), anuladoMotivo: 'Prueba automática' });
+    await window.compasDev.actualizar('alumnos', al, { deletedAt: Date.now() });
+  }, [visto.id, visto.pagos]);
+  revisar('6) limpieza en la nube:', await sincronizar(A.page));
+}
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 const bloqueos = [...new Set(servidor.avisos)];
 if (bloqueos.length) console.log('bloqueos de la política de seguridad:', bloqueos);
