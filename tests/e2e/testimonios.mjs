@@ -76,7 +76,8 @@ await page.evaluate(async () => {
 await page.reload();
 await entrar('Dirección Calo', '1234');
 await ir('/mas');
-await page.waitForTimeout(500);
+// el contador llega un instante después (consulta en vivo): esperarlo en lugar de un tiempo fijo
+await page.getByRole('link', { name: /Testimonios/ }).filter({ hasText: '3' }).waitFor({ timeout: 5000 }).catch(() => {});
 const mosaico = (await page.getByRole('link', { name: /Testimonios/ }).innerText()).replace(/\s+/g, ' ');
 console.log('2a) "Más" muestra Testimonios con 3 por revisar:', ok(/3/.test(mosaico)), mosaico);
 await page.getByRole('link', { name: /Testimonios/ }).click();
