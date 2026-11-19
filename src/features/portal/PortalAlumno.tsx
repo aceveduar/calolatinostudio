@@ -272,8 +272,9 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           >
             <QrCode size={22} aria-hidden="true" /> Mostrar mi pase
           </button>
-          {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-[color-mix(in_oklab,var(--marca)_80%,black)]">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
+
+        {!datos.alumno.foto && !guardadoEl && <SubirFoto variante="tarjeta" token={token} foto={null} nombre={datos.alumno.nombre} sinConexion={false} onListo={recargar} />}
 
         {/* Plan */}
         <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
@@ -463,7 +464,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
 }
 
 /** Su foto en la credencial: si no tiene, se la pide (para que en recepción lo reconozcan). */
-function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: string; foto: string | null; nombre: string; sinConexion: boolean; onListo: () => void }) {
+/** Su foto: el círculo del pase, o (si aún no tiene) una tarjeta amable que se va al ponerla. */
+function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circulo' }: { token: string; foto: string | null; nombre: string; sinConexion: boolean; onListo: () => void; variante?: 'circulo' | 'tarjeta' }) {
   const input = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<'listo' | 'subiendo' | 'error'>('listo');
   const subir = async (f: File | undefined) => {
@@ -478,6 +480,33 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: strin
       setEstado('error');
     }
   };
+  // sin "capture": el teléfono deja elegir entre la cámara y sus fotos
+  const archivo = <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />;
+  if (variante === 'tarjeta')
+    return (
+      <div className="flex items-center gap-4 rounded-3xl bg-superficie p-4 ring-1 ring-ink-100">
+        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xl font-extrabold text-brand-600 border-2 border-dashed border-brand-500/40" aria-hidden="true">
+          {nombre.trim()[0]?.toUpperCase()}
+          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white ring-2 ring-superficie">
+            <Camera size={13} />
+          </span>
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold">Pon tu foto</p>
+          <p className="text-sm text-ink-500">Así te reconocen en recepción y en tu clase.</p>
+          {estado === 'error' && <p className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</p>}
+        </div>
+        <button
+          type="button"
+          disabled={estado === 'subiendo'}
+          onClick={() => input.current?.click()}
+          className="h-11 shrink-0 rounded-xl bg-brand-50 px-4 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:opacity-50"
+        >
+          {estado === 'subiendo' ? 'Subiendo…' : 'Poner foto'}
+        </button>
+        {archivo}
+      </div>
+    );
   return (
     <>
       <button
@@ -497,7 +526,7 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo }: { token: strin
         )}
         {estado === 'subiendo' && <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-[10px] font-bold text-white">…</span>}
       </button>
-      <input ref={input} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />
+      {archivo}
       {estado === 'error' && <span className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
     </>
   );

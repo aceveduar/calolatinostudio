@@ -60,10 +60,13 @@ await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, 
 await ctx.route('**/rest/v1/rpc/portal_foto', (r) => { foto = JSON.parse(r.request().postData() || '{}').p_foto; return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
 await page.goto('http://localhost:4173/p/AbCdEfGhJkLmNpQrStUvWxYz23');
 await page.getByText('Tu pase de entrada').waitFor();
-const pide = await page.getByText(/Toca “FOTO” y pon tu foto/).count();
-await page.locator('input[type=file]').setInputFiles(DIR + 'archivos/ean_agua.png');
+const pide = (await page.getByText('Pon tu foto', { exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'Poner foto' }).count()) === 1;
+const sinCamaraForzada = (await page.locator('input[type=file][capture]').count()) === 0; // deja elegir cámara o galería
+await page.screenshot({ path: `${OUT}portal-pide-foto.png` });
+await page.locator('input[type=file]').last().setInputFiles(DIR + 'archivos/ean_agua.png');
 await page.getByRole('img', { name: 'Ana López' }).waitFor({ timeout: 8000 });
-console.log('5) portal: pide la foto, la sube pequeña y la muestra:', ok(pide === 1 && foto?.startsWith('data:image/jpeg') && foto.length < 60000));
+const seFue = (await page.getByText('Pon tu foto', { exact: true }).count()) === 0;
+console.log('5) portal: tarjeta "Pon tu foto" (cámara o galería), la sube pequeña, la muestra y la tarjeta se va:', ok(pide && sinCamaraForzada && seFue && foto?.startsWith('data:image/jpeg') && foto.length < 60000));
 await page.screenshot({ path: `${OUT}portal-foto.png` });
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
