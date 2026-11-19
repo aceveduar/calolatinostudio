@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
-import { supabase } from '../../sync/supabase';
+import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
@@ -21,9 +21,22 @@ import { Comunidad } from './Comunidad';
  * Página pública del estudio (la página oficial): portada, disciplinas, horarios por sede, precios,
  * ubicación, eventos, tienda, preguntas e inscripción. No muestra maestros ni datos de alumnos.
  */
+/** Datos que Cloudflare ya escribió en el HTML (functions/a/[slug].ts): la página aparece sin esperar otra petición. */
+function incrustados(slug: string): DatosPublica | null {
+  const el = document.getElementById('pp-datos');
+  if (!el || el.dataset.slug !== slug) return null;
+  try {
+    const d = JSON.parse(el.textContent ?? '');
+    return d?.academia ? (d as DatosPublica) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function PaginaPublica({ slug }: { slug: string }) {
-  const [datos, setDatos] = useState<DatosPublica | null | 'no' | 'error'>(null);
+  const [datos, setDatos] = useState<DatosPublica | null | 'no' | 'error'>(() => incrustados(slug));
   useEffect(() => {
+    if (incrustados(slug)) return;
     (async () => {
       if (!supabase) return setDatos('error');
       const { data, error } = await supabase.rpc('pagina_publica', { p_slug: slug });

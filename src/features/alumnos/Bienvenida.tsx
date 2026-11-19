@@ -5,7 +5,8 @@ import { useAvisos } from '../../components/avisos';
 import { Boton } from '../../components/ui';
 import type { Alumno } from '../../db/types';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
-import { asegurarPortal, enlacePortal } from '../../domain/portal';
+import { enlacePortal } from '../../domain/portal';
+import { asegurarPortal } from '../../domain/enlacePortal';
 import { waLink } from '../../domain/reportes';
 
 /**

@@ -117,6 +117,19 @@ export function etiquetas(d: Publica, url: string, imagen: string | null, grande
   return { titulo, html };
 }
 
+/**
+ * Lo que adelanta la carga con internet lento: los datos de la página ya escritos en el HTML (así no se
+ * espera a que el código pida los datos después) y la foto de portada pedida desde el principio.
+ * El bloque de datos es JSON, no código: el navegador no lo ejecuta y la política de seguridad no lo bloquea.
+ */
+export function adelantos(d: Publica, slug: string): string {
+  const portada = d.pagina?.portada;
+  return [
+    ...(typeof portada === 'string' && portada.startsWith('/img/') ? [`<link rel="preload" as="image" href="${esc(portada)}" fetchpriority="high" />`] : []),
+    `<script id="pp-datos" type="application/json" data-slug="${esc(slug)}">${JSON.stringify(d).replace(/</g, '\\u003c')}</script>`,
+  ].join('\n    ');
+}
+
 /** "data:image/jpeg;base64,…" → bytes y tipo. */
 export function decodificarImagen(dataUrl: string | null | undefined): { bytes: Uint8Array; tipo: string } | null {
   const m = dataUrl?.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);

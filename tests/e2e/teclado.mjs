@@ -30,7 +30,7 @@ console.log('1) entrar con Tab, Enter y el PIN tecleado:', ok(llego && (await bu
 const alumno = await page.evaluate(async () => {
   const db = window.compasDev.db;
   const todos = await db.alumnos.filter((a) => a.activo && !a.deletedAt).toArray();
-  return todos.find((a) => todos.filter((b) => b.nombre.toLowerCase().includes(a.nombre.toLowerCase())).length === 1)?.nombre;
+  return todos.find((a) => /^[a-z]/i.test(a.nombre) && todos.filter((b) => b.nombre.toLowerCase().includes(a.nombre.toLowerCase())).length === 1)?.nombre;
 });
 await page.locator('body').click({ position: { x: 5, y: 5 } }).catch(() => {});
 await page.keyboard.type(alumno.toLowerCase(), { delay: 15 });

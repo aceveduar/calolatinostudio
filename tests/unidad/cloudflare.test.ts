@@ -91,3 +91,19 @@ describe('/p/<token>/manifiesto (guardar el portal en la pantalla de inicio)', a
     for (const t of ['corto', '../../etc', 'a'.repeat(80), 'AbCdEfGhJkLmNpQrStUv"><x']) expect(manifiesto({ params: { token: t } }).status).toBe(404);
   });
 });
+
+describe('página pública: datos y portada adelantados en el HTML', async () => {
+  const { adelantos } = await import('../../cloudflare/publica');
+  const base = { academia: { nombre: 'Calo', color: '#d6304a', logo: null, whatsapp: null, sede_principal: 'E' }, pagina: { portada: '/img/calo/portada.abc' }, sedes: [], clases: [], planes: [], eventos: [], tienda: [] } as unknown as Publica;
+  it('pide la portada desde el principio y deja los datos como JSON', () => {
+    const h = adelantos(base, 'calo');
+    expect(h).toContain('<link rel="preload" as="image" href="/img/calo/portada.abc" fetchpriority="high" />');
+    expect(h).toMatch(/<script id="pp-datos" type="application\/json" data-slug="calo">\{"academia"/);
+  });
+  it('un texto con </script> no puede salirse del bloque de datos', () => {
+    const malo = { ...base, pagina: { frase: '</script><script>alert(1)</script>' } } as unknown as Publica;
+    const h = adelantos(malo, 'calo');
+    expect(h.match(/<\/script>/g)).toHaveLength(1);
+    expect(JSON.parse(h.replace(/^.*?data-slug="calo">/s, '').replace(/<\/script>$/, '')).pagina.frase).toBe('</script><script>alert(1)</script>');
+  });
+});

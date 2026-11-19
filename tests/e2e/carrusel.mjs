@@ -40,5 +40,22 @@ for (const nombre of ['Fotos', 'Lo que dicen nuestros alumnos']) {
   const atras = await page.getByRole('button', { name: `${nombre}: anteriores` }).isVisible();
   console.log(`2) ${nombre}: flecha "ver más" (y no "anteriores" al inicio); al tocarla avanza y aparece "anteriores":`, ok(antes === 0 && hayMas && x1 > x0 && atras), `${x0}→${x1}`);
 }
+// 3) con los datos ya en el HTML (como los manda Cloudflare): aparece sin pedirlos a la base
+{
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, locale: 'es-MX', serviceWorkers: 'block' });
+  const p2 = await c2.newPage();
+  p2.on('pageerror', (e) => errores.push(e.message));
+  let pidio = 0;
+  await c2.route('**/rest/v1/rpc/pagina_publica', (r) => (pidio++, r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) })));
+  await c2.route('http://localhost:4173/a/calo-latino', async (r) => {
+    const res = await r.fetch();
+    const html = (await res.text()).replace('</head>', `<script id="pp-datos" type="application/json" data-slug="calo-latino">${JSON.stringify(datos)}</script></head>`);
+    return r.fulfill({ response: res, body: html });
+  });
+  await p2.goto('http://localhost:4173/a/calo-latino');
+  await p2.getByRole('heading', { level: 1 }).waitFor();
+  console.log('3) con los datos en el HTML la página aparece sin pedirlos otra vez:', ok(pidio === 0), pidio);
+  await c2.close();
+}
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

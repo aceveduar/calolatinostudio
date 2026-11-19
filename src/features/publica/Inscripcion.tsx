@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, Sparkle, Users } from 'lucide-react';
-import { supabase } from '../../sync/supabase';
+import { nubePublica as supabase } from '../../app/rpcPublica';
 import { cx } from '../../components/ui';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { ERRORES_INSCRIPCION, type DatosPublica } from '../../domain/publica';

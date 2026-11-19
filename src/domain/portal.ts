@@ -3,8 +3,6 @@
  * El token es secreto y largo (≈143 bits): no se puede adivinar, a diferencia del código de 6 letras del QR.
  * Si se comparte por error, se genera uno nuevo y el anterior deja de servir.
  */
-import { actualizar } from '../db/repo';
-import type { Alumno, ID } from '../db/types';
 import type { ClaseHorario } from './miPortal';
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -23,29 +21,6 @@ export function generarTokenPortal(): string {
 }
 
 export const enlacePortal = (token: string) => `${location.origin}/p/${token}`;
-
-/** Token del portal: lo crea la primera vez que se necesita. */
-const enCurso = new Map<ID, Promise<string>>();
-export function asegurarPortal(alumno: Pick<Alumno, 'id' | 'portal'>): Promise<string> {
-  if (alumno.portal) return Promise.resolve(alumno.portal);
-  // dos llamadas seguidas (p. ej. StrictMode) no deben crear dos enlaces distintos
-  let p = enCurso.get(alumno.id);
-  if (!p) {
-    const token = generarTokenPortal();
-    p = actualizar('alumnos', alumno.id, { portal: token })
-      .then(() => token)
-      .finally(() => enCurso.delete(alumno.id));
-    enCurso.set(alumno.id, p);
-  }
-  return p;
-}
-
-/** Nuevo enlace; el anterior deja de funcionar. */
-export async function regenerarPortal(alumnoId: ID): Promise<string> {
-  const token = generarTokenPortal();
-  await actualizar('alumnos', alumnoId, { portal: token });
-  return token;
-}
 
 /** Lo que devuelve la función portal_alumno de la base. */
 export interface DatosPortal {

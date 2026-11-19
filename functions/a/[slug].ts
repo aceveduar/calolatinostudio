@@ -3,7 +3,7 @@
  * del estudio ya escritos en el HTML (para la vista previa en Facebook/WhatsApp y para Google).
  * Si algo falla, se entrega la página tal cual: nunca se rompe.
  */
-import { etiquetas, imagenParaVistaPrevia, leerPublica, type Env } from '../../cloudflare/publica';
+import { adelantos, etiquetas, imagenParaVistaPrevia, leerPublica, type Env } from '../../cloudflare/publica';
 
 interface Contexto {
   request: Request;
@@ -26,7 +26,7 @@ export async function onRequestGet({ request, env, params }: Contexto): Promise<
     // las de la app (Compás) no aplican aquí
     .on('meta[name="description"]', { element: (e) => void e.remove() })
     .on('meta[name="apple-mobile-web-app-title"]', { element: (e) => void e.setAttribute('content', datos.academia.nombre) })
-    .on('head', { element: (e) => void e.append(html, { html: true }) })
+    .on('head', { element: (e) => void e.append(`${html}\n    ${adelantos(datos, slug)}`, { html: true }) })
     .transform(pagina);
   const h = new Headers(res.headers);
   return new Response(res.body, { status: 200, headers: h });

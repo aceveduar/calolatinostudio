@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { Camera, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
-import { supabase } from '../../sync/supabase';
+import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';

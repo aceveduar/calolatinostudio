@@ -3,9 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import '@fontsource-variable/plus-jakarta-sans';
 import './index.css';
-import App from './App';
-import { db } from './db/db';
-import { BORRAR_AL_INICIAR } from './sync/engine';
+// La app de la academia (App, base local, sincronización) se carga solo si se va a usar: la página pública
+// y el portal del alumno no la necesitan, y así cargan mucho menos (importa con internet lento).
 import { hayActualizacion } from './app/actualizacion';
 import { Tropiezo } from './components/Tropiezo';
 import { anotarError } from './app/errores';
@@ -34,7 +33,7 @@ const actualizarSW = registerSW({
 
 // Solo en builds de demo/pruebas: expone el generador de datos de ejemplo
 if (import.meta.env.VITE_SEMILLA === '1') {
-  void Promise.all([import('./dev/semilla'), import('./db/repo'), import('./sync/engine'), import('./dev/grande')]).then(([m, repo, sync, grande]) => ((window as unknown as Record<string, unknown>).compasDev = { db, academiaGrande: grande.academiaGrande, actualizar: repo.actualizar, sincronizar: sync.sincronizar, simularActualizacion: () => hayActualizacion(() => ((window as unknown as Record<string, unknown>).__actualizada = true)), sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo, agregarTiendaDemo: m.agregarTiendaDemo, agregarSedeDemo: m.agregarSedeDemo, agregarBecasDemo: m.agregarBecasDemo, agregarGastosDemo: m.agregarGastosDemo, agregarRentasDemo: m.agregarRentasDemo, agregarPedidosDemo: m.agregarPedidosDemo, agregarFiadosDemo: m.agregarFiadosDemo, agregarEventosDemo: m.agregarEventosDemo, demoCompleta: m.demoCompleta, agregarInteresadosDemo: m.agregarInteresadosDemo, agregarWebDemo: m.agregarWebDemo }));
+  void Promise.all([import('./dev/semilla'), import('./db/repo'), import('./sync/engine'), import('./dev/grande'), import('./db/db')]).then(([m, repo, sync, grande, { db }]) => ((window as unknown as Record<string, unknown>).compasDev = { db, academiaGrande: grande.academiaGrande, actualizar: repo.actualizar, sincronizar: sync.sincronizar, simularActualizacion: () => hayActualizacion(() => ((window as unknown as Record<string, unknown>).__actualizada = true)), sembrar: m.sembrar, ampliar: m.ampliar, agregarClasesDemo: m.agregarClasesDemo, agregarTiendaDemo: m.agregarTiendaDemo, agregarSedeDemo: m.agregarSedeDemo, agregarBecasDemo: m.agregarBecasDemo, agregarGastosDemo: m.agregarGastosDemo, agregarRentasDemo: m.agregarRentasDemo, agregarPedidosDemo: m.agregarPedidosDemo, agregarFiadosDemo: m.agregarFiadosDemo, agregarEventosDemo: m.agregarEventosDemo, demoCompleta: m.demoCompleta, agregarInteresadosDemo: m.agregarInteresadosDemo, agregarWebDemo: m.agregarWebDemo }));
 }
 
 async function arrancar() {
@@ -70,6 +69,7 @@ async function arrancar() {
     );
     return;
   }
+  const [{ default: App }, { db }, { BORRAR_AL_INICIAR }] = await Promise.all([import('./App'), import('./db/db'), import('./sync/engine')]);
   // "Quitar academia de este teléfono": borrar la base local antes de abrirla
   try {
     if (localStorage.getItem(BORRAR_AL_INICIAR)) {
