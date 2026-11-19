@@ -69,7 +69,7 @@ const abrir = async (ua, d = datos) => {
 
   // 3) guardar en la pantalla de inicio (Android)
   const manifiesto = await page.evaluate(() => document.querySelector('link[rel=manifest]')?.getAttribute('href'));
-  console.log('3a) su propio manifiesto (abre SU portal, no la app de la academia):', ok(manifiesto === `/p/${TOKEN}/manifiesto`), manifiesto);
+  console.log('3a) su propio manifiesto (abre SU portal, no la app de la academia):', ok(manifiesto === `/p/${TOKEN}/manifiesto?a=Calo%20Latino%20Studio` && (await page.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-title"]')?.getAttribute('content'))) === 'Mi Calo'), manifiesto);
   const tarjeta = page.getByText('Ten tu pase a un toque');
   console.log('3b) Android: "Ten tu pase a un toque" con cómo hacerlo:', ok((await tarjeta.count()) === 1 && (await page.getByText(/Agregar a la pantalla principal|Agregar a mi pantalla/).count()) >= 1));
   await page.getByRole('button', { name: 'Ahora no' }).click();

@@ -4,12 +4,24 @@
  */
 export const TOKEN_PORTAL = /^[A-Za-z0-9]{20,64}$/;
 
-export function manifiestoPortal(token: string) {
+/**
+ * Nombre bajo el ícono: "Mi Calo" (primera palabra de la academia; corto para que no se corte en la
+ * pantalla de inicio). Nombre completo: "Mi pase · Calo Latino Studio". Sin academia: "Mi pase".
+ */
+export function nombresApp(academia?: string | null): { corto: string; largo: string } {
+  // sin caracteres de control ni < > " (va dentro de un JSON y bajo un ícono)
+  const a = [...(academia ?? '')].filter((ch) => ch >= ' ' && !'<>"'.includes(ch)).join('').trim().slice(0, 40);
+  const primera = a.split(/\s+/)[0] ?? '';
+  return { corto: primera && primera.length <= 9 ? `Mi ${primera}` : 'Mi pase', largo: a ? `Mi pase · ${a}` : 'Mi pase' };
+}
+
+export function manifiestoPortal(token: string, academia?: string | null) {
   const inicio = `/p/${token}`;
+  const { corto, largo } = nombresApp(academia);
   return {
     id: inicio,
-    name: 'Mi pase',
-    short_name: 'Mi pase',
+    name: largo,
+    short_name: corto,
     description: 'Tu pase de entrada, tu plan y tus clases.',
     lang: 'es-MX',
     start_url: inicio,

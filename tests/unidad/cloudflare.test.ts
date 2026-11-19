@@ -78,6 +78,15 @@ describe('/p/<token>/manifiesto (guardar el portal en la pantalla de inicio)', a
     expect(m.scope).toBe('/p/AbCdEfGhJkLmNpQrStUvWxYz23');
     expect(m.name).toBe('Mi pase');
   });
+  it('se llama como su academia: "Mi Calo" bajo el ícono', async () => {
+    const r = manifiesto({ request: new Request('https://x.dev/p/AbCdEfGhJkLmNpQrStUvWxYz23/manifiesto?a=Calo%20Latino%20Studio'), params: { token: 'AbCdEfGhJkLmNpQrStUvWxYz23' } });
+    const m = await r.json();
+    expect(m.short_name).toBe('Mi Calo');
+    expect(m.name).toBe('Mi pase · Calo Latino Studio');
+    const raro = await manifiesto({ request: new Request('https://x.dev/p/AbCdEfGhJkLmNpQrStUvWxYz23/manifiesto?a=%3Cscript%3EAcademiaDeNombreLarguisimo'), params: { token: 'AbCdEfGhJkLmNpQrStUvWxYz23' } }).json();
+    expect(raro.short_name).toBe('Mi pase');
+    expect(raro.name).not.toMatch(/[<>]/);
+  });
   it('rechaza tokens raros', () => {
     for (const t of ['corto', '../../etc', 'a'.repeat(80), 'AbCdEfGhJkLmNpQrStUv"><x']) expect(manifiesto({ params: { token: t } }).status).toBe(404);
   });

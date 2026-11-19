@@ -16,6 +16,7 @@ import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domai
 import { INSIGNIAS, faltaParaEvento, insignias, mensajeEvento, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
 import { waLink } from '../../domain/reportes';
 import { GuardarEnInicio } from './GuardarEnInicio';
+import { nombresApp } from '../../../cloudflare/portal';
 
 type Estado = { fase: 'cargando' } | { fase: 'listo'; datos: DatosPortal; guardadoEl: number | null } | { fase: 'no-existe' } | { fase: 'error' };
 
@@ -75,6 +76,13 @@ export function PortalAlumno({ token }: { token: string }) {
     if (color) document.documentElement.style.setProperty('--marca', color);
     document.title = estado.fase === 'listo' ? `${estado.datos.alumno.nombre.split(' ')[0]} · ${estado.datos.academia.nombre}` : 'Mi credencial';
   }, [color, estado]);
+  // al instalarla se llama "Mi Calo" (el nombre de su academia), no "Compás"
+  const academiaNombre = estado.fase === 'listo' ? estado.datos.academia.nombre : null;
+  useEffect(() => {
+    if (!academiaNombre) return;
+    document.querySelector('link[rel=manifest]')?.setAttribute('href', `/p/${token}/manifiesto?a=${encodeURIComponent(academiaNombre)}`);
+    document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', nombresApp(academiaNombre).corto);
+  }, [academiaNombre, token]);
 
   if (estado.fase === 'cargando') return <Centro>Cargando tu credencial…</Centro>;
   if (estado.fase === 'no-existe')
