@@ -35,6 +35,7 @@ export function PantallaReportes() {
   // listas largas: se ven 5 y se despliegan al tocar
   const [todosVencen, setTodosVencen] = useState(false);
   const [todosPerdidos, setTodosPerdidos] = useState(false);
+  const [verBecas, setVerBecas] = useState(false);
   const dia = hoy();
   // teléfono recién conectado: el historial viejo de asistencias sigue bajando (ver sync/engine.ts)
   const completo = useLiveQuery(historialCompleto, [], true);
@@ -157,144 +158,7 @@ export function PantallaReportes() {
 
       <TarjetaUtilidad verSede={verSede} />
 
-      {sedes.length > 0 && verSede === 'todas' && (
-        <Seccion titulo="Por sede">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {r.porSede.map((x) => {
-              const total = r.porSede.reduce((t, y) => t + y.ingresos, 0) || 1;
-              const sede = sedes.find((y) => y.id === x.id);
-              return (
-                <Tarjeta key={x.id} className="p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2 font-semibold">
-                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: sede?.color ?? 'var(--marca)' }} />
-                      <span className="truncate">{nombreSede(x.id === PRINCIPAL ? null : x.id, sedes, academia)}</span>
-                    </span>
-                    <span className="text-lg font-extrabold">{dinero(x.ingresos)}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full bg-ink-100">
-                    <div className="h-full rounded-full" style={{ width: `${(x.ingresos / total) * 100}%`, background: sede?.color ?? 'var(--marca)' }} />
-                  </div>
-                  <p className="mt-1 text-xs text-ink-500">
-                    {Math.round((x.ingresos / total) * 100)}% del total{x.tienda ? ` · tienda ${dinero(x.tienda)}` : ''}
-                  </p>
-                </Tarjeta>
-              );
-            })}
-          </div>
-        </Seccion>
-      )}
-
-      {r.becas && (
-        <Seccion titulo={`Becas · ${r.becas.activas.length} activas`}>
-          <Tarjeta className="p-4">
-            <div className="flex items-start gap-3">
-              <span className="rounded-xl bg-ok-50 p-2 text-ok-600">
-                <GraduationCap size={22} />
-              </span>
-              <p className="text-sm">
-                <b className="text-base">{r.becas.asistencias.toLocaleString('es-MX')}</b> asistencias de becados en el periodo
-                {r.becas.valor > 0 && (
-                  <>
-                    {' '}· equivalen a <b>{dinero(r.becas.valor)}</b> en clases sueltas
-                  </>
-                )}
-                .
-              </p>
-            </div>
-          </Tarjeta>
-          {r.becas.activas.length > 0 && (
-            <Tarjeta className="mt-2 divide-y divide-ink-100">
-              {r.becas.activas.map(({ membresia, asistencias }) => {
-                const alumno = r.porId.get(membresia.alumnoId);
-                if (!alumno) return null;
-                const dias = diasEntre(dia, membresia.fin);
-                return (
-                  <FilaContacto
-                    key={membresia.id}
-                    alumnoId={alumno.id}
-                    nombre={alumno.nombre}
-                    detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Beca'} · hasta ${fechaCorta(membresia.fin)} · ${asistencias} ${asistencias === 1 ? 'clase' : 'clases'}`}
-                    etiqueta={dias <= 14 ? <Etiqueta tono="pronto">{textoDias(dias)}</Etiqueta> : undefined}
-                    wa={null}
-                  />
-                );
-              })}
-            </Tarjeta>
-          )}
-        </Seccion>
-      )}
-
-      <TendenciaAnual verSede={verSede} />
-
-      <ResumenTienda pagos={r.pagosPeriodo} />
-
-      <Seccion titulo="Ingresos por día">
-        <Tarjeta className="p-4">
-          <GraficaBarras datos={r.dias} />
-        </Tarjeta>
-      </Seccion>
-
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-        <Seccion
-          titulo="Por clase · alumnos por sesión"
-          accion={
-            <Link to="/reportes/gastos" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
-              ¿Cuánto deja cada una?
-            </Link>
-          }
-        >
-          {r.clases.length === 0 ? (
-            <Tarjeta className="p-4 text-sm text-ink-500">Sin clases en este periodo.</Tarjeta>
-          ) : (
-            <Tarjeta className="divide-y divide-ink-100">
-              {r.clases.map((f) => (
-                <div key={f.clase.id} className="px-4 py-3">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold">
-                      {nombreClase(f.clase, disciplinas)} <span className="text-xs font-normal text-ink-500">{f.clase.horaInicio}</span>
-                    </span>
-                    <span className="text-sm">
-                      <b className="text-base">{f.promedio.toFixed(0)}</b> <span className="text-ink-500">prom · máx {f.maximo}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 rounded-full bg-ink-100">
-                    <div className="h-full rounded-full" style={{ width: `${(f.promedio / maxProm) * 100}%`, background: colorClase(f.clase, disciplinas) }} />
-                  </div>
-                  <p className="mt-1 text-xs text-ink-500">
-                    {f.sesiones} sesiones · {dinero(f.ingresos)} por clase suelta
-                  </p>
-                </div>
-              ))}
-            </Tarjeta>
-          )}
-        </Seccion>
-
-        <Seccion titulo="Por maestro">
-          {r.maestros.length === 0 ? (
-            <Tarjeta className="p-4 text-sm text-ink-500">Sin datos en este periodo.</Tarjeta>
-          ) : (
-            <Tarjeta className="divide-y divide-ink-100">
-              {r.maestros.map((m) => (
-                <div key={m.nombre} className="flex items-center gap-3 px-4 py-3">
-                  <Avatar nombre={m.nombre} tam={36} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{m.nombre}</span>
-                    <span className="block truncate text-xs text-ink-500">
-                      {m.sesiones} sesiones · {m.alumnos} asistencias · {m.clases.join(', ')}
-                    </span>
-                  </span>
-                  <span className="text-right">
-                    <span className="block font-bold">{dinero(m.ingresos)}</span>
-                    <span className="block text-[11px] text-ink-500">por clase</span>
-                  </span>
-                </div>
-              ))}
-            </Tarjeta>
-          )}
-        </Seccion>
-      </div>
-
+      {/* lo que hay que atender (dinero por renovar, alumnos por recuperar): antes estaba hasta el final */}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6">
         <Seccion titulo={`Vencen esta semana · ${r.vencen.length}`}>
           {r.vencen.length === 0 ? (
@@ -341,6 +205,154 @@ export function PantallaReportes() {
           )}
         </Seccion>
       </div>
+
+      <Seccion titulo="Ingresos por día">
+        <Tarjeta className="p-4">
+          <GraficaBarras datos={r.dias} />
+        </Tarjeta>
+      </Seccion>
+
+      {sedes.length > 0 && verSede === 'todas' && (
+        <Seccion titulo="Por sede">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {r.porSede.map((x) => {
+              const total = r.porSede.reduce((t, y) => t + y.ingresos, 0) || 1;
+              const sede = sedes.find((y) => y.id === x.id);
+              return (
+                <Tarjeta key={x.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2 font-semibold">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: sede?.color ?? 'var(--marca)' }} />
+                      <span className="truncate">{nombreSede(x.id === PRINCIPAL ? null : x.id, sedes, academia)}</span>
+                    </span>
+                    <span className="text-lg font-extrabold">{dinero(x.ingresos)}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full bg-ink-100">
+                    <div className="h-full rounded-full" style={{ width: `${(x.ingresos / total) * 100}%`, background: sede?.color ?? 'var(--marca)' }} />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-500">
+                    {Math.round((x.ingresos / total) * 100)}% del total{x.tienda ? ` · tienda ${dinero(x.tienda)}` : ''}
+                  </p>
+                </Tarjeta>
+              );
+            })}
+          </div>
+        </Seccion>
+      )}
+
+
+
+
+
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+        <Seccion
+          titulo="Por clase · alumnos por sesión"
+          accion={
+            <Link to="/reportes/gastos" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
+              ¿Cuánto deja cada una?
+            </Link>
+          }
+        >
+          {r.clases.length === 0 ? (
+            <Tarjeta className="p-4 text-sm text-ink-500">Sin clases en este periodo.</Tarjeta>
+          ) : (
+            <Tarjeta className="divide-y divide-ink-100">
+              {r.clases.map((f) => (
+                <div key={f.clase.id} className="px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-semibold">
+                      {nombreClase(f.clase, disciplinas)} <span className="text-xs font-normal text-ink-500">{f.clase.horaInicio}</span>
+                    </span>
+                    <span className="text-sm">
+                      <b className="text-base">{f.promedio.toFixed(0)}</b> <span className="text-ink-500">prom · máx {f.maximo}</span>
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-ink-100">
+                    <div className="h-full rounded-full" style={{ width: `${(f.promedio / maxProm) * 100}%`, background: colorClase(f.clase, disciplinas) }} />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-500">
+                    {f.sesiones} {f.sesiones === 1 ? 'sesión' : 'sesiones'} · {dinero(f.ingresos)} por clase suelta
+                  </p>
+                </div>
+              ))}
+            </Tarjeta>
+          )}
+        </Seccion>
+
+        <Seccion titulo="Por maestro">
+          {r.maestros.length === 0 ? (
+            <Tarjeta className="p-4 text-sm text-ink-500">Sin datos en este periodo.</Tarjeta>
+          ) : (
+            <Tarjeta className="divide-y divide-ink-100">
+              {r.maestros.map((m) => (
+                <div key={m.nombre} className="flex items-center gap-3 px-4 py-3">
+                  <Avatar nombre={m.nombre} tam={36} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{m.nombre}</span>
+                    <span className="block truncate text-xs text-ink-500">
+                      {m.sesiones} {m.sesiones === 1 ? 'sesión' : 'sesiones'} · {m.alumnos} asistencias · {m.clases.join(', ')}
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-bold">{dinero(m.ingresos)}</span>
+                    <span className="block text-[11px] text-ink-500">por clase</span>
+                  </span>
+                </div>
+              ))}
+            </Tarjeta>
+          )}
+        </Seccion>
+      </div>
+
+
+      <ResumenTienda pagos={r.pagosPeriodo} />
+
+      <TendenciaAnual verSede={verSede} />
+
+      {r.becas && (
+        <Seccion titulo={`Becas · ${r.becas.activas.length} activas`}>
+          <Tarjeta className="p-4">
+            <div className="flex items-start gap-3">
+              <span className="rounded-xl bg-ok-50 p-2 text-ok-600">
+                <GraduationCap size={22} />
+              </span>
+              <p className="text-sm">
+                <b className="text-base">{r.becas.asistencias.toLocaleString('es-MX')}</b> asistencias de becados en el periodo
+                {r.becas.valor > 0 && (
+                  <>
+                    {' '}· equivalen a <b>{dinero(r.becas.valor)}</b> en clases sueltas
+                  </>
+                )}
+                .
+              </p>
+            </div>
+            {r.becas.activas.length > 0 && (
+              <button type="button" onClick={() => setVerBecas(!verBecas)} className="mt-3 min-h-10 text-sm font-semibold text-brand-600">
+                {verBecas ? 'Ocultar becados' : `Ver los ${r.becas.activas.length} becados`}
+              </button>
+            )}
+          </Tarjeta>
+          {r.becas.activas.length > 0 && verBecas && (
+            <Tarjeta className="mt-2 divide-y divide-ink-100">
+              {r.becas.activas.map(({ membresia, asistencias }) => {
+                const alumno = r.porId.get(membresia.alumnoId);
+                if (!alumno) return null;
+                const dias = diasEntre(dia, membresia.fin);
+                return (
+                  <FilaContacto
+                    key={membresia.id}
+                    alumnoId={alumno.id}
+                    nombre={alumno.nombre}
+                    detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Beca'} · hasta ${fechaCorta(membresia.fin)} · ${asistencias} ${asistencias === 1 ? 'clase' : 'clases'}`}
+                    etiqueta={dias <= 14 ? <Etiqueta tono="pronto">{textoDias(dias)}</Etiqueta> : undefined}
+                    wa={null}
+                  />
+                );
+              })}
+            </Tarjeta>
+          )}
+        </Seccion>
+      )}
     </div>
   );
 }
@@ -367,7 +379,7 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-semibold text-ink-500">Utilidad de {nombreMes(mes).split(' ')[0].toLowerCase()}</span>
         <span className={cx('block text-xl font-extrabold', r.utilidad < 0 && 'text-bad-600')}>{dinero(r.utilidad)}</span>
-        <span className="block truncate text-xs text-ink-500">
+        <span className="block text-xs text-ink-500">
           {r.gastos || r.pendiente ? `Ingresos ${dinero(r.ingresos)} − gastos ${dinero(r.gastos)}${r.pendiente ? ` · faltan fijos ~${dinero(r.pendiente)}` : ''}` : 'Registra renta, luz e internet para ver la utilidad real'}
         </span>
       </span>
@@ -406,10 +418,12 @@ function FilaContacto({ alumnoId, nombre, detalle, etiqueta, wa }: { alumnoId: s
         <Avatar nombre={nombre} tam={36} />
         <span className="min-w-0">
           <span className="block truncate font-semibold">{nombre}</span>
-          <span className="block truncate text-xs text-ink-500">{detalle}</span>
+          <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-500">
+            {etiqueta}
+            <span className="truncate">{detalle}</span>
+          </span>
         </span>
       </Link>
-      {etiqueta}
       {wa ? (
         <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-ok-50 p-3 text-ok-600" aria-label={`WhatsApp a ${nombre}`}>
           <MessageCircle size={18} />
