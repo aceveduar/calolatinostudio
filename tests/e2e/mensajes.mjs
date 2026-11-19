@@ -39,16 +39,16 @@ const enlaces = await dlg.locator('a').evaluateAll((as) => as.map((a) => decodeU
 console.log('2) opciones en la ficha:', enlaces.length, '· usa el texto editado:', ok(enlaces.some((t) => t.startsWith('¡Carlos! En Calo Latino Studio te guardamos'))));
 console.log('   bienvenida:', enlaces[0]);
 await page.keyboard.press('Escape');
-// 3) Vender plan → aviso "Enviar recibo"
+// 3) Vender plan → aviso "Enviar ticket" → hoja del ticket; "Solo mensaje" lleva el recibo de texto
 await page.getByRole('button', { name: 'Vender plan' }).click();
 await page.getByRole('dialog').getByRole('button', { name: /Cobrar \$/ }).click();
-const boton = page.getByRole('button', { name: 'Enviar recibo' });
+const boton = page.getByRole('button', { name: 'Enviar ticket' });
 await boton.waitFor({ timeout: 5000 });
 await page.screenshot({ path: `${OUT}msg-4-recibo.png` });
-const pest = ctx.waitForEvent('page');
 await boton.click();
-const p = await pest; await p.waitForURL(/wa\.me/, { timeout: 8000 }).catch(() => {});
-const recibo = decodeURIComponent(p.url().split('text=')[1] ?? '');
+const solo = page.getByRole('link', { name: /Solo mensaje/ });
+await solo.waitFor({ timeout: 5000 });
+const recibo = decodeURIComponent((await solo.getAttribute('href')).split('text=')[1] ?? '');
 console.log('3) recibo:', recibo, ok(/recibimos tu pago de \$\d+ por (mensualidad|paquete)/i.test(recibo) && / al /.test(recibo)));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
