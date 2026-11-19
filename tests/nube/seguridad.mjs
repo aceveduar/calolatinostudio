@@ -27,13 +27,15 @@ const rpc = (f, cuerpo, token) => pedir(`/rest/v1/rpc/${f}`, { method: 'POST', b
 for (const t of ['testimonios', 'academias', 'miembros', 'usuarios', 'alumnos', 'pagos', 'asistencias', 'membresias', 'cortes', 'gastos', 'gastos_fijos', 'rentas', 'productos', 'pedidos', 'eventos', 'boletos', 'interesados', 'clases', 'planes', 'maestros', 'sedes', 'disciplinas'])
   revisar(`sin cuenta no se lee ${t}`, negado(await pedir(`/rest/v1/${t}?select=*&limit=1`)));
 revisar('sin cuenta no se escribe', negado(await pedir('/rest/v1/alumnos', { method: 'POST', body: JSON.stringify({ id: '00000000-0000-4000-8000-0000000000aa', academia_id: OTRA, nombre: 'x', codigo: 'Z', created_at: 1, updated_at: 1 }) })));
-for (const f of ['es_miembro', 'vincular_academia', 'img_publica', 'disponibles_producto'])
-  revisar(`función interna ${f} cerrada`, negado(await rpc(f, f === 'es_miembro' ? { a: OTRA } : f === 'vincular_academia' ? { p_id: OTRA, p_nombre: 'x' } : f === 'img_publica' ? { p_base: '/', p_clave: 'x', p_dato: 'y' } : {})));
+for (const f of ['es_miembro', 'vincular_academia', 'img_publica', 'disponibles_producto', 'huella_invita'])
+  revisar(`función interna ${f} cerrada`, negado(await rpc(f, f === 'es_miembro' ? { a: OTRA } : f === 'vincular_academia' ? { p_id: OTRA, p_nombre: 'x' } : f === 'img_publica' ? { p_base: '/', p_clave: 'x', p_dato: 'y' } : f === 'huella_invita' ? { p_alumno: OTRA } : {})));
 for (const [n, c] of [['token corto', 'x'], ['token falso', 'AbCdEfGhJkLmNpQrStUvWxYz99'], ['inyección', "' or '1'='1' --xxxxxxxxxxxxxx"]])
   revisar(`portal con ${n} no entrega nada`, (await rpc('portal_alumno', { p_token: c })).texto === 'null');
 revisar('imagen_publica con inyección no entrega nada', (await rpc('imagen_publica', { p_slug: 'calo-latino', p_clave: "p_' or 1=1--" })).texto === 'null');
 revisar('portal_pedir con token falso se rechaza', /enlace/.test((await rpc('portal_pedir', { p_token: 'AbCdEfGhJkLmNpQrStUvWxYz99', p_producto: OTRA, p_opcion: null, p_cantidad: 1 })).texto));
 revisar('portal_testimonio con token falso se rechaza', /enlace/.test((await rpc('portal_testimonio', { p_token: 'AbCdEfGhJkLmNpQrStUvWxYz99', p_texto: 'Un texto de prueba suficientemente largo' })).texto));
+for (const de of ["x' or 1=1--", '00000000', 'zzzzzzzz'])
+  revisar(`invitado_por con huella "${de}" no revela a nadie`, (await rpc('invitado_por', { p_slug: 'calo-latino', p_de: de })).texto === 'null');
 revisar('portal_foto con token falso se rechaza', /enlace/.test((await rpc('portal_foto', { p_token: 'AbCdEfGhJkLmNpQrStUvWxYz99', p_foto: null })).texto));
 revisar('registro de cuentas cerrado', /"disable_signup":true/.test((await pedir('/auth/v1/settings')).texto));
 
