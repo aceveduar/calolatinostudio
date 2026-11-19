@@ -47,6 +47,14 @@ async function arrancar() {
   }
   const portal = location.pathname.match(/^\/p\/([A-Za-z0-9]{20,64})\/?$/);
   if (portal) {
+    // Instalable como "Mi pase": su propio manifiesto (abre SU portal, no la app de la academia)
+    document.querySelector('link[rel=manifest]')?.setAttribute('href', `/p/${portal[1]}/manifiesto`);
+    // Chrome avisa que se puede instalar, a veces antes de que exista la tarjeta "Ten tu pase a un toque"
+    addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      (window as unknown as { __avisoInstalar?: Event }).__avisoInstalar = e;
+      dispatchEvent(new Event('compas:instalable'));
+    });
     const { PortalAlumno } = await import('./features/portal/PortalAlumno');
     createRoot(document.getElementById('root')!).render(
       <StrictMode>

@@ -67,3 +67,18 @@ describe('foto de la vista previa en Facebook', () => {
     expect(imagenParaVistaPrevia(datos(null, null), 'https://s', 'calo')).toBeNull();
   });
 });
+
+describe('/p/<token>/manifiesto (guardar el portal en la pantalla de inicio)', async () => {
+  const { onRequestGet: manifiesto } = await import('../../functions/p/[token]/manifiesto');
+  it('abre SU portal, no la app de la academia', async () => {
+    const r = manifiesto({ params: { token: 'AbCdEfGhJkLmNpQrStUvWxYz23' } });
+    const m = await r.json();
+    expect(r.headers.get('Content-Type')).toBe('application/manifest+json');
+    expect(m.start_url).toBe('/p/AbCdEfGhJkLmNpQrStUvWxYz23');
+    expect(m.scope).toBe('/p/AbCdEfGhJkLmNpQrStUvWxYz23');
+    expect(m.name).toBe('Mi pase');
+  });
+  it('rechaza tokens raros', () => {
+    for (const t of ['corto', '../../etc', 'a'.repeat(80), 'AbCdEfGhJkLmNpQrStUv"><x']) expect(manifiesto({ params: { token: t } }).status).toBe(404);
+  });
+});

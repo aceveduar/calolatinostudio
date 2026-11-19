@@ -135,3 +135,19 @@ export function mensajeRenovar(nombre: string, codigo: string, plan: string | nu
     ? `Hola, soy ${nombre} (código ${codigo}). Quiero renovar mi ${plan}. ¿Me ayudan?`
     : `Hola, soy ${nombre} (código ${codigo}). Quiero saber de las mensualidades y paquetes.`;
 }
+
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/** "Hola, soy Ana López (código K7P2QX). Quiero ir a Social de salsa (sábado 28 de noviembre, 21:00)…" */
+export function mensajeEvento(nombre: string, codigo: string, e: { nombre: string; fecha: string; hora: string }, cuantos = 1): string {
+  const [y, m, d] = e.fecha.split('-').map(Number);
+  const dia = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][new Date(y, m - 1, d).getDay()];
+  return `Hola, soy ${nombre} (código ${codigo}). Quiero ${cuantos > 1 ? `${cuantos} boletos` : 'ir'} a ${e.nombre} (${dia} ${d} de ${MESES_LARGOS[m - 1]}, ${e.hora}). ¿Me apartan lugar?`;
+}
+
+/** "Hoy", "Mañana", "En 5 días" o null si falta más de una semana. */
+export function faltaParaEvento(hoy: string, fecha: string): string | null {
+  const [a, b] = [hoy, fecha].map((f) => Date.UTC(+f.slice(0, 4), +f.slice(5, 7) - 1, +f.slice(8, 10)));
+  const n = Math.round((b - a) / 86400000);
+  return n <= 0 ? 'Hoy' : n === 1 ? 'Mañana' : n <= 7 ? `En ${n} días` : null;
+}

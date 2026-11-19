@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Camera, CalendarCheck, Clock, MessageCircle, PackageCheck, QrCode, Sun, Users, WifiOff, X } from 'lucide-react';
+import { Camera, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, Sun, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
@@ -13,8 +13,9 @@ import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
 import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, puedeOpinar, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
 import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
-import { INSIGNIAS, insignias, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
+import { INSIGNIAS, faltaParaEvento, insignias, mensajeEvento, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
 import { waLink } from '../../domain/reportes';
+import { GuardarEnInicio } from './GuardarEnInicio';
 
 type Estado = { fase: 'cargando' } | { fase: 'listo'; datos: DatosPortal; guardadoEl: number | null } | { fase: 'no-existe' } | { fase: 'error' };
 
@@ -93,6 +94,12 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
   const [nota, setNota] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Esc cierra (en computadora), como las demás hojas
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar();
+    addEventListener('keydown', tecla);
+    return () => removeEventListener('keydown', tecla);
+  }, [onCerrar]);
   const maximo = Math.max(1, Math.min(5, producto.disponibles ?? 5));
   const falta = producto.opciones.length > 0 && !opcion;
 
@@ -268,6 +275,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-[color-mix(in_oklab,var(--marca)_80%,black)]">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
 
+        <GuardarEnInicio token={token} />
+
         <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
 
         {/* Plan */}
@@ -311,6 +320,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             </p>
           ))}
         </div>
+
+        {!!datos.eventos?.length && <ProximosEventos eventos={datos.eventos} hoy={hoy} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} whatsapp={wa} />}
 
         {datos.logros && datos.logros.total > 0 && <Logros total={datos.logros.total} desde={datos.logros.desde} semanas={datos.logros.semanas} hoy={hoy} />}
 
@@ -380,21 +391,32 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           </div>
         )}
 
-        {/* Tienda */}
+        {/* Tienda: en carrusel, para que el portal no se alargue con muchos productos */}
         {datos.tienda.length > 0 && (
-          <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-            <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tienda de la academia</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+          <section aria-label="Tienda de la academia" className="rounded-3xl bg-superficie py-5 ring-1 ring-ink-100">
+            <div className="flex items-baseline justify-between gap-2 px-5">
+              <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tienda de la academia</p>
+              {datos.tienda.length > 2 && (
+                <p className="flex shrink-0 items-center text-xs font-semibold text-ink-500" aria-hidden="true">
+                  {datos.tienda.length} artículos · desliza <ChevronRight size={14} />
+                </p>
+              )}
+            </div>
+            <ul
+              tabIndex={0}
+              aria-label="Productos (desliza para ver más)"
+              className="mt-3 flex snap-x snap-mandatory scroll-px-5 gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] focus-visible:outline-2 focus-visible:outline-brand-500 [&::-webkit-scrollbar]:hidden"
+            >
               {datos.tienda.map((p) => {
                 const agotado = !p.sobre_pedido && p.disponibles !== null && p.disponibles <= 0;
                 return (
-                  <div key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
+                  <li key={p.id} className="flex w-[44%] shrink-0 snap-start flex-col rounded-2xl bg-ink-50 p-3 text-center">
                     <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
                     <p className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</p>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}
                     {p.sobre_pedido && <p className="text-[11px] font-semibold text-brand-600">Sobre pedido{p.dias_entrega ? ` · ~${p.dias_entrega} días` : ''}</p>}
                     <p className="text-sm font-bold text-brand-600">{dinero(p.precio)}</p>
-                    {p.opciones.length > 0 && <p className="text-[11px] text-ink-500">{p.opciones.join(' · ')}</p>}
+                    {p.opciones.length > 0 && <p className="line-clamp-1 text-[11px] text-ink-500">{p.opciones.join(' · ')}</p>}
                     <span className="flex-1" />
                     <button
                       type="button"
@@ -407,12 +429,12 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                     >
                       {p.sobre_pedido ? 'Encargar' : agotado ? 'Agotado' : 'Apartar'}
                     </button>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
-            <p className="mt-3 text-center text-xs text-ink-500">Apártalo aquí y págalo al recogerlo en recepción.</p>
-          </div>
+            </ul>
+            <p className="mt-3 px-5 text-center text-xs text-ink-500">Apártalo aquí y págalo al recogerlo en recepción.</p>
+          </section>
         )}
 
         <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
@@ -779,6 +801,62 @@ function InvitaAmigo({ academia, slug, invita }: { academia: string; slug: strin
           {copiado ? '¡Enlace copiado!' : 'Copiar enlace'}
         </button>
       </div>
+    </div>
+  );
+}
+
+const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** Próximos eventos (socials, talleres): los 3 primeros y el resto al tocar "Ver más". "Quiero ir" escribe por WhatsApp. */
+function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: NonNullable<DatosPortal['eventos']>; hoy: string; nombre: string; codigo: string; whatsapp: string | null }) {
+  const [todos, setTodos] = useState(false);
+  const visibles = todos ? eventos : eventos.slice(0, 3);
+  return (
+    <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <PartyPopper size={14} aria-hidden="true" /> Próximos eventos
+      </p>
+      <ul className="mt-3 space-y-3">
+        {visibles.map((e, i) => {
+          const [, mm, dd] = e.fecha.split('-').map(Number);
+          const falta = faltaParaEvento(hoy, e.fecha);
+          const link = e.quedan !== 0 && whatsapp ? waLink(whatsapp, mensajeEvento(nombre, codigo, e)) : null;
+          return (
+            <li key={i} className={cx('flex gap-3', i > 0 && 'border-t border-ink-100 pt-3')}>
+              <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white" aria-hidden="true">
+                <span className="text-xl leading-none font-extrabold">{dd}</span>
+                <span className="text-[11px] font-bold uppercase">{MES_CORTO[mm - 1]}</span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <span className="font-bold">{e.nombre}</span>
+                  {falta && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold text-brand-600">{falta}</span>}
+                </span>
+                <span className="block text-sm text-ink-500">
+                  <span className="sr-only">{`${dd} de ${MES_CORTO[mm - 1]}, `}</span>
+                  {e.hora} · {e.precio > 0 ? `boleto ${dinero(e.precio)}` : 'entrada libre'}
+                  {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && <b className="text-warn-600"> · ¡quedan {e.quedan}!</b>}
+                </span>
+                {e.descripcion && <span className="mt-0.5 line-clamp-2 block text-sm text-ink-700">{e.descripcion}</span>}
+                {e.quedan === 0 ? (
+                  <span className="mt-2 inline-block rounded-full bg-bad-50 px-2.5 py-0.5 text-xs font-extrabold text-bad-600">Agotado</span>
+                ) : (
+                  link && (
+                    <a href={link} target="_blank" rel="noreferrer" className="mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#15803d] px-4 text-sm font-bold text-white active:scale-[0.98]">
+                      <MessageCircle size={18} aria-hidden="true" /> Quiero ir
+                    </a>
+                  )
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {eventos.length > 3 && !todos && (
+        <button type="button" onClick={() => setTodos(true)} className="mt-3 h-11 w-full rounded-xl text-sm font-semibold text-brand-600 ring-1 ring-ink-100 active:bg-ink-50">
+          Ver {eventos.length - 3} {eventos.length - 3 === 1 ? 'evento más' : 'eventos más'}
+        </button>
+      )}
     </div>
   );
 }

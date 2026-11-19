@@ -544,6 +544,15 @@ begin
                                           'sobre_pedido', coalesce(p.sobre_pedido, false), 'dias_entrega', p.dias_entrega) order by p.categoria, p.nombre)
       from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
     ), '[]'::jsonb),
+    -- próximos eventos de la academia (socials, talleres): los mismos que muestra la página pública
+    'eventos', coalesce((
+      select jsonb_agg(ev order by ev->>'fecha', ev->>'hora') from (
+        select jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
+                                  'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) ev
+        from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and e.fecha >= hoy and e.fecha <= hoy + 90
+        order by e.fecha, e.hora_inicio limit 6
+      ) t
+    ), '[]'::jsonb),
     -- invitar a un amigo: su huella y cuántos ha invitado / ya se inscribieron
     'invita', jsonb_build_object('de', huella_invita(a.id),
       'invitados', (select count(*) from interesados i where i.invito_alumno_id = a.id and i.deleted_at is null),
@@ -799,7 +808,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261123 $$;
+language sql immutable as $$ select 20261124 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

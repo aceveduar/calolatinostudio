@@ -58,3 +58,19 @@ describe('lo que le queda del plan', () => {
     expect(mensajeRenovar('Ana López', 'K7P2QX', 'Paquete 8 clases')).toBe('Hola, soy Ana López (código K7P2QX). Quiero renovar mi Paquete 8 clases. ¿Me ayudan?');
   });
 });
+
+describe('eventos en el portal', () => {
+  it('el mensaje dice quién es, qué evento y cuándo', async () => {
+    const { mensajeEvento } = await import('../../src/domain/miPortal');
+    expect(mensajeEvento('Ana López', 'K7P2QX', { nombre: 'Social de salsa', fecha: '2026-11-28', hora: '21:00' })).toBe(
+      'Hola, soy Ana López (código K7P2QX). Quiero ir a Social de salsa (sábado 28 de noviembre, 21:00). ¿Me apartan lugar?',
+    );
+  });
+  it('cuánto falta', async () => {
+    const { faltaParaEvento } = await import('../../src/domain/miPortal');
+    expect(faltaParaEvento('2026-11-19', '2026-11-19')).toBe('Hoy');
+    expect(faltaParaEvento('2026-11-19', '2026-11-20')).toBe('Mañana');
+    expect(faltaParaEvento('2026-11-19', '2026-11-24')).toBe('En 5 días');
+    expect(faltaParaEvento('2026-11-19', '2026-12-24')).toBeNull();
+  });
+});

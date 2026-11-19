@@ -15,6 +15,7 @@ Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y 
 
 | Versión | Qué cambió |
 |---|---|
+| 20261124 | Eventos en el portal: `portal_alumno` devuelve los próximos eventos (hasta 6, en los siguientes 90 días) con lugares disponibles. Se puede correr antes o después del push (sin él, el portal simplemente no muestra eventos). |
 | 20261123 | Invitar a un amigo: `interesados.invito_alumno_id`; `inscribir_interesado` acepta `p_de` (huella de quien invita, opcional); `invitado_por(slug, de)` da "Ana L."; `portal_alumno` devuelve su huella y cuántos invitó. **Correr ANTES del push** (la página nueva manda `p_de`). |
 | 20261122 | Testimonios: tabla `testimonios` (con sus reglas de acceso, sin borrar), función `portal_testimonio` para que el alumno escriba el suyo desde su portal (queda pendiente), y `portal_alumno` devuelve su último testimonio. Se puede correr antes o después del push. |
 | 20261121 | Velocidad: las reglas de acceso (RLS) calculan las academias del usuario una vez por consulta en lugar de fila por fila, e índices para portal, tienda, eventos e inscripciones. Se puede correr antes o después del push. |
