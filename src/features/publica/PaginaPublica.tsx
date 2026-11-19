@@ -8,6 +8,7 @@ import { hoy } from '../../domain/fechas';
 import { estadoCurso } from '../../domain/cursos';
 import { PRINCIPAL } from '../../domain/sedes';
 import { comoLlegar, urlRed, type DatosPublica } from '../../domain/publica';
+import { leerHuella } from '../../domain/invitar';
 import { DIAS_LARGOS, MESES, disciplinaDe, diasTexto, DESDE_CERO, type Estados } from './comun';
 import { Seccion, Dato, Precio, Punto } from './piezas';
 import { Inscripcion } from './Inscripcion';
@@ -58,6 +59,13 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const [sede, setSede] = useState<string | null>(null);
   const [disciplina, setDisciplina] = useState<string | null>(null);
   const clasesSede = d.clases.filter((c) => (c.sede_id ?? null) === sede);
+  // llegó con una invitación de un alumno (?de=…): "Vienes de parte de Ana L." y se anota al inscribirse
+  const [de] = useState(() => leerHuella(location.search));
+  const [invita, setInvita] = useState<string | null>(null);
+  useEffect(() => {
+    if (!de || !supabase) return;
+    void supabase.rpc('invitado_por', { p_slug: slug, p_de: de }).then(({ data }) => typeof data === 'string' && setInvita(data));
+  }, [de, slug]);
   const clasesVista = clasesSede.filter((c) => !disciplina || disciplinaDe(c) === disciplina);
   // los planes "solo de la sede principal" llevan un id fijo (no hay registro de la sede principal)
   const planesSede = d.planes.filter((x) => !x.sede_id || x.sede_id === (sede ?? PRINCIPAL));
@@ -228,6 +236,11 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
 
           {/* texto */}
           <div className="pp-sube">
+            {invita && (
+              <p className="mt-3 mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20 md:mt-0">
+                <span aria-hidden="true">💃</span> Vienes de parte de {invita}
+              </p>
+            )}
             {disciplinas.length > 0 && (
               <p className="mb-3 text-xs font-extrabold tracking-[0.2em] text-white/60 uppercase">
                 {disciplinas
@@ -516,7 +529,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               )}
             </div>
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
-              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} />
+              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} />
             </div>
           </div>
         </section>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Camera, CalendarCheck, Clock, MessageCircle, PackageCheck, QrCode, Sun, WifiOff, X } from 'lucide-react';
+import { Camera, CalendarCheck, Clock, MessageCircle, PackageCheck, QrCode, Sun, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
@@ -12,6 +12,7 @@ import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
 import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
+import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
 import { INSIGNIAS, insignias, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
 import { waLink } from '../../domain/reportes';
 
@@ -312,6 +313,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         </div>
 
         {datos.logros && datos.logros.total > 0 && <Logros total={datos.logros.total} desde={datos.logros.desde} semanas={datos.logros.semanas} hoy={hoy} />}
+
+        {datos.invita && datos.academia.slug && <InvitaAmigo academia={datos.academia.nombre} slug={datos.academia.slug} invita={datos.invita} />}
 
         {datos.testimonio !== undefined && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
 
@@ -730,6 +733,52 @@ function TuTestimonio({ token, nombre, academia, actual, sinConexion, onListo }:
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+/** Invitar a un amigo: comparte la página de la academia "de parte de" este alumno, y ve a cuántos invitó. */
+function InvitaAmigo({ academia, slug, invita }: { academia: string; slug: string; invita: NonNullable<DatosPortal['invita']> }) {
+  const [copiado, setCopiado] = useState(false);
+  const url = enlaceInvitacion(location.origin, slug, invita.de);
+  const texto = mensajeInvitacion(academia, url);
+  const puedeCompartir = typeof navigator.share === 'function';
+  const logro = textoInvitados(invita.invitados, invita.inscritos);
+  return (
+    <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <Users size={14} aria-hidden="true" /> Invita a un amigo
+      </p>
+      <p className="mt-2 font-semibold">Bailar es mejor en compañía 💃🕺</p>
+      <p className="text-sm text-ink-500">Mándale tu invitación: verá horarios, precios y podrá apartar su primera clase.</p>
+      {logro && <p className="mt-3 rounded-2xl bg-ok-50 px-3 py-2 text-sm font-semibold text-ok-600">{logro}</p>}
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(texto)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15803d] font-bold text-white active:scale-[0.98]"
+      >
+        <MessageCircle size={20} aria-hidden="true" /> Invitar por WhatsApp
+      </a>
+      <div className="mt-2 flex gap-2">
+        {puedeCompartir && (
+          <button type="button" onClick={() => void navigator.share({ title: academia, text: texto }).catch(() => {})} className="h-11 flex-1 rounded-2xl bg-ink-50 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-100">
+            Más opciones
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() =>
+            void navigator.clipboard?.writeText(url).then(() => {
+              setCopiado(true);
+              setTimeout(() => setCopiado(false), 2500);
+            })
+          }
+          className="h-11 flex-1 rounded-2xl bg-ink-50 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-100"
+        >
+          {copiado ? '¡Enlace copiado!' : 'Copiar enlace'}
+        </button>
+      </div>
     </div>
   );
 }

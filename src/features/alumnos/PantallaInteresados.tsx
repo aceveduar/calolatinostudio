@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, Globe, Megaphone, MessageCircle, Plus, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Globe, Megaphone, MessageCircle, Plus, UserPlus, Users } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -30,6 +30,11 @@ export function PantallaInteresados() {
   const [anotar, setAnotar] = useState(false);
   const [grupo, setGrupo] = useState<{ clase: Clase | null; lista: Interesado[] } | null>(null);
   const todos = useLiveQuery(() => db.interesados.filter((i) => !i.deletedAt && (i.estado === 'nuevo' || i.estado === 'contactado')).toArray(), [], []);
+  // quién invitó a cada uno (enlace de invitación del portal de un alumno)
+  const invitaron = useLiveQuery(async () => {
+    const ids = [...new Set(todos.flatMap((i) => (i.invitoAlumnoId ? [i.invitoAlumnoId] : [])))];
+    return new Map((await db.alumnos.bulkGet(ids)).flatMap((a) => (a ? [[a.id, a] as const] : [])));
+  }, [todos]);
   const lista = todos.filter((i) => (filtro === 'nuevos' ? i.estado === 'nuevo' : i.estado === 'contactado')).sort((a, b) => b.createdAt - a.createdAt);
   // agrupados por clase (las que ya no existen, como "cualquiera")
   const grupos = new Map<string, Interesado[]>();
@@ -129,6 +134,11 @@ export function PantallaInteresados() {
                           <UserPlus size={18} />
                         </button>
                       </div>
+                      {i.invitoAlumnoId && invitaron?.get(i.invitoAlumnoId) && (
+                        <Link to={`/alumnos/${i.invitoAlumnoId}`} className="mt-1 inline-flex min-h-10 items-center gap-1 rounded-full bg-ok-50 px-3 text-xs font-semibold text-ok-600">
+                          <Users size={13} aria-hidden="true" /> Lo invitó {invitaron.get(i.invitoAlumnoId)!.nombre}
+                        </Link>
+                      )}
                       {i.mensaje && <p className="mt-1 rounded-lg bg-ink-50 px-2 py-1 text-sm text-ink-700">“{i.mensaje}”</p>}
                       <button
                         className="-ml-2 min-h-10 rounded-lg px-2 text-xs font-semibold text-ink-500 active:bg-ink-100"

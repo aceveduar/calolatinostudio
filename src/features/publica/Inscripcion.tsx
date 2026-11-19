@@ -6,7 +6,8 @@ import { DIAS_CORTOS } from '../../domain/fechas';
 import { ERRORES_INSCRIPCION, type DatosPublica } from '../../domain/publica';
 import { type Estados } from './comun';
 
-export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void }) {
+/** `de`: huella de quien lo invitó (enlace de invitación de un alumno); se manda solo si existe. */
+export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase, de = null }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -62,7 +63,7 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
           if (!supabase) return;
           setEstado('enviando');
           setError(null);
-          const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim() });
+          const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim(), ...(de ? { p_de: de } : {}) });
           if (err || data?.error) {
             setError(err ? 'Sin conexión. Inténtalo otra vez.' : (ERRORES_INSCRIPCION[data.error] ?? 'No se pudo enviar.'));
             setEstado('listo');

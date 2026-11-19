@@ -876,5 +876,9 @@ export async function agregarWebDemo(): Promise<Record<string, unknown>> {
       await guardar('testimonios', { id: crypto.randomUUID() as ID, academiaId: academia.id, createdAt: Date.now() - (i + 1) * 86_400_000, updatedAt: Date.now(), deletedAt: null, alumnoId, texto: textos[i], estado: estados[i], revisadoAt: estados[i] === 'pendiente' ? null : Date.now(), revisadoPor: null });
     r.testimonios = ids.length;
   }
+  // dos interesados llegaron con la invitación de un alumno
+  const invitador = (await db.alumnos.filter((a) => a.activo && !a.deletedAt).first())?.id;
+  const nuevos = (await db.interesados.where('estado').equals('nuevo').toArray()).slice(0, 2);
+  if (invitador) for (const i of nuevos) await guardar('interesados', { ...i, invitoAlumnoId: invitador });
   return r;
 }

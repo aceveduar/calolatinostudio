@@ -230,6 +230,8 @@ export interface Interesado extends Base {
   contactadoAt: number | null;
   /** alumno con que quedó registrado */
   alumnoId: ID | null;
+  /** alumno que lo invitó (se inscribió desde su enlace de invitación); lo pone la base */
+  invitoAlumnoId?: ID | null;
 }
 
 export type EstadoTestimonio = 'pendiente' | 'aprobado' | 'rechazado';

@@ -7,7 +7,7 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 | # | Qué | Para qué | Notas |
 |---|---|---|---|
 | 1 | ~~Testimonios desde el portal~~ | **Hecho** (19 nov 2026): el alumno escribe en su portal; dirección, recepción o su maestro lo publica. | Esquema 20261122. |
-| 2 | **Invitar a un amigo** | Botón en el portal que comparte la página "de parte de Ana"; el registro llega a Interesados con quién lo invitó. | Requiere SQL (interesados.invito_alumno_id o similar). |
+| 2 | ~~Invitar a un amigo~~ | **Hecho** (19 nov 2026): el alumno comparte desde su portal; la página dice "Vienes de parte de Ana L." y en Interesados se ve quién lo invitó. | Esquema 20261123. |
 | 3 | **Próximos eventos en el portal** | Ver los eventos y "Quiero ir" sin salir del portal. | Reusar lo de la página pública. |
 | 4 | **Guardar el portal en la pantalla de inicio** | Que el pase quede a un toque. | Indicación según el celular (Android/iPhone). |
 | 5 | **Errores recientes en Ajustes** | Ver los últimos errores anotados en el teléfono (`compas:errores`) y mandarlos por WhatsApp a soporte. | Pequeño. |
