@@ -8,6 +8,7 @@ import { nombreSede, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, sirveEn } from '../../domain/sedes';
 import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, VerMas, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
+import { historialCompleto } from '../../sync/engine';
 import { dinero } from '../../domain/dinero';
 import { aFecha, diasEntre, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
 import { textoDias } from '../../domain/membresias';
@@ -35,6 +36,8 @@ export function PantallaReportes() {
   const [todosVencen, setTodosVencen] = useState(false);
   const [todosPerdidos, setTodosPerdidos] = useState(false);
   const dia = hoy();
+  // teléfono recién conectado: el historial viejo de asistencias sigue bajando (ver sync/engine.ts)
+  const completo = useLiveQuery(historialCompleto, [], true);
   // con useMemo: si se crearan en cada redibujo, el cálculo pesado de abajo (que depende de ellos) se repetiría siempre
   const { actual, anterior } = useMemo(() => periodos(rango, dia), [rango, dia]);
 
@@ -108,6 +111,11 @@ export function PantallaReportes() {
           />
         </div>
       </div>
+      {!completo && (
+        <p role="status" className="mb-3 flex items-center gap-2 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm font-medium text-warn-600">
+          <CalendarClock size={18} className="shrink-0" aria-hidden="true" /> Este teléfono aún está bajando el historial de meses anteriores. Los últimos 90 días ya están completos; la tendencia del año y quién dejó de venir se completan en un momento.
+        </p>
+      )}
 
       {sedes.length > 0 && (
         <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">

@@ -16,6 +16,7 @@ import { supabase } from './supabase';
 import { anotarError } from '../app/errores';
 import { avisoEsquema } from './esquema';
 import { planearSubida, soloCampos } from './subida';
+import { hoy, sumarDias } from '../domain/fechas';
 
 /** Versión de la base: una vez que está al día no se vuelve a preguntar en esta sesión. */
 let esquemaAlDia = false;
@@ -214,18 +215,32 @@ const POR_PAGINA = 1000;
  * Baja de la nube lo que cambió. Todas las tablas a la vez (antes iban una tras otra: ~20 idas y vueltas
  * de ~0.12 s aunque no hubiera nada nuevo). Si una falla, las demás terminan y luego se reporta el error.
  */
+/**
+ * Teléfono nuevo: las asistencias son la mayor parte (cada entrada a clase es un registro). Para abrir y
+ * cobrar bien basta con las recientes (los paquetes cuentan sus clases dentro de su vigencia, y la caja y
+ * los reportes de 7 y 30 días usan lo reciente). El historial viejo lo baja la siguiente sincronización,
+ * ya con la app abierta: mientras no termine, esta tabla no tiene cursor y Reportes lo avisa.
+ */
+const DIAS_RECIENTES = 90;
+const PRIMERO_RECIENTE: SyncTable = 'asistencias';
+
 async function pull(academiaId: ID, conProgreso = false): Promise<void> {
   if (!supabase) return;
+  const desde = sumarDias(hoy(), -DIAS_RECIENTES);
   if (conProgreso) {
     // contar primero (consultas ligeras) para que la pantalla diga "45,000 de 167,000"
     const cuentas = await Promise.all(
-      SYNC_TABLES.map(async (t) => (await supabase!.from(aSnake(t)).select('id', { count: 'exact', head: true }).eq(t === 'academias' ? 'id' : 'academia_id', academiaId)).count ?? 0),
+      SYNC_TABLES.map(async (t) => {
+        let q = supabase!.from(aSnake(t)).select('id', { count: 'exact', head: true }).eq(t === 'academias' ? 'id' : 'academia_id', academiaId);
+        if (t === PRIMERO_RECIENTE) q = q.gte('fecha', desde);
+        return (await q).count ?? 0;
+      }),
     );
     const p = { hechos: 0, total: cuentas.reduce((a, b) => a + b, 0), inicio: Date.now() };
     setProgreso(p);
     avance = (n) => setProgreso({ ...p, hechos: (p.hechos += n) });
   }
-  const r = await Promise.allSettled(SYNC_TABLES.map((t) => bajarTabla(t, academiaId)));
+  const r = await Promise.allSettled(SYNC_TABLES.map((t) => (conProgreso && t === PRIMERO_RECIENTE ? bajarRecientes(t, academiaId, desde) : bajarTabla(t, academiaId))));
   avance = () => {};
   if (conProgreso) setProgreso(null);
   const falla = r.find((x): x is PromiseRejectedResult => x.status === 'rejected');
@@ -270,6 +285,26 @@ async function primeraDescarga(tabla: SyncTable, academiaId: ID): Promise<string
   await Promise.all(Array.from({ length: Math.min(EN_PARALELO, paginas) }, trabajador));
   return corte;
 }
+
+/** Solo lo reciente de una tabla (sin cursor: la tabla completa la baja después la sincronización normal). */
+async function bajarRecientes(tabla: SyncTable, academiaId: ID, desde: string): Promise<void> {
+  const { count, error } = await supabase!.from(aSnake(tabla)).select('id', { count: 'exact', head: true }).eq('academia_id', academiaId).gte('fecha', desde);
+  if (error) throw new Error(`${tabla}: ${error.message}`);
+  const paginas = Math.ceil((count ?? 0) / POR_PAGINA);
+  let siguiente = 0;
+  const trabajador = async () => {
+    for (let i = siguiente++; i < paginas; i = siguiente++) {
+      const { data, error: e } = await supabase!.from(aSnake(tabla)).select('*').eq('academia_id', academiaId).gte('fecha', desde).order('id', { ascending: true }).range(i * POR_PAGINA, (i + 1) * POR_PAGINA - 1);
+      if (e) throw new Error(`${tabla}: ${e.message}`);
+      if (data.length) await guardarDeLaNube(tabla, data, true);
+      avance(data.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(EN_PARALELO, paginas) }, trabajador));
+}
+
+/** ¿Ya bajó el historial completo? (en un teléfono nuevo, las asistencias viejas llegan con la app ya abierta) */
+export const historialCompleto = async () => !!(await getMeta<string>(`cursor:${PRIMERO_RECIENTE}`)) || !(await getMeta<boolean>('nubeVinculada'));
 
 /** La nube manda, salvo en lo que este teléfono aún no sube (ver bajarTabla). */
 async function guardarDeLaNube(tabla: SyncTable, data: Record<string, unknown>[], primera = false) {
@@ -444,6 +479,8 @@ export async function entrarEnDispositivoNuevo(email: string, password: string):
   await setMeta('nubeVinculada', true);
   await setMeta('academiaId', data.academia_id);
   setEstado({ fase: 'al-dia', ultimo: Date.now() });
+  // el historial viejo de asistencias: ya con la app abierta, sin esperar al siguiente minuto
+  setTimeout(() => void sincronizar(), 1500);
 }
 
 
