@@ -362,6 +362,10 @@ export interface Corte extends Base {
   totalOtros: number;
   usuarioId: ID;
   notas: string;
+  /** feria con la que abrió la caja (se queda en el cajón); null en cortes anteriores a 20261127 */
+  fondo?: number | null;
+  /** efectivo que salió del cajón ese día (gastos con deCaja) */
+  salidas?: number | null;
 }
 
 export type TipoRenta = 'mensual' | 'evento';
@@ -433,6 +437,8 @@ export interface Gasto extends Base {
   maestroId?: ID | null;
   metodo: MetodoPago;
   notas: string;
+  /** salió del cajón de recepción (garrafón, pago a un maestro): se descuenta en el corte de caja */
+  deCaja?: boolean | null;
   usuarioId: ID;
 }
 

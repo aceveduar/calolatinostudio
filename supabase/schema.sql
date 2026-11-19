@@ -370,6 +370,9 @@ alter table interesados add column if not exists invito_alumno_id uuid;
 alter table eventos add column if not exists en_pagina boolean;
 alter table eventos add column if not exists en_portal boolean;
 alter table interesados add column if not exists origen text;
+alter table cortes add column if not exists fondo int;
+alter table cortes add column if not exists salidas int;
+alter table gastos add column if not exists de_caja boolean;
 create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
@@ -813,7 +816,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261126 $$;
+language sql immutable as $$ select 20261127 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

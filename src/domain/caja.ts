@@ -48,3 +48,28 @@ export function resumenCaja(pagos: Pago[]): ResumenCaja {
 export function asistenciasValidas(a: Asistencia[]): Asistencia[] {
   return a.filter((x) => !x.anuladaAt && !x.deletedAt);
 }
+
+/** Lo que debe haber en el cajón al cortar: la feria con que abrió + lo cobrado en efectivo − lo que se sacó. */
+export function esperadoEnCaja(p: { fondo: number; efectivo: number; salidas: number }): number {
+  return p.fondo + p.efectivo - p.salidas;
+}
+
+/** Billetes y monedas de México, en centavos (para contar la caja sin calculadora). */
+export const DENOMINACIONES: { valor: number; tipo: 'billete' | 'moneda' }[] = [
+  { valor: 100000, tipo: 'billete' },
+  { valor: 50000, tipo: 'billete' },
+  { valor: 20000, tipo: 'billete' },
+  { valor: 10000, tipo: 'billete' },
+  { valor: 5000, tipo: 'billete' },
+  { valor: 2000, tipo: 'billete' },
+  { valor: 2000, tipo: 'moneda' },
+  { valor: 1000, tipo: 'moneda' },
+  { valor: 500, tipo: 'moneda' },
+  { valor: 200, tipo: 'moneda' },
+  { valor: 100, tipo: 'moneda' },
+  { valor: 50, tipo: 'moneda' },
+];
+
+export function sumaConteo(conteo: number[]): number {
+  return DENOMINACIONES.reduce((t, d, i) => t + d.valor * (conteo[i] ?? 0), 0);
+}

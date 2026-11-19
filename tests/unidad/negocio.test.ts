@@ -92,3 +92,15 @@ describe('pendientes de recepción', () => {
     expect(deudores({ asistencias: fiado, alumnos: recordado, clases: [clase('c1')], planes: suelta, ahora })).toHaveLength(0);
   });
 });
+
+describe('corte de caja con feria y salidas', async () => {
+  const { esperadoEnCaja, sumaConteo, DENOMINACIONES } = await import('../../src/domain/caja');
+  it('debe haber = feria + cobrado en efectivo − lo que salió del cajón', () => {
+    expect(esperadoEnCaja({ fondo: 50000, efectivo: 18000, salidas: 4000 })).toBe(64000);
+    expect(esperadoEnCaja({ fondo: 0, efectivo: 18000, salidas: 0 })).toBe(18000);
+  });
+  it('contar billetes y monedas', () => {
+    const conteo = DENOMINACIONES.map((d) => (d.valor === 50000 ? 1 : d.valor === 10000 && d.tipo === 'billete' ? 1 : d.valor === 50 ? 2 : 0));
+    expect(sumaConteo(conteo)).toBe(50000 + 10000 + 100);
+  });
+});

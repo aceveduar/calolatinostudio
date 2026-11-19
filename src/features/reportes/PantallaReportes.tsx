@@ -52,7 +52,7 @@ export function PantallaReportes() {
       db.membresias.where('fin').aboveOrEqual(desde).toArray(),
       db.alumnos.toArray(),
     ]);
-    return { pagos, asis, mems, alumnos };
+    return { desde, pagos, asis, mems, alumnos };
   }, [dia, anterior.desde]);
 
   // Dejaron de venir: necesita ~10 semanas de entradas. Se calcula un momento después de mostrar lo principal.
@@ -73,7 +73,8 @@ export function PantallaReportes() {
   }, [datos, dia, verSede, clases]);
 
   const r = useMemo(() => {
-    if (!datos) return null;
+    // al cambiar de 7 a 30 días, mientras llegan los datos nuevos NO se calcula con los viejos (daría totales incompletos)
+    if (!datos || datos.desde !== anterior.desde) return null;
     const enSede = (sedeId: string | null | undefined) => verSede === 'todas' || claveSede(sedeId) === verSede;
     const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
     const pagosS = datos.pagos.filter((p) => enSede(p.sedeId));

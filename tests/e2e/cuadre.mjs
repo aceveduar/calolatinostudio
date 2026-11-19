@@ -87,7 +87,7 @@ await page.getByRole('button', { name: /Hacer corte de caja/ }).click();
 const dlg = page.getByRole('dialog');
 await dlg.waitFor();
 const textoCorte = (await dlg.innerText()).replace(/\s+/g, ' ');
-const esperado = pesos(textoCorte.match(/(?:esperado|debe haber|Efectivo)[^$]*(\$[\d,.]+)/i)?.[1] ?? '0');
+const esperado = pesos(textoCorte.match(/Debe haber en el cajón\s*(\$[\d,.]+)/i)?.[1] ?? '0');
 const efectivoHoy = await page.evaluate(async () => (await window.compasDev.db.pagos.where('fecha').equals('2026-11-18').toArray()).filter((p) => !p.anuladoAt && !p.deletedAt && p.metodo === 'efectivo' && !p.sedeId).reduce((s, p) => s + p.monto, 0));
 console.log('B2) corte: efectivo esperado = efectivo cobrado hoy en la sede:', ok(esperado === efectivoHoy), dinero(esperado), 'vs', dinero(efectivoHoy));
 await page.keyboard.press('Escape');
@@ -96,7 +96,8 @@ await page.keyboard.press('Escape');
 await ir('/reportes');
 await page.getByText('Ingresos').first().waitFor({ timeout: 20_000 });
 await page.getByRole('button', { name: '30 días' }).click().catch(() => {});
-await page.waitForTimeout(800);
+await page.getByText(/Utilidad de /).waitFor({ timeout: 20_000 }); // con 30 días se leen más datos: esperar a que termine
+await page.waitForTimeout(300);
 const tRep = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
 const ingresosRep = pesos(tRep.match(/Ingresos (\$[\d,.]+)/)?.[1] ?? '0');
 const directo30 = await suma('2026-10-20', '2026-11-18');

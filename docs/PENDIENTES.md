@@ -16,6 +16,7 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 | 8 | ~~Cargar por partes las pantallas poco usadas~~ | Hecho en la auditoría de velocidad. | |
 | 9 | **Agente de WhatsApp / chatbot para ayudar a Monse** (por evaluar con la academia) | Que responda solo lo repetitivo y le pase a Monse lo que necesite una persona. | Evaluado 19 nov 2026: primero la capa gratis (WhatsApp Business: bienvenida, ausencia, respuestas rápidas, etiquetas) y medir 3-4 semanas qué preguntan. API de Meta en México: servicio gratis hasta 1,000 mensajes/mes por número, luego ~$0.16 MXN; marketing ~$0.73 MXN. Lo personal ("mi plan") solo con el enlace a su portal: el teléfono se comparte entre familiares. |
 | 10 | **Respuestas rápidas para WhatsApp Business** (si la academia lo usa) | En Ajustes → Mensajes, textos listos con los enlaces de la academia (#horarios, #precios, eventos, ubicación) para copiar a la app. | Pequeño. Esperar a saber si usan WhatsApp Business. |
+| 11 | **Revisión de cada pantalla: qué sobra, qué se mueve, qué se reubica** (UX/UI) | Que nadie se abrume: cada pantalla con lo esencial a la vista y lo demás un toque más allá. Lo que ya está bien se deja. | Pedido el 19 nov 2026. Empezar por **Entrada** (donde Monse cobra: ¿hay demasiados elementos?), luego Alumnos/ficha, Caja, Agenda, Más. Hecho ya: Reportes (orden por lo accionable) y portal del alumno. |
 
 ## Lo que depende de la academia
 

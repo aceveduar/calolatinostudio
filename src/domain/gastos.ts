@@ -104,6 +104,8 @@ export function registrarGasto(p: {
   maestroId?: ID | null;
   notas?: string;
   usuarioId: ID;
+  /** salió del cajón de recepción (se descuenta en el corte) */
+  deCaja?: boolean;
 }): Promise<Gasto> {
   if (!(p.monto > 0)) throw new Error('El monto debe ser mayor a cero');
   if (!p.concepto.trim()) throw new Error('Falta el concepto');
@@ -119,5 +121,6 @@ export function registrarGasto(p: {
     usuarioId: p.usuarioId,
     ...(p.eventoId ? { eventoId: p.eventoId } : {}),
     ...(p.maestroId ? { maestroId: p.maestroId } : {}),
+    ...(p.deCaja ? { deCaja: true } : {}),
   });
 }
