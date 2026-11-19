@@ -60,7 +60,7 @@ vi.mock('../../src/sync/supabase', () => {
     return q;
   };
   return {
-    supabase: { from, rpc: async () => ({ data: 20261118, error: null }), auth: { getSession: async () => ({ data: { session: {} } }) } },
+    supabase: { from, rpc: async () => ({ data: 20261118, error: null }), auth: { getSession: async () => ({ data: { session: {} } }), signInWithPassword: async () => ({ data: { session: {} }, error: null }), signUp: async () => ({ data: { session: {} }, error: null }) } },
     nubeConfigurada: true,
     baseTieneColumna: async () => true,
   };
@@ -68,7 +68,7 @@ vi.mock('../../src/sync/supabase', () => {
 
 const { db, setMeta } = await import('../../src/db/db');
 const { actualizar, crear } = await import('../../src/db/repo');
-const { sincronizar } = await import('../../src/sync/engine');
+const { sincronizar, vincularAcademia } = await import('../../src/sync/engine');
 
 beforeEach(async () => {
   vi.stubGlobal('navigator', { onLine: true });
@@ -84,6 +84,28 @@ beforeEach(async () => {
 const alta = () => crear('alumnos', { nombre: 'Ana', telefono: '5511112222', activo: true } as never);
 
 describe('sincronizar', () => {
+  it('reconectar (sesión vencida) NO vuelve a subir todo el equipo: solo lo pendiente', async () => {
+    await db.academias.put({ id: 'a1', nombre: 'Calo', moneda: 'MXN', createdAt: 0, updatedAt: 0, deletedAt: null });
+    const viejo = await alta();
+    await sincronizar();
+    // otro teléfono corrige el teléfono del alumno; este equipo sigue con la versión vieja
+    const fila = nube.tablas.get('alumnos')!.get(viejo.id)!;
+    nube.tablas.get('alumnos')!.set(viejo.id, { ...fila, telefono: '5599998888' });
+    nube.envios.length = 0;
+    await vincularAcademia('demo@example.org', 'clave123', false);
+    expect(nube.envios.filter((e) => e.tabla === 'alumnos')).toHaveLength(0);
+    expect(nube.tablas.get('alumnos')!.get(viejo.id)!.telefono).toBe('5599998888');
+  });
+
+  it('la primera vez que se conecta una academia sí sube todo lo del equipo', async () => {
+    await setMeta('nubeVinculada', false);
+    await db.academias.put({ id: 'a1', nombre: 'Calo', moneda: 'MXN', createdAt: 0, updatedAt: 0, deletedAt: null });
+    const al = await alta();
+    await db.outbox.clear();
+    await vincularAcademia('demo@example.org', 'clave123', true);
+    expect(nube.tablas.get('alumnos')?.has(al.id)).toBe(true);
+  });
+
   it('el traslape de 2 min se revisa una vez después de recibir cambios, no siempre', async () => {
     await alta();
     await sincronizar(); // sube el alta y la baja (cambio nuevo) → la próxima revisa traslape

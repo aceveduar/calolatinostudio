@@ -83,7 +83,9 @@ function FormVincular({ reconectar }: { reconectar: boolean }) {
         setOcupado(true);
         setError('');
         try {
-          await vincularAcademia(email.trim(), password, modo === 'crear');
+          // al reconectar siempre se entra con la cuenta que ya existe (el modo pudo quedar en "crear"
+          // si el formulario apareció antes de saber que este equipo ya estaba conectado)
+          await vincularAcademia(email.trim(), password, !reconectar && modo === 'crear');
         } catch (err) {
           setError(err instanceof Error ? err.message : 'No se pudo conectar');
         } finally {

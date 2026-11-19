@@ -319,7 +319,10 @@ export async function vincularAcademia(email: string, password: string, crearCue
   const { error } = await supabase.rpc('vincular_academia', { p_id: academia.id, p_nombre: academia.nombre });
   if (error) throw new Error(traducirError(error.message));
 
-  await encolarTodo();
+  // Subir todo solo la PRIMERA vez que se conecta la academia. Al reconectar (sesión vencida) ya está en la
+  // nube: subir otra vez todo lo del equipo pisaría con versiones viejas lo que otros cambiaron (y en un
+  // equipo con datos viejos los volvería a meter). Lo pendiente ya está en la cola y sube solo.
+  if (!(await getMeta<boolean>('nubeVinculada'))) await encolarTodo();
   await setMeta('nubeVinculada', true);
   await sincronizar();
 }
