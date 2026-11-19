@@ -14,8 +14,9 @@ const TOKEN = 'AbCdEfGhJkLmNpQrStUvWxYz23';
   let testimonio = null;
   let enviado = null;
   let respuesta = { ok: true };
+  let llevadas = 1;
   await ctx.route('**/rest/v1/rpc/portal_alumno', (r) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hoy: '2026-11-18', alumno: { nombre: 'Ana López Pérez', codigo: 'K7P2QX', foto: null }, academia: { nombre: 'Calo Latino Studio', color: '#d6304a', logo: null }, planes: [], clases: [], tienda: [], testimonio }) }),
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hoy: '2026-11-18', alumno: { nombre: 'Ana López Pérez', codigo: 'K7P2QX', foto: null }, academia: { nombre: 'Calo Latino Studio', color: '#d6304a', logo: null }, planes: [], clases: [], tienda: [], testimonio, logros: { total: llevadas, desde: '2026-10-01', semanas: [] } }) }),
   );
   await ctx.route('**/rest/v1/rpc/portal_testimonio', (r) => {
     enviado = JSON.parse(r.request().postData());
@@ -23,6 +24,11 @@ const TOKEN = 'AbCdEfGhJkLmNpQrStUvWxYz23';
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(respuesta) });
   });
   await page.goto(`http://localhost:4173/p/${TOKEN}`);
+  await page.getByText('Calo Latino Studio').first().waitFor();
+  await page.waitForTimeout(400);
+  console.log('0) a la primera clase todavía no se le pide su testimonio:', ok((await page.getByLabel('Tu testimonio').count()) === 0));
+  llevadas = 12;
+  await page.reload();
   const campo = page.getByLabel('Tu testimonio');
   await campo.waitFor();
   const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');

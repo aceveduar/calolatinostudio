@@ -10,7 +10,7 @@ import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
-import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, type DatosPortal } from '../../domain/portal';
+import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, puedeOpinar, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
 import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
 import { INSIGNIAS, insignias, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
@@ -316,7 +316,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
 
         {datos.invita && datos.academia.slug && <InvitaAmigo academia={datos.academia.nombre} slug={datos.academia.slug} invita={datos.invita} />}
 
-        {datos.testimonio !== undefined && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
+        {datos.testimonio !== undefined && puedeOpinar(datos) && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
 
         {/* Últimas clases */}
         {datos.clases.length > 0 && (
@@ -529,7 +529,7 @@ function ProximaClaseTarjeta({ horario, slug }: { horario: ClaseHorario[]; slug:
   const dias = semana(horario);
   if (!prox)
     return slug ? (
-      <a href={`/a/${slug}#horario`} className="flex items-center gap-3 rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <a href={`/a/${slug}#horarios`} className="flex items-center gap-3 rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
         <Clock size={22} className="text-brand-600" aria-hidden="true" />
         <span className="flex-1 font-semibold">Ver el horario de clases</span>
         <span aria-hidden="true" className="text-ink-300">›</span>

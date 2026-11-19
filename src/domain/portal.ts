@@ -80,3 +80,10 @@ export const ERRORES_TESTIMONIO: Record<string, string> = {
   corto: 'Escribe un poco más (al menos 10 letras).',
   muchos: 'Ya enviaste varios hoy. Inténtalo mañana.',
 };
+
+/**
+ * Clases que debe llevar antes de pedirle su testimonio: a la primera todavía no tiene qué contar, y un
+ * testimonio de alguien que ya viene seguido vale más. Si ya escribió uno, siempre ve en qué va.
+ */
+export const CLASES_PARA_TESTIMONIO = 4;
+export const puedeOpinar = (d: Pick<DatosPortal, 'logros' | 'testimonio'>) => !!d.testimonio || (d.logros?.total ?? 0) >= CLASES_PARA_TESTIMONIO;

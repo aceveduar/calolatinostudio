@@ -69,6 +69,19 @@ for (const [n, url, esperado] of [
   await ctx.close();
 }
 
+// 2b) enlace directo al horario (el del portal y los que se compartan): llega ahí, no a la portada
+for (const h of ['#horarios', '#horario']) {
+  const { ctx, page } = await nuevo();
+  await ctx.route('**/rest/v1/rpc/pagina_publica', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
+  await page.goto(`http://localhost:4173/a/calo-latino${h}`);
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.waitForTimeout(800);
+  const y = await page.evaluate(() => document.getElementById('horarios').getBoundingClientRect().top);
+  if (h === '#horarios') await page.screenshot({ path: `${OUT}enlace-horario.png` });
+  console.log(`2b) /a/calo-latino${h} baja directo al horario:`, ok(Math.abs(y) < 120), Math.round(y));
+  await ctx.close();
+}
+
 // 3) recepción ve quién lo invitó
 {
   const { page } = await nuevo();

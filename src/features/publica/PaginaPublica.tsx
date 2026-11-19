@@ -148,6 +148,15 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     };
   }, []);
 
+  // Al llegar con #horarios, #precios… (enlaces del portal o compartidos): la página se arma después de
+  // cargar los datos, así que el navegador no alcanza a bajar solo; se baja aquí, una vez.
+  useEffect(() => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id) return;
+    const t = setTimeout(() => document.getElementById(id === 'horario' ? 'horarios' : id)?.scrollIntoView({ block: 'start' }), 50);
+    return () => clearTimeout(t);
+  }, []);
+
   // tocar una clase del horario: queda elegida en el formulario
   const [claseSel, setClaseSel] = useState('');
   const apartar = (id: string) => {
