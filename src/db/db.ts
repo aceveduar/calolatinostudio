@@ -22,6 +22,7 @@ import type {
   Interesado,
   Sede,
   Usuario,
+  Testimonio,
 } from './types';
 
 /** Base de datos local (IndexedDB). La app siempre lee y escribe aquí primero. */
@@ -41,6 +42,7 @@ export class CompasDB extends Dexie {
   eventos!: EntityTable<Evento, 'id'>;
   boletos!: EntityTable<Boleto, 'id'>;
   interesados!: EntityTable<Interesado, 'id'>;
+  testimonios!: EntityTable<Testimonio, 'id'>;
   alumnos!: EntityTable<Alumno, 'id'>;
   membresias!: EntityTable<Membresia, 'id'>;
   pagos!: EntityTable<Pago, 'id'>;
@@ -145,6 +147,9 @@ export class CompasDB extends Dexie {
             else delete a.deuda;
           }),
       );
+
+    // v12: testimonios que los alumnos escriben desde su portal (por aprobar)
+    this.version(12).stores({ testimonios: 'id, academiaId, estado, alumnoId' });
 
     // `deuda` se mantiene sola en cada escritura (cobro, fiado, anulación o bajada de la nube)
     this.asistencias.hook('creating', (_id, a) => {

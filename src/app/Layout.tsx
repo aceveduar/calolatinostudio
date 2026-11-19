@@ -29,7 +29,7 @@ export function Layout() {
   const activa = pestanaActiva(usuario.rol, ruta);
   const c = useContadores();
   // globo en "Más" si hay algo que atender ahí
-  const pendientesMas = c.interesados + c.encargos;
+  const pendientesMas = c.interesados + c.encargos + c.testimonios;
   // timbre + aviso cuando llega un apartado, encargo o interesado nuevo (recepción y dirección)
   useAvisosEnVivo(usuario.rol !== 'maestro');
   return (

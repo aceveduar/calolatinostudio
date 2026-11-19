@@ -9,7 +9,7 @@ import { db, getMeta } from '../db/db';
 import { hashPin } from '../domain/acceso';
 import { PRINCIPAL } from '../domain/sedes';
 import { aFecha, sumarDias } from '../domain/fechas';
-import type { Alumno, Asistencia, Boleto, Clase, Corte, Disciplina, Evento, Gasto, GastoFijo, ID, Interesado, Maestro, Membresia, Pago, Pedido, Plan, Producto, Renta, Sede, SyncTable, Usuario } from '../db/types';
+import type { Alumno, Asistencia, Boleto, Clase, Corte, Disciplina, Evento, Gasto, GastoFijo, ID, Interesado, Maestro, Membresia, Pago, Pedido, Plan, Producto, Renta, Sede, SyncTable, Testimonio, Usuario } from '../db/types';
 
 const NOMBRES = ['Ana', 'Luis', 'María', 'José', 'Sofía', 'Carlos', 'Valeria', 'Miguel', 'Camila', 'Jorge', 'Daniela', 'Diego', 'Fernanda', 'Andrés', 'Mariana', 'Ricardo', 'Lucía', 'Alejandro', 'Paola', 'Fernando', 'Gabriela', 'Javier', 'Ximena', 'Raúl', 'Andrea', 'Eduardo', 'Natalia', 'Óscar', 'Regina', 'Héctor', 'Renata', 'Iván', 'Jimena', 'Pablo', 'Karla', 'Sergio', 'Itzel', 'Roberto', 'Montserrat', 'Emilio', 'Alejandra', 'Hugo', 'Brenda', 'Adrián', 'Daniel', 'Teresa', 'Rocío', 'Arturo', 'Silvia', 'Gustavo', 'Liliana', 'Mateo', 'Elena', 'Santiago', 'Patricia', 'Martín', 'Leticia', 'Julio', 'Carolina', 'Ernesto'];
 const APELLIDOS = ['López', 'García', 'Martínez', 'Hernández', 'González', 'Pérez', 'Rodríguez', 'Sánchez', 'Ramírez', 'Cruz', 'Flores', 'Gómez', 'Morales', 'Vázquez', 'Reyes', 'Jiménez', 'Torres', 'Díaz', 'Gutiérrez', 'Ruiz', 'Mendoza', 'Aguilar', 'Ortiz', 'Castillo', 'Moreno', 'Romero', 'Álvarez', 'Chávez', 'Rivera', 'Juárez', 'Domínguez', 'Herrera', 'Medina', 'Castro', 'Vargas', 'Guzmán', 'Velázquez', 'Ramos', 'Salazar', 'Soto'];
@@ -244,6 +244,14 @@ export async function academiaGrande(p: { alumnos?: number; meses?: number } = {
   for (let i = 0; i < 400; i++) {
     const t = ts(sumarDias(hoy, -entre(0, 120)), '21:00');
     agrega<Interesado>('interesados', { ...base(t), nombre: `${elige(NOMBRES)} ${elige(APELLIDOS)}`, telefono: `55${entre(10000000, 99999999)}`, claseId: r() < 0.8 ? elige(clases).id : null, mensaje: r() < 0.3 ? '¿Necesito ir con pareja?' : '', estado: elige(['nuevo', 'contactado', 'contactado', 'inscrito', 'descartado'] as const), contactadoAt: r() < 0.6 ? t + 86_400_000 : null, alumnoId: null });
+  }
+
+  // testimonios desde el portal (unos por revisar, otros ya revisados)
+  for (let i = 0; i < 40; i++) {
+    const a = alumnos[Math.floor(r() * N * 0.54)];
+    const t = ts(sumarDias(hoy, -entre(0, 90)), '22:00');
+    const estado = i < 12 ? 'pendiente' : i < 32 ? 'aprobado' : 'rechazado';
+    agrega<Testimonio>('testimonios', { ...base(t), alumnoId: a.id, texto: elige(['Llegué sin saber nada y ahora no me pierdo un social.', 'Los maestros tienen mucha paciencia, súper recomendado.', 'Mi momento favorito de la semana, el ambiente es increíble.', 'Bajé de peso y gané amigos. ¡Gracias!', 'Empecé con mi pareja y ahora bailamos en las fiestas familiares.']), estado, revisadoAt: estado === 'pendiente' ? null : t + 86_400_000, revisadoPor: estado === 'pendiente' ? null : dueno.id });
   }
 
   // guardar en el teléfono y dejar todo en la cola para subir

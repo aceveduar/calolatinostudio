@@ -299,6 +299,20 @@ create table if not exists interesados (
   server_updated_at timestamptz not null default clock_timestamp()
 );
 
+-- Testimonios que escriben los alumnos desde su portal. Nadie los ve en la página hasta que la academia
+-- los aprueba (entonces se copian a academias.pagina.testimonios, que es lo que muestra la página).
+create table if not exists testimonios (
+  id uuid primary key,
+  academia_id uuid not null references academias(id),
+  alumno_id uuid not null,
+  texto text not null check (length(texto) between 10 and 400),
+  estado text not null default 'pendiente' check (estado in ('pendiente','aprobado','rechazado')),
+  revisado_at bigint,
+  revisado_por uuid,
+  created_at bigint not null, updated_at bigint not null, deleted_at bigint,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
 -- Migraciones (seguras de re-ejecutar)
 alter table academias add column if not exists color text;
 alter table academias add column if not exists logo text;
@@ -366,7 +380,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados','testimonios'] loop
     execute format('drop trigger if exists trg_touch on %I', t);
     execute format('create trigger trg_touch before insert or update on %I for each row execute function tocar_server_updated_at()', t);
     execute format('create index if not exists %I on %I (%s, server_updated_at)', t || '_sync_idx', t,
@@ -395,7 +409,7 @@ create policy academia_miembros on academias for all
 do $$
 declare t text;
 begin
-  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
+  foreach t in array array['sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados','testimonios'] loop
     execute format('drop policy if exists acceso_miembros on %I', t);
     execute format('create policy acceso_miembros on %I for all '
                    'using (academia_id in (select m.academia_id from miembros m where m.user_id = (select auth.uid()))) '
@@ -413,6 +427,7 @@ create index if not exists pedidos_alumno_idx on pedidos (alumno_id);
 create index if not exists pedidos_producto_idx on pedidos (producto_id);
 create index if not exists boletos_evento_idx on boletos (evento_id);
 create index if not exists interesados_telefono_idx on interesados (academia_id, telefono, created_at);
+create index if not exists testimonios_alumno_idx on testimonios (alumno_id, created_at);
 
 -- ---------- alta de academia desde el teléfono ----------
 create or replace function vincular_academia(p_id uuid, p_nombre text) returns void
@@ -439,7 +454,7 @@ grant execute on function vincular_academia(uuid, text) to authenticated;
 do $$
 declare t text;
 begin
-  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados'] loop
+  foreach t in array array['academias','sedes','usuarios','disciplinas','maestros','clases','planes','productos','alumnos','membresias','pagos','asistencias','cortes','gastos_fijos','gastos','rentas','pedidos','eventos','boletos','interesados','testimonios'] loop
     execute format('revoke all on %I from anon', t);
     execute format('grant select, insert, update on %I to authenticated', t);
   end loop;
@@ -527,6 +542,9 @@ begin
                                           'sobre_pedido', coalesce(p.sobre_pedido, false), 'dias_entrega', p.dias_entrega) order by p.categoria, p.nombre)
       from productos p where p.academia_id = a.academia_id and p.en_linea and p.activo and p.deleted_at is null
     ), '[]'::jsonb),
+    -- su último testimonio (para que vea si ya lo publicaron)
+    'testimonio', (select jsonb_build_object('texto', t.texto, 'estado', t.estado) from testimonios t
+                   where t.alumno_id = a.id and t.deleted_at is null order by t.created_at desc limit 1),
     'pedidos', coalesce((
       select jsonb_agg(jsonb_build_object('producto', p.nombre, 'emoji', p.emoji, 'opcion', d.opcion, 'nota', d.nota, 'cantidad', d.cantidad, 'precio', d.precio,
                                           'anticipo', coalesce(d.anticipo, 0), 'estado', d.estado, 'creado', d.created_at) order by d.created_at desc)
@@ -694,6 +712,32 @@ end $$;
 revoke execute on function inscribir_interesado(text, text, text, uuid, text) from public;
 grant execute on function inscribir_interesado(text, text, text, uuid, text) to anon, authenticated;
 
+-- El alumno escribe su testimonio desde su portal. Queda pendiente hasta que la academia lo aprueba.
+-- Solo con su enlace secreto; 10 a 400 caracteres; si ya tenía uno pendiente se reemplaza (uno por alumno);
+-- máximo 3 envíos al día por alumno, para que nadie llene la bandeja.
+create or replace function portal_testimonio(p_token text, p_texto text) returns jsonb
+language plpgsql volatile security definer set search_path = public as $$
+declare
+  a alumnos;
+  txt text := left(regexp_replace(trim(coalesce(p_texto, '')), '\s+', ' ', 'g'), 400);
+  ahora bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+begin
+  if p_token is null or length(p_token) < 20 then return jsonb_build_object('error', 'enlace'); end if;
+  select * into a from alumnos where portal = p_token and deleted_at is null and activo;
+  if not found then return jsonb_build_object('error', 'enlace'); end if;
+  if length(txt) < 10 then return jsonb_build_object('error', 'corto'); end if;
+  if (select count(*) from testimonios where alumno_id = a.id and created_at > ahora - 86400000) >= 3 then
+    return jsonb_build_object('error', 'muchos');
+  end if;
+  update testimonios set deleted_at = ahora, updated_at = ahora where alumno_id = a.id and estado = 'pendiente' and deleted_at is null;
+  insert into testimonios (id, academia_id, alumno_id, texto, estado, created_at, updated_at)
+  values (gen_random_uuid(), a.academia_id, a.id, txt, 'pendiente', ahora, ahora);
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function portal_testimonio(text, text) from public;
+grant execute on function portal_testimonio(text, text) to anon, authenticated;
+
 -- El alumno pone (o quita) su foto desde su portal, para que en recepción lo reconozcan.
 -- Solo una imagen JPEG pequeña (la app la reduce a ~200 px); nada más se puede cambiar por aquí.
 create or replace function portal_foto(p_token text, p_foto text) returns jsonb
@@ -721,7 +765,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261121 $$;
+language sql immutable as $$ select 20261122 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

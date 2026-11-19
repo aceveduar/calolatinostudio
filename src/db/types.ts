@@ -232,6 +232,20 @@ export interface Interesado extends Base {
   alumnoId: ID | null;
 }
 
+export type EstadoTestimonio = 'pendiente' | 'aprobado' | 'rechazado';
+
+/**
+ * Lo que un alumno escribió desde su portal sobre la academia. Lo crea la base (función portal_testimonio),
+ * nunca un equipo; la academia solo lo aprueba (se copia a la página pública) o no.
+ */
+export interface Testimonio extends Base {
+  alumnoId: ID;
+  texto: string;
+  estado: EstadoTestimonio;
+  revisadoAt: number | null;
+  revisadoPor: ID | null;
+}
+
 export type EstadoPedido = 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado';
 
 /**
@@ -447,6 +461,7 @@ export interface TablaMap {
   eventos: Evento;
   boletos: Boleto;
   interesados: Interesado;
+  testimonios: Testimonio;
 }
 
 export type SyncTable = keyof TablaMap;
@@ -472,4 +487,5 @@ export const SYNC_TABLES: SyncTable[] = [
   'eventos',
   'boletos',
   'interesados',
+  'testimonios',
 ];

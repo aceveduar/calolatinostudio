@@ -10,6 +10,7 @@ const PantallaAjustes = lazy(() => import('./features/ajustes/PantallaAjustes').
 const FichaAlumno = lazy(() => import('./features/alumnos/FichaAlumno').then((m) => ({ default: m.FichaAlumno })));
 const PantallaAlumnos = lazy(() => import('./features/alumnos/PantallaAlumnos').then((m) => ({ default: m.PantallaAlumnos })));
 const PantallaListas = lazy(() => import('./features/alumnos/PantallaListas').then((m) => ({ default: m.PantallaListas })));
+const PantallaTestimonios = lazy(() => import('./features/testimonios/PantallaTestimonios').then((m) => ({ default: m.PantallaTestimonios })));
 const PantallaInteresados = lazy(() => import('./features/alumnos/PantallaInteresados').then((m) => ({ default: m.PantallaInteresados })));
 const PantallaCaja = lazy(() => import('./features/caja/PantallaCaja').then((m) => ({ default: m.PantallaCaja })));
 const PantallaReportes = lazy(() => import('./features/reportes/PantallaReportes').then((m) => ({ default: m.PantallaReportes })));
@@ -25,6 +26,7 @@ import { PantallaEntrada } from './features/entrada/PantallaEntrada';
 import { iniciarSync } from './sync/engine';
 
 const PRECARGAR = [
+  () => import('./features/testimonios/PantallaTestimonios'),
   () => import('./features/ajustes/PantallaAjustes'),
   () => import('./features/alumnos/FichaAlumno'),
   () => import('./features/alumnos/PantallaAlumnos'),
@@ -85,6 +87,7 @@ export default function App() {
                 <Route path="alumnos" element={<PantallaAlumnos />} />
                 <Route path="alumnos/listas" element={<PantallaListas />} />
                 <Route path="alumnos/interesados" element={<PantallaInteresados />} />
+                <Route path="alumnos/testimonios" element={<PantallaTestimonios />} />
                 <Route path="alumnos/:id" element={<FichaAlumno />} />
                 <Route path="caja" element={<PantallaCaja />} />
                 <Route path="agenda" element={<PantallaAgenda />} />

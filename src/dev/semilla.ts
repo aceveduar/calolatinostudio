@@ -857,5 +857,24 @@ export async function agregarWebDemo(): Promise<Record<string, unknown>> {
     }
   }
   r.pagosMaestros = pagosMaestros;
+
+  // testimonios escritos desde el portal: tres por revisar, uno publicado y uno no publicado.
+  // De alumnos que vinieron a clases de Profe Luis, para que también aparezcan en su vista.
+  if (!(await db.testimonios.count())) {
+    const luis = (await db.maestros.toArray()).find((m) => m.nombre === 'Profe Luis Herrera');
+    const suyas = new Set((await db.clases.toArray()).filter((c) => c.maestroId === luis?.id).map((c) => c.id));
+    const ids = [...new Set((await db.asistencias.toArray()).filter((a) => suyas.has(a.claseId) && a.alumnoId).map((a) => a.alumnoId!))].slice(0, 5);
+    const textos = [
+      'Llegué sin saber dar un paso y en dos meses ya bailo en los sociales. El ambiente es lo mejor.',
+      'Los maestros tienen mucha paciencia y te corrigen sin que te de pena. Ya vengo tres veces por semana.',
+      'Empecé por el estrés del trabajo y ahora es mi momento favorito de la semana.',
+      'Muy buena academia, aprendí muchísimo.',
+      'jaja hola',
+    ];
+    const estados = ['pendiente', 'pendiente', 'pendiente', 'aprobado', 'rechazado'] as const;
+    for (const [i, alumnoId] of ids.entries())
+      await guardar('testimonios', { id: crypto.randomUUID() as ID, academiaId: academia.id, createdAt: Date.now() - (i + 1) * 86_400_000, updatedAt: Date.now(), deletedAt: null, alumnoId, texto: textos[i], estado: estados[i], revisadoAt: estados[i] === 'pendiente' ? null : Date.now(), revisadoPor: null });
+    r.testimonios = ids.length;
+  }
   return r;
 }

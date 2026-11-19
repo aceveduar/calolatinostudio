@@ -27,6 +27,7 @@ import {
   Users,
   Wallet,
   WalletCards,
+  MessageSquareQuote,
   type LucideIcon,
 } from 'lucide-react';
 import type { Rol } from '../db/types';
@@ -41,7 +42,7 @@ export const GRUPOS: { id: Grupo; titulo: string }[] = [
 ];
 
 /** Contadores que la pantalla "Más" sabe calcular (ver PantallaMas). */
-export type Contador = 'interesados' | 'encargos' | 'pendientes';
+export type Contador = 'interesados' | 'encargos' | 'pendientes' | 'testimonios';
 
 export interface Modulo {
   id: string;
@@ -74,6 +75,7 @@ export const MODULOS: Modulo[] = [
   { id: 'gastos', titulo: 'Gastos y utilidad', ayuda: 'Renta, luz y lo que queda', icono: WalletCards, ruta: '/reportes/gastos', para: ['dueno'], grupo: 'negocio' },
   // ---------- alumnos y ventas ----------
   { id: 'interesados', titulo: 'Interesados', ayuda: 'Quien se inscribió en la página', icono: Megaphone, ruta: '/alumnos/interesados', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'interesados' },
+  { id: 'testimonios', titulo: 'Testimonios', ayuda: 'Lo que escriben los alumnos', icono: MessageSquareQuote, ruta: '/alumnos/testimonios', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'testimonios' },
   { id: 'listas', titulo: 'Listas del mes', ayuda: 'Quién vino y quién debe', icono: ClipboardList, ruta: '/alumnos/listas', para: ['dueno', 'recepcion'], grupo: 'alumnos' },
   { id: 'encargos', titulo: 'Encargos', ayuda: 'Pedidos al proveedor', icono: Truck, ruta: '/encargos', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'encargos' },
   { id: 'pagina', titulo: 'Página pública', ayuda: 'Para compartir en Facebook', icono: Globe, ruta: '/ajustes/pagina', para: ['dueno'], grupo: 'alumnos' },

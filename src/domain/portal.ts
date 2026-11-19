@@ -55,6 +55,8 @@ export interface DatosPortal {
   /** clases a las que va (base 20261120+; puede faltar en datos guardados por una versión anterior) */
   horario?: ClaseHorario[];
   logros?: { total: number; desde: string | null; semanas: string[] };
+  /** su último testimonio (base 20261122+) */
+  testimonio?: { texto: string; estado: 'pendiente' | 'aprobado' | 'rechazado' } | null;
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];
   tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null; sobre_pedido?: boolean; dias_entrega?: number | null }[];
@@ -68,4 +70,11 @@ export const ERRORES_PEDIDO: Record<string, string> = {
   opcion: 'Elige una talla o color.',
   muchos: 'Ya tienes 5 apartados por recoger. Recógelos en recepción para apartar más.',
   agotado: 'Ya no hay suficientes piezas.',
+};
+
+/** Mensajes para el portal según lo que responda la base. */
+export const ERRORES_TESTIMONIO: Record<string, string> = {
+  enlace: 'Este enlace ya no funciona. Pide uno nuevo en recepción.',
+  corto: 'Escribe un poco más (al menos 10 letras).',
+  muchos: 'Ya enviaste varios hoy. Inténtalo mañana.',
 };

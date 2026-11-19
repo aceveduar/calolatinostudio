@@ -10,7 +10,8 @@ import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
-import { ERRORES_PEDIDO, type DatosPortal } from '../../domain/portal';
+import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, type DatosPortal } from '../../domain/portal';
+import { nombrePublico } from '../../domain/nombres';
 import { INSIGNIAS, insignias, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
 import { waLink } from '../../domain/reportes';
 
@@ -311,6 +312,8 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         </div>
 
         {datos.logros && datos.logros.total > 0 && <Logros total={datos.logros.total} desde={datos.logros.desde} semanas={datos.logros.semanas} hoy={hoy} />}
+
+        {datos.testimonio !== undefined && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
 
         {/* Últimas clases */}
         {datos.clases.length > 0 && (
@@ -647,5 +650,86 @@ function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | nul
         </button>
       </div>
     </dialog>
+  );
+}
+
+/**
+ * "Cuéntanos tu experiencia": el alumno escribe su testimonio. Se revisa antes de publicarse y en la página
+ * aparece solo con su nombre de pila e inicial. Si ya mandó uno, ve si está en revisión o publicado.
+ */
+function TuTestimonio({ token, nombre, academia, actual, sinConexion, onListo }: { token: string; nombre: string; academia: string; actual: DatosPortal['testimonio']; sinConexion: boolean; onListo: () => void }) {
+  const [texto, setTexto] = useState('');
+  const [escribiendo, setEscribiendo] = useState(false);
+  const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviado'>('listo');
+  const [error, setError] = useState('');
+  const MAX = 400;
+  const enviar = async () => {
+    if (!supabase) return;
+    setEstado('enviando');
+    setError('');
+    const { data, error: e } = await supabase.rpc('portal_testimonio', { p_token: token, p_texto: texto });
+    if (e || data?.error) {
+      setError(ERRORES_TESTIMONIO[data?.error] ?? 'No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.');
+      setEstado('listo');
+      return;
+    }
+    setEstado('enviado');
+    setEscribiendo(false);
+    onListo();
+  };
+  const formulario = escribiendo || (!actual && estado !== 'enviado');
+  return (
+    <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <MessageCircle size={14} aria-hidden="true" /> Tu experiencia
+      </p>
+      {formulario ? (
+        <>
+          <p className="mt-2 font-semibold">¿Qué te ha dejado bailar en {academia}?</p>
+          <p className="text-sm text-ink-500">Si quieres, cuéntalo: ayuda a que más gente se anime a empezar.</p>
+          <label className="sr-only" htmlFor="testimonio">Tu testimonio</label>
+          <textarea
+            id="testimonio"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value.slice(0, MAX))}
+            rows={4}
+            placeholder="Ej. Llegué sin saber nada y ahora bailo cada semana…"
+            disabled={sinConexion}
+            className="mt-3 w-full resize-none rounded-2xl bg-ink-50 p-3 text-[15px] ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <div className="mt-1 flex justify-between gap-3 text-xs text-ink-500">
+            <span>
+              Lo revisamos antes de publicarlo. En la página aparece como <b className="text-ink-700">{nombrePublico(nombre)}</b>.
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {texto.length}/{MAX}
+            </span>
+          </div>
+          {error && (
+            <p role="alert" className="mt-2 text-sm font-semibold text-bad-600">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void enviar()}
+            disabled={sinConexion || estado === 'enviando' || texto.trim().length < 10}
+            className="mt-3 h-12 w-full rounded-2xl bg-brand-500 font-bold text-white active:scale-[0.98] disabled:bg-ink-100 disabled:text-ink-500"
+          >
+            {estado === 'enviando' ? 'Enviando…' : 'Enviar'}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 font-semibold">
+            {actual?.estado === 'aprobado' ? '¡Tu testimonio está en nuestra página! Gracias 💛' : estado === 'enviado' || actual?.estado === 'pendiente' ? '¡Gracias! Lo estamos revisando.' : 'Gracias por escribirnos.'}
+          </p>
+          {actual && <p className="mt-2 rounded-2xl bg-ink-50 p-3 text-sm text-ink-700">“{actual.texto}”</p>}
+          <button type="button" onClick={() => setEscribiendo(true)} className="mt-2 min-h-10 rounded-lg px-1 text-sm font-semibold text-brand-600 active:bg-ink-50">
+            Escribir otro
+          </button>
+        </>
+      )}
+    </div>
   );
 }

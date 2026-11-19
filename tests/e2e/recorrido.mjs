@@ -14,8 +14,8 @@ const SOLO = process.env.RECORRIDO; // p. ej. RECORRIDO=m-claro para una sola co
 const GRANDE = !!process.env.GRANDE; // GRANDE=1: con la academia de 5,000 alumnos (src/dev/grande.ts)
 
 const PANTALLAS = {
-  dueno: ['/', '/alumnos', '/caja', '/reportes', '/mas', '/pendientes', '/agenda', '/agenda/eventos', '/reportes/gastos', '/alumnos/interesados', '/alumnos/listas', '/encargos', '/ajustes/pagina', '/ajustes/clases', '/ajustes/planes', '/ajustes/productos', '/ajustes/maestros', '/ajustes/sedes', '/ajustes/disciplinas', '/ajustes/usuarios', '/ajustes/mensajes', '/ajustes/academia', '/ajustes/nube', 'ficha'],
-  recepcion: ['/', '/alumnos', '/caja', '/agenda', '/mas', '/pendientes'],
+  dueno: ['/', '/alumnos', '/caja', '/reportes', '/mas', '/pendientes', '/agenda', '/agenda/eventos', '/reportes/gastos', '/alumnos/interesados', '/alumnos/testimonios', '/alumnos/listas', '/encargos', '/ajustes/pagina', '/ajustes/clases', '/ajustes/planes', '/ajustes/productos', '/ajustes/maestros', '/ajustes/sedes', '/ajustes/disciplinas', '/ajustes/usuarios', '/ajustes/mensajes', '/ajustes/academia', '/ajustes/nube', 'ficha'],
+  recepcion: ['/', '/alumnos', '/caja', '/agenda', '/mas', '/pendientes', '/alumnos/testimonios'],
   maestro: ['/'],
 };
 const QUIEN = { dueno: ['Dirección Calo', '1234'], recepcion: ['Monse', '1111'], maestro: ['Profe Luis Herrera', '5555'] };

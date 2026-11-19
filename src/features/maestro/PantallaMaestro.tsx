@@ -9,6 +9,7 @@ import type { Clase, ID } from '../../db/types';
 import { claseSugerida, clasesDelDia } from '../../domain/clases';
 import { DIAS_CORTOS, aFecha, fechaLarga, horaDe, hoy } from '../../domain/fechas';
 import { sincronizar, useEstadoSync } from '../../sync/engine';
+import { TarjetaTestimonio } from '../testimonios/TarjetaTestimonio';
 
 /**
  * Modo maestro: solo sus clases. Quién llegó (en vivo), quién viene por primera vez,
@@ -67,7 +68,31 @@ export function PantallaMaestro() {
       {clase ? <MiClase clase={clase} /> : <ProximaClase mias={mias} />}
 
       <MisNumeros mias={mias} />
+      <TestimoniosDeMisAlumnos mias={mias} />
     </div>
+  );
+}
+
+/** Testimonios por revisar de alumnos que vinieron a sus clases en los últimos 60 días (puede publicarlos). */
+function TestimoniosDeMisAlumnos({ mias }: { mias: Clase[] }) {
+  const datos = useLiveQuery(async () => {
+    const pendientes = (await db.testimonios.where('estado').equals('pendiente').toArray()).filter((t) => !t.deletedAt);
+    if (!pendientes.length) return [];
+    const ids = new Set(mias.map((c) => c.id));
+    const suyos = new Set((await db.asistencias.where('fecha').aboveOrEqual(aFecha(new Date(Date.now() - 60 * 86_400_000))).toArray()).filter((a) => ids.has(a.claseId) && a.alumnoId).map((a) => a.alumnoId!));
+    const mios = pendientes.filter((t) => suyos.has(t.alumnoId));
+    const alumnos = await db.alumnos.bulkGet(mios.map((t) => t.alumnoId));
+    return mios.map((t, i) => ({ t, alumno: alumnos[i] }));
+  }, [mias]);
+  if (!datos?.length) return null;
+  return (
+    <Seccion titulo={`Testimonios de tus alumnos · ${datos.length}`}>
+      <div className="space-y-3">
+        {datos.map(({ t, alumno }) => (
+          <TarjetaTestimonio key={t.id} t={t} alumno={alumno} conFicha={false} />
+        ))}
+      </div>
+    </Seccion>
   );
 }
 
