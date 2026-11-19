@@ -13,16 +13,52 @@ export interface Respaldo {
   datos: Partial<Record<SyncTable, Record<string, unknown>[]>>;
 }
 
-export async function exportarRespaldo(): Promise<Blob> {
-  const datos: Respaldo['datos'] = {};
-  for (const t of SYNC_TABLES) datos[t] = await db.table(t).toArray();
-  return new Blob([JSON.stringify({ version: 1, exportado: new Date().toISOString(), datos } satisfies Respaldo, null, 1)], { type: 'application/json' });
+/** Campos que solo existen en el teléfono (índices calculados): no van en el respaldo. */
+const SOLO_LOCALES = ['deuda'];
+const POR_BLOQUE = 2000;
+
+/**
+ * El respaldo, comprimido (gzip) cuando el navegador puede: con miles de alumnos el JSON pesaba ~90 MB
+ * (no se podía mandar por WhatsApp ni correo) y comprimido queda en unos MB.
+ * Se arma por bloques para no tener toda la academia en memoria a la vez (celulares económicos).
+ */
+export async function exportarRespaldo(): Promise<{ archivo: Blob; extension: 'json' | 'json.gz' }> {
+  const partes: string[] = [`{"version":1,"exportado":${JSON.stringify(new Date().toISOString())},"datos":{`];
+  for (const [i, t] of SYNC_TABLES.entries()) {
+    partes.push(`${i ? ',' : ''}${JSON.stringify(t)}:[`);
+    let ultimo: ID | null = null;
+    let primero = true;
+    for (;;) {
+      const bloque = (await (ultimo === null ? db.table(t).orderBy(':id') : db.table(t).where(':id').above(ultimo)).limit(POR_BLOQUE).toArray()) as Record<string, unknown>[];
+      if (!bloque.length) break;
+      for (const f of bloque) for (const k of SOLO_LOCALES) delete f[k];
+      partes.push((primero ? '' : ',') + bloque.map((f) => JSON.stringify(f)).join(','));
+      primero = false;
+      ultimo = bloque[bloque.length - 1].id as ID;
+      if (bloque.length < POR_BLOQUE) break;
+    }
+    partes.push(']');
+  }
+  partes.push('}}');
+  const json = new Blob(partes, { type: 'application/json' });
+  if (typeof CompressionStream === 'undefined') return { archivo: json, extension: 'json' };
+  const gz = await new Response(json.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+  return { archivo: new Blob([gz], { type: 'application/gzip' }), extension: 'json.gz' };
+}
+
+/** Lee el archivo, comprimido o no (los respaldos anteriores no venían comprimidos). */
+async function textoDe(archivo: File): Promise<string> {
+  const inicio = new Uint8Array(await archivo.slice(0, 2).arrayBuffer());
+  const esGzip = inicio[0] === 0x1f && inicio[1] === 0x8b;
+  if (!esGzip) return archivo.text();
+  if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador no puede abrir respaldos comprimidos. Usa Chrome, Edge o Safari actualizado.');
+  return new Response(archivo.stream().pipeThrough(new DecompressionStream('gzip'))).text();
 }
 
 export async function leerRespaldo(archivo: File): Promise<{ respaldo: Respaldo; academia: Academia; registros: number }> {
   let respaldo: Respaldo;
   try {
-    respaldo = JSON.parse(await archivo.text());
+    respaldo = JSON.parse(await textoDe(archivo));
   } catch {
     throw new Error('El archivo no es un respaldo de Compás.');
   }

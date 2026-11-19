@@ -7,20 +7,24 @@ import { exportarRespaldo, leerRespaldo, restaurarRespaldo, type Respaldo } from
 
 /** Descarga un archivo con todos los datos de la academia. `onDescargado` sirve para habilitar acciones que lo exigen. */
 export function RespaldoLocal({ onDescargado }: { onDescargado?: () => void }) {
+  const [preparando, setPreparando] = useState(false);
   return (
     <Boton
       bloque
       variante="secundario"
+      disabled={preparando}
       onClick={async () => {
+        setPreparando(true);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(await exportarRespaldo());
-        a.download = `compas-respaldo-${hoy()}.json`;
+        const { archivo, extension } = await exportarRespaldo().finally(() => setPreparando(false));
+        a.href = URL.createObjectURL(archivo);
+        a.download = `compas-respaldo-${hoy()}.${extension}`;
         a.click();
         URL.revokeObjectURL(a.href);
         onDescargado?.();
       }}
     >
-      <Download size={18} /> Descargar respaldo
+      <Download size={18} /> {preparando ? 'Preparando respaldo…' : 'Descargar respaldo'}
     </Boton>
   );
 }
@@ -38,7 +42,7 @@ export function RestaurarRespaldo({ onRestaurado }: { onRestaurado?: () => void 
       <input
         ref={input}
         type="file"
-        accept="application/json,.json"
+        accept="application/json,.json,.gz,application/gzip"
         className="hidden"
         onChange={async (e) => {
           const f = e.target.files?.[0];
