@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag, MapPin, Globe } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag, MapPin, Globe, LifeBuoy } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Encabezado, Entrada, Tarjeta } from '../../components/ui';
@@ -19,6 +19,7 @@ import { EditorUsuarios } from './EditorUsuarios';
 import { PanelNube } from './PanelNube';
 import { EditorMensajes } from './EditorMensajes';
 import { EditorPagina } from './EditorPagina';
+import { AyudaErrores } from './AyudaErrores';
 
 const SECCIONES = {
   sedes: { titulo: 'Sedes', icono: MapPin, comp: EditorSedes },
@@ -32,6 +33,7 @@ const SECCIONES = {
   mensajes: { titulo: 'Mensajes de WhatsApp', icono: MessageCircle, comp: EditorMensajes },
   pagina: { titulo: 'Página pública e inscripciones', icono: Globe, comp: EditorPagina },
   nube: { titulo: 'Nube y respaldo', icono: Cloud, comp: PanelNube },
+  ayuda: { titulo: 'Ayuda y errores', icono: LifeBuoy, comp: AyudaErrores },
 } as const;
 type Clave = keyof typeof SECCIONES;
 
@@ -40,7 +42,7 @@ export function PantallaAjustes() {
   const { esDueno, bloquear, usuario } = useSesion();
   const nav = useNavigate();
 
-  const visibles: Clave[] = esDueno ? ['sedes', 'clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'pagina', 'nube'] : ['nube'];
+  const visibles: Clave[] = esDueno ? ['sedes', 'clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'pagina', 'nube', 'ayuda'] : ['nube', 'ayuda'];
   // Permiso por sección: también si se llega por enlace directo
   if (seccion && !visibles.includes(seccion as Clave)) return <Navigate to="/ajustes" replace />;
 

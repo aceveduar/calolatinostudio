@@ -8,6 +8,11 @@ import { db } from './db/db';
 import { BORRAR_AL_INICIAR } from './sync/engine';
 import { hayActualizacion } from './app/actualizacion';
 import { Tropiezo } from './components/Tropiezo';
+import { anotarError } from './app/errores';
+
+// Errores inesperados fuera de una pantalla (promesas sin atender, scripts): también se anotan para soporte
+addEventListener('error', (e) => anotarError(e.error ?? e.message, `${location.pathname} (error)`));
+addEventListener('unhandledrejection', (e) => anotarError(e.reason, `${location.pathname} (promesa)`));
 
 // Versión nueva: se avisa y se aplica sin interrumpir un cobro (ver app/actualizacion.ts)
 const actualizarSW = registerSW({

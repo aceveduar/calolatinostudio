@@ -6,25 +6,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-const CLAVE = 'compas:errores';
-
-export function anotarError(e: unknown, donde: string) {
-  try {
-    const previos = JSON.parse(localStorage.getItem(CLAVE) ?? '[]') as unknown[];
-    const nuevo = { at: new Date().toISOString(), donde, mensaje: e instanceof Error ? e.message : String(e), pila: e instanceof Error ? e.stack?.split('\n').slice(0, 6).join('\n') : undefined };
-    localStorage.setItem(CLAVE, JSON.stringify([nuevo, ...previos].slice(0, 10)));
-  } catch {
-    /* sin almacenamiento: no importa */
-  }
-}
-
-export function erroresRecientes(): { at: string; donde: string; mensaje: string }[] {
-  try {
-    return JSON.parse(localStorage.getItem(CLAVE) ?? '[]');
-  } catch {
-    return [];
-  }
-}
+export { anotarError, erroresRecientes } from '../app/errores';
+import { anotarError } from '../app/errores';
 
 interface Props {
   children: ReactNode;

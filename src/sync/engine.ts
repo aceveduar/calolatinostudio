@@ -13,6 +13,7 @@ import { db, getMeta, setMeta } from '../db/db';
 import { SYNC_TABLES, type ID, type SyncTable } from '../db/types';
 import { alCambiarLocal } from './bus';
 import { supabase } from './supabase';
+import { anotarError } from '../app/errores';
 import { avisoEsquema } from './esquema';
 import { planearSubida, soloCampos } from './subida';
 
@@ -269,6 +270,7 @@ export async function sincronizar(): Promise<void> {
       const atrasada = await revisarEsquema();
       setEstado({ fase: 'al-dia', ultimo: Date.now(), error: falta.length ? `Actualiza la base de datos: falta ${falta.join(', ')} (corre supabase/schema.sql)` : atrasada });
     } catch (e) {
+      if (navigator.onLine) anotarError(e, 'sincronización');
       setEstado({ fase: navigator.onLine ? 'error' : 'sin-red', error: e instanceof Error ? e.message : String(e) });
     } finally {
       corriendo = null;

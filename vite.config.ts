@@ -6,7 +6,8 @@ import pkg from './package.json';
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    // versión + compilación (en Cloudflare, el commit; en local, la fecha): así un reporte dice qué versión tiene el teléfono
+    __APP_VERSION__: JSON.stringify(`${pkg.version} · ${process.env.CF_PAGES_COMMIT_SHA?.slice(0, 7) ?? new Date().toISOString().slice(0, 16).replace('T', ' ')}`),
   },
   plugins: [
     react(),
