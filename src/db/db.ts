@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie';
+import Dexie, { type EntityTable, type Transaction } from 'dexie';
 import type {
   Academia,
   Alumno,
@@ -157,6 +157,26 @@ export class CompasDB extends Dexie {
       else delete a.deuda;
     });
     this.asistencias.hook('updating', (cambios, _id, a) => (esDeuda({ ...a, ...(cambios as Partial<Asistencia>) }) ? { deuda: 1 } : { deuda: undefined }));
+
+    // Resúmenes por mes de Reportes (app/resumenMeses.ts): si cambia un pago o una asistencia de un mes,
+    // ese mes se borra al terminar la escritura y se recalcula la próxima vez. Uno por transacción, no por fila.
+    const porTx = new WeakMap<Transaction, Set<string>>();
+    const marcar = (tx: Transaction, ...fechas: (string | undefined)[]) => {
+      let meses = porTx.get(tx);
+      if (!meses) {
+        const m = new Set<string>();
+        porTx.set(tx, (meses = m));
+        // fuera de la transacción que terminó (si no, Dexie intenta usarla y la escritura no ocurre)
+        tx.on('complete', () => void Dexie.ignoreTransaction(() => this.meta.bulkDelete([...m].map((x) => `resumenMes:${x}`))).catch(() => {}));
+      }
+      for (const f of fechas) if (f) meses.add(f.slice(0, 7));
+    };
+    for (const t of [this.pagos, this.asistencias] as const) {
+      const tabla = t as unknown as Dexie.Table<{ fecha: string }, string>;
+      tabla.hook('creating', (_id, o, tx) => marcar(tx, o.fecha));
+      tabla.hook('updating', (cambios, _id, o, tx) => marcar(tx, o.fecha, (cambios as { fecha?: string }).fecha));
+      tabla.hook('deleting', (_id, o, tx) => marcar(tx, o?.fecha));
+    }
   }
 }
 

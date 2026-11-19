@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowDownRight, ArrowUpRight, CalendarClock, ChevronRight, GraduationCap, HeartCrack, MessageCircle, Wallet } from 'lucide-react';
@@ -41,8 +41,10 @@ export function PantallaReportes() {
   // con useMemo: si se crearan en cada redibujo, el cálculo pesado de abajo (que depende de ellos) se repetiría siempre
   const { actual, anterior } = useMemo(() => periodos(rango, dia), [rango, dia]);
 
+  // Solo lo que se muestra: el periodo y el anterior para comparar (7+7 o 30+30 días). Antes se leían 90 días
+  // siempre; con miles de alumnos eso era lo que tardaba en un Android. "Dejaron de venir" va aparte (abajo).
   const datos = useLiveQuery(async () => {
-    const desde = sumarDias(dia, -90);
+    const desde = anterior.desde;
     const [pagos, asis, mems, alumnos] = await Promise.all([
       db.pagos.where('fecha').aboveOrEqual(desde).toArray(),
       db.asistencias.where('fecha').aboveOrEqual(desde).toArray(),
@@ -50,7 +52,24 @@ export function PantallaReportes() {
       db.alumnos.toArray(),
     ]);
     return { pagos, asis, mems, alumnos };
-  }, [dia]);
+  }, [dia, anterior.desde]);
+
+  // Dejaron de venir: necesita ~10 semanas de entradas. Se calcula un momento después de mostrar lo principal.
+  const [perdidos, setPerdidos] = useState<ReturnType<typeof dejaronDeVenir> | null>(null);
+  useEffect(() => {
+    if (!datos) return;
+    let vivo = true;
+    const t = setTimeout(async () => {
+      const asis = await db.asistencias.where('fecha').aboveOrEqual(sumarDias(dia, -70)).toArray();
+      const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
+      const asisS = verSede === 'todas' ? asis : asis.filter((a) => claveSede(sedeDeClase.get(a.claseId)) === verSede);
+      if (vivo) setPerdidos(dejaronDeVenir(asisS, new Map(datos.alumnos.map((a) => [a.id, a])), dia));
+    }, 350);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [datos, dia, verSede, clases]);
 
   const r = useMemo(() => {
     if (!datos) return null;
@@ -88,7 +107,6 @@ export function PantallaReportes() {
       vencen: vencenPronto(datos.mems.filter((m) => !esBeca(planes.find((p) => p.id === m.planId))), porId, dia),
       becas: planes.some(esBeca) ? resumenBecas({ desde: actual.desde, hasta: actual.hasta, hoy: dia, planes, mems: datos.mems.filter((m) => verSede === 'todas' || sirveEn(m.sedeId, verSede === PRINCIPAL ? null : verSede)), asis: asisS, clases }) : null,
       porId,
-      perdidos: dejaronDeVenir(asisS, porId, dia),
     };
   }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes, planes]);
 
@@ -300,14 +318,16 @@ export function PantallaReportes() {
           )}
         </Seccion>
 
-        <Seccion titulo={`Dejaron de venir · ${r.perdidos.length}`}>
-          {r.perdidos.length === 0 ? (
+        <Seccion titulo={`Dejaron de venir${perdidos ? ` · ${perdidos.length}` : ''}`}>
+          {!perdidos ? (
+            <Tarjeta className="p-4 text-sm text-ink-500">Revisando quién dejó de venir…</Tarjeta>
+          ) : perdidos.length === 0 ? (
             <Tarjeta>
               <Vacio icono={<HeartCrack size={32} />} titulo="Nadie ha dejado de venir" texto="Aquí aparecen quienes venían seguido y llevan 2 semanas sin venir." />
             </Tarjeta>
           ) : (
             <Tarjeta className="divide-y divide-ink-100">
-              {(todosPerdidos ? r.perdidos : r.perdidos.slice(0, 5)).map(({ alumno, ultima, veces }) => (
+              {(todosPerdidos ? perdidos : perdidos.slice(0, 5)).map(({ alumno, ultima, veces }) => (
                 <FilaContacto
                   key={alumno.id}
                   alumnoId={alumno.id}
@@ -316,7 +336,7 @@ export function PantallaReportes() {
                   wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'extrañamos'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre }))}
                 />
               ))}
-              {r.perdidos.length > 5 && <VerMas abierto={todosPerdidos} total={r.perdidos.length} onClick={() => setTodosPerdidos(!todosPerdidos)} />}
+              {perdidos.length > 5 && <VerMas abierto={todosPerdidos} total={perdidos.length} onClick={() => setTodosPerdidos(!todosPerdidos)} />}
             </Tarjeta>
           )}
         </Seccion>

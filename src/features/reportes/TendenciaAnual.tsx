@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useClases } from '../../app/datos';
 import { Seccion, Tarjeta } from '../../components/ui';
-import { db } from '../../db/db';
+import { resumenMes } from '../../app/resumenMeses';
 import { dinero } from '../../domain/dinero';
 import { hoy } from '../../domain/fechas';
-import { mesDe, nombreMes, rangoMes, sumarMes } from '../../domain/gastos';
-import { claveSede } from '../../domain/sedes';
+import { mesDe, nombreMes, sumarMes } from '../../domain/gastos';
 
 /**
  * Los últimos 12 meses: cuánto entró y cuántos alumnos distintos vinieron (la "matrícula").
@@ -15,27 +14,25 @@ export function TendenciaAnual({ verSede }: { verSede: string }) {
   const clases = useClases();
   const actual = mesDe(hoy());
   const [filas, setFilas] = useState<{ mes: string; ingresos: number; alumnos: number }[] | null>(null);
-  // Se calcula una vez al abrir (no "en vivo": un año de cobros y entradas se volvía a leer con cada cobro)
-  // y un momento después de que aparece lo principal de Reportes, para no frenarlo.
+  // Meses cerrados: su resumen guardado (app/resumenMeses.ts); solo el mes en curso se calcula al momento.
+  // Antes se leía el año entero (todas las entradas y cobros) en cada visita, y en un Android congelaba Reportes.
+  // Mes por mes y un momento después de que aparece lo principal, para no frenarlo.
   useEffect(() => {
     let vivo = true;
     const t = setTimeout(async () => {
       const meses = Array.from({ length: 12 }, (_, i) => sumarMes(actual, i - 11));
-      const desde = rangoMes(meses[0]).desde;
-      const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
-      const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
-      const [pagos, asis] = await Promise.all([db.pagos.where('fecha').aboveOrEqual(desde).toArray(), db.asistencias.where('fecha').aboveOrEqual(desde).toArray()]);
-      // una sola pasada, agrupando por mes
-      const ingresos = new Map<string, number>();
-      for (const p of pagos) if (!p.anuladoAt && !p.deletedAt && enSede(p.sedeId)) ingresos.set(p.fecha.slice(0, 7), (ingresos.get(p.fecha.slice(0, 7)) ?? 0) + p.monto);
-      const alumnos = new Map<string, Set<string>>();
-      for (const a of asis) {
-        if (!a.alumnoId || a.anuladaAt || a.deletedAt || !enSede(sedeDeClase.get(a.claseId))) continue;
-        const m = a.fecha.slice(0, 7);
-        (alumnos.get(m) ?? alumnos.set(m, new Set()).get(m)!).add(a.alumnoId);
+      const res = [];
+      for (const mes of meses) {
+        if (!vivo) return;
+        const r = await resumenMes(mes, actual, clases);
+        res.push({
+          mes,
+          ingresos: verSede === 'todas' ? Object.values(r.ingresos).reduce((x, y) => x + y, 0) : (r.ingresos[verSede] ?? 0),
+          alumnos: verSede === 'todas' ? r.alumnosTodas : (r.alumnos[verSede] ?? 0),
+        });
       }
-      if (vivo) setFilas(meses.map((mes) => ({ mes, ingresos: ingresos.get(mes) ?? 0, alumnos: alumnos.get(mes)?.size ?? 0 })));
-    }, 600);
+      if (vivo) setFilas(res);
+    }, 400);
     return () => {
       vivo = false;
       clearTimeout(t);
