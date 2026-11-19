@@ -8,6 +8,7 @@ import { Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, LockKe
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
+import { HojaTicket } from '../features/alumnos/HojaTicket';
 import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
 import { useHoy } from './reloj';
 import { Avatar, cx } from '../components/ui';
@@ -51,6 +52,8 @@ export function Layout() {
           </div>
         </main>
       </div>
+      {/* ticket de compra: se abre desde el aviso después de cobrar un plan */}
+      <HojaTicket />
       <nav className={cx('fixed inset-x-0 bottom-0 z-30 border-t border-ink-100 bg-superficie/95 pb-safe backdrop-blur lg:hidden', tabs.length < 2 && 'hidden')}>
         <div className="mx-auto grid max-w-2xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((m) => {

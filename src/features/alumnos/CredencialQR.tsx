@@ -7,6 +7,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton } from '../../components/ui';
 import type { Academia, Alumno } from '../../db/types';
 import { contenidoQR } from '../../domain/qr';
+import { cargarImagen, descargarArchivo, enviarImagen, puedeCompartirImagen as puedeCompartir } from '../../app/compartirImagen';
 
 /** Credencial con QR: se muestra en pantalla y se comparte como imagen (WhatsApp, guardar, imprimir). */
 export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: Academia }) {
@@ -23,33 +24,14 @@ export function CredencialQR({ alumno, academia }: { alumno: Alumno; academia: A
     const blob = await credencialPNG(alumno, academia);
     return new File([blob], `credencial-${alumno.nombre.replace(/\s+/g, '-').toLowerCase()}.png`, { type: 'image/png' });
   };
-  const descargar = (f: File) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(f);
-    a.download = f.name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-  // Menú de compartir solo en pantallas táctiles (celular/tablet); en PC es más directo descargar y abrir el chat
-  const tactil = window.matchMedia('(pointer: coarse)').matches;
-  const puedeCompartirImagen = tactil && typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] });
+  const descargar = descargarArchivo;
+  const puedeCompartirImagen = puedeCompartir();
 
   /** Celular: menú de compartir con la imagen adjunta. PC: descarga la imagen y abre el chat del alumno. */
   const enviar = async () => {
-    const f = await archivo();
-    if (puedeCompartirImagen) {
-      try {
-        await navigator.share({ files: [f], text: texto });
-      } catch {
-        /* canceló */
-      }
-      return;
-    }
-    descargar(f);
-    if (wa) {
-      window.open(wa, '_blank', 'noopener');
-      avisar('Imagen descargada: adjúntala en el chat de WhatsApp');
-    } else avisar('Credencial descargada');
+    const r = await enviarImagen(await archivo(), texto, alumno.telefono);
+    if (r === 'descargada-y-chat') avisar('Imagen descargada: adjúntala en el chat de WhatsApp');
+    else if (r === 'descargada') avisar('Credencial descargada');
   };
 
   return (
@@ -131,13 +113,4 @@ async function credencialPNG(alumno: Alumno, academia: Academia): Promise<Blob> 
   g.font = `500 26px ${fuente}`;
   g.fillText('Muéstrala en recepción para entrar', W / 2, 890);
   return new Promise((res) => c.toBlob((b) => res(b!), 'image/png'));
-}
-
-function cargarImagen(src: string): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => {
-    const i = new Image();
-    i.onload = () => res(i);
-    i.onerror = rej;
-    i.src = src;
-  });
 }

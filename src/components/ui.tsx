@@ -215,7 +215,7 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
   // Portal al <body>: así ninguna barra fija/pegajosa de la página puede quedar encima de la hoja,
   // sin importar desde qué parte de la pantalla se abra.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={typeof titulo === 'string' ? titulo : undefined}>
       <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
       <div
         ref={panel}

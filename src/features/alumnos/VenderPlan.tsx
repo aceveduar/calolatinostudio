@@ -11,7 +11,7 @@ import { DIAS_CORTOS, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import type { EstadoMembresia } from '../../domain/membresias';
 import { calcularFin, venderPlan } from '../../domain/operaciones';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
-import { waLink } from '../../domain/reportes';
+import { abrirTicket } from '../../app/ticketAbierto';
 import { esBeca } from '../../domain/becas';
 import { atrasoEnPlan } from '../../domain/adeudos';
 import { METODOS, describirPlan } from '../../domain/planes';
@@ -84,7 +84,7 @@ export function VenderPlan({
   const cobrar = async () => {
     setOcupado(true);
     try {
-      await venderPlan({
+      const { pago, membresia } = await venderPlan({
         alumnoId: alumno.id,
         plan,
         monto,
@@ -101,19 +101,32 @@ export function VenderPlan({
         onHecho();
         return;
       }
-      // Recibo por WhatsApp en un toque (solo si tiene número)
-      const recibo = waLink(
-        alumno.telefono,
-        armarMensaje(plantilla(academia, 'recibo'), {
-          nombre: alumno.nombre.split(' ')[0],
-          academia: academia.nombre,
-          monto: dinero(monto),
-          plan: plan.nombre.toLowerCase(),
-          vigencia: `${fechaCorta(inicio)} al ${fechaCorta(calcularFin(plan, inicio))}`,
-          vence: fechaCorta(calcularFin(plan, inicio)),
-        }),
-      );
-      avisar(`${plan.nombre} cobrada · ${dinero(monto)}`, 'ok', recibo ? { texto: 'Enviar recibo', fn: () => void window.open(recibo, '_blank', 'noopener') } : undefined);
+      // Ticket de compra (imagen) y su mensaje: se ofrece en el aviso, sin estorbar al siguiente cobro
+      const fin = calcularFin(plan, inicio);
+      const mensaje = armarMensaje(plantilla(academia, 'recibo'), {
+        nombre: alumno.nombre.split(' ')[0],
+        academia: academia.nombre,
+        monto: dinero(monto),
+        plan: plan.nombre.toLowerCase(),
+        vigencia: `${fechaCorta(inicio)} al ${fechaCorta(fin)}`,
+        vence: fechaCorta(fin),
+      });
+      const ticket = {
+        academia: academia.nombre,
+        logo: academia.logo,
+        color: academia.color,
+        pagoId: pago.id,
+        at: pago.createdAt,
+        alumno: alumno.nombre,
+        codigo: alumno.codigo,
+        concepto: plan.nombre,
+        vigencia: inicio === fin ? fechaCorta(inicio) : `${fechaCorta(inicio)} al ${fechaCorta(fin)}`,
+        clases: plan.tipo === 'suelta' ? undefined : membresia.clasesTotal ? `${membresia.clasesTotal} ${membresia.clasesTotal === 1 ? 'clase' : 'clases'}` : 'Clases ilimitadas',
+        metodo,
+        monto,
+        atendio: usuario.nombre,
+      };
+      avisar(`${plan.nombre} cobrada · ${dinero(monto)}`, 'ok', { texto: 'Enviar ticket', fn: () => abrirTicket({ ticket, telefono: alumno.telefono, mensaje }) });
       onHecho();
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo cobrar', 'error');

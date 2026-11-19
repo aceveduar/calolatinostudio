@@ -1,0 +1,47 @@
+// Ticket de compra: al cobrar un plan, el aviso ofrece "Enviar ticket" con una imagen tipo ticket de papel.
+import { chromium } from 'playwright-core';
+import { writeFileSync } from 'node:fs';
+const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const browser = await chromium.launch({ channel: 'msedge' });
+const ok = (c) => (c ? 'OK' : 'MAL');
+const errores = [];
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-MX', acceptDownloads: true });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => errores.push(e.message));
+await page.goto('http://localhost:4173/');
+await page.waitForFunction(() => !!window.compasDev);
+await page.evaluate(() => window.compasDev.demoCompleta());
+await page.reload();
+await page.getByText('Monse', { exact: true }).click();
+for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
+await page.waitForTimeout(600);
+const alguien = await page.evaluate(async () => (await window.compasDev.db.alumnos.toArray()).find((a) => a.activo && a.telefono.length === 10));
+await page.evaluate((id) => { history.pushState(null, '', `/alumnos/${id}`); dispatchEvent(new PopStateEvent('popstate')); }, alguien.id);
+await page.getByRole('button', { name: /Vender plan/ }).click();
+const dlg = page.getByRole('dialog');
+await dlg.getByRole('button', { name: /Mensual/ }).first().click().catch(() => {});
+await dlg.getByRole('button', { name: /^Cobrar/ }).click();
+const accion = page.getByRole('button', { name: 'Enviar ticket' });
+await accion.waitFor({ timeout: 5000 });
+console.log('1) al cobrar, el aviso ofrece "Enviar ticket":', 'OK');
+await accion.click();
+const img = page.getByRole('dialog', { name: /Ticket de compra/ }).locator('img');
+await img.waitFor({ timeout: 8000 });
+await page.waitForFunction(() => [...document.querySelectorAll('[role=dialog] img')].some((i) => i.complete && i.naturalWidth > 0));
+const datos = await img.evaluate((el) => {
+  const c = document.createElement('canvas');
+  c.width = el.naturalWidth;
+  c.height = el.naturalHeight;
+  c.getContext('2d').drawImage(el, 0, 0);
+  return { url: c.toDataURL('image/png'), ancho: el.naturalWidth, alto: el.naturalHeight, alt: el.alt };
+});
+writeFileSync(`${OUT}ticket.png`, Buffer.from(datos.url.split(',')[1], 'base64'));
+await page.screenshot({ path: `${OUT}ticket-hoja.png` });
+console.log('2) la hoja muestra la imagen del ticket:', ok(datos.ancho === 720 && datos.alto > 1000 && /Ticket de .* por /.test(datos.alt)), `${datos.ancho}×${datos.alto}`, datos.alt);
+// en PC/prueba no hay menú de compartir: descarga y abre el chat
+const [descarga] = await Promise.all([page.waitForEvent('download', { timeout: 5000 }).catch(() => null), page.getByRole('button', { name: /^Descargar$/ }).click()]);
+console.log('3) se puede descargar como PNG:', ok(!!descarga && /^ticket-.*\.png$/.test(descarga.suggestedFilename())), descarga?.suggestedFilename());
+const wa = await page.getByRole('link', { name: /Solo mensaje/ }).getAttribute('href');
+console.log('4) "Solo mensaje" manda el recibo de texto a su WhatsApp:', ok(new RegExp(alguien.telefono).test(wa) && /recibimos tu pago/.test(decodeURIComponent(wa))));
+console.log('errores:', errores.length ? errores : 'ninguno');
+await browser.close();
