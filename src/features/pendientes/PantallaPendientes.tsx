@@ -164,6 +164,7 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{p.alumno.nombre}</span>
           <span className={p.urgente ? 'block truncate text-xs font-semibold text-bad-600' : 'block truncate text-xs text-ink-500'}>{p.detalle}</span>
+          {!link && <span className="block text-[11px] text-ink-500">Sin teléfono: avísale en persona</span>}
         </span>
       </button>
       {link ? (
@@ -177,9 +178,7 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
         >
           <MessageCircle size={18} /> <span className="hidden sm:inline">WhatsApp</span>
         </a>
-      ) : (
-        <span className="shrink-0 px-1 text-[11px] leading-tight text-ink-500">sin teléfono</span>
-      )}
+      ) : null}
       <button onClick={() => void hecho()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-500 ring-1 ring-ink-100 active:bg-ink-50" aria-label={`Ya le avisé a ${p.alumno.nombre}`}>
         <Check size={20} />
       </button>

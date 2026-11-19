@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, PartyPopper, Plus } from 'lucide-react';
@@ -237,8 +237,16 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: 
   const bloques = bloquesDelDia(fecha, clases, rentas, salonId);
   const libres = huecos(bloques);
   const esHoy = fecha === hoy();
+  // al abrir la Agenda, baja sola hasta hoy (la semana empieza el lunes y "hoy" quedaba abajo)
+  const marca = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (esHoy && diaSemana(fecha) !== 1) marca.current?.scrollIntoView({ block: 'start' });
+    // solo al montar: no volver a mover la pantalla mientras la persona la recorre
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <Tarjeta className={cx('p-3', esHoy && 'ring-2 ring-brand-500')}>
+      <div ref={marca} className="scroll-mt-20" aria-hidden="true" />
       <p className="mb-1.5 flex items-center gap-2 px-1 font-bold">
         {DIAS_LARGOS[diaSemana(fecha)]} {deFecha(fecha).getDate()}
         {esHoy && <Etiqueta tono="marca">Hoy</Etiqueta>}

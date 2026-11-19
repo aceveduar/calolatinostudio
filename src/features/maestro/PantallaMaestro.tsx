@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarDays, RefreshCw, Sparkles, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, RefreshCw, Sparkles, Users } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
-import { Avatar, Encabezado, Etiqueta, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Encabezado, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Clase, ID } from '../../db/types';
 import { claseSugerida, clasesDelDia } from '../../domain/clases';
@@ -23,6 +23,7 @@ export function PantallaMaestro() {
   const mias = useMemo(() => clases.filter((c) => c.maestroId && c.maestroId === usuario.maestroId && c.activo), [clases, usuario.maestroId]);
   const deHoy = useMemo(() => clasesDelDia(mias), [mias]);
   const [claseId, setClaseId] = useState<ID | null>(null);
+  const [elegir, setElegir] = useState(false);
   const clase = mias.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
   const nombre1 = usuario.nombre.replace(/^Prof[ae]\.?\s+/i, '').split(' ')[0];
 
@@ -49,23 +50,32 @@ export function PantallaMaestro() {
         </button>
       </div>
 
-      {deHoy.length > 1 && (
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          {deHoy.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setClaseId(c.id)}
-              className={cx('shrink-0 rounded-2xl px-4 py-2.5 text-left ring-1', clase?.id === c.id ? 'text-white ring-transparent' : 'bg-superficie ring-ink-100')}
-              style={clase?.id === c.id ? { background: `color-mix(in oklab, ${colorClase(c, disciplinas)} 80%, black)` } : undefined}
-            >
-              <span className="block text-[15px] font-bold">{nombreClase(c, disciplinas)}</span>
-              <span className="block text-xs opacity-80">{c.horaInicio}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {clase ? <MiClase clase={clase} /> : <ProximaClase mias={mias} />}
+      {/* como en Entrada: la clase sale una vez (en su tarjeta) y desde ahí se cambia si hoy da varias */}
+      {clase ? <MiClase clase={clase} onCambiar={deHoy.length > 1 ? () => setElegir(true) : undefined} /> : <ProximaClase mias={mias} />}
+      <Hoja abierta={elegir} onCerrar={() => setElegir(false)} titulo="Tus clases de hoy">
+        {elegir && (
+          <div className="space-y-2">
+            {deHoy.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setClaseId(c.id);
+                  setElegir(false);
+                }}
+                aria-current={clase?.id === c.id || undefined}
+                className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie px-4 py-3 text-left ring-1', clase?.id === c.id ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+              >
+                <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(c, disciplinas) }} aria-hidden="true" />
+                <span className="flex-1">
+                  <span className="block font-bold">{nombreClase(c, disciplinas)}</span>
+                  <span className="block text-sm text-ink-500">{c.horaInicio}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Hoja>
 
       <MisNumeros mias={mias} />
       <TestimoniosDeMisAlumnos mias={mias} />
@@ -96,7 +106,7 @@ function TestimoniosDeMisAlumnos({ mias }: { mias: Clase[] }) {
   );
 }
 
-function MiClase({ clase }: { clase: Clase }) {
+function MiClase({ clase, onCambiar }: { clase: Clase; onCambiar?: () => void }) {
   const disciplinas = useDisciplinas();
   const dia = hoy();
   const lista = useLiveQuery(
@@ -133,7 +143,14 @@ function MiClase({ clase }: { clase: Clase }) {
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wider text-white/75 uppercase">Hoy · {clase.horaInicio}</p>
-            <p className="mt-0.5 truncate text-2xl font-extrabold tracking-tight">{nombreClase(clase, disciplinas)}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
+              <span className="truncate">{nombreClase(clase, disciplinas)}</span>
+              {onCambiar && (
+                <button type="button" onClick={onCambiar} className="flex min-h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2.5 text-xs font-bold tracking-normal active:bg-white/30" aria-label="Cambiar a otra de tus clases de hoy">
+                  Otra clase <ChevronDown size={13} aria-hidden="true" />
+                </button>
+              )}
+            </p>
             <p className="mt-1 text-sm font-semibold text-white/85">{nuevos ? `${nuevos} ${nuevos === 1 ? 'viene' : 'vienen'} por primera vez` : 'Lista en vivo'}</p>
           </div>
           <div className="text-right">

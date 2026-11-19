@@ -87,8 +87,12 @@ export function EditorProductos() {
                   {reservadas(p.id) > 0 && ` · ${reservadas(p.id)} apartad${reservadas(p.id) === 1 ? 'a' : 'as'}`}
                   {p.costo ? ` · deja ${dinero(p.precio - p.costo)}` : ''}
                 </span>
+                {est !== 'libre' && (
+                  <span className="mt-1 block">
+                    <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>
+                  </span>
+                )}
               </span>
-              {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
               <span className="w-16 text-right font-bold">{dinero(p.precio)}</span>
             </>
           );
