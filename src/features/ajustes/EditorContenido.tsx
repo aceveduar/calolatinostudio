@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { avisoPrivacidadBase } from '../../domain/privacidad';
 import { ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { prepararFotoGaleria, prepararPortada } from '../../app/fotos';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -32,6 +33,7 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
   if (c.creditos?.trim()) o.creditos = c.creditos.trim();
   const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}) }));
   if (te.length) o.testimonios = te;
+  if (c.privacidad?.trim()) o.privacidad = c.privacidad.trim();
   return o;
 }
 
@@ -204,6 +206,27 @@ export function EditorContenido() {
             <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder="@usuario" autoCapitalize="off" />
           </Campo>
         ))}
+      </Bloque>
+
+      <Bloque titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">
+        <textarea
+          className={areaTexto}
+          rows={8}
+          value={c.privacidad ?? ''}
+          onChange={(e) => pon({ privacidad: e.target.value })}
+          maxLength={4000}
+          placeholder={avisoPrivacidadBase({ academia: academia.nombre, direccion: c.ubicaciones?.principal?.direccion, whatsapp: academia.whatsapp })}
+          aria-label="Aviso de privacidad"
+        />
+        {!c.privacidad?.trim() && (
+          <Boton
+            variante="secundario"
+            bloque
+            onClick={() => pon({ privacidad: avisoPrivacidadBase({ academia: academia.nombre, direccion: c.ubicaciones?.principal?.direccion, whatsapp: academia.whatsapp }) })}
+          >
+            Usar la base para editarla
+          </Boton>
+        )}
       </Bloque>
 
       <div className="sticky bottom-0 -mx-1 bg-gradient-to-t from-ink-50 via-ink-50 to-transparent px-1 pt-4 pb-2">

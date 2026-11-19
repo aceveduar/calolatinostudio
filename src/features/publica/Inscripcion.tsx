@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Check, Sparkle, Users } from 'lucide-react';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { cx } from '../../components/ui';
+import { AvisoPrivacidad } from './AvisoPrivacidad';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { ERRORES_INSCRIPCION, type DatosPublica } from '../../domain/publica';
 import { type Estados } from './comun';
 
 /** `de`: huella de quien lo invitó (enlace de invitación de un alumno); se manda solo si existe. */
-export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase, de = null }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null }) {
+export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase, de = null, origen = null, privacidad }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null; origen?: string | null; privacidad: string }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -63,7 +64,7 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
           if (!supabase) return;
           setEstado('enviando');
           setError(null);
-          const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim(), ...(de ? { p_de: de } : {}) });
+          const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim(), ...(de ? { p_de: de } : {}), ...(origen ? { p_origen: origen } : {}) });
           if (err || data?.error) {
             setError(err ? 'Sin conexión. Inténtalo otra vez.' : (ERRORES_INSCRIPCION[data.error] ?? 'No se pudo enviar.'));
             setEstado('listo');
@@ -131,8 +132,9 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
         <button type="submit" disabled={estado === 'enviando'} className="h-14 w-full rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-lg shadow-brand-500/30 active:scale-[0.98] disabled:opacity-60">
           {estado === 'enviando' ? 'Enviando…' : espera ? 'Avísenme del siguiente grupo' : 'Quiero inscribirme'}
         </button>
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink-500">
-          <Users size={13} /> Solo usamos tu número para escribirte sobre las clases.
+        <p className="flex flex-wrap items-center justify-center gap-x-1.5 text-center text-xs text-ink-500">
+          <Users size={13} aria-hidden="true" /> Solo usamos tu número para escribirte sobre las clases.{' '}
+          <AvisoPrivacidad texto={privacidad} academia={d.academia.nombre} className="font-semibold text-ink-700 underline underline-offset-2" />
         </p>
       </form>
     </section>

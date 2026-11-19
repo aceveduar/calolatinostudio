@@ -64,6 +64,8 @@ export interface ContenidoPagina {
   creditos?: string;
   /** lo que dicen los alumnos */
   testimonios?: { texto: string; nombre: string; detalle?: string }[];
+  /** aviso de privacidad propio (vacío = la base general de domain/privacidad.ts) */
+  privacidad?: string;
 }
 
 export type Rol = 'dueno' | 'recepcion' | 'maestro';
@@ -236,6 +238,8 @@ export interface Interesado extends Base {
   alumnoId: ID | null;
   /** alumno que lo invitó (se inscribió desde su enlace de invitación); lo pone la base */
   invitoAlumnoId?: ID | null;
+  /** de dónde llegó a la página: "facebook · navidad", "instagram", "google · anuncio"… (null = directo) */
+  origen?: string | null;
 }
 
 export type EstadoTestimonio = 'pendiente' | 'aprobado' | 'rechazado';

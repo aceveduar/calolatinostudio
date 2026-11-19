@@ -9,6 +9,9 @@ import { estadoCurso } from '../../domain/cursos';
 import { PRINCIPAL } from '../../domain/sedes';
 import { comoLlegar, urlRed, type DatosPublica } from '../../domain/publica';
 import { leerHuella } from '../../domain/invitar';
+import { recordarOrigen } from '../../domain/origen';
+import { textoAvisoPrivacidad } from '../../domain/privacidad';
+import { AvisoPrivacidad } from './AvisoPrivacidad';
 import { DIAS_LARGOS, MESES, disciplinaDe, diasTexto, DESDE_CERO, type Estados } from './comun';
 import { Seccion, Dato, Precio, Punto } from './piezas';
 import { Inscripcion } from './Inscripcion';
@@ -75,6 +78,8 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   // llegó con una invitación de un alumno (?de=…): "Vienes de parte de Ana L." y se anota al inscribirse
   const [de] = useState(() => leerHuella(location.search));
   const [invita, setInvita] = useState<string | null>(null);
+  // de dónde llegó (anuncio, red social): se anota al entrar y se manda con la inscripción
+  const [origen] = useState(recordarOrigen);
   useEffect(() => {
     if (!de || !supabase) return;
     void supabase.rpc('invitado_por', { p_slug: slug, p_de: de }).then(({ data }) => typeof data === 'string' && setInvita(data));
@@ -90,6 +95,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const sueltaGeneral =
     d.planes.find((x) => x.tipo === 'suelta' && x.sede_id === PRINCIPAL) ?? d.planes.find((x) => x.tipo === 'suelta' && esPrincipal(x)) ?? d.planes.find((x) => x.tipo === 'suelta');
   const primera = p.primera || (sueltaGeneral ? `Clase de prueba: ${dinero(sueltaGeneral.precio)}` : null);
+  const privacidad = textoAvisoPrivacidad(p.privacidad, { academia: d.academia.nombre, direccion: p.ubicaciones?.principal?.direccion, whatsapp: d.academia.whatsapp });
   const lugares = sedes.flatMap((s) => {
     const u = p.ubicaciones?.[s.id ?? 'principal'];
     return u?.direccion ? [{ ...u, nombre: s.nombre }] : [];
@@ -567,7 +573,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               )}
             </div>
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
-              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} />
+              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
             </div>
           </div>
         </section>
@@ -597,7 +603,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           )}
         </div>
         <p className="mx-auto mt-8 max-w-5xl px-5 text-xs text-white/60">
-          © {new Date().getFullYear()} {d.academia.nombre} · Hecho con Compás
+          © {new Date().getFullYear()} {d.academia.nombre} · <AvisoPrivacidad texto={privacidad} academia={d.academia.nombre} className="underline underline-offset-2 hover:text-white" /> · Hecho con Compás
         </p>
       </footer>
 

@@ -139,6 +139,11 @@ export function PantallaInteresados() {
                           <Users size={13} aria-hidden="true" /> Lo invitó {invitaron.get(i.invitoAlumnoId)!.nombre}
                         </Link>
                       )}
+                      {i.origen && (
+                        <p className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-full bg-ink-50 px-3 text-xs font-semibold text-ink-700 ring-1 ring-ink-100">
+                          Llegó por {i.origen}
+                        </p>
+                      )}
                       {i.mensaje && <p className="mt-1 rounded-lg bg-ink-50 px-2 py-1 text-sm text-ink-700">“{i.mensaje}”</p>}
                       <button
                         className="-ml-2 min-h-10 rounded-lg px-2 text-xs font-semibold text-ink-500 active:bg-ink-100"

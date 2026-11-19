@@ -369,6 +369,7 @@ alter table gastos_fijos add column if not exists maestro_id uuid;
 alter table interesados add column if not exists invito_alumno_id uuid;
 alter table eventos add column if not exists en_pagina boolean;
 alter table eventos add column if not exists en_portal boolean;
+alter table interesados add column if not exists origen text;
 create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
@@ -722,8 +723,10 @@ grant execute on function invitado_por(text, text) to anon, authenticated;
 -- Inscripción desde la página pública: queda en "interesados" para que la academia le escriba.
 -- Límites para que nadie la llene: teléfono de 10 dígitos, 3 por teléfono al día, 200 por academia al día.
 -- p_de (opcional): huella de quien lo invitó; si no corresponde a nadie se ignora.
+-- p_origen (opcional): de dónde llegó a la página ("facebook · navidad"); texto corto, sin datos personales.
 drop function if exists inscribir_interesado(text, text, text, uuid, text);
-create or replace function inscribir_interesado(p_slug text, p_nombre text, p_telefono text, p_clase uuid, p_mensaje text, p_de text default null) returns jsonb
+drop function if exists inscribir_interesado(text, text, text, uuid, text, text);
+create or replace function inscribir_interesado(p_slug text, p_nombre text, p_telefono text, p_clase uuid, p_mensaje text, p_de text default null, p_origen text default null) returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
 declare
   ac academias;
@@ -749,13 +752,13 @@ begin
   if p_de ~ '^[0-9a-f]{8}$' then
     select a.id into invito from alumnos a where a.academia_id = ac.id and a.deleted_at is null and huella_invita(a.id) = p_de limit 1;
   end if;
-  insert into interesados (id, academia_id, nombre, telefono, clase_id, mensaje, estado, invito_alumno_id, created_at, updated_at)
-  values (gen_random_uuid(), ac.id, nom, tel, p_clase, left(trim(coalesce(p_mensaje, '')), 300), 'nuevo', invito, ahora, ahora);
+  insert into interesados (id, academia_id, nombre, telefono, clase_id, mensaje, estado, invito_alumno_id, origen, created_at, updated_at)
+  values (gen_random_uuid(), ac.id, nom, tel, p_clase, left(trim(coalesce(p_mensaje, '')), 300), 'nuevo', invito, nullif(left(regexp_replace(trim(coalesce(p_origen, '')), '[<>"]', '', 'g'), 80), ''), ahora, ahora);
   return jsonb_build_object('ok', true);
 end $$;
 
-revoke execute on function inscribir_interesado(text, text, text, uuid, text, text) from public;
-grant execute on function inscribir_interesado(text, text, text, uuid, text, text) to anon, authenticated;
+revoke execute on function inscribir_interesado(text, text, text, uuid, text, text, text) from public;
+grant execute on function inscribir_interesado(text, text, text, uuid, text, text, text) to anon, authenticated;
 
 -- El alumno escribe su testimonio desde su portal. Queda pendiente hasta que la academia lo aprueba.
 -- Solo con su enlace secreto; 10 a 400 caracteres; si ya tenía uno pendiente se reemplaza (uno por alumno);
@@ -810,7 +813,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261125 $$;
+language sql immutable as $$ select 20261126 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;
