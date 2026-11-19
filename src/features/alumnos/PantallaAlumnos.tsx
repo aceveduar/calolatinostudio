@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
@@ -11,6 +11,8 @@ import { FormAlumno } from './FormAlumno';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
+
+const TANDA = 60;
 
 export function PantallaAlumnos() {
   const alumnos = useAlumnos();
@@ -46,6 +48,19 @@ export function PantallaAlumnos() {
       .filter(({ a, s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : filtro === 'debe' ? deben.has(a.id) : s.tono === filtro));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alumnos, estados, q, filtro, verBajas, planesBeca.size, deben]);
+
+  // Con miles de alumnos se dibujan por tandas: 60 y otros 60 al llegar al final (la búsqueda y los filtros
+  // siguen siendo sobre todos). Dibujar 5,000 filas de golpe es lento en un celular y la lista no se acaba.
+  const [cuantos, setCuantos] = useState(TANDA);
+  useEffect(() => setCuantos(TANDA), [q, filtro, verBajas]);
+  const final = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = final.current;
+    if (!el || cuantos >= filas.length) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setCuantos((n) => n + TANDA), { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cuantos, filas.length]);
 
   return (
     <div className="px-4 pb-6 lg:mx-auto lg:max-w-3xl">
@@ -105,7 +120,7 @@ export function PantallaAlumnos() {
           <Vacio icono={<Users size={40} />} titulo={alumnos.length ? 'Nadie coincide' : 'Aún no hay alumnos'} texto={alumnos.length ? undefined : 'Se registran solos desde Entrada la primera vez que llegan.'} />
         ) : (
           <Tarjeta className="divide-y divide-ink-100">
-            {filas.map(({ a, s, beca }) => (
+            {filas.slice(0, cuantos).map(({ a, s, beca }) => (
               <button key={a.id} onClick={() => nav(`/alumnos/${a.id}`)} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-ink-50">
                 <Avatar nombre={a.nombre} foto={a.foto} tam={40} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
@@ -115,6 +130,16 @@ export function PantallaAlumnos() {
               </button>
             ))}
           </Tarjeta>
+        )}
+        {cuantos < filas.length && (
+          <div ref={final} className="mt-3 text-center">
+            <p className="text-xs text-ink-500">
+              Mostrando {cuantos.toLocaleString('es-MX')} de {filas.length.toLocaleString('es-MX')} · busca por nombre para ir directo
+            </p>
+            <button onClick={() => setCuantos((n) => n + TANDA)} className="mt-1 min-h-10 rounded-lg px-3 text-sm font-semibold text-brand-600 active:bg-brand-50">
+              Ver más
+            </button>
+          </div>
         )}
         {(bajas > 0 || verBajas) && (
           <button onClick={() => setVerBajas(!verBajas)} className="mt-4 w-full py-3 text-sm font-semibold text-ink-500">

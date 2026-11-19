@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronRight, Megaphone, MessageCircle, PackageCheck, PartyPopper, Truck, WalletCards } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Encabezado, Seccion, Tarjeta, Vacio, VerMas } from '../../components/ui';
+import { Avatar, Encabezado, Seccion, Tarjeta, Vacio, VerMas, Cargando } from '../../components/ui';
 import type { Alumno } from '../../db/types';
 import { dinero } from '../../domain/dinero';
 import { fechaCorta, fechaLarga, hoy } from '../../domain/fechas';
@@ -22,7 +22,7 @@ const cuandoVence = (n: number) =>
  */
 export function PantallaPendientes() {
   const p = usePendientes();
-  if (!p) return null;
+  if (!p) return <Cargando texto="Revisando pendientes…" />;
   const { renovar, deben, extranar, rentas, interesados, porEntregar, porPedir, total } = p;
 
   return (

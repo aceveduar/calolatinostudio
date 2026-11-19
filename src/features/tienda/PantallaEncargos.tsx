@@ -6,7 +6,7 @@ import { useAlumnos, useProductos } from '../../app/datos';
 import { useSedeActual } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';
 import { db } from '../../db/db';
 import type { Alumno, ID, MetodoPago, Pedido, Producto } from '../../db/types';
@@ -37,7 +37,7 @@ export function PantallaEncargos() {
     ]);
     return { pedidos: pedidos.sort((a, b) => a.createdAt - b.createdAt), productos: new Map(productos.map((p) => [p.id, p])), alumnos: new Map(alumnos.map((a) => [a.id, a])) };
   }, []);
-  if (!datos) return null;
+  if (!datos) return <Cargando />;
   const { pedidos, productos, alumnos } = datos;
   const lista = listaProveedor(pedidos, productos);
   const enCamino = pedidos.filter((p) => p.estado === 'pedido');

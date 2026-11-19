@@ -310,3 +310,22 @@ export function VerMas({ abierto, total, onClick }: { abierto: boolean; total: n
     </button>
   );
 }
+
+/**
+ * Mientras una pantalla pesada carga sus datos: en lugar de quedar en blanco (parece que falló), un aviso.
+ * Aparece solo si la espera pasa de 1/4 de segundo, para no parpadear en las pantallas rápidas.
+ */
+export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVer(true), 250);
+    return () => clearTimeout(t);
+  }, []);
+  if (!ver) return null;
+  return (
+    <div role="status" className="flex flex-col items-center gap-3 px-4 py-16 text-ink-500">
+      <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-ink-100 border-t-brand-500" aria-hidden="true" />
+      <span className="text-sm font-semibold">{texto}</span>
+    </div>
+  );
+}

@@ -8,7 +8,7 @@ import type { Maestro } from '../../db/types';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { actualizar, borrar, crear } from '../../db/repo';
 import type { CategoriaGasto, Fecha, Gasto, GastoFijo, MetodoPago, Sede } from '../../db/types';
@@ -76,7 +76,7 @@ export function PantallaGastos() {
     });
     return { enSede, gastos, fijosS, rent };
   }, [datos, verSede, clases, mes]);
-  if (!datos || !calculo) return null;
+  if (!datos || !calculo) return <Cargando texto="Calculando gastos y utilidad…" />;
 
   const { enSede, gastos, fijosS, rent } = calculo;
   const pagos = datos.pagos.filter((p) => enSede(p.sedeId));

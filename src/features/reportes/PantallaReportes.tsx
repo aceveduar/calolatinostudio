@@ -6,7 +6,7 @@ import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePla
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, sirveEn } from '../../domain/sedes';
-import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, VerMas, cx } from '../../components/ui';
+import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, VerMas, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { dinero } from '../../domain/dinero';
 import { aFecha, diasEntre, fechaCorta, fechaLarga, hoy, sumarDias } from '../../domain/fechas';
@@ -89,7 +89,7 @@ export function PantallaReportes() {
     };
   }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes, planes]);
 
-  if (!r) return null;
+  if (!r) return <Cargando texto="Calculando reportes…" />;
   const etiquetaAntes = rango === 7 ? 'vs 7 días previos' : 'vs 30 días previos';
   const maxProm = Math.max(1, ...r.clases.map((f) => f.promedio));
 

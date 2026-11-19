@@ -6,7 +6,7 @@ import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedeActual, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, conSede } from '../../domain/sedes';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { crear } from '../../db/repo';
 import type { MetodoPago, Pago } from '../../db/types';
@@ -49,7 +49,7 @@ export function PantallaCaja() {
     };
   }, [fecha, k, clases]);
 
-  if (!datos) return null;
+  if (!datos) return <Cargando texto="Sumando la caja…" />;
   const r = resumenCaja(datos.pagos.map((x) => x.p));
   const porClase = clases
     .map((c) => ({ c, n: datos.asis.filter((a) => a.claseId === c.id).length }))

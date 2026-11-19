@@ -7,10 +7,11 @@
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 import { revisarPagina } from './revisar.mjs';
-const OUT = new URL('./salida/recorrido/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const OUT = new URL(process.env.GRANDE ? './salida/recorrido-grande/' : './salida/recorrido/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(OUT, { recursive: true });
 const ok = (c) => (c ? 'OK' : 'MAL');
 const SOLO = process.env.RECORRIDO; // p. ej. RECORRIDO=m-claro para una sola combinación
+const GRANDE = !!process.env.GRANDE; // GRANDE=1: con la academia de 5,000 alumnos (src/dev/grande.ts)
 
 const PANTALLAS = {
   dueno: ['/', '/alumnos', '/caja', '/reportes', '/mas', '/pendientes', '/agenda', '/agenda/eventos', '/reportes/gastos', '/alumnos/interesados', '/alumnos/listas', '/encargos', '/ajustes/pagina', '/ajustes/clases', '/ajustes/planes', '/ajustes/productos', '/ajustes/maestros', '/ajustes/sedes', '/ajustes/disciplinas', '/ajustes/usuarios', '/ajustes/mensajes', '/ajustes/academia', '/ajustes/nube', 'ficha'],
@@ -39,7 +40,17 @@ for (const [disp, tema, viewport, esquema] of COMBOS) {
   const ir = (r) => page.evaluate((x) => { history.pushState(null, '', x); dispatchEvent(new PopStateEvent('popstate')); }, r);
   await page.goto('http://localhost:4173/');
   await page.waitForFunction(() => !!window.compasDev);
-  await page.evaluate(() => window.compasDev.demoCompleta());
+  if (GRANDE) {
+    await page.evaluate(async () => {
+      const dev = window.compasDev;
+      await dev.sembrar();
+      for (const t of dev.db.tables.map((x) => x.name)) if (!['academias', 'usuarios', 'meta'].includes(t)) await dev.db.table(t).clear();
+      await dev.academiaGrande({ alumnos: 5000, meses: 6 });
+      await dev.db.outbox.clear();
+    });
+    // el primer maestro con usuario de la academia grande (PIN 503729)
+    QUIEN.maestro = [await page.evaluate(async () => (await window.compasDev.db.usuarios.filter((u) => u.rol === 'maestro').first()).nombre), '503729'];
+  } else await page.evaluate(() => window.compasDev.demoCompleta());
   await page.reload();
 
   for (const [rol, rutas] of Object.entries(PANTALLAS)) {
