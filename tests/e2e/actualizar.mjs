@@ -30,8 +30,10 @@ await page.getByText('Monse', { exact: true }).click();
 await page.keyboard.type('1111', { delay: 30 });
 await busca.waitFor();
 await page.waitForFunction(() => !!window.compasDev);
-await btn(/Elegir clase|Otra/).click();
-await page.getByRole('button', { name: /Salsa/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa/ }).first().click();
 
 await page.evaluate(() => window.compasDev.simularActualizacion());
 await busca.fill('visitante prueba');

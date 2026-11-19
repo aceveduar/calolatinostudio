@@ -53,6 +53,7 @@ export function PantallaEntrada() {
   // Solo las clases de la sede donde está este equipo
   const clases = useMemo(() => todasLasClases.filter((c) => mismaSede(c.sedeId, sedeActual)), [todasLasClases, sedeActual]);
   const [elegirSede, setElegirSede] = useState(false);
+  const [elegirClase, setElegirClase] = useState(false);
   const disciplinas = useDisciplinas();
   const maestros = useMaestros();
   const alumnos = useAlumnos();
@@ -266,75 +267,55 @@ export function PantallaEntrada() {
       <div className="min-w-0">
       <Encabezado
         titulo="Entrada"
-        sub={fechaLarga(hoy())}
+        sub={sedes.length > 0 ? `${fechaLarga(hoy())} · ${nombreSede(sedeActual, sedes, academia)}` : fechaLarga(hoy())}
         accion={
-          pendientes || sedes.length > 0 ? (
-            <div className="flex max-w-[65%] min-w-0 items-center gap-2">
-              {pendientes > 0 && (
-                <Link
-                  to="/pendientes"
-                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-brand-500 py-2 pr-3 pl-2.5 text-sm font-bold text-white shadow-sm shadow-brand-500/30 active:scale-95"
-                  aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
-                >
-                  <ListChecks size={16} /> {pendientes}
-                  <span className={sedes.length ? 'hidden font-semibold lg:inline' : 'font-semibold'}>{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>
-                </Link>
-              )}
-              {sedes.length > 0 && (
-                <button
-                  onClick={() => setElegirSede(true)}
-                  className="flex min-h-10 min-w-0 items-center gap-1.5 rounded-full bg-superficie py-2 pr-3 pl-2.5 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
-                  aria-label="Cambiar sede"
-                >
-                  <MapPin size={16} className="shrink-0" style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} />
-                  <span className="truncate">{nombreSede(sedeActual, sedes, academia)}</span>
-                  <ChevronDown size={14} className="shrink-0 text-ink-500" />
-                </button>
-              )}
-            </div>
+          pendientes > 0 ? (
+            <Link
+              to="/pendientes"
+              className="relative flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-superficie px-3 text-sm font-bold text-ink-700 ring-1 ring-ink-100 active:bg-ink-50"
+              aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
+            >
+              <ListChecks size={18} className="text-brand-600" aria-hidden="true" />
+              <span className="tabular-nums">{pendientes}</span>
+              <span className="hidden font-semibold lg:inline">{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>
+            </Link>
           ) : undefined
         }
       />
 
-      {/* Clases del día */}
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-        {(verTodas ? clases.filter((c) => c.activo) : deHoy).map((c) => {
-          const activa = clase?.id === c.id;
-          const color = colorClase(c, disciplinas);
-          return (
-            <button
-              key={c.id}
-              onClick={() => setClaseId(c.id)}
-              className={cx('flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-left ring-1 transition', activa ? 'text-white ring-transparent' : 'bg-superficie ring-ink-100')}
-              // el color de la disciplina un poco más oscuro: el texto blanco se lee con cualquier color que elijan
-              style={activa ? { background: `color-mix(in oklab, ${color} 80%, black)` } : undefined}
-            >
-              {!activa && <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />}
-              <span>
-                <span className="block text-[15px] leading-tight font-bold">{nombreClase(c, disciplinas)}</span>
-                <span className={cx('block text-xs', activa ? 'text-white/90' : 'text-ink-500')}>
-                  {verTodas ? c.dias.map((d) => DIAS_CORTOS[d]).join(' ') + ' · ' : ''}
-                  {c.horaInicio}
-                  {!verTodas && ` · ${conteo.get(c.id) ?? 0}`}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-        <button onClick={() => setVerTodas(!verTodas)} className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-dashed border-ink-300 px-4 text-sm font-semibold text-ink-500">
-          <CalendarDays size={16} /> {verTodas ? 'Solo hoy' : deHoy.length ? 'Otra' : 'Elegir clase'}
-        </button>
-      </div>
-
-      {clase && !q && (
-        <HeroClase
-          titulo={nombreClase(clase, disciplinas)}
-          color={colorClase(clase, disciplinas)}
-          detalle={[clase.horaInicio, nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
-          adentro={conteo.get(clase.id) ?? 0}
-          cobrado={cobradoClase}
-        />
+      {/* La clase: una sola tarjeta (antes la clase salía dos veces: en una fila de botones y en esta tarjeta).
+          Se toca para cambiar de clase (y de sede, si hay varias). */}
+      {q && clase && (
+        <div className="px-4 pt-3">
+          <button type="button" onClick={() => setElegirClase(true)} className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-superficie px-3 text-left text-sm ring-1 ring-ink-100" aria-label={`Clase: ${nombreClase(clase, disciplinas)}. Tocar para cambiar de clase`}>
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorClase(clase, disciplinas) }} aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">
+              <b>{nombreClase(clase, disciplinas)}</b> · {clase.horaInicio}
+            </span>
+            <span className="flex items-center font-semibold text-brand-600">
+              Cambiar <ChevronDown size={14} aria-hidden="true" />
+            </span>
+          </button>
+        </div>
       )}
+      {!q &&
+        (clase ? (
+          <HeroClase
+            titulo={nombreClase(clase, disciplinas)}
+            color={colorClase(clase, disciplinas)}
+            detalle={[clase.horaInicio, nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
+            adentro={conteo.get(clase.id) ?? 0}
+            cobrado={cobradoClase}
+            onCambiar={() => setElegirClase(true)}
+          />
+        ) : (
+          <div className="px-4 pt-3">
+            <button type="button" onClick={() => setElegirClase(true)} className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-ink-300 px-5 py-4 text-left font-semibold text-ink-700 active:bg-ink-50">
+              <CalendarDays size={22} className="text-brand-600" aria-hidden="true" /> {deHoy.length ? 'Elegir clase' : 'Hoy no hay clases · Elegir clase'}
+              <ChevronDown size={18} className="ml-auto text-ink-500" aria-hidden="true" />
+            </button>
+          </div>
+        ))}
 
       {clase && (claseNoEsHoy || claseRara) && (
         <div className="mx-4 mt-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm text-warn-600">
@@ -535,6 +516,74 @@ export function PantallaEntrada() {
         />
       </Hoja>
 
+      <Hoja
+        abierta={elegirClase}
+        onCerrar={() => {
+          setElegirClase(false);
+          setVerTodas(false);
+        }}
+        titulo={verTodas || !deHoy.length ? 'Todas las clases' : 'Clases de hoy'}
+      >
+        {elegirClase && (
+          <div className="space-y-2">
+            {(verTodas || !deHoy.length ? clases.filter((c) => c.activo) : deHoy).map((c) => {
+              const activa = clase?.id === c.id;
+              const n = conteo.get(c.id) ?? 0;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setClaseId(c.id);
+                    setElegirClase(false);
+                    setVerTodas(false);
+                  }}
+                  aria-current={activa || undefined}
+                  className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie px-4 py-3 text-left ring-1', activa ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+                >
+                  <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(c, disciplinas) }} aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold">{nombreClase(c, disciplinas)}</span>
+                    <span className="block text-sm text-ink-500">
+                      {verTodas ? c.dias.map((d) => DIAS_CORTOS[d]).join(' ') + ' · ' : ''}
+                      {c.horaInicio}
+                      {nombreMaestro(c, maestros) && ` · ${nombreMaestro(c, maestros)}`}
+                    </span>
+                  </span>
+                  {!verTodas && (
+                    <span className="text-right">
+                      <span className="block text-lg leading-none font-extrabold">{n}</span>
+                      <span className="text-[11px] text-ink-500">adentro</span>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {deHoy.length > 0 && (
+            <button type="button" onClick={() => setVerTodas(!verTodas)} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-brand-600 active:bg-brand-50">
+              <CalendarDays size={16} aria-hidden="true" /> {verTodas ? 'Ver solo las de hoy' : 'Ver todas las clases'}
+            </button>
+            )}
+            {sedes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setElegirClase(false);
+                  setElegirSede(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-2xl bg-ink-50 px-4 py-3 text-left text-sm"
+              >
+                <MapPin size={18} style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} aria-hidden="true" />
+                <span className="flex-1">
+                  Estás en <b>{nombreSede(sedeActual, sedes, academia)}</b>
+                </span>
+                <span className="font-semibold text-brand-600">Cambiar sede</span>
+              </button>
+            )}
+          </div>
+        )}
+      </Hoja>
+
       <Hoja abierta={elegirSede} onCerrar={() => setElegirSede(false)} titulo="¿Dónde estás hoy?">
         {elegirSede && (
           <div className="space-y-2">
@@ -598,11 +647,14 @@ export function PantallaEntrada() {
 }
 
 /** Tarjeta en vivo de la clase: da sensación de "ambiente" y responde a cada cobro. */
-function HeroClase({ titulo, color, detalle, adentro, cobrado }: { titulo: string; color: string; detalle: string; adentro: number; cobrado: number }) {
+function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { titulo: string; color: string; detalle: string; adentro: number; cobrado: number; onCambiar: () => void }) {
   return (
     <div className="px-4 pt-3">
-      <div
-        className="relative overflow-hidden rounded-3xl px-5 py-4 text-white shadow-lg"
+      <button
+        type="button"
+        onClick={onCambiar}
+        aria-label={`Clase: ${titulo}, ${detalle}. ${adentro} adentro. Tocar para cambiar de clase`}
+        className="relative block w-full overflow-hidden rounded-3xl px-5 py-3.5 text-left text-white shadow-lg transition active:scale-[0.99]"
         style={{
           background: `linear-gradient(135deg in oklab, ${color}, color-mix(in oklab, ${color} 55%, #1c1a24))`,
           boxShadow: `0 12px 28px -12px color-mix(in oklab, ${color} 70%, transparent)`,
@@ -613,20 +665,25 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado }: { titulo: strin
           <circle cx="32" cy="32" r="17" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="70 37" strokeLinecap="round" transform="rotate(-30 32 32)" />
           <circle cx="32" cy="32" r="27" fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="4 6" />
         </svg>
-        <div className="relative flex items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold tracking-wider text-white/75 uppercase">{detalle}</p>
-            <p className="mt-0.5 truncate text-2xl font-extrabold tracking-tight">{titulo}</p>
-            <p className="mt-1 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</p>
-          </div>
-          <div className="text-right">
-            <p key={adentro} className="text-5xl leading-none font-extrabold tracking-tight animate-pop">
+        <span className="relative flex items-end justify-between gap-4">
+          <span className="block min-w-0">
+            <span className="block truncate text-xs font-semibold tracking-wider text-white/75 uppercase">{detalle}</span>
+            <span className="mt-0.5 flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
+              <span className="truncate">{titulo}</span>
+              <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2 text-[11px] font-bold tracking-normal">
+                Cambiar <ChevronDown size={13} aria-hidden="true" />
+              </span>
+            </span>
+            <span className="block mt-0.5 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</span>
+          </span>
+          <span className="block text-right">
+            <span key={adentro} className="block text-5xl leading-none font-extrabold tracking-tight animate-pop">
               {adentro}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-white/80">{adentro === 1 ? 'bailarín' : 'bailarines'}</p>
-          </div>
-        </div>
-      </div>
+            </span>
+            <span className="block mt-1 text-xs font-semibold text-white/80">{adentro === 1 ? 'bailarín' : 'bailarines'}</span>
+          </span>
+        </span>
+      </button>
     </div>
   );
 }

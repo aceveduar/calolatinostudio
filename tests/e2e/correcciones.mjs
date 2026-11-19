@@ -26,8 +26,10 @@ const caja = async () => {
   return t;
 };
 const irSalsa1 = async () => {
-  if (await page.getByRole('button', { name: /^Salsa 1/ }).count() === 0) await btn(/Elegir clase|Otra/).click();
-  await page.getByRole('button', { name: /^Salsa 1/ }).first().click();
+  await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+  await page.getByRole('dialog').waitFor();
+  if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Salsa 1/ }).first().click();
   await espera();
 };
 

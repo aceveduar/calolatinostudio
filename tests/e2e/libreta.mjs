@@ -76,7 +76,8 @@ console.log('   en caja como clase fiada:', ok(/\(fiada \d+\/\d+\)/.test(t)));
 
 // 4) entra y paga después, en Casa de Cultura (hoy hay clases ahí)
 await page.getByRole('link', { name: 'Entrada' }).first().click();
-await page.getByRole('button', { name: 'Cambiar sede' }).click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').getByRole('button', { name: /Cambiar sede/ }).click();
 await dlg.getByRole('button', { name: /Casa de Cultura/ }).click();
 await page.waitForTimeout(500);
 const planes = await todos('planes');

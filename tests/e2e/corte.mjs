@@ -64,7 +64,9 @@ console.log('2d) el corte guarda feria, salidas y la diferencia:', ok(c.fondo ==
 
 // 3) el siguiente corte propone la misma feria
 await page.getByRole('button', { name: 'Rehacer' }).click();
-const feria = await page.getByRole('dialog', { name: 'Corte de caja' }).getByLabel('Feria con la que abrió').inputValue();
+const campoFeria = page.getByRole('dialog', { name: 'Corte de caja' }).getByLabel('Feria con la que abrió');
+await page.waitForFunction(() => document.querySelector('input[aria-label="Feria con la que abrió"]')?.value === '500', null, { timeout: 5000 }).catch(() => {});
+const feria = await campoFeria.inputValue();
 console.log('3) el siguiente corte ya propone la feria de $500:', ok(feria === '500'), feria);
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

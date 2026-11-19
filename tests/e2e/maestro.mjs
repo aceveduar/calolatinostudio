@@ -36,10 +36,11 @@ console.log('1) acceso de maestro creado: OK');
 // 2) Monse cobra en Salsa 0 (clase de Luis)
 await bloquear();
 await entrarComo('Monse', '1111');
-const salsa0 = page.getByRole('button', { name: /^Salsa 0/ }).first();
 console.log('2a) recepción empieza en Entrada:', ok(new URL(page.url()).pathname === '/'));
-if (!(await salsa0.count())) await btn(/Elegir clase|Otra/).click();
-await page.getByRole('button', { name: /^Salsa 0/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /^Salsa 0/ }).first().click();
 await page.waitForTimeout(400);
 const fichas = page.locator('main button').filter({ hasText: /Paga|Plan/ });
 for (let i = 0; i < 3; i++) { await fichas.nth(i).click(); await btn('Listo').click(); }

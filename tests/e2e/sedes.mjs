@@ -20,13 +20,14 @@ console.log('   clases del Estudio (no las de Casa de Cultura):', ok(!/Lady Styl
 await page.screenshot({ path: `${OUT}sede-1-estudio.png` });
 if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.getByRole('button', { name: /Elegir clase/ }).click();
-  await page.locator('main div.no-scrollbar button').first().click();
+  await page.getByRole('dialog').getByRole('button').filter({ hasText: /\d{2}:\d{2}/ }).first().click();
   await page.waitForTimeout(300);
 }
 await page.getByRole('button', { name: /sin nombre/ }).click();
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 // cambiar a Casa de Cultura
-await page.getByRole('button', { name: 'Cambiar sede' }).click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').getByRole('button', { name: /Cambiar sede/ }).click();
 await page.screenshot({ path: `${OUT}sede-2-elegir.png` });
 await page.getByRole('dialog').getByRole('button', { name: /Casa de Cultura/ }).click();
 await page.waitForTimeout(600);
@@ -53,7 +54,7 @@ console.log('5) caja Estudio = $60:', caja, ok(caja.includes('Total cobrado $60'
 // corte en Casa de Cultura
 await page.getByRole('button', { name: 'Casa de Cultura' }).click();
 await page.getByRole('button', { name: /Hacer corte/ }).click();
-await page.getByPlaceholder('0').fill('40');
+await page.getByRole('dialog').getByPlaceholder('0').last().fill('40'); // el primero es la feria
 await page.getByRole('button', { name: 'Guardar corte' }).click();
 await page.getByText(/Corte hecho/).waitFor();
 await page.getByRole('button', { name: 'Estudio Calo' }).click();

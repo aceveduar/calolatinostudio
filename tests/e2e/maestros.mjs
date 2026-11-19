@@ -126,8 +126,10 @@ console.log('B2) lista de maestros con sus clases:', ok(lista.includes('Profa Ka
 
 // Cobrar: 2 en Salsa 1, 1 en Salsa 0
 await page.getByRole('link', { name: 'Entrada' }).click();
-await btn(/Elegir clase|Otra/).click();
-await page.getByRole('button', { name: /Salsa 1/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa 1/ }).first().click();
 const hero = await page.locator('main').innerText();
 console.log('B3) tarjeta muestra maestro:', ok(/con Profe Luis/i.test(hero)));
 await shot('3-entrada');
@@ -137,7 +139,10 @@ for (const n of ['Ana López', 'Carlos Ruiz']) {
   await page.waitForTimeout(9000 / 9);
   await btn('Listo').click();
 }
-await page.getByRole('button', { name: /Salsa 0/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa 0/ }).first().click();
 await busca.fill('Diana Pérez');
 await page.getByText('Nuevo: Diana Pérez').click();
 await btn('Listo').click();

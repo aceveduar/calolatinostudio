@@ -26,8 +26,10 @@ await page.getByText('Repite tu PIN').waitFor();
 await pin('482915');
 await busca.waitFor();
 
-await btn(/Elegir clase|Otra/).click();
-await page.getByRole('button', { name: /Salsa 1/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa 1/ }).first().click();
 
 // 1) Fila de alumnos nuevos, cada uno paga con $50 por separado
 const nombres = ['Ana López', 'Carlos Ruiz', 'Diana Pérez', 'Jorge Mendoza', 'Lucía Torres', 'Pedro Sánchez'];
@@ -74,7 +76,10 @@ console.log('5) deshacer: OK');
 await listo();
 
 // 6) Otra clase: sugiere a los asiduos; un toque cobra; fue transferencia
-await page.getByRole('button', { name: /Salsa 0/ }).first().click();
+await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
+await page.getByRole('dialog').waitFor();
+if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa 0/ }).first().click();
 await page.getByRole('button', { name: /Diana P\./ }).click();
 await page.getByText('Cobrar en efectivo').waitFor();
 await btn('Fue transferencia').click();

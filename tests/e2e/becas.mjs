@@ -73,7 +73,7 @@ console.log('   las becas no salen en "Vencen esta semana":', ok(!venceBeca));
 await page.getByRole('link', { name: 'Entrada' }).click();
 if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.getByRole('button', { name: /Elegir clase/ }).click();
-  await page.locator('main div.no-scrollbar button').first().click();
+  await page.getByRole('dialog').getByRole('button').filter({ hasText: /\d{2}:\d{2}/ }).first().click();
 }
 await page.getByPlaceholder(/Quién llegó|Buscar…/).fill(nombre.split(' ').slice(0, 2).join(' '));
 await page.waitForTimeout(400);
