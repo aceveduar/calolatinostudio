@@ -277,7 +277,7 @@ export function PantallaEntrada() {
                   aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
                 >
                   <ListChecks size={16} /> {pendientes}
-                  {sedes.length === 0 && <span className="font-semibold">{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>}
+                  <span className={sedes.length ? 'hidden font-semibold lg:inline' : 'font-semibold'}>{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>
                 </Link>
               )}
               {sedes.length > 0 && (

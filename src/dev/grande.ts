@@ -69,7 +69,7 @@ export async function academiaGrande(p: { alumnos?: number; meses?: number } = {
   const sedeIds: (ID | null)[] = [null, ...sedes.map((s) => s.id)];
   await db.academias.update(A, { sedePrincipal: 'Estudio Calo', salones: [{ id: uid(), nombre: 'Salón 2' }] });
   const disc = DISCIPLINAS.map(([nombre, color]) => agrega<Disciplina>('disciplinas', { ...base(t0), nombre, color }));
-  const maestros = Array.from({ length: 18 }, (_, i) => agrega<Maestro>('maestros', { ...base(t0), nombre: `${i % 2 ? 'Profa' : 'Profe'} ${NOMBRES[(i * 7) % NOMBRES.length]} ${APELLIDOS[(i * 11) % APELLIDOS.length]}`, telefono: `55${String(10000000 + i * 7919).slice(0, 8)}`, notas: '', activo: true }));
+  const maestros = Array.from({ length: 18 }, (_, i) => agrega<Maestro>('maestros', { ...base(t0), nombre: `Profe ${NOMBRES[(i * 7) % NOMBRES.length]} ${APELLIDOS[(i * 11) % APELLIDOS.length]}`, telefono: `55${String(10000000 + i * 7919).slice(0, 8)}`, notas: '', activo: true }));
   for (const [i, m] of maestros.slice(0, 6).entries())
     agrega<Usuario>('usuarios', { ...base(t0), nombre: m.nombre, rol: 'maestro', maestroId: m.id, pinHash: await hashPin(String(500000 + i * 11111 + 3729), A), activo: true });
 

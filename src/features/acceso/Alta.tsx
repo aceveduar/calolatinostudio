@@ -146,7 +146,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
             </Campo>
             {error && <p className="text-sm font-medium text-bad-600">{error}</p>}
           </div>
-          <div className="mt-auto pt-8">
+          <div className="mt-auto pt-8 md:mt-0">
             <Boton grande bloque type="submit" disabled={ocupado}>
               {ocupado ? 'Descargando…' : 'Entrar'}
             </Boton>

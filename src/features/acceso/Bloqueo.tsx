@@ -96,7 +96,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
             {usuarios.map((u) => (
               <button key={u.id} onClick={() => setElegido(u)} className="flex flex-col items-center gap-2 rounded-2xl p-3 active:bg-ink-100">
                 <Avatar nombre={u.nombre} tam={64} />
-                <span className="w-full truncate text-center text-sm font-semibold">{u.nombre}</span>
+                <span className="line-clamp-2 w-full text-center text-sm leading-tight font-semibold break-words">{u.nombre}</span>
               </button>
             ))}
           </div>
