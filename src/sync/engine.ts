@@ -139,7 +139,7 @@ function esTablaFaltante(e: unknown): boolean {
  * Columnas opcionales que se pueden omitir si la base aún no las tiene: el registro sigue siendo válido sin ellas.
  * Cualquier otra columna faltante detiene la subida y CONSERVA la cola (nunca se sube un registro incompleto).
  */
-const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'academias.sede_principal', 'usuarios.maestro_id', 'clases.maestro_id', 'clases.curso', 'alumnos.portal', 'productos.opciones', 'academias.recargo_diario', 'academias.meta_diaria', 'academias.salones', 'academias.slug', 'academias.whatsapp', 'academias.pagina', 'pagos.costo', 'alumnos.foto', 'alumnos.avisos', 'gastos.maestro_id', 'gastos_fijos.maestro_id', 'interesados.invito_alumno_id']);
+const OMITIBLES = new Set(['academias.color', 'academias.logo', 'academias.mensajes', 'academias.sede_principal', 'usuarios.maestro_id', 'clases.maestro_id', 'clases.curso', 'alumnos.portal', 'productos.opciones', 'academias.recargo_diario', 'academias.meta_diaria', 'academias.salones', 'academias.slug', 'academias.whatsapp', 'academias.pagina', 'pagos.costo', 'alumnos.foto', 'alumnos.avisos', 'gastos.maestro_id', 'gastos_fijos.maestro_id', 'interesados.invito_alumno_id', 'eventos.en_pagina', 'eventos.en_portal']);
 
 /** Reintenta quitando columnas opcionales que la base aún no tiene. */
 async function tolerante(tabla: SyncTable, enviar: (limpiar: (f: Record<string, unknown>) => Record<string, unknown>) => Promise<{ message: string } | null>): Promise<void> {

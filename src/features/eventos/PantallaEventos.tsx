@@ -5,7 +5,7 @@ import { ArrowLeft, PartyPopper, Plus } from 'lucide-react';
 import { useClases, useRentas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Entrada, Hoja, Seccion, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Boton, Campo, Entrada, Hoja, Interruptor, Seccion, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Evento, ID } from '../../db/types';
 import { diaSemana, empalmes, rangoHora } from '../../domain/agenda';
@@ -38,6 +38,7 @@ export function PantallaEventos() {
         <span className="block truncate text-xs text-ink-500">
           {rangoHora(e.horaInicio, e.duracionMin)} · {dinero(e.precio)} · {vendidos}
           {e.cupo !== null ? ` de ${e.cupo}` : ''} boletos{!e.activo ? ' · cancelado' : ''}
+          {e.activo && e.enPagina === false && e.enPortal === false ? ' · no se anuncia' : e.activo && e.enPortal === false ? ' · no sale en el portal' : e.activo && e.enPagina === false ? ' · solo en el portal' : ''}
         </span>
       </span>
       {e.cupo !== null && vendidos >= e.cupo && e.activo && <span className="rounded-full bg-bad-50 px-2 py-0.5 text-xs font-bold text-bad-600">Lleno</span>}
@@ -109,6 +110,8 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
   const [precio, setPrecio] = useState(evento ? aPesosTexto(evento.precio) : '');
   const [descripcion, setDescripcion] = useState(evento?.descripcion ?? '');
   const [salonId, setSalonId] = useState<string>(evento?.salonId ?? '');
+  const [enPagina, setEnPagina] = useState(evento?.enPagina !== false);
+  const [enPortal, setEnPortal] = useState(evento?.enPortal !== false);
   const [ocupado, setOcupado] = useState(false);
 
   const duracionMin = Math.max(30, Number(duracion) || 240);
@@ -121,6 +124,8 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
     precio: aCentavos(precio),
     descripcion: descripcion.trim(),
     salonId: salonId || null,
+    enPagina,
+    enPortal,
   };
   const choques = empalmes(
     { dias: [diaSemana(fecha)], horaInicio: hora, duracionMin, desde: fecha, hasta: fecha, id: evento?.rentaId ?? undefined, salonId: salonId || null },
@@ -188,6 +193,12 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
       <Campo etiqueta="Descripción (opcional)">
         <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Concurso de disfraces, DJ en vivo" />
       </Campo>
+      <div className="space-y-2 rounded-2xl bg-superficie p-3 ring-1 ring-ink-100">
+        <p className="px-1 text-sm font-semibold text-ink-700">¿Dónde se anuncia?</p>
+        <Interruptor valor={enPagina} onChange={setEnPagina} texto="En la página pública (cualquiera lo ve)" />
+        <Interruptor valor={enPortal} onChange={setEnPortal} texto="En el portal de los alumnos" />
+        {!enPagina && !enPortal && <p className="px-1 text-xs text-ink-500">No se anuncia: solo lo ven aquí. Recepción igual puede vender boletos a quien invites.</p>}
+      </div>
       {choques.length > 0 && (
         <div className="rounded-xl bg-bad-50 px-3 py-2.5 text-sm text-bad-600">
           <p className="font-bold">El salón ya está ocupado ese {fechaLarga(fecha).split(',')[0]}:</p>

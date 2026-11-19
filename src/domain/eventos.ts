@@ -18,7 +18,7 @@ export function codigoBoleto(): string {
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 export const boletoValido = (b: Boleto) => vivo(b) && !b.anuladoAt;
 
-export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion'> & { salonId: ID | null };
+export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion' | 'enPagina' | 'enPortal'> & { salonId: ID | null };
 
 /** Renta interna que aparta el salón ese día y horario. */
 function rentaDe(e: DatosEvento) {

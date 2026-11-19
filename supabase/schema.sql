@@ -367,6 +367,8 @@ alter table alumnos add column if not exists avisos jsonb;
 alter table gastos add column if not exists maestro_id uuid;
 alter table gastos_fijos add column if not exists maestro_id uuid;
 alter table interesados add column if not exists invito_alumno_id uuid;
+alter table eventos add column if not exists en_pagina boolean;
+alter table eventos add column if not exists en_portal boolean;
 create unique index if not exists academias_slug_idx on academias (lower(slug)) where slug is not null;
 create unique index if not exists alumnos_portal_idx on alumnos (portal) where portal is not null;
 
@@ -549,7 +551,7 @@ begin
       select jsonb_agg(ev order by ev->>'fecha', ev->>'hora') from (
         select jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) ev
-        from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and e.fecha >= hoy and e.fecha <= hoy + 90
+        from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and coalesce(e.en_portal, true) and e.fecha >= hoy and e.fecha <= hoy + 90
         order by e.fecha, e.hora_inicio limit 6
       ) t
     ), '[]'::jsonb),
@@ -660,7 +662,7 @@ begin
     'eventos', coalesce((
       select jsonb_agg(jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
                                           'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
-      from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and e.fecha >= hoy
+      from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and coalesce(e.en_pagina, true) and e.fecha >= hoy
     ), '[]'::jsonb),
     'tienda', coalesce((
       select jsonb_agg(jsonb_build_object('nombre', p.nombre, 'precio', p.precio, 'emoji', p.emoji, 'foto', img_publica(base, 'p_' || p.id, p.foto), 'descripcion', p.descripcion,
@@ -808,7 +810,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261124 $$;
+language sql immutable as $$ select 20261125 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

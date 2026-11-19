@@ -50,9 +50,13 @@ const bloqueado = (await dlg.getByText(/El salón ya está ocupado/).count()) ==
 await dlg.locator('input[type="time"]').fill('14:00');
 await dlg.getByPlaceholder(/Duración|^$/).first().fill('120').catch(() => {});
 await page.waitForTimeout(200);
+const enPagina0 = await dlg.getByRole('switch', { name: /página pública/ }).getAttribute('aria-checked');
+await dlg.getByRole('switch', { name: /portal de los alumnos/ }).click();
 await dlg.getByRole('button', { name: 'Crear evento' }).click();
 await page.getByText(/Evento creado/).waitFor();
 console.log('3) evento sobre una clase se bloquea; a otra hora se crea:', ok(bloqueado));
+const ev = await page.evaluate(async () => (await window.compasDev.db.eventos.toArray()).find((e) => e.nombre === 'Taller de verano'));
+console.log('3b) se decide dónde se anuncia (por defecto en todos lados; aquí, no en el portal):', ok(enPagina0 === 'true' && ev.enPagina === true && ev.enPortal === false));
 
 // 4) vender con cupo
 await page.getByRole('button', { name: /Vender boleto/ }).click();

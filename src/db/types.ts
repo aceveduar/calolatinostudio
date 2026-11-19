@@ -197,6 +197,10 @@ export interface Evento extends Base {
   descripcion: string;
   activo: boolean;
   rentaId: ID | null;
+  /** dónde se anuncia (null/undefined = sí): la página pública y el portal de los alumnos. Un social avanzado
+   *  puede no anunciarse a todos; recepción igual vende boletos a quien quiera. */
+  enPagina?: boolean | null;
+  enPortal?: boolean | null;
 }
 
 /** Un boleto = una persona. Se venden juntos en un cobro (pagoId) y se marcan al entrar. */
