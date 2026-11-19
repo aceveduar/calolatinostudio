@@ -8,6 +8,8 @@ const nube = vi.hoisted(() => ({
   reloj: 0,
   /** la nube rechaza los cambios (como una base sin esa tabla): quedan en la cola */
   rechazar: false,
+  /** desde qué hora pidió cada bajada (para revisar el traslape) */
+  consultas: [] as { tabla: string; desde: string }[],
 }));
 
 vi.mock('../../src/sync/supabase', () => {
@@ -45,6 +47,7 @@ vi.mock('../../src/sync/supabase', () => {
       },
       gt(_c: string, v: string) {
         q.desde = v;
+        nube.consultas.push({ tabla: t, desde: v });
         accion = () => ({ data: [...tabla(t).values()].filter((f) => (f.server_updated_at as string) > q.desde!).sort((a, b) => ((a.server_updated_at as string) < (b.server_updated_at as string) ? -1 : 1)), error: null });
         return q;
       },
@@ -73,6 +76,7 @@ beforeEach(async () => {
   nube.tablas.clear();
   nube.envios.length = 0;
   nube.rechazar = false;
+  nube.consultas.length = 0;
   await setMeta('academiaId', 'a1');
   await setMeta('nubeVinculada', true);
 });
@@ -80,6 +84,30 @@ beforeEach(async () => {
 const alta = () => crear('alumnos', { nombre: 'Ana', telefono: '5511112222', activo: true } as never);
 
 describe('sincronizar', () => {
+  it('el traslape de 2 min se revisa una vez después de recibir cambios, no siempre', async () => {
+    await alta();
+    await sincronizar(); // sube el alta y la baja (cambio nuevo) → la próxima revisa traslape
+    const desdeDe = () => nube.consultas.filter((c) => c.tabla === 'alumnos').at(-1)!.desde;
+    const cursor = (await db.meta.get('cursor:alumnos'))!.value as string;
+    await sincronizar();
+    expect(new Date(desdeDe()).getTime()).toBe(new Date(cursor).getTime() - 120_000);
+    await sincronizar(); // ya sin cambios nuevos: desde el cursor exacto
+    expect(desdeDe()).toBe(cursor);
+  });
+
+  it('lo que llega igual a como ya está no se reescribe', async () => {
+    await alta();
+    await sincronizar();
+    await sincronizar();
+    let escrituras = 0;
+    const contar = () => void escrituras++;
+    db.alumnos.hook('updating', contar);
+    await db.meta.put({ key: 'traslape:alumnos', value: true }); // fuerza a volver a bajar lo mismo
+    await sincronizar();
+    db.alumnos.hook('updating').unsubscribe(contar);
+    expect(escrituras).toBe(0);
+  });
+
   it('el índice local de deudas nunca se sube', async () => {
     await crear('asistencias', { alumnoId: 'al1', nombreVisitante: null, claseId: 'c1', fecha: '2026-11-18', membresiaId: null, pagoId: null, usuarioId: 'u1', anuladaAt: null, debe: true } as never);
     await sincronizar();

@@ -172,6 +172,17 @@ async function subirCambios(tabla: SyncTable, reg: Record<string, unknown>, camp
 
 const TRASLAPE_MS = 2 * 60_000;
 
+/** ¿El registro de la nube es igual al del teléfono? (campo por campo de lo que manda la nube) */
+function igualQue(remoto: Record<string, unknown>, local: Record<string, unknown>): boolean {
+  for (const k in remoto) {
+    const a = remoto[k];
+    const b = local[k];
+    if (a === b || (a == null && b == null)) continue;
+    if (typeof a !== 'object' || JSON.stringify(a) !== JSON.stringify(b)) return false;
+  }
+  return true;
+}
+
 /** Lo más que entrega Supabase por consulta. */
 const POR_PAGINA = 1000;
 
@@ -188,11 +199,17 @@ async function pull(academiaId: ID): Promise<void> {
 
 async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
   const claveCursor = `cursor:${tabla}`;
+  const claveTraslape = `traslape:${tabla}`;
   const guardado = await getMeta<string>(claveCursor);
-  // Traslape: volver a revisar los últimos 2 min. Una subida grande de otro teléfono puede
-  // terminar DESPUÉS de que leímos filas más nuevas, dejando filas con hora anterior al cursor.
-  // Repetirlas es inofensivo (la nube manda, salvo en lo que este teléfono aún no sube).
-  let cursor = guardado ? new Date(new Date(guardado).getTime() - TRASLAPE_MS).toISOString() : '1970-01-01T00:00:00Z';
+  // Traslape: si la vez pasada llegaron cambios nuevos, volver a revisar los 2 min anteriores al cursor.
+  // Una subida grande de otro teléfono puede terminar DESPUÉS de que leímos filas más nuevas, dejando
+  // filas con hora anterior al cursor. Solo hace falta UNA revisión después de recibir cambios: hacerlo
+  // siempre volvía a bajar, en cada sincronización, todo lo de esos 2 minutos (miles de filas tras una
+  // carga grande).
+  const traslape = guardado && (await getMeta<boolean>(claveTraslape)) !== false;
+  let cursor = guardado ? new Date(new Date(guardado).getTime() - (traslape ? TRASLAPE_MS : 0)).toISOString() : '1970-01-01T00:00:00Z';
+  const hastaAntes = guardado ? new Date(guardado).getTime() : 0;
+  let nuevos = false;
   for (;;) {
     const { data, error } = await supabase!
       .from(aSnake(tabla))
@@ -206,20 +223,25 @@ async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
       return;
     }
     if (error) throw new Error(`${tabla}: ${error.message}`);
-    if (!data.length) return;
+    if (!data.length) break;
+    if (data.some((r) => new Date(r.server_updated_at as string).getTime() > hastaAntes)) nuevos = true;
 
     // La nube manda, salvo en lo que este teléfono aún no sube. Revisar la cola y guardar en la misma
-    // transacción: un cobro hecho justo en este momento no se puede perder.
+    // transacción: un cobro hecho justo en este momento no se puede perder. Lo que llega igual a como ya
+    // está no se reescribe (cada escritura hace que las pantallas abiertas vuelvan a calcular).
     await db.transaction('rw', db.table(tabla), db.outbox, async () => {
       const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
-      const aGuardar = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
+      const remotos = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
+      const locales = (await db.table(tabla).bulkGet(remotos.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
+      const aGuardar = remotos.filter((r, i) => !locales[i] || !igualQue(r, locales[i]!));
       if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
     });
 
     cursor = data[data.length - 1].server_updated_at as string;
     await setMeta(claveCursor, cursor);
-    if (data.length < POR_PAGINA) return;
+    if (data.length < POR_PAGINA) break;
   }
+  await setMeta(claveTraslape, nuevos);
 }
 
 let corriendo: Promise<void> | null = null;
