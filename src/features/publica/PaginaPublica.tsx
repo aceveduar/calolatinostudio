@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
 import { supabase } from '../../sync/supabase';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx } from '../../components/ui';
@@ -157,6 +157,11 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     return () => clearTimeout(t);
   }, []);
 
+  // Alumno que viene de SU portal (?yo=1): ya es alumno, así que nada de "tu primera clase" ni inscripción;
+  // ve horarios, precios y eventos, y un botón para volver a su portal.
+  const yo = new URLSearchParams(location.search).has('yo');
+  const volverAlPortal = () => (history.length > 1 ? history.back() : undefined);
+
   // tocar una clase del horario: queda elegida en el formulario
   const [claseSel, setClaseSel] = useState('');
   const apartar = (id: string) => {
@@ -201,9 +206,11 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               </a>
             ))}
           </div>
-          <a href="#inscribete" className="hidden rounded-full bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-sm active:scale-95 sm:block">
-            Inscríbete
-          </a>
+          {!yo && (
+            <a href="#inscribete" className="hidden rounded-full bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-sm active:scale-95 sm:block">
+              Inscríbete
+            </a>
+          )}
         </div>
       </nav>
 
@@ -261,9 +268,15 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             <h1 className="text-[2.6rem] leading-[1.03] font-extrabold tracking-tight text-balance sm:text-6xl">{p.frase || 'Clases de baile'}</h1>
             {p.intro && <p className="mt-4 line-clamp-3 max-w-xl text-lg text-pretty text-white/75">{p.intro}</p>}
             <div ref={hero} className="mt-7 flex gap-3">
-              <a href="#inscribete" className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98] sm:flex-none">
-                Tu primera clase <ArrowRight size={20} aria-hidden="true" />
-              </a>
+              {yo ? (
+                <button type="button" onClick={volverAlPortal} className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98] sm:flex-none">
+                  <ArrowLeft size={20} aria-hidden="true" /> Volver a mi portal
+                </button>
+              ) : (
+                <a href="#inscribete" className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98] sm:flex-none">
+                  Tu primera clase <ArrowRight size={20} aria-hidden="true" />
+                </a>
+              )}
               {wa && (
                 <a href={wa} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="flex h-14 w-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white/10 font-bold text-white ring-1 ring-white/20 active:scale-[0.98] sm:w-auto sm:px-5">
                   <MessageCircle size={22} /> <span className="hidden sm:inline">WhatsApp</span>
@@ -371,7 +384,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           {clasesVista.length === 0 ? (
             <p className="mt-6 text-ink-500">Pronto publicaremos horarios aquí.</p>
           ) : (
-            <Horario clases={clasesVista} estados={estados} onApartar={apartar} wa={(c, dd) => waCon(`Hola, quiero información de la clase de ${c.clase} (${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}) en ${d.academia.nombre}.`)} />
+            <Horario clases={clasesVista} estados={estados} onApartar={yo ? undefined : apartar} wa={(c, dd) => waCon(`Hola, quiero información de la clase de ${c.clase} (${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}) en ${d.academia.nombre}.`)} />
           )}
         </Seccion>
 
@@ -409,7 +422,8 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </Seccion>
         )}
 
-        {/* ---------- franja de la primera clase ---------- */}
+        {/* ---------- franja de la primera clase (no para quien ya es alumno) ---------- */}
+        {!yo && (
         <section className="pp-revela relative overflow-hidden bg-brand-500 text-white">
           <div className="mx-auto flex max-w-5xl flex-col gap-5 px-5 py-12 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -421,6 +435,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             </a>
           </div>
         </section>
+        )}
 
         {/* ---------- dónde estamos ---------- */}
         {lugares.length > 0 && (
@@ -520,7 +535,8 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </Seccion>
         )}
 
-        {/* ---------- inscripción ---------- */}
+        {/* ---------- inscripción (no para quien ya es alumno) ---------- */}
+        {!yo && (
         <section className="bg-panel text-white">
           <div className="mx-auto grid max-w-5xl gap-8 px-5 py-14 md:grid-cols-[1fr_1.1fr] md:items-start">
             <div className="md:sticky md:top-24">
@@ -542,6 +558,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             </div>
           </div>
         </section>
+        )}
       </main>
 
       {/* ---------- pie ---------- */}
@@ -580,9 +597,15 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         aria-hidden={!verBarra}
       >
         <div className="mx-auto flex max-w-2xl gap-2">
-          <a href="#inscribete" tabIndex={verBarra ? 0 : -1} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98]">
-            Quiero mi primera clase
-          </a>
+          {yo ? (
+            <button type="button" onClick={volverAlPortal} tabIndex={verBarra ? 0 : -1} className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98]">
+              <ArrowLeft size={20} aria-hidden="true" /> Volver a mi portal
+            </button>
+          ) : (
+            <a href="#inscribete" tabIndex={verBarra ? 0 : -1} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98]">
+              Quiero mi primera clase
+            </a>
+          )}
           {wa && (
             <a href={wa} target="_blank" rel="noreferrer" tabIndex={verBarra ? 0 : -1} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#15803d] text-white shadow-xl" aria-label="Escríbenos por WhatsApp">
               <MessageCircle size={24} />

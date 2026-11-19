@@ -82,6 +82,25 @@ for (const h of ['#horarios', '#horario']) {
   await ctx.close();
 }
 
+// 2c) alumno que llega desde SU portal (?yo=1): horarios sí, "primera clase" e inscripción no; puede volver
+{
+  const { ctx, page } = await nuevo();
+  await ctx.route('**/rest/v1/rpc/pagina_publica', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
+  await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hoy: '2026-11-18', alumno: { nombre: 'Ana López', codigo: 'K7P2QX', foto: null }, academia: { nombre: 'Calo Latino Studio', color: '#d6304a', logo: null, slug: 'calo-latino' }, planes: [], clases: [], tienda: [], horario: [] }) }));
+  await page.goto('http://localhost:4173/p/AbCdEfGhJkLmNpQrStUvWxYz23');
+  await page.getByRole('link', { name: /Ver el horario/ }).click();
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.waitForTimeout(800);
+  const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  const y = await page.evaluate(() => document.getElementById('horarios').getBoundingClientRect().top);
+  await page.screenshot({ path: `${OUT}modo-alumno.png` });
+  console.log('2c) desde su portal: ve el horario, sin "primera clase" ni inscripción:', ok(Math.abs(y) < 120 && !/primera clase|Inscríbete|Apartar mi lugar|Toca una clase para apartar/i.test(t) && (await page.locator('#inscribete').count()) === 0 && (await page.getByRole('button', { name: /Apartar lugar en/ }).count()) === 0), Math.round(y));
+  await page.getByRole('button', { name: 'Volver a mi portal' }).first().click();
+  await page.getByText('Tu pase de entrada').waitFor({ timeout: 5000 }).catch(() => {});
+  console.log('2d) "Volver a mi portal" regresa a su portal:', ok(/\/p\/AbCdEf/.test(page.url())), page.url());
+  await ctx.close();
+}
+
 // 3) recepción ve quién lo invitó
 {
   const { page } = await nuevo();

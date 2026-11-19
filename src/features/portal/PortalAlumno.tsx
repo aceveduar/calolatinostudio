@@ -551,7 +551,7 @@ function ProximaClaseTarjeta({ horario, slug }: { horario: ClaseHorario[]; slug:
   const dias = semana(horario);
   if (!prox)
     return slug ? (
-      <a href={`/a/${slug}#horarios`} className="flex items-center gap-3 rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <a href={`/a/${slug}?yo=1#horarios`} className="flex items-center gap-3 rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
         <Clock size={22} className="text-brand-600" aria-hidden="true" />
         <span className="flex-1 font-semibold">Ver el horario de clases</span>
         <span aria-hidden="true" className="text-ink-300">›</span>

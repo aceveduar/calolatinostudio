@@ -60,7 +60,7 @@ await ctx.close();
 
 // 3) sin plan y sin horario: invita a preguntar y a ver el horario
 ({ page, ctx, t } = await abrir({ ...base, planes: [], horario: [], logros: { total: 0, desde: null, semanas: [] } }));
-console.log('10) sin plan: preguntar por planes; sin horario: enlace al horario:', ok(/Pagas por clase/.test(t) && (await page.getByRole('link', { name: 'Preguntar por planes' }).count()) === 1 && (await page.getByRole('link', { name: /Ver el horario/ }).getAttribute('href')) === '/a/calo-latino#horarios' && !/Tus logros/.test(t)));
+console.log('10) sin plan: preguntar por planes; sin horario: enlace al horario:', ok(/Pagas por clase/.test(t) && (await page.getByRole('link', { name: 'Preguntar por planes' }).count()) === 1 && (await page.getByRole('link', { name: /Ver el horario/ }).getAttribute('href')) === '/a/calo-latino?yo=1#horarios' && !/Tus logros/.test(t)));
 await ctx.close();
 
 // 4) datos de una base anterior (sin horario ni logros): no truena

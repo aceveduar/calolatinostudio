@@ -10,7 +10,7 @@ import { DIAS_LARGOS, SEMANA, horaFin, type Estados, minutos, enCuanto } from '.
  * Horario por día: abre en hoy (o el siguiente día con clases), con "Ahora" y "Siguiente" en vivo.
  * "Toda la semana" muestra todo junto, para quien quiere planear.
  */
-export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['clases']; estados: Estados; onApartar: (id: string) => void; wa: (c: DatosPublica['clases'][number], dia: number) => string | null }) {
+export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['clases']; estados: Estados; onApartar?: (id: string) => void; wa: (c: DatosPublica['clases'][number], dia: number) => string | null }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setAhora(new Date()), 60_000);
@@ -29,17 +29,19 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
   const enCurso = new Set(deHoy.filter((c) => minutos(c.hora) <= min && min < minutos(c.hora) + c.duracion).map((c) => c.id));
   const siguiente = deHoy.find((c) => minutos(c.hora) > min);
 
+  // sin onApartar (alumno que viene de su portal) la clase solo se ve: no es botón
+  const Fila = onApartar ? 'button' : 'div';
   const fila = (c: DatosPublica['clases'][number], vivo: boolean, dd: number) => {
     const e = estados.get(c.id);
     const esAhora = vivo && enCurso.has(c.id);
     const esSiguiente = vivo && siguiente?.id === c.id;
     return (
       <li key={c.id} className={cx('flex items-stretch overflow-hidden rounded-2xl bg-superficie shadow-sm ring-1 transition', esAhora ? 'ring-2 ring-ok-600' : 'ring-ink-100')}>
-        <button
-          type="button"
-          onClick={() => onApartar(c.id)}
-          aria-label={`Apartar lugar en ${c.clase}, ${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}`}
-          className="group flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left hover:bg-ink-50 active:bg-ink-50"
+        <Fila
+          {...(onApartar
+            ? { type: 'button' as const, onClick: () => onApartar(c.id), 'aria-label': `Apartar lugar en ${c.clase}, ${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}` }
+            : {})}
+          className={cx('group flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left', onApartar ? 'hover:bg-ink-50 active:bg-ink-50' : 'pr-3')}
         >
         <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
         <span className="min-w-0 flex-1">
@@ -60,8 +62,8 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
           </span>
           {c.precio ? <span className="block text-sm font-bold text-brand-600">{dinero(c.precio)}</span> : null}
         </span>
-        <ChevronRight size={18} className="shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden="true" />
-        </button>
+        {onApartar && <ChevronRight size={18} className="shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden="true" />}
+        </Fila>
         {wa(c, dd) && (
           <a
             href={wa(c, dd)!}
@@ -104,7 +106,7 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
           Toda la semana
         </button>
       </div>
-      <p className="mt-3 text-xs text-ink-500">Toca una clase para apartar tu lugar.</p>
+      {onApartar && <p className="mt-3 text-xs text-ink-500">Toca una clase para apartar tu lugar.</p>}
       {dia === 'semana' ? (
         <div className="mt-5 grid gap-x-6 gap-y-5 lg:grid-cols-2">
           {conClase.map((x) => (
