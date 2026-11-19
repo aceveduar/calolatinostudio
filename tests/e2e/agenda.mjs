@@ -3,6 +3,7 @@ const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]
 const pc = process.argv[2] === 'pc';
 const browser = await chromium.launch({ channel: 'msedge' });
 const page = await (await browser.newContext({ viewport: pc ? { width: 1366, height: 900 } : { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: !pc, hasTouch: true, locale: 'es-MX' })).newPage();
+await page.clock.install({ time: new Date('2026-11-18T19:10:00') }); // miércoles a la hora de clases: la prueba no depende del reloj
 const errores = []; page.on('pageerror', (e) => errores.push(e.message));
 const ir = async (r) => { await page.evaluate((x) => { history.pushState(null, '', x); dispatchEvent(new PopStateEvent('popstate')); }, r); await page.waitForTimeout(400); };
 const ok = (c) => (c ? 'OK' : 'MAL');

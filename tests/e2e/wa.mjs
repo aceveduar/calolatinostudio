@@ -11,7 +11,7 @@ await page.evaluate(() => window.compasDev.sembrar());
 await page.reload();
 await page.getByText('Monse', { exact: true }).click();
 for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.getByPlaceholder('Buscar por nombre o teléfono').fill('Carlos Ruiz');
 await page.getByText('Carlos Ruiz').click();
 await page.getByRole('button', { name: /Credencial con QR/ }).click();

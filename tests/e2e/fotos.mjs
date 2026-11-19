@@ -17,7 +17,7 @@ await page.keyboard.type('1111', { delay: 30 });
 await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 
 // 1) foto desde la ficha (galería)
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.locator('main .divide-y button').first().click();
 await page.getByRole('button', { name: /^Poner foto a/ }).click();
 await page.locator('input[type=file]:not([capture])').setInputFiles(DIR + 'archivos/ean_agua.png');
@@ -25,7 +25,7 @@ await page.getByText('Foto guardada').waitFor();
 const alumno = await page.evaluate(async () => (await window.compasDev.db.alumnos.toArray()).find((a) => a.foto));
 console.log('1) foto guardada pequeña (JPEG):', ok(alumno?.foto?.startsWith('data:image/jpeg') && alumno.foto.length < 60000), alumno?.foto?.length);
 console.log('   se ve en la ficha:', ok((await page.locator('main img[src^="data:image/jpeg"]').count()) >= 1));
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.waitForTimeout(400);
 console.log('2) se ve en la lista de alumnos:', ok((await page.locator('main .divide-y img[src^="data:image/jpeg"]').count()) >= 1));
 

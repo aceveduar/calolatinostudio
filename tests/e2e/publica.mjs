@@ -30,7 +30,7 @@ const abrir = await page.getByRole('link', { name: /Abrir/ }).getAttribute('href
 console.log('1) página pública configurada:', ok(slug === 'calo-latino' && abrir.endsWith('/a/calo-latino')), abrir);
 
 // 2) Alumnos avisa de interesados nuevos
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.getByText(/9 interesados nuevos por contactar/).click();
 await page.getByText(/Ya se les escribió \(2\)/).waitFor();
 let t = await txt();

@@ -3,6 +3,7 @@ const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]
 const browser = await chromium.launch({ channel: 'msedge' });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'es-MX' });
 const page = await ctx.newPage();
+await page.clock.install({ time: new Date('2026-11-18T19:10:00') }); // miércoles a la hora de clases: la prueba no depende del reloj
 const errores = [];
 page.on('pageerror', (e) => errores.push(e.message));
 const ok = (c) => (c ? 'OK' : 'MAL');

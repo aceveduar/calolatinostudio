@@ -42,7 +42,7 @@ await pin('482915');
 await busca.waitFor();
 
 // Alumno ya registrado (sin entrada hoy) para reasignar luego
-await page.getByRole('link', { name: 'Alumnos' }).click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await btn('Nuevo').click();
 await page.getByPlaceholder('Nombre y apellido').fill('Jorge Mendoza');
 await btn('Registrar alumno').click();
@@ -115,7 +115,7 @@ await page.getByText('Nuevo: Ana Lopes').click();
 await btn('Listo').click();
 
 // 6) Unir registros duplicados
-await page.getByRole('link', { name: 'Alumnos' }).click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await page.getByText('Ana Lopes').click();
 await btn(/Unir registros/).click();
 await page.getByRole('dialog').getByRole('button', { name: /Ana López/ }).click();
@@ -126,7 +126,7 @@ await espera(600);
 const t6 = await texto();
 await shot('6-ficha-unida');
 console.log('6) unir registros + aviso de cobro doble:', ok(t6.includes('Ana López') && /Aparece 2 veces/.test(t6)));
-await page.getByRole('link', { name: 'Alumnos' }).click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 const lista = await texto();
 console.log('   duplicado retirado de la lista:', ok(!lista.includes('Ana Lopes')));
 
@@ -147,7 +147,7 @@ const c7 = (await page.getByText('Total cobrado').locator('..').innerText()).rep
 console.log('7b) restaurar cobro:', c7, ok(c7.includes('Total cobrado $160')));
 
 // 8) Dar de baja + deshacer; ver dados de baja y reactivar
-await page.getByRole('link', { name: 'Alumnos' }).click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await page.getByText('Jorge Mendoza').click();
 await btn('Dar de baja').click();
 await espera();

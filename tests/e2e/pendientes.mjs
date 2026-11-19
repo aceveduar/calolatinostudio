@@ -75,7 +75,7 @@ console.log('5) Más → mosaico Pendientes con número:', ok(/Pendientes\s*\d+|
 await page.screenshot({ path: `${OUT}pend-${P}-3-mas.png` });
 
 // 6) alta de alumno → hoja para mandarle su acceso
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.getByRole('button', { name: /Nuevo/ }).first().click();
 await dlg.getByPlaceholder('Nombre y apellido').fill('Lucía Prueba');
 await dlg.getByPlaceholder('10 dígitos').fill('5512340000');

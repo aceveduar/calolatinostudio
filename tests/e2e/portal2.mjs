@@ -76,7 +76,7 @@ await page.reload();
 await page.getByText('Monse', { exact: true }).click();
 for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
 await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
-await page.getByRole('link', { name: 'Alumnos' }).click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await page.locator('main .divide-y button').first().click();
 await page.getByRole('button', { name: /WhatsApp/ }).first().click();
 const enlace = page.getByRole('dialog').getByRole('link', { name: /Su portal/ });

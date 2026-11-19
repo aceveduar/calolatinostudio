@@ -34,7 +34,7 @@ await page.reload();
 await entrar('Monse', '1111');
 
 // 1) filtro "Deben" en Alumnos
-await page.getByRole('link', { name: 'Alumnos' }).first().click();
+await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.getByRole('button', { name: /^Deben \(4\)/ }).click();
 await page.waitForTimeout(300);
 const filasDeben = await page.locator('main .divide-y button').count();

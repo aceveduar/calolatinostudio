@@ -14,6 +14,7 @@ await page.evaluate(() => window.compasDev.demoCompleta());
 await page.reload();
 
 // 1) entrar sin mouse: Tab hasta "Dirección Calo", Enter y el PIN tecleado
+await page.getByText('Dirección Calo', { exact: true }).waitFor(); // esperar a que aparezcan los usuarios
 let llego = false;
 for (let i = 0; i < 15 && !llego; i++) {
   await page.keyboard.press('Tab');
@@ -71,9 +72,11 @@ const nueva = page.getByRole('button', { name: /Nueva clase/ });
 await nueva.focus();
 await page.keyboard.press('Enter');
 await page.getByRole('dialog').waitFor();
-const dentro = await page.evaluate(() => !!document.activeElement?.closest('[role=dialog]'));
+// la hoja mueve el foco en el siguiente cuadro de pantalla: esperar ese instante
+const dentro = await page.waitForFunction(() => !!document.activeElement?.closest('[role=dialog]'), null, { timeout: 2000 }).then(() => true, () => false);
 await page.keyboard.press('Escape');
-await page.waitForTimeout(300);
+await page.getByRole('dialog').waitFor({ state: 'detached' });
+await page.waitForFunction(() => /Nueva clase/.test(document.activeElement?.textContent ?? ''), null, { timeout: 2000 }).catch(() => {});
 const regreso = /Nueva clase/.test(await activo());
 console.log('4) hoja con teclado: entra el foco, Esc cierra y regresa:', ok(dentro && regreso && !(await page.getByRole('dialog').count())));
 console.log('errores:', errores.length ? errores : 'ninguno');
