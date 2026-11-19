@@ -8,10 +8,10 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 |---|---|---|---|
 | 1 | ~~Testimonios desde el portal~~ | **Hecho** (19 nov 2026): el alumno escribe en su portal; dirección, recepción o su maestro lo publica. | Esquema 20261122. |
 | 2 | ~~Invitar a un amigo~~ | **Hecho** (19 nov 2026): el alumno comparte desde su portal; la página dice "Vienes de parte de Ana L." y en Interesados se ve quién lo invitó. | Esquema 20261123. |
-| 3 | **Próximos eventos en el portal** | Ver los eventos y "Quiero ir" sin salir del portal. | Reusar lo de la página pública. |
-| 4 | **Guardar el portal en la pantalla de inicio** | Que el pase quede a un toque. | Indicación según el celular (Android/iPhone). |
-| 5 | **Errores recientes en Ajustes** | Ver los últimos errores anotados en el teléfono (`compas:errores`) y mandarlos por WhatsApp a soporte. | Pequeño. |
-| 6 | **Tienda del portal en carrusel** | Que el portal no se alargue con muchos productos. | |
+| 3 | ~~Próximos eventos en el portal~~ | **Hecho** (19 nov 2026): hasta 6 eventos de los próximos 90 días, "En 2 días", lugares que quedan y "Quiero ir" por WhatsApp con su nombre y código. | Esquema 20261124. |
+| 4 | ~~Guardar el portal en la pantalla de inicio~~ | **Hecho** (19 nov 2026): tarjeta "Ten tu pase a un toque" (botón en Android, instrucciones en iPhone); se instala como "Mi pase" y abre SU portal. | Manifiesto propio en `functions/p/[token]/manifiesto.ts`. |
+| 5 | ~~Errores recientes en Ajustes~~ | **Hecho** (19 nov 2026): Ajustes → Ayuda y errores, para todos los roles; anota pantallas que fallan, errores inesperados y de sincronización; reporte por WhatsApp con versión y equipo. | |
+| 6 | ~~Tienda del portal en carrusel~~ | **Hecho** (19 nov 2026): una fila que se desliza. | |
 | 7 | **Revisión de la página como página de anuncios** (skill ads-landing) | Antes de pagar publicidad. | Cuando ya tenga datos reales. |
 | 8 | ~~Cargar por partes las pantallas poco usadas~~ | Hecho en la auditoría de velocidad. | |
 | 9 | **Agente de WhatsApp / chatbot para ayudar a Monse** (por evaluar) | Que responda solo lo repetitivo: horarios, precios, "¿cuándo vence mi plan?", apartar clase de prueba, y le pase a Monse lo que necesite una persona. | Evaluar antes de hacer: WhatsApp Business API (costo por conversación), qué datos puede consultar (página pública, portal), cómo se le pasa a Monse, y límites para que no prometa cosas. |
@@ -25,5 +25,8 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 - Decidir si el repositorio de GitHub queda privado.
 
 ## Por verificar en persona
+
+- Que la app instalada se actualice sola (desde 19 nov 2026 busca versión nueva al volver a la pantalla y cada 30 min).
+- Instalar "Mi pase" en un Android y un iPhone reales.
 
 - Dos teléfonos reales: un cambio en cada uno (uno sin internet) y que al reconectar queden los dos.

@@ -66,6 +66,12 @@ export default function App() {
     void pedirAlmacenamientoPersistente();
   }, []);
 
+  // Sin academia en este equipo (recién instalada o borrada): la dirección vuelve a "/", no se queda en
+  // la última pantalla que había (p. ej. /mas). Al bloquear sí se conserva, para regresar a donde estaba.
+  useEffect(() => {
+    if (estado.fase === 'sin-academia' && location.pathname !== '/') history.replaceState(null, '', '/');
+  }, [estado.fase]);
+
   return (
     <ProveedorAvisos>
       {estado.fase === 'cargando' ? null : estado.fase === 'sin-academia' ? (

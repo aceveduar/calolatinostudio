@@ -9,7 +9,9 @@ const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, l
 const page = await ctx.newPage();
 page.on('pageerror', (e) => errores.push(e.message));
 
-await page.goto('http://localhost:4173/');
+await page.goto('http://localhost:4173/mas');
+await page.getByRole('button', { name: /Conectar a mi academia/ }).waitFor();
+console.log('0) en un equipo sin academia, la dirección vuelve a "/" (no se queda en /mas):', ok(new URL(page.url()).pathname === '/'), page.url());
 await page.getByRole('button', { name: /Conectar a mi academia/ }).click();
 const clave = page.locator('input[type=password]');
 await clave.waitFor();
