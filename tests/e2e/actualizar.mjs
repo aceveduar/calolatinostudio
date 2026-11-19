@@ -20,6 +20,12 @@ await page.goto('http://localhost:4173/');
 await page.waitForFunction(() => !!window.compasDev);
 await page.evaluate(() => window.compasDev.sembrar());
 await page.reload();
+await page.waitForFunction(() => !!window.compasDev);
+// 0) recién abierta (nadie cobrando): se pone al día sola, sin aviso
+await page.evaluate(() => window.compasDev.simularActualizacion());
+console.log('0) al abrir la app con versión nueva, se actualiza sola:', ok(await aplicada()));
+await page.evaluate(() => { window.__actualizada = false; });
+await page.waitForTimeout(8000); // ya pasó el arranque: de aquí en adelante se espera a un momento seguro
 await page.getByText('Monse', { exact: true }).click();
 await page.keyboard.type('1111', { delay: 30 });
 await busca.waitFor();

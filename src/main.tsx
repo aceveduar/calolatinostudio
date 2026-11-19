@@ -10,7 +10,22 @@ import { hayActualizacion } from './app/actualizacion';
 import { Tropiezo } from './components/Tropiezo';
 
 // Versión nueva: se avisa y se aplica sin interrumpir un cobro (ver app/actualizacion.ts)
-const actualizarSW = registerSW({ immediate: true, onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true)) });
+const actualizarSW = registerSW({
+  immediate: true,
+  onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true)),
+  // Instalada en el teléfono, la app casi nunca se recarga (despierta de memoria), y el navegador solo busca
+  // versión nueva al cargar. Por eso se pregunta al volver a la pantalla y cada 30 min.
+  onRegisteredSW: (_url, r) => {
+    if (!r) return;
+    const revisar = () => {
+      if (navigator.onLine) void r.update().catch(() => {});
+    };
+    setInterval(revisar, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') revisar();
+    });
+  },
+});
 
 // Solo en builds de demo/pruebas: expone el generador de datos de ejemplo
 if (import.meta.env.VITE_SEMILLA === '1') {

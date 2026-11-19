@@ -7,7 +7,11 @@ import { useEffect, useSyncExternalStore } from 'react';
 let aplicar: (() => void) | null = null;
 const subs = new Set<() => void>();
 
+const abierta = Date.now();
+
 export function hayActualizacion(fn: () => void) {
+  // Recién abierta (nadie está cobrando todavía): se pone al día de una vez, sin aviso.
+  if (Date.now() - abierta < 8000 && ocupadas === 0) return fn();
   aplicar = fn;
   subs.forEach((s) => s());
 }
