@@ -109,7 +109,7 @@ console.log('   sin maestros ni teléfonos:', ok(!/Profe|Profa|55\d{8}/.test(t.r
 await page.screenshot({ path: `${OUT}publica-2-pagina.png`, fullPage: true });
 await page.getByRole('tab', { name: /Casa de Cultura/ }).click();
 t = await body();
-console.log('9) por sede: Casa de Cultura con sus clases y precios:', ok(/Sábado Salsa Lady Style/i.test(t) && /Clase suelta .{0,40}\$40/.test(t) && /Mensual 2 clases 2 clases durante un mes \$450/.test(t) && !/Contemporáneo/.test((await page.locator('#horarios ul').allInnerTexts()).join(' '))));
+console.log('9) por sede: Casa de Cultura con sus clases y precios:', ok(/Sábado Salsa Lady Style/i.test(t) && /Clase suelta .{0,40}\$40/.test(t) && /Mensual 2 clases 2 grupos a elegir, todas sus clases del mes \$450/.test(t) && !/Contemporáneo/.test((await page.locator('#horarios ul').allInnerTexts()).join(' '))));
 
 // inscripción
 const boton = page.getByRole('button', { name: 'Quiero inscribirme' });

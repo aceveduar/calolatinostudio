@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Quote, X } from 'lucide-react';
+import { Carrusel } from './Carrusel';
 
 /** Fotos (se abren en grande) y lo que dicen los alumnos; todo en carruseles para no alargar la página. */
 export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[]; testimonios: { texto: string; nombre: string; detalle?: string }[]; creditos?: string }) {
@@ -13,7 +14,7 @@ export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[
   return (
     <div className="space-y-6">
       {galeria.length > 0 && (
-        <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1" aria-label="Fotos">
+        <Carrusel etiqueta="Fotos">
           {galeria.map((f, k) => (
             <li key={k} className="shrink-0 snap-start">
               <button onClick={() => abrir(k)} className="block h-56 overflow-hidden rounded-3xl ring-1 ring-ink-100 sm:h-64" aria-label={`Ver foto ${k + 1} de ${galeria.length}`}>
@@ -21,11 +22,11 @@ export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[
               </button>
             </li>
           ))}
-        </ul>
+        </Carrusel>
       )}
       {galeria.length > 0 && creditos && <p className="-mt-4 text-[11px] text-ink-500">{creditos}</p>}
       {testimonios.length > 0 && (
-        <ul className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1" aria-label="Lo que dicen nuestros alumnos">
+        <Carrusel etiqueta="Lo que dicen nuestros alumnos">
           {testimonios.map((t, k) => (
             <li key={k} className="pp-revela flex w-[82vw] max-w-sm shrink-0 snap-start flex-col rounded-3xl bg-ink-50 p-5 ring-1 ring-ink-100">
               <Quote size={26} className="text-brand-500" aria-hidden="true" />
@@ -34,7 +35,7 @@ export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[
               {t.detalle && <p className="text-sm text-ink-500">{t.detalle}</p>}
             </li>
           ))}
-        </ul>
+        </Carrusel>
       )}
 
       {/* visor de fotos: <dialog> nativo (Esc lo cierra, el foco queda adentro) */}

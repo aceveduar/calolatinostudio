@@ -403,7 +403,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                     <Precio
                       key={i}
                       nombre={x.nombre}
-                      detalle={x.tipo === 'mensual' ? (x.grupos ? `${x.grupos === 1 ? 'Una clase' : `${x.grupos} clases`} durante un mes` : 'Clases ilimitadas durante un mes') : `${x.clases} clases · vigencia ${x.vigencia} días`}
+                      detalle={x.tipo === 'mensual' ? (x.grupos ? (x.grupos === 1 ? 'Tu grupo fijo, todas sus clases del mes' : `${x.grupos} grupos a elegir, todas sus clases del mes`) : 'Todas las clases que quieras, todo el mes') : `${x.clases} clases · vigencia ${x.vigencia} días`}
                       precio={x.precio}
                       extra={porClase && suelta && porClase < suelta.precio ? `Te sale en ${dinero(porClase)} por clase` : undefined}
                       destacado={x.tipo === 'mensual' && !x.grupos}
