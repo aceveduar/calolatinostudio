@@ -10,14 +10,29 @@ const nube = vi.hoisted(() => ({
   rechazar: false,
   /** desde qué hora pidió cada bajada (para revisar el traslape) */
   consultas: [] as { tabla: string; desde: string }[],
+  /** se llama al pedir cada página de la primera descarga (para cambiar la nube a media descarga) */
+  alPaginar: null as null | ((tabla: string, pagina: number) => void),
+  paginas: 0,
 }));
 
 vi.mock('../../src/sync/supabase', () => {
   const tabla = (t: string) => nube.tablas.get(t) ?? nube.tablas.set(t, new Map()).get(t)!;
   const sello = () => new Date(Date.UTC(2026, 10, 18) + ++nube.reloj).toISOString();
   const from = (t: string) => {
-    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string } = { filtros: [] };
-    let accion: () => { data?: unknown; error: null } = () => ({ error: null });
+    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string; hasta?: string; orden?: [string, boolean]; rango?: [number, number]; limite?: number; cuenta?: boolean } = { filtros: [] };
+    // consulta normal (sin gt): filtra por academia y "hasta", ordena, y corta por rango o límite; con head, solo cuenta
+    const leer = () => {
+      const [col, v] = q.filtros.find(([c]) => c === 'academia_id' || c === 'id') ?? [];
+      let filas = [...tabla(t).values()].filter((f) => (col ? f[col] === v : true) && (!q.hasta || (f.server_updated_at as string) <= q.hasta));
+      if (q.cuenta) return { data: null, count: filas.length, error: null };
+      if (q.orden) filas = filas.sort((a, b) => ((a[q.orden![0]] as string) < (b[q.orden![0]] as string) ? -1 : 1) * (q.orden![1] ? 1 : -1));
+      if (q.rango) {
+        nube.alPaginar?.(t, nube.paginas++);
+        filas = filas.slice(q.rango[0], q.rango[1] + 1);
+      } else if (q.limite) filas = filas.slice(0, q.limite);
+      return { data: filas, error: null };
+    };
+    let accion: () => { data?: unknown; error: null; count?: number } = leer;
     Object.assign(q, {
       upsert(filas: Fila[]) {
         accion = () => {
@@ -40,7 +55,18 @@ vi.mock('../../src/sync/supabase', () => {
         };
         return q;
       },
-      select: () => q,
+      select(_c?: string, o?: { count?: string; head?: boolean }) {
+        if (o?.head) q.cuenta = true;
+        return q;
+      },
+      lte(_c: string, v: string) {
+        q.hasta = v;
+        return q;
+      },
+      range(a: number, b: number) {
+        q.rango = [a, b];
+        return q;
+      },
       eq(c: string, v: unknown) {
         q.filtros.push([c, v]);
         return q;
@@ -51,8 +77,14 @@ vi.mock('../../src/sync/supabase', () => {
         accion = () => ({ data: [...tabla(t).values()].filter((f) => (f.server_updated_at as string) > q.desde!).sort((a, b) => ((a.server_updated_at as string) < (b.server_updated_at as string) ? -1 : 1)), error: null });
         return q;
       },
-      order: () => q,
-      limit: () => q,
+      order(c: string, o?: { ascending?: boolean }) {
+        q.orden = [c, o?.ascending !== false];
+        return q;
+      },
+      limit(n: number) {
+        q.limite = n;
+        return q;
+      },
       then(res: (v: unknown) => void) {
         res(accion());
       },
@@ -77,6 +109,8 @@ beforeEach(async () => {
   nube.envios.length = 0;
   nube.rechazar = false;
   nube.consultas.length = 0;
+  nube.alPaginar = null;
+  nube.paginas = 0;
   await setMeta('academiaId', 'a1');
   await setMeta('nubeVinculada', true);
 });
@@ -107,6 +141,7 @@ describe('sincronizar', () => {
   });
 
   it('el traslape de 2 min se revisa una vez después de recibir cambios, no siempre', async () => {
+    await setMeta('cursor:alumnos', '2000-01-01T00:00:00.000Z'); // un equipo que ya había bajado antes
     await alta();
     await sincronizar(); // sube el alta y la baja (cambio nuevo) → la próxima revisa traslape
     const desdeDe = () => nube.consultas.filter((c) => c.tabla === 'alumnos').at(-1)!.desde;
@@ -115,6 +150,28 @@ describe('sincronizar', () => {
     expect(new Date(desdeDe()).getTime()).toBe(new Date(cursor).getTime() - 120_000);
     await sincronizar(); // ya sin cambios nuevos: desde el cursor exacto
     expect(desdeDe()).toBe(cursor);
+  });
+
+  it('primera descarga en un equipo nuevo: por páginas a la vez, sin perder lo que cambia o se crea a media descarga', async () => {
+    const T = (n: number) => new Date(Date.UTC(2026, 9, 1) + n).toISOString();
+    const base = { academia_id: 'a1', telefono: '', notas: '', activo: true, created_at: 1, updated_at: 1, deleted_at: null };
+    for (let i = 0; i < 2500; i++) {
+      const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+      nube.tablas.set('alumnos', (nube.tablas.get('alumnos') ?? new Map()).set(id, { ...base, id, nombre: `Alumno ${i}`, codigo: `C${i}`, server_updated_at: T(i) }));
+    }
+    // a media descarga: alguien edita un alumno de la primera página y otro da de alta uno nuevo
+    nube.alPaginar = (t, n) => {
+      if (t !== 'alumnos' || n !== 1) return;
+      const a = nube.tablas.get('alumnos')!;
+      const id0 = '00000000-0000-4000-8000-000000000000';
+      a.set(id0, { ...a.get(id0)!, nombre: 'Editado a media descarga', server_updated_at: T(99_999) });
+      a.set('ffffffff-0000-4000-8000-000000000000', { ...base, id: 'ffffffff-0000-4000-8000-000000000000', nombre: 'Nuevo a media descarga', codigo: 'NUEVO', server_updated_at: T(100_000) });
+    };
+    await sincronizar();
+    const locales = await db.alumnos.toArray();
+    expect(locales).toHaveLength(2501);
+    expect(locales.find((a) => a.codigo === 'C0')?.nombre).toBe('Editado a media descarga');
+    expect(locales.some((a) => a.codigo === 'NUEVO')).toBe(true);
   });
 
   it('lo que llega igual a como ya está no se reescribe', async () => {

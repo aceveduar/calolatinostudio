@@ -356,3 +356,22 @@ textarea {
     background-color: color-mix(in oklab, var(--marca) 28%, transparent);
   }
 }
+
+/* ---------- Primera descarga: barras que bailan (PantallaDescarga) ---------- */
+.compas-barra {
+  transform-origin: bottom;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes compas-ritmo {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+  .compas-barra {
+    animation: compas-ritmo 0.9s ease-in-out infinite;
+  }
+}

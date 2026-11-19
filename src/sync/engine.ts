@@ -53,6 +53,29 @@ export function useEstadoSync(): EstadoSync {
   );
 }
 
+/** Avance de la PRIMERA descarga en este equipo (las siguientes solo bajan lo nuevo y no lo necesitan). */
+export interface ProgresoDescarga {
+  hechos: number;
+  total: number;
+  inicio: number;
+}
+let progreso: ProgresoDescarga | null = null;
+const subsProgreso = new Set<() => void>();
+function setProgreso(p: ProgresoDescarga | null) {
+  progreso = p;
+  subsProgreso.forEach((s) => s());
+}
+export function useProgresoDescarga(): ProgresoDescarga | null {
+  return useSyncExternalStore(
+    (cb) => {
+      subsProgreso.add(cb);
+      return () => subsProgreso.delete(cb);
+    },
+    () => progreso,
+  );
+}
+let avance: (n: number) => void = () => {};
+
 const aSnake = (s: string) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 const aCamel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
@@ -191,16 +214,98 @@ const POR_PAGINA = 1000;
  * Baja de la nube lo que cambió. Todas las tablas a la vez (antes iban una tras otra: ~20 idas y vueltas
  * de ~0.12 s aunque no hubiera nada nuevo). Si una falla, las demás terminan y luego se reporta el error.
  */
-async function pull(academiaId: ID): Promise<void> {
+async function pull(academiaId: ID, conProgreso = false): Promise<void> {
   if (!supabase) return;
+  if (conProgreso) {
+    // contar primero (consultas ligeras) para que la pantalla diga "45,000 de 167,000"
+    const cuentas = await Promise.all(
+      SYNC_TABLES.map(async (t) => (await supabase!.from(aSnake(t)).select('id', { count: 'exact', head: true }).eq(t === 'academias' ? 'id' : 'academia_id', academiaId)).count ?? 0),
+    );
+    const p = { hechos: 0, total: cuentas.reduce((a, b) => a + b, 0), inicio: Date.now() };
+    setProgreso(p);
+    avance = (n) => setProgreso({ ...p, hechos: (p.hechos += n) });
+  }
   const r = await Promise.allSettled(SYNC_TABLES.map((t) => bajarTabla(t, academiaId)));
+  avance = () => {};
+  if (conProgreso) setProgreso(null);
   const falla = r.find((x): x is PromiseRejectedResult => x.status === 'rejected');
   if (falla) throw falla.reason;
+}
+
+/** Páginas que se piden a la vez en la primera descarga. */
+const EN_PARALELO = 6;
+
+/**
+ * Primera descarga de una tabla en este equipo: varias páginas a la vez en lugar de una tras otra (con
+ * 100 mil asistencias eran 100+ idas y vueltas en fila). Se ordena por id, que nunca cambia: si alguien
+ * edita un registro mientras tanto, no se mueve de página y no se salta ninguno. Lo que cambie o se cree
+ * durante la descarga queda después del corte (la hora más nueva ANTES de empezar) y lo baja la pasada
+ * normal que sigue.
+ */
+async function primeraDescarga(tabla: SyncTable, academiaId: ID): Promise<string | null> {
+  const col = tabla === 'academias' ? 'id' : 'academia_id';
+  const ultimo = await supabase!.from(aSnake(tabla)).select('server_updated_at').eq(col, academiaId).order('server_updated_at', { ascending: false }).limit(1);
+  if (ultimo.error) throw ultimo.error;
+  const corte = (ultimo.data?.[0]?.server_updated_at as string | undefined) ?? null;
+  if (!corte) return null;
+  const { count, error } = await supabase!.from(aSnake(tabla)).select('id', { count: 'exact', head: true }).eq(col, academiaId).lte('server_updated_at', corte);
+  if (error) throw error;
+  const paginas = Math.ceil((count ?? 0) / POR_PAGINA);
+  let siguiente = 0;
+  const trabajador = async () => {
+    for (let i = siguiente++; i < paginas; i = siguiente++) {
+      const { data, error: e } = await supabase!
+        .from(aSnake(tabla))
+        .select('*')
+        .eq(col, academiaId)
+        .lte('server_updated_at', corte)
+        .order('id', { ascending: true })
+        .range(i * POR_PAGINA, (i + 1) * POR_PAGINA - 1);
+      if (e) throw new Error(`${tabla}: ${e.message}`);
+      if (!data.length) continue;
+      await guardarDeLaNube(tabla, data, true);
+      avance(data.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(EN_PARALELO, paginas) }, trabajador));
+  return corte;
+}
+
+/** La nube manda, salvo en lo que este teléfono aún no sube (ver bajarTabla). */
+async function guardarDeLaNube(tabla: SyncTable, data: Record<string, unknown>[], primera = false) {
+  await db.transaction('rw', db.table(tabla), db.outbox, async () => {
+    const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
+    const remotos = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
+    // primera descarga: el equipo está vacío, no hay con qué comparar (comparar fila por fila la hacía más lenta)
+    if (primera) {
+      if (remotos.length) await db.table(tabla).bulkPut(remotos);
+      return;
+    }
+    const locales = (await db.table(tabla).bulkGet(remotos.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
+    const aGuardar = remotos.filter((r, i) => !locales[i] || !igualQue(r, locales[i]!));
+    if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
+  });
 }
 
 async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
   const claveCursor = `cursor:${tabla}`;
   const claveTraslape = `traslape:${tabla}`;
+  if (!(await getMeta<string>(claveCursor))) {
+    try {
+      const corte = await primeraDescarga(tabla, academiaId);
+      if (corte) {
+        await setMeta(claveCursor, corte);
+        await setMeta(claveTraslape, true); // una revisión de los 2 min anteriores al corte, por si acaso
+      }
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e);
+      if (esTablaFaltante(m)) {
+        tablasFaltantes.add(tabla);
+        return;
+      }
+      throw e instanceof Error ? e : new Error(`${tabla}: ${m}`);
+    }
+  }
   const guardado = await getMeta<string>(claveCursor);
   // Traslape: si la vez pasada llegaron cambios nuevos, volver a revisar los 2 min anteriores al cursor.
   // Una subida grande de otro teléfono puede terminar DESPUÉS de que leímos filas más nuevas, dejando
@@ -230,13 +335,8 @@ async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
     // La nube manda, salvo en lo que este teléfono aún no sube. Revisar la cola y guardar en la misma
     // transacción: un cobro hecho justo en este momento no se puede perder. Lo que llega igual a como ya
     // está no se reescribe (cada escritura hace que las pantallas abiertas vuelvan a calcular).
-    await db.transaction('rw', db.table(tabla), db.outbox, async () => {
-      const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
-      const remotos = data.map(aLocal).filter((r) => !pendientes.has(r.id as string));
-      const locales = (await db.table(tabla).bulkGet(remotos.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
-      const aGuardar = remotos.filter((r, i) => !locales[i] || !igualQue(r, locales[i]!));
-      if (aGuardar.length) await db.table(tabla).bulkPut(aGuardar);
-    });
+    await guardarDeLaNube(tabla, data);
+    avance(data.length);
 
     cursor = data[data.length - 1].server_updated_at as string;
     await setMeta(claveCursor, cursor);
@@ -340,7 +440,7 @@ export async function entrarEnDispositivoNuevo(email: string, password: string):
   // Descargar TODO antes de "abrir" la academia en este teléfono:
   // si se marcara antes, la app mostraría la caja en $0 mientras bajan los cobros.
   setEstado({ fase: 'sincronizando' });
-  await pull(data.academia_id as ID);
+  await pull(data.academia_id as ID, true);
   await setMeta('nubeVinculada', true);
   await setMeta('academiaId', data.academia_id);
   setEstado({ fase: 'al-dia', ultimo: Date.now() });

@@ -3,7 +3,8 @@ import { ArrowLeft, CloudDownload, Sparkles } from 'lucide-react';
 import { Boton, Campo, Entrada, EntradaClave } from '../../components/ui';
 import { TecladoPin } from '../../components/Teclado';
 import { LARGO_PIN, crearAcademia, pinDebil } from '../../domain/acceso';
-import { entrarEnDispositivoNuevo } from '../../sync/engine';
+import { entrarEnDispositivoNuevo, useProgresoDescarga } from '../../sync/engine';
+import { PantallaDescarga } from './PantallaDescarga';
 import { nubeConfigurada } from '../../sync/supabase';
 import type { Usuario } from '../../db/types';
 import { Logo } from '../../components/Logo';
@@ -21,6 +22,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const progreso = useProgresoDescarga();
 
   const alPin = (v: string) => {
     setPin(v);
@@ -63,6 +65,9 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
       setOcupado(false);
     }
   };
+
+  // ya entró y está bajando la academia: pantalla con avance (la primera vez puede tardar)
+  if (ocupado && progreso) return <PantallaDescarga progreso={progreso} />;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
