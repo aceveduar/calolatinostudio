@@ -1,7 +1,7 @@
 /** Consultas reactivas: la UI se actualiza sola cuando cambia IndexedDB (también tras sincronizar). */
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import type { Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
+import type { Asistencia, Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
 import { hoy } from '../domain/fechas';
 import { existencias, ventasDeProductos } from '../domain/tienda';
@@ -39,7 +39,7 @@ export const useRentas = () =>
   useLiveQuery(async () => (await db.rentas.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], []);
 export const useUsuarios = () => useLiveQuery(() => db.usuarios.filter(vivo).toArray(), [], []);
 export const useAlumnos = () =>
-  useLiveQuery(() => db.alumnos.orderBy('nombre').filter(vivo).toArray(), [], []);
+  useLiveQuery(async () => (await db.alumnos.orderBy('nombre').toArray()).filter(vivo), [], []); // de una sola lectura (5,000 alumnos)
 
 export function nombreClase(c: Clase | undefined, disciplinas: Disciplina[]): string {
   if (!c) return 'Clase';
@@ -59,12 +59,20 @@ export function colorClase(c: Clase | undefined, disciplinas: Disciplina[]): str
 export function useEstadosPorAlumno(dia: Fecha = hoy()) {
   return useLiveQuery(
     async () => {
-      const mems = await db.membresias.filter((m) => !m.anuladaAt && !m.deletedAt && m.fin >= dia).toArray();
-      const ids = mems.map((m) => m.id);
-      const asis = ids.length ? await db.asistencias.where('membresiaId').anyOf(ids).toArray() : [];
+      // con índice (fin) y agrupando las entradas por plan en una sola pasada: con miles de planes vigentes,
+      // revisar todas las entradas por cada plan eran millones de comparaciones después de cada cobro
+      const mems = await db.membresias.where('fin').aboveOrEqual(dia).filter((m) => !m.anuladaAt && !m.deletedAt).toArray();
+      // Solo los paquetes (clases contadas) necesitan sus entradas: las mensualidades valen por fecha.
+      // Una sola lectura por fecha desde el paquete más antiguo; pedir las entradas plan por plan
+      // (anyOf con miles de ids) eran miles de viajes a la base: ~18 s con 5,000 alumnos.
+      const paquetes = new Set(mems.filter((m) => m.clasesTotal !== null).map((m) => m.id));
+      const desde = mems.filter((m) => paquetes.has(m.id)).reduce((min, m) => (m.inicio < min ? m.inicio : min), dia);
+      const asis = paquetes.size ? await db.asistencias.where('fecha').aboveOrEqual(desde).toArray() : [];
+      const porPlan = new Map<ID, Asistencia[]>();
+      for (const a of asis) if (a.membresiaId && paquetes.has(a.membresiaId)) (porPlan.get(a.membresiaId) ?? porPlan.set(a.membresiaId, []).get(a.membresiaId)!).push(a);
       const mapa = new Map<ID, EstadoMembresia[]>();
       for (const m of mems) {
-        const e = estadoMembresia(m, asis, dia);
+        const e = estadoMembresia(m, porPlan.get(m.id) ?? [], dia);
         const arr = mapa.get(m.alumnoId) ?? [];
         arr.push(e);
         mapa.set(m.alumnoId, arr);

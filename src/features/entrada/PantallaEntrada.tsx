@@ -86,7 +86,7 @@ export function PantallaEntrada() {
   const enCurso = useRef(new Set<string>());
   const busca = useRef<HTMLInputElement>(null);
 
-  const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).filter((a) => !a.anuladaAt && !a.deletedAt).toArray(), [], []);
+  const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).toArray().then((xs) => xs.filter((a) => !a.anuladaAt && !a.deletedAt)), [], []);
   const conteo = useMemo(() => {
     const m = new Map<ID, number>();
     for (const a of hoyAsis) m.set(a.claseId, (m.get(a.claseId) ?? 0) + 1);
@@ -101,7 +101,7 @@ export function PantallaEntrada() {
     [hoyAsis, clase?.id],
   );
   const pagosHoy = useLiveQuery(
-    async () => new Map((await db.pagos.where('fecha').equals(hoy()).filter((p) => !p.anuladoAt && !p.deletedAt).toArray()).map((p) => [p.id, p.monto])),
+    async () => new Map((await db.pagos.where('fecha').equals(hoy()).toArray()).filter((p) => !p.anuladoAt && !p.deletedAt).map((p) => [p.id, p.monto])),
     [],
     new Map<ID, number>(),
   );

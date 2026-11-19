@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, Repeat, Wallet } from 'lucide-react';
@@ -41,34 +41,50 @@ export function PantallaGastos() {
       db.gastosFijos.toArray(),
     ]);
     // para lo que deja cada clase: las entradas del mes y de antes (cuántas clases cubrió cada plan)
-    const [asistencias, rentas] = await Promise.all([db.asistencias.where('fecha').between(sumarDias(desde, -120), hasta, true, true).toArray(), db.rentas.toArray()]);
-    const memIds = [...new Set(asistencias.flatMap((a) => (a.membresiaId ? [a.membresiaId] : [])))];
-    const membresias = (await db.membresias.bulkGet(memIds)).filter((m) => !!m);
-    const pagoIds = [...new Set([...membresias.map((m) => m.pagoId), ...asistencias.flatMap((a) => (a.pagoId ? [a.pagoId] : []))])];
-    const pagosClase = (await db.pagos.bulkGet(pagoIds)).filter((x) => !!x);
+    // basta desde que empezó el plan más antiguo que aún cubre el mes: la vigencia más larga de los planes
+    // con precio (las becas no reparten dinero). Leer de más eran decenas de miles de entradas extra.
+    const planes = await db.planes.toArray();
+    const vigenciaMax = Math.max(31, ...planes.filter((x) => x.precio > 0 && x.vigenciaDias).map((x) => x.vigenciaDias!));
+    const inicioVentana = sumarDias(desde, -vigenciaMax);
+    const [asistencias, rentas] = await Promise.all([db.asistencias.where('fecha').between(inicioVentana, hasta, true, true).toArray(), db.rentas.toArray()]);
+    // planes y cobros de esas entradas, con lecturas por rango de fecha (una por tabla): pedirlos uno por uno
+    // (bulkGet con decenas de miles de ids) tardaba varios segundos con una academia grande
+    const memIds = new Set(asistencias.flatMap((a) => (a.membresiaId ? [a.membresiaId] : [])));
+    const membresias = (await db.membresias.where('fin').aboveOrEqual(inicioVentana).toArray()).filter((m) => memIds.has(m.id));
+    const pagoIds = new Set([...membresias.map((m) => m.pagoId), ...asistencias.flatMap((a) => (a.pagoId ? [a.pagoId] : []))]);
+    const desdePagos = membresias.reduce((min, m) => (m.inicio < min ? m.inicio : min), inicioVentana);
+    const pagosClase = (await db.pagos.where('fecha').between(desdePagos, hasta, true, true).toArray()).filter((x) => pagoIds.has(x.id));
     return { pagos, gastos, fijos, asistencias, rentas, membresias, pagosClase };
   }, [desde, hasta]);
-  if (!datos) return null;
 
-  const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
+  // Los cálculos pesados (lo que deja cada clase recorre miles de entradas) solo cuando cambian sus datos,
+  // no en cada redibujo de la pantalla.
+  const calculo = useMemo(() => {
+    if (!datos) return null;
+    const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
+    const gastos = datos.gastos.filter((g) => !g.deletedAt && enSede(g.sedeId)).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.createdAt - a.createdAt));
+    const fijosS = datos.fijos.filter((f) => enSede(f.sedeId));
+    const rent = rentabilidadPorClase({
+      mes,
+      clases: clases.filter((c) => enSede(c.sedeId)),
+      asistencias: datos.asistencias,
+      membresias: datos.membresias,
+      pagos: datos.pagosClase,
+      gastos,
+      fijos: fijosS,
+      rentas: datos.rentas,
+    });
+    return { enSede, gastos, fijosS, rent };
+  }, [datos, verSede, clases, mes]);
+  if (!datos || !calculo) return null;
+
+  const { enSede, gastos, fijosS, rent } = calculo;
   const pagos = datos.pagos.filter((p) => enSede(p.sedeId));
-  const gastos = datos.gastos.filter((g) => !g.deletedAt && enSede(g.sedeId)).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.createdAt - a.createdAt));
-  const fijosS = datos.fijos.filter((f) => enSede(f.sedeId));
   const r = resumenMes({ mes, pagos, gastos, fijos: fijosS });
   const estados = estadoFijos(fijosS, gastos, mes);
   const sedeNueva = verSede === 'todas' ? null : verSede === PRINCIPAL ? null : verSede;
   const fechaNueva = esMesActual ? hoy() : hasta < hoy() ? hasta : desde;
   const verSedes = sedes.length > 0;
-  const rent = rentabilidadPorClase({
-    mes,
-    clases: clases.filter((c) => enSede(c.sedeId)),
-    asistencias: datos.asistencias,
-    membresias: datos.membresias,
-    pagos: datos.pagosClase,
-    gastos,
-    fijos: fijosS,
-    rentas: datos.rentas,
-  });
   const sinPagoMaestro = rent.filas.some((f) => f.sinCosto);
 
   return (

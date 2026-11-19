@@ -180,7 +180,7 @@ function MisNumeros({ mias }: { mias: Clase[] }) {
   const filas = useLiveQuery(
     async () => {
       const ids = new Set(mias.map((c) => c.id));
-      const asis = await db.asistencias.where('fecha').aboveOrEqual(inicioMes).filter((a) => ids.has(a.claseId) && !a.anuladaAt && !a.deletedAt).toArray();
+      const asis = (await db.asistencias.where('fecha').aboveOrEqual(inicioMes).toArray()).filter((a) => ids.has(a.claseId) && !a.anuladaAt && !a.deletedAt);
       return mias
         .map((c) => {
           const a = asis.filter((x) => x.claseId === c.id);

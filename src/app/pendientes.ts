@@ -19,7 +19,7 @@ async function cargar(dia: string) {
     // lo fiado puede ser de hace meses
     db.asistencias.where('deuda').equals(1).toArray(),
     db.rentas.toArray(),
-    db.pagos.where('fecha').aboveOrEqual(inicioMesPasado).filter((p) => !!p.rentaId).toArray(),
+    db.pagos.where('fecha').aboveOrEqual(inicioMesPasado).toArray().then((xs) => xs.filter((p) => !!p.rentaId)),
   ]);
   return { mems, alumnos, asistencias, fiados, rentas, pagosRenta };
 }

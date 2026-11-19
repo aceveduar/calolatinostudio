@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useEffect, useState } from 'react';
 import { useClases } from '../../app/datos';
 import { Seccion, Tarjeta } from '../../components/ui';
 import { db } from '../../db/db';
@@ -14,17 +14,32 @@ import { claveSede } from '../../domain/sedes';
 export function TendenciaAnual({ verSede }: { verSede: string }) {
   const clases = useClases();
   const actual = mesDe(hoy());
-  const meses = Array.from({ length: 12 }, (_, i) => sumarMes(actual, i - 11));
-  const filas = useLiveQuery(async () => {
-    const desde = rangoMes(meses[0]).desde;
-    const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
-    const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
-    const [pagos, asis] = await Promise.all([db.pagos.where('fecha').aboveOrEqual(desde).toArray(), db.asistencias.where('fecha').aboveOrEqual(desde).toArray()]);
-    return meses.map((mes) => {
-      const ingresos = pagos.filter((p) => p.fecha.startsWith(mes) && !p.anuladoAt && !p.deletedAt && enSede(p.sedeId)).reduce((s, p) => s + p.monto, 0);
-      const alumnos = new Set(asis.filter((a) => a.fecha.startsWith(mes) && a.alumnoId && !a.anuladaAt && !a.deletedAt && enSede(sedeDeClase.get(a.claseId))).map((a) => a.alumnoId)).size;
-      return { mes, ingresos, alumnos };
-    });
+  const [filas, setFilas] = useState<{ mes: string; ingresos: number; alumnos: number }[] | null>(null);
+  // Se calcula una vez al abrir (no "en vivo": un año de cobros y entradas se volvía a leer con cada cobro)
+  // y un momento después de que aparece lo principal de Reportes, para no frenarlo.
+  useEffect(() => {
+    let vivo = true;
+    const t = setTimeout(async () => {
+      const meses = Array.from({ length: 12 }, (_, i) => sumarMes(actual, i - 11));
+      const desde = rangoMes(meses[0]).desde;
+      const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
+      const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
+      const [pagos, asis] = await Promise.all([db.pagos.where('fecha').aboveOrEqual(desde).toArray(), db.asistencias.where('fecha').aboveOrEqual(desde).toArray()]);
+      // una sola pasada, agrupando por mes
+      const ingresos = new Map<string, number>();
+      for (const p of pagos) if (!p.anuladoAt && !p.deletedAt && enSede(p.sedeId)) ingresos.set(p.fecha.slice(0, 7), (ingresos.get(p.fecha.slice(0, 7)) ?? 0) + p.monto);
+      const alumnos = new Map<string, Set<string>>();
+      for (const a of asis) {
+        if (!a.alumnoId || a.anuladaAt || a.deletedAt || !enSede(sedeDeClase.get(a.claseId))) continue;
+        const m = a.fecha.slice(0, 7);
+        (alumnos.get(m) ?? alumnos.set(m, new Set()).get(m)!).add(a.alumnoId);
+      }
+      if (vivo) setFilas(meses.map((mes) => ({ mes, ingresos: ingresos.get(mes) ?? 0, alumnos: alumnos.get(mes)?.size ?? 0 })));
+    }, 600);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
   }, [actual, verSede, clases]);
   if (!filas) return null;
   const conDatos = filas.filter((f) => f.ingresos || f.alumnos);

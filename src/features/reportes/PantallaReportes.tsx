@@ -35,7 +35,8 @@ export function PantallaReportes() {
   const [todosVencen, setTodosVencen] = useState(false);
   const [todosPerdidos, setTodosPerdidos] = useState(false);
   const dia = hoy();
-  const { actual, anterior } = periodos(rango, dia);
+  // con useMemo: si se crearan en cada redibujo, el cálculo pesado de abajo (que depende de ellos) se repetiría siempre
+  const { actual, anterior } = useMemo(() => periodos(rango, dia), [rango, dia]);
 
   const datos = useLiveQuery(async () => {
     const desde = sumarDias(dia, -90);

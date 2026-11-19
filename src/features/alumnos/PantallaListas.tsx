@@ -46,7 +46,7 @@ export function PantallaListas() {
   const datos = useLiveQuery(async () => {
     if (!clase) return null;
     const [asistencias, membresias] = await Promise.all([
-      db.asistencias.where('fecha').between(desde, hasta, true, true).filter((a) => a.claseId === clase.id).toArray(),
+      db.asistencias.where('[claseId+fecha]').between([clase.id, desde], [clase.id, hasta], true, true).toArray(),
       db.membresias.where('fin').aboveOrEqual(desde).toArray(),
     ]);
     const filas = listaDelMes({ clase, mes, asistencias, membresias, planes });
