@@ -19,7 +19,7 @@ export async function verificarCuentaAcademia(email: string, password: string, a
   const { error } = await temp.auth.signInWithPassword({ email, password });
   if (error) throw new Error(/invalid login/i.test(error.message) ? 'Correo o contraseña incorrectos.' : error.message);
   const { data } = await temp.from('miembros').select('academia_id').eq('academia_id', academiaId).maybeSingle();
-  await temp.auth.signOut();
+  await temp.auth.signOut({ scope: 'local' }); // solo este cliente temporal: 'global' desconectaría a todos los equipos
   if (!data) throw new Error('Esa cuenta no es de esta academia.');
 }
 

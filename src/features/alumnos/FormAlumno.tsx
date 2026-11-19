@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAlumnos } from '../../app/datos';
-import { parecidos } from '../../domain/correcciones';
+import { mismoTelefono, parecidos } from '../../domain/correcciones';
 import { Boton, Campo, Entrada } from '../../components/ui';
 import { actualizar, crear } from '../../db/repo';
 import type { Alumno } from '../../db/types';
@@ -23,6 +23,7 @@ export function FormAlumno({
     () => (alumno ? [] : parecidos(nombre, alumnos.filter((a) => a.activo))),
     [alumno, nombre, alumnos],
   );
+  const mismoTel = useMemo(() => mismoTelefono(telefono, alumnos, alumno?.id), [telefono, alumnos, alumno?.id]);
 
   const guardar = async () => {
     const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: telefono.replace(/\D/g, ''), notas: notas.trim() };
@@ -51,6 +52,12 @@ export function FormAlumno({
       <Campo etiqueta="WhatsApp (opcional)" ayuda="Para mandarle recordatorios de pago.">
         <Entrada type="tel" inputMode="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="10 dígitos" />
       </Campo>
+      {mismoTel.length > 0 && (
+        <p className="-mt-2 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">
+          Este teléfono ya lo tiene {mismoTel.slice(0, 3).map((a) => a.nombre).join(', ')}
+          {mismoTel.length > 3 ? ` y ${mismoTel.length - 3} más` : ''}. Si es familiar está bien; si es la misma persona, búscala en lugar de registrarla otra vez.
+        </p>
+      )}
       <Campo etiqueta="Notas (opcional)">
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Ej. viene con su pareja" />
       </Campo>

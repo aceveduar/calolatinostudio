@@ -349,7 +349,7 @@ export const BORRAR_AL_INICIAR = 'compas:borrar-al-iniciar';
 
 /** Quita la academia de ESTE teléfono (no toca la nube). Quien llama debe verificar que no se pierde nada. */
 export async function quitarAcademiaDelTelefono(): Promise<void> {
-  await supabase?.auth.signOut();
+  await supabase?.auth.signOut({ scope: 'local' }); // solo este teléfono; los demás siguen conectados
   // El borrado se hace al reiniciar (main.tsx), antes de que alguna pantalla abra la base:
   // con la app abierta, las consultas en vivo la reabren y el borrado se queda bloqueado.
   localStorage.setItem(BORRAR_AL_INICIAR, '1');

@@ -13,6 +13,8 @@ import { waLink } from '../../domain/reportes';
 import { asegurarPortal, enlacePortal, regenerarPortal } from '../../domain/portal';
 import { useAvisos } from '../../components/avisos';
 import { useAdeudos } from '../../app/adeudos';
+import { useEstadoSync } from '../../sync/engine';
+import { Link } from 'react-router-dom';
 
 /** Datos del alumno para llenar los mensajes. */
 function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
@@ -58,10 +60,28 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
   useEffect(() => {
     if (!alumno.portal) void asegurarPortal(alumno);
   }, [alumno]);
+  // El portal lo abre la nube: si este equipo no respalda, el enlace (recién creado aquí) no abrirá.
+  const { fase } = useEstadoSync();
+  const sinNube = fase === 'desconectada' || fase === 'solo-local';
   const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan && !vencido, vencio: vencido, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
 
   return (
     <div className="space-y-2">
+      {sinNube && (
+        <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
+          {fase === 'desconectada' ? (
+            <>
+              Este equipo no está conectado a la nube: el enlace de su portal no abrirá hasta que{' '}
+              <Link to="/ajustes/nube" className="underline">
+                lo conectes
+              </Link>
+              .
+            </>
+          ) : (
+            'Este equipo no usa la nube: el portal del alumno no está disponible.'
+          )}
+        </p>
+      )}
       {MENSAJES.filter((m) => disponible[m.clave]).map((m) => {
         const texto = armarMensaje(plantilla(academia, m.clave), m.clave === 'adeudo' ? { ...datos, monto: dinero(debe) } : datos);
         const link = waLink(alumno.telefono, texto);

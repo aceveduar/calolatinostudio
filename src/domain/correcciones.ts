@@ -153,3 +153,13 @@ export function parecidos<T extends { nombre: string }>(nombre: string, lista: T
     .slice(0, max)
     .map((r) => r.x);
 }
+
+/**
+ * Alumnos que ya tienen ese teléfono (últimos 10 dígitos). El teléfono NO identifica a nadie: es normal que se
+ * repita (una mamá con dos hijos, una pareja); solo sirve para avisar por si es la misma persona dada de alta dos veces.
+ */
+export function mismoTelefono<T extends { id: string; telefono: string }>(telefono: string, lista: T[], excluirId?: string): T[] {
+  const t = telefono.replace(/\D/g, '').slice(-10);
+  if (t.length < 10) return [];
+  return lista.filter((a) => a.id !== excluirId && a.telefono.replace(/\D/g, '').slice(-10) === t);
+}
