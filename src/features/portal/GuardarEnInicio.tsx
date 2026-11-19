@@ -76,7 +76,7 @@ export function GuardarEnInicio({ token }: { token: string }) {
                 setAviso(null);
                 if (outcome === 'accepted') setCerrado(true);
               }}
-              className="mt-2 h-11 rounded-xl bg-brand-500 px-4 text-sm font-bold text-white active:scale-[0.98]"
+              className="mt-2 h-10 rounded-xl bg-brand-50 px-4 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-[0.98]"
             >
               Agregar a mi pantalla
             </button>

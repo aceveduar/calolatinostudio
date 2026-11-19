@@ -25,7 +25,7 @@ const nuevo = async () => {
   const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   console.log('1a) WhatsApp con su enlace de invitación (no su código ni su enlace secreto):', ok(/\/a\/calo-latino\?de=a1b2c3d4/.test(texto) && !/K7P2QX|AbCdEfGh/.test(texto)), texto);
   console.log('1b) ve a cuántos invitó:', ok(/Has invitado a 3 amigos · 1 ya se inscribió/.test(t)));
-  console.log('1c) también puede copiar el enlace:', ok((await page.getByRole('button', { name: 'Copiar enlace' }).count()) === 1));
+  console.log('1c) también puede compartir o copiar el enlace:', ok((await page.getByRole('button', { name: /Copiar enlace|Compartir de otra forma/ }).count()) === 1));
   await page.getByText('Invita a un amigo').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${OUT}invitar-portal.png` });
   await ctx.close();

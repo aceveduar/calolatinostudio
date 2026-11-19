@@ -62,6 +62,9 @@ const abrir = async (ua, d = datos) => {
   console.log('2b) se puede apartar el último del carrusel:', ok((await page.getByText(/pagas .* al recoger|Elige talla/).count()) >= 1));
   await page.keyboard.press('Escape');
   const r = await revisarPagina(page);
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: `${OUT}portal3-completo.png`, fullPage: true });
+  console.log('2e) buen contraste en todo el portal (botones tonales incluidos):', ok(!r.contraste?.length), JSON.stringify(r.contraste ?? []));
   console.log('2c) nada se sale a lo ancho ni queda sin nombre:', ok(!r.ancho && !r.sinNombre.length), JSON.stringify({ ancho: r.ancho, sinNombre: r.sinNombre }));
 
   // 3) guardar en la pantalla de inicio (Android)

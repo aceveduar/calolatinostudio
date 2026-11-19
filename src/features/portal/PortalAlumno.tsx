@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Camera, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, Sun, Users, WifiOff, X } from 'lucide-react';
+import { Camera, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { supabase } from '../../sync/supabase';
@@ -275,18 +275,16 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           {!datos.alumno.foto && !guardadoEl && <p className="mt-2 text-center text-xs font-semibold text-[color-mix(in_oklab,var(--marca)_80%,black)]">Toca “FOTO” y pon tu foto: así te reconocen en recepción.</p>}
         </div>
 
-        <GuardarEnInicio token={token} />
-
-        <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
-
         {/* Plan */}
         <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-          <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tu plan</p>
+          <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+            <Ticket size={14} aria-hidden="true" /> Tu plan
+          </p>
           {vigentes.length === 0 ? (
             <div className="mt-2">
               <p className="text-lg font-bold">{vencido ? `Tu ${vencido.plan.toLowerCase()} terminó` : 'Pagas por clase'}</p>
               <p className="text-sm text-ink-500">{vencido ? 'Renuévalo para seguir bailando.' : 'Con una mensualidad o paquete te sale más barato.'}</p>
-              <BotonWhats href={renovar(vencido?.plan ?? null)} texto={vencido ? 'Renovar por WhatsApp' : 'Preguntar por planes'} />
+              <BotonWhats href={renovar(vencido?.plan ?? null)} texto={vencido ? 'Renovar por WhatsApp' : 'Preguntar por planes'} fuerte={!!vencido} />
             </div>
           ) : (
             vigentes.map((p, i) => {
@@ -309,7 +307,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                       </p>
                     </div>
                   </div>
-                  {r.urgente && !p.beca && !proximos.length && <BotonWhats href={renovar(p.plan)} texto="Renovar por WhatsApp" />}
+                  {r.urgente && !p.beca && !proximos.length && <BotonWhats href={renovar(p.plan)} texto="Renovar por WhatsApp" fuerte />}
                 </div>
               );
             })
@@ -321,6 +319,10 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           ))}
         </div>
 
+        <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
+
+        <GuardarEnInicio token={token} />
+
         {!!datos.eventos?.length && <ProximosEventos eventos={datos.eventos} hoy={hoy} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} whatsapp={wa} />}
 
         {datos.logros && datos.logros.total > 0 && <Logros total={datos.logros.total} desde={datos.logros.desde} semanas={datos.logros.semanas} hoy={hoy} />}
@@ -328,24 +330,6 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {datos.invita && datos.academia.slug && <InvitaAmigo academia={datos.academia.nombre} slug={datos.academia.slug} invita={datos.invita} />}
 
         {datos.testimonio !== undefined && puedeOpinar(datos) && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
-
-        {/* Últimas clases */}
-        {datos.clases.length > 0 && (
-          <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-            <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
-              <CalendarCheck size={14} /> Tus últimas clases
-            </p>
-            <ul className="mt-2 divide-y divide-ink-100">
-              {datos.clases.map((c, i) => (
-                <li key={i} className="flex items-center gap-3 py-2">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
-                  <span className="flex-1 font-medium">{c.clase}</span>
-                  <span className="text-sm text-ink-500">{fechaCorta(c.fecha)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {aviso && (
           <p role="status" className="flex items-center gap-2 rounded-2xl bg-ok-50 px-4 py-3 text-sm font-semibold text-ok-600">
@@ -356,7 +340,9 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {/* Mis apartados */}
         {pedidos.length > 0 && (
           <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-            <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tus apartados y encargos</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+              <PackageCheck size={14} aria-hidden="true" /> Tus apartados y encargos
+            </p>
             <ul className="mt-2 divide-y divide-ink-100">
               {pedidos.map((p, i) => (
                 <li key={i} className="flex items-center gap-3 py-2">
@@ -395,7 +381,9 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {datos.tienda.length > 0 && (
           <section aria-label="Tienda de la academia" className="rounded-3xl bg-superficie py-5 ring-1 ring-ink-100">
             <div className="flex items-baseline justify-between gap-2 px-5">
-              <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tienda de la academia</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+                <ShoppingBag size={14} aria-hidden="true" /> Tienda de la academia
+              </p>
               {datos.tienda.length > 2 && (
                 <p className="flex shrink-0 items-center text-xs font-semibold text-ink-500" aria-hidden="true">
                   {datos.tienda.length} artículos · desliza <ChevronRight size={14} />
@@ -425,7 +413,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                         setAviso(null);
                         setApartar(p);
                       }}
-                      className="mt-2 h-10 rounded-xl bg-brand-500 text-sm font-bold text-white active:scale-95 disabled:bg-ink-100 disabled:text-ink-500"
+                      className="mt-2 h-10 rounded-xl bg-brand-50 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:bg-ink-100 disabled:text-ink-500 disabled:ring-0"
                     >
                       {p.sobre_pedido ? 'Encargar' : agotado ? 'Agotado' : 'Apartar'}
                     </button>
@@ -435,6 +423,24 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             </ul>
             <p className="mt-3 px-5 text-center text-xs text-ink-500">Apártalo aquí y págalo al recogerlo en recepción.</p>
           </section>
+        )}
+
+        {/* Últimas clases */}
+        {datos.clases.length > 0 && (
+          <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+            <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+              <CalendarCheck size={14} aria-hidden="true" /> Tus últimas clases
+            </p>
+            <ul className="mt-2 divide-y divide-ink-100">
+              {datos.clases.map((c, i) => (
+                <li key={i} className="flex items-center gap-3 py-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
+                  <span className="flex-1 font-medium">{c.clase}</span>
+                  <span className="text-sm text-ink-500">{fechaCorta(c.fecha)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
@@ -502,10 +508,13 @@ function saludo(d: Date): string {
   return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 }
 
-function BotonWhats({ href, texto }: { href: string | null; texto: string }) {
+/** Botón de WhatsApp: fuerte (verde lleno) solo cuando urge (renovar); si no, tonal, para no competir con "Mostrar mi pase". */
+const WA_FUERTE = 'bg-[#15803d] text-white';
+const WA_SUAVE = 'bg-ok-50 text-ok-600 ring-1 ring-ok-600/20';
+function BotonWhats({ href, texto, fuerte = false }: { href: string | null; texto: string; fuerte?: boolean }) {
   if (!href) return <p className="mt-2 text-sm text-ink-500">Pregunta en recepción.</p>;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15803d] font-bold text-white active:scale-[0.98]">
+    <a href={href} target="_blank" rel="noreferrer" className={cx('mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl font-bold active:scale-[0.98]', fuerte ? WA_FUERTE : WA_SUAVE)}>
       <MessageCircle size={20} aria-hidden="true" /> {texto}
     </a>
   );
@@ -563,7 +572,9 @@ function ProximaClaseTarjeta({ horario, slug }: { horario: ClaseHorario[]; slug:
       <div className="flex gap-4 p-5" style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${color} 16%, transparent), transparent 70%)` }}>
         <span className="w-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tu próxima clase</p>
+          <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+            <Clock size={14} aria-hidden="true" /> Tu próxima clase
+          </p>
           <p className="mt-1 text-2xl leading-tight font-extrabold">{prox.clase.clase}</p>
           <p className={cx('mt-1 flex items-center gap-2 font-semibold', prox.estado === 'ahora' ? 'text-ok-600' : 'text-ink-700')}>
             {prox.estado === 'ahora' && <span className="pp-pulso h-2.5 w-2.5 rounded-full bg-ok-600" aria-hidden="true" />}
@@ -599,7 +610,9 @@ function Logros({ total, desde, semanas, hoy }: { total: number; desde: string |
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   return (
     <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-      <p className="text-xs font-bold tracking-wider text-ink-500 uppercase">Tus logros</p>
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <Trophy size={14} aria-hidden="true" /> Tus logros
+      </p>
       <div className="mt-2 flex items-end gap-4">
         <p className="leading-none">
           <span className="text-5xl font-extrabold tracking-tight tabular-nums">{total}</span>{' '}
@@ -778,29 +791,24 @@ function InvitaAmigo({ academia, slug, invita }: { academia: string; slug: strin
         href={`https://wa.me/?text=${encodeURIComponent(texto)}`}
         target="_blank"
         rel="noreferrer"
-        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15803d] font-bold text-white active:scale-[0.98]"
+        className={cx('mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl font-bold active:scale-[0.98]', WA_SUAVE)}
       >
         <MessageCircle size={20} aria-hidden="true" /> Invitar por WhatsApp
       </a>
-      <div className="mt-2 flex gap-2">
-        {puedeCompartir && (
-          <button type="button" onClick={() => void navigator.share({ title: academia, text: texto }).catch(() => {})} className="h-11 flex-1 rounded-2xl bg-ink-50 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-100">
-            Más opciones
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() =>
-            void navigator.clipboard?.writeText(url).then(() => {
-              setCopiado(true);
-              setTimeout(() => setCopiado(false), 2500);
-            })
-          }
-          className="h-11 flex-1 rounded-2xl bg-ink-50 text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-100"
-        >
-          {copiado ? '¡Enlace copiado!' : 'Copiar enlace'}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() =>
+          puedeCompartir
+            ? void navigator.share({ title: academia, text: texto }).catch(() => {})
+            : void navigator.clipboard?.writeText(url).then(() => {
+                setCopiado(true);
+                setTimeout(() => setCopiado(false), 2500);
+              })
+        }
+        className="mt-1 h-11 w-full rounded-2xl text-sm font-semibold text-ink-700 active:bg-ink-50"
+      >
+        {puedeCompartir ? 'Compartir de otra forma' : copiado ? '¡Enlace copiado!' : 'Copiar enlace'}
+      </button>
     </div>
   );
 }
@@ -842,7 +850,7 @@ function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: 
                   <span className="mt-2 inline-block rounded-full bg-bad-50 px-2.5 py-0.5 text-xs font-extrabold text-bad-600">Agotado</span>
                 ) : (
                   link && (
-                    <a href={link} target="_blank" rel="noreferrer" className="mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#15803d] px-4 text-sm font-bold text-white active:scale-[0.98]">
+                    <a href={link} target="_blank" rel="noreferrer" className={cx('mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl px-4 text-sm font-bold active:scale-[0.98]', WA_SUAVE)}>
                       <MessageCircle size={18} aria-hidden="true" /> Quiero ir
                     </a>
                   )
