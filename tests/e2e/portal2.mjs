@@ -26,11 +26,16 @@ const DATOS = {
   ],
 };
 let respuesta = DATOS;
+let llamadas = 0;
+let pendientes = 0;
 let tokenPedido = null;
 await ctx.route('**/rest/v1/rpc/portal_alumno', async (route) => {
   tokenPedido = JSON.parse(route.request().postData() || '{}').p_token;
   if (respuesta === 'caida') return route.abort();
-  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(respuesta) });
+  llamadas++;
+  // enlace recién creado: la nube aún no lo conoce las primeras veces
+  const r = pendientes > 0 ? (pendientes--, null) : respuesta;
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r) });
 });
 
 // 1) portal con datos
@@ -56,7 +61,17 @@ await page.getByText('Este enlace ya no funciona').waitFor();
 const guardado = await page.evaluate((tk) => localStorage.getItem('compas-portal:' + tk), TOKEN);
 console.log('3) enlace viejo no funciona y no deja datos:', ok(guardado === null));
 
+// 3b) enlace recién creado en recepción: las primeras veces la nube aún no lo tiene; el portal reintenta y abre
+await page.evaluate((tk) => localStorage.removeItem('compas-portal:' + tk), TOKEN);
+respuesta = DATOS;
+pendientes = 2;
+llamadas = 0;
+await page.reload();
+await page.getByText('Tu pase de entrada').waitFor({ timeout: 15000 });
+console.log('3b) enlace recién creado: reintenta y abre en vez de decir "ya no funciona":', ok(llamadas >= 3 && (await page.getByText('Este enlace ya no funciona').count()) === 0), llamadas);
+
 // 4) sin plan / beca
+await page.evaluate((tk) => localStorage.removeItem('compas-portal:' + tk), TOKEN);
 respuesta = { ...DATOS, planes: [{ plan: 'Beca', tipo: 'paquete', beca: true, inicio: '2026-10-01', fin: '2027-03-29', clases: null, usadas: 30 }], tienda: [] };
 await page.reload();
 await page.getByText('Tu pase de entrada').waitFor();
