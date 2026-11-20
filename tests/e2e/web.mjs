@@ -24,7 +24,13 @@ await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 
 // 1) editor del contenido
 await ir('/ajustes/pagina');
+// las secciones están plegadas (con su resumen): se abren para editarlas
+const abrir = (t) => page.getByRole('button', { name: new RegExp('^' + t) }).click();
 await page.getByText('Preguntas frecuentes').waitFor();
+await abrir('Preguntas frecuentes');
+await abrir('Portada');
+await abrir('Dónde estamos');
+await abrir('Redes sociales');
 const sugeridas = await page.getByRole('textbox', { name: /^Pregunta \d/ }).count();
 await page.locator('input[type=file][accept="image/*"]:not([multiple])').setInputFiles(DIR + 'archivos/foto.jpg');
 await page.getByRole('img', { name: 'Foto de portada' }).waitFor();
@@ -34,11 +40,11 @@ await page.getByPlaceholder('Ej. Tu primera clase es gratis').fill('Tu primera c
 await page.getByPlaceholder('Calle, número, colonia, ciudad').first().fill('Av. Juárez 123, Centro, Toluca, Méx.');
 await page.getByPlaceholder(/Segundo piso/).first().fill('Segundo piso, junto a la farmacia');
 await page.getByPlaceholder('@usuario').first().fill('@calolatino');
-await page.getByRole('button', { name: 'Guardar contenido' }).click();
+await page.getByRole('button', { name: 'Guardar cambios' }).click();
 await page.getByText('Página actualizada').waitFor();
 const pag = await page.evaluate(async () => (await window.compasDev.db.academias.toArray())[0].pagina);
 console.log('1) contenido guardado (portada WebP ligera, frase, ubicación, 5 preguntas, redes):', ok(sugeridas === 5 && /^data:image\/(webp|jpeg)/.test(pag?.portada ?? '') && pag.portada.length < 200000 && pag.frase && pag.ubicaciones?.principal?.direccion && pag.preguntas?.length === 5 && pag.redes?.instagram), pag?.portada?.length);
-console.log('   sin cambios → botón apagado:', ok(await page.getByRole('button', { name: 'Sin cambios' }).isDisabled()));
+console.log('   sin cambios → no hay botón de guardar (aparece solo al cambiar algo):', ok((await page.getByRole('button', { name: 'Guardar cambios' }).count()) === 0));
 
 // 1b) clase por curso desde Clases y horarios
 await ir('/ajustes/clases');

@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { avisoPrivacidadBase } from '../../domain/privacidad';
-import { ImagePlus, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { prepararFotoGaleria, prepararPortada } from '../../app/fotos';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
@@ -41,7 +41,17 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
  * Contenido de la página pública: lo que convence a alguien de venir (portada, primera clase,
  * dónde estamos, preguntas frecuentes y redes). Horarios, precios y eventos salen solos de la app.
  */
-export function EditorContenido() {
+/** Lo que el editor de la página agrega al mismo guardado: dirección de la página y WhatsApp. */
+export interface EnlaceYWhats {
+  /** "calo-latino · WhatsApp 55 1234 5678" (lo que se ve con la sección cerrada) */
+  resumen: string;
+  cambios: boolean;
+  valido: boolean;
+  guardar: () => Promise<void>;
+  campos: ReactNode;
+}
+
+export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const { academia } = useSesion();
   const avisar = useAvisos();
   const sedes = useSedes();
@@ -50,27 +60,31 @@ export function EditorContenido() {
   const [ocupado, setOcupado] = useState(false);
   const archivo = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
-  const cambios = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
+  const cambiosContenido = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
+  const cambios = cambiosContenido || !!enlace?.cambios;
+  const valido = enlace ? enlace.valido : true;
+  // si se va (cierra la pestaña o recarga) con cambios sin guardar, el navegador pregunta antes
+  useEffect(() => {
+    if (!cambios) return;
+    const avisarAntes = (e: BeforeUnloadEvent) => e.preventDefault();
+    addEventListener('beforeunload', avisarAntes);
+    return () => removeEventListener('beforeunload', avisarAntes);
+  }, [cambios]);
   const pon = (p: Partial<ContenidoPagina>) => setC((x) => ({ ...x, ...p }));
   const lugares = [{ clave: 'principal', nombre: nombreSede(null, sedes, academia) }, ...sedes.map((s) => ({ clave: s.id, nombre: s.nombre }))];
   const preguntas = c.preguntas ?? [];
+  // cada sección cerrada muestra su resumen: así la página entera cabe en una pantalla, como un menú
+  const [abiertas, setAbiertas] = useState<string[]>([]);
+  const abrir = (id: string) => setAbiertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+  const conDireccion = lugares.filter((l) => c.ubicaciones?.[l.clave]?.direccion?.trim()).length;
+  const redes = (['instagram', 'facebook', 'tiktok'] as const).filter((r) => c.redes?.[r]?.trim());
+  const nombreRed = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' } as const;
+  const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
+  const plegable = (id: string) => ({ abierta: abiertas.includes(id), onAbrir: () => abrir(id) });
 
   return (
-    <div className="space-y-5">
-      {/* la página es larga: atajos a cada parte (antes había que bajar ~4,000 px para llegar a Redes o Privacidad) */}
-      <nav aria-label="Ir a una sección" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
-        {SECCIONES.map(([texto, id]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => document.getElementById(`seccion-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="min-h-10 shrink-0 rounded-full bg-superficie px-4 text-sm font-semibold text-ink-700 ring-1 ring-ink-100 active:bg-ink-50"
-          >
-            {texto}
-          </button>
-        ))}
-      </nav>
-      <Bloque id="portada" titulo="Portada" ayuda="Lo primero que ve la gente. Una foto de una clase con ambiente funciona mejor que el logo.">
+    <div className="rounded-3xl bg-superficie px-4 ring-1 ring-ink-100">
+      <Bloque id="portada" {...plegable('portada')} resumen={c.portada ? (c.frase ? `Foto · “${c.frase}”` : 'Foto · falta la frase') : 'Falta la foto de portada'} falta={!c.portada} titulo="Portada" ayuda="Lo primero que ve la gente. Una foto de una clase con ambiente funciona mejor que el logo.">
         <div className="overflow-hidden rounded-2xl bg-ink-100 ring-1 ring-ink-100">
           {c.portada ? <img src={c.portada} alt="Foto de portada" className="aspect-[16/9] w-full object-cover" /> : <div className="flex aspect-[16/9] items-center justify-center text-sm text-ink-500">Sin foto de portada</div>}
         </div>
@@ -111,42 +125,7 @@ export function EditorContenido() {
         </Campo>
       </Bloque>
 
-      <Bloque id="ubicacion" titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
-        {lugares.map((l) => {
-          const u = c.ubicaciones?.[l.clave] ?? { direccion: '' };
-          const ponU = (p: Partial<typeof u>) => pon({ ubicaciones: { ...(c.ubicaciones ?? {}), [l.clave]: { ...u, ...p } } });
-          return (
-            <div key={l.clave} className="space-y-2">
-              {lugares.length > 1 && <p className="text-sm font-bold">{l.nombre}</p>}
-              <Campo etiqueta="Dirección">
-                <Entrada value={u.direccion} onChange={(e) => ponU({ direccion: e.target.value })} placeholder="Calle, número, colonia, ciudad" />
-              </Campo>
-              <Campo etiqueta="Referencias (opcional)">
-                <Entrada value={u.referencias ?? ''} onChange={(e) => ponU({ referencias: e.target.value })} placeholder="Ej. Segundo piso, junto a la farmacia. Hay estacionamiento." />
-              </Campo>
-            </div>
-          );
-        })}
-      </Bloque>
-
-      <Bloque id="preguntas" titulo="Preguntas frecuentes" ayuda="Las dudas que frenan a quien nunca ha venido. Revisa que las respuestas sean ciertas para tu academia.">
-        {preguntas.map((x, i) => (
-          <Tarjeta key={i} className="space-y-2 p-3">
-            <div className="flex items-center gap-2">
-              <Entrada value={x.p} onChange={(e) => pon({ preguntas: preguntas.map((y, j) => (j === i ? { ...y, p: e.target.value } : y)) })} placeholder="Pregunta" aria-label={`Pregunta ${i + 1}`} className="font-semibold" />
-              <button onClick={() => pon({ preguntas: preguntas.filter((_, j) => j !== i) })} className="rounded-xl p-3 text-ink-500 active:bg-ink-100" aria-label={`Quitar pregunta ${i + 1}`}>
-                <Trash2 size={18} />
-              </button>
-            </div>
-            <textarea className={areaTexto} rows={2} value={x.r} onChange={(e) => pon({ preguntas: preguntas.map((y, j) => (j === i ? { ...y, r: e.target.value } : y)) })} placeholder="Respuesta" aria-label={`Respuesta ${i + 1}`} />
-          </Tarjeta>
-        ))}
-        <Boton variante="secundario" bloque onClick={() => pon({ preguntas: [...preguntas, { p: '', r: '' }] })}>
-          <Plus size={18} /> Agregar pregunta
-        </Boton>
-      </Bloque>
-
-      <Bloque id="galeria" titulo="Galería" ayuda={`Fotos de clases y eventos (hasta ${MAX_GALERIA}). A la gente le gusta ver el ambiente: grupos, parejas bailando, eventos.`}>
+      <Bloque id="galeria" {...plegable('galeria')} resumen={(c.galeria?.length ?? 0) ? n(c.galeria!.length, 'foto', 'fotos') : 'Sin fotos todavía'} falta={!(c.galeria?.length ?? 0)} titulo="Galería" ayuda={`Fotos de clases y eventos (hasta ${MAX_GALERIA}). A la gente le gusta ver el ambiente: grupos, parejas bailando, eventos.`}>
         {(c.galeria?.length ?? 0) > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {c.galeria!.map((f, i) => (
@@ -185,13 +164,12 @@ export function EditorContenido() {
             }
           }}
         />
+        <Campo etiqueta="Créditos de las fotos (solo si no son tuyas)" ayuda="Algunas licencias piden nombrar al autor. Si las fotos son tuyas, déjalo vacío.">
+          <Entrada value={c.creditos ?? ''} onChange={(e) => pon({ creditos: e.target.value })} placeholder="Ej. Fotos: Ana Pérez (CC BY-SA 4.0)" />
+        </Campo>
       </Bloque>
 
-      <Campo etiqueta="Créditos de las fotos (solo si no son tuyas)" ayuda="Algunas licencias piden nombrar al autor. Si las fotos son tuyas, déjalo vacío.">
-        <Entrada value={c.creditos ?? ''} onChange={(e) => pon({ creditos: e.target.value })} placeholder="Ej. Fotos: Ana Pérez (CC BY-SA 4.0)" />
-      </Campo>
-
-      <Bloque id="testimonios" titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
+      <Bloque id="testimonios" {...plegable('testimonios')} resumen={(c.testimonios?.length ?? 0) ? n(c.testimonios!.length, 'testimonio', 'testimonios') : 'Ninguno todavía'} falta={!(c.testimonios?.length ?? 0)} titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
         {(c.testimonios ?? []).map((x, i) => {
           const lista = c.testimonios ?? [];
           const ponT = (p: Partial<typeof x>) => pon({ testimonios: lista.map((y, j) => (j === i ? { ...y, ...p } : y)) });
@@ -213,7 +191,42 @@ export function EditorContenido() {
         </Boton>
       </Bloque>
 
-      <Bloque id="redes" titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo.">
+      <Bloque id="ubicacion" {...plegable('ubicacion')} resumen={conDireccion === lugares.length ? (lugares.length > 1 ? 'Todas con dirección' : 'Con dirección') : `${conDireccion} de ${lugares.length} con dirección`} falta={!c.ubicaciones?.principal?.direccion?.trim()} titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
+        {lugares.map((l) => {
+          const u = c.ubicaciones?.[l.clave] ?? { direccion: '' };
+          const ponU = (p: Partial<typeof u>) => pon({ ubicaciones: { ...(c.ubicaciones ?? {}), [l.clave]: { ...u, ...p } } });
+          return (
+            <div key={l.clave} className="space-y-2">
+              {lugares.length > 1 && <p className="text-sm font-bold">{l.nombre}</p>}
+              <Campo etiqueta="Dirección">
+                <Entrada value={u.direccion} onChange={(e) => ponU({ direccion: e.target.value })} placeholder="Calle, número, colonia, ciudad" />
+              </Campo>
+              <Campo etiqueta="Referencias (opcional)">
+                <Entrada value={u.referencias ?? ''} onChange={(e) => ponU({ referencias: e.target.value })} placeholder="Ej. Segundo piso, junto a la farmacia. Hay estacionamiento." />
+              </Campo>
+            </div>
+          );
+        })}
+      </Bloque>
+
+      <Bloque id="preguntas" {...plegable('preguntas')} resumen={preguntas.length ? n(preguntas.length, 'pregunta', 'preguntas') : 'Ninguna'} titulo="Preguntas frecuentes" ayuda="Las dudas que frenan a quien nunca ha venido. Revisa que las respuestas sean ciertas para tu academia.">
+        {preguntas.map((x, i) => (
+          <Tarjeta key={i} className="space-y-2 p-3">
+            <div className="flex items-center gap-2">
+              <Entrada value={x.p} onChange={(e) => pon({ preguntas: preguntas.map((y, j) => (j === i ? { ...y, p: e.target.value } : y)) })} placeholder="Pregunta" aria-label={`Pregunta ${i + 1}`} className="font-semibold" />
+              <button onClick={() => pon({ preguntas: preguntas.filter((_, j) => j !== i) })} className="rounded-xl p-3 text-ink-500 active:bg-ink-100" aria-label={`Quitar pregunta ${i + 1}`}>
+                <Trash2 size={18} />
+              </button>
+            </div>
+            <textarea className={areaTexto} rows={2} value={x.r} onChange={(e) => pon({ preguntas: preguntas.map((y, j) => (j === i ? { ...y, r: e.target.value } : y)) })} placeholder="Respuesta" aria-label={`Respuesta ${i + 1}`} />
+          </Tarjeta>
+        ))}
+        <Boton variante="secundario" bloque onClick={() => pon({ preguntas: [...preguntas, { p: '', r: '' }] })}>
+          <Plus size={18} /> Agregar pregunta
+        </Boton>
+      </Bloque>
+
+      <Bloque id="redes" {...plegable('redes')} resumen={redes.length ? redes.map((r) => nombreRed[r]).join(', ') : 'Ninguna'} titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo.">
         {(['instagram', 'facebook', 'tiktok'] as const).map((r) => (
           <Campo key={r} etiqueta={{ instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' }[r]}>
             <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder="@usuario" autoCapitalize="off" />
@@ -221,7 +234,7 @@ export function EditorContenido() {
         ))}
       </Bloque>
 
-      <Bloque id="privacidad" titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">
+      <Bloque id="privacidad" {...plegable('privacidad')} resumen={c.privacidad?.trim() ? 'Personalizado' : 'Usa la base general'} titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">
         <textarea
           className={areaTexto}
           rows={8}
@@ -242,47 +255,79 @@ export function EditorContenido() {
         )}
       </Bloque>
 
-      <div className="sticky bottom-0 -mx-1 bg-gradient-to-t from-ink-50 via-ink-50 to-transparent px-1 pt-4 pb-2">
+      {enlace && (
+        <Bloque id="enlace" {...plegable('enlace')} resumen={enlace.resumen} titulo="Enlace y WhatsApp" ayuda="Casi nunca se cambian. Si cambias la dirección, los enlaces que ya compartiste dejan de funcionar.">
+          {enlace.campos}
+        </Bloque>
+      )}
+
+      {/* un solo botón para todo (antes "Guardar cambios" arriba y "Guardar contenido" abajo: era fácil perder un cambio).
+          Aparece solo cuando hay algo por guardar: así también avisa "tienes cambios sin guardar" */}
+      {cambios && (
+      <div className="sticky bottom-0 -mx-1 animate-sube bg-gradient-to-t from-superficie via-superficie to-transparent px-1 pt-4 pb-3">
         <Boton
           grande
           bloque
-          disabled={!cambios || ocupado}
+          disabled={!cambios || !valido || ocupado}
           onClick={async () => {
             setOcupado(true);
             try {
-              await actualizar('academias', academia.id, { pagina: limpio(c) });
+              if (enlace?.cambios) await enlace.guardar();
+              if (cambiosContenido) await actualizar('academias', academia.id, { pagina: limpio(c) });
               avisar('Página actualizada');
             } finally {
               setOcupado(false);
             }
           }}
         >
-          {cambios ? 'Guardar contenido' : 'Sin cambios'}
+          {!valido ? 'Revisa el enlace o el WhatsApp' : 'Guardar cambios'}
         </Boton>
       </div>
+      )}
     </div>
   );
 }
 
-const SECCIONES = [
-  ['Portada', 'portada'],
-  ['Dónde estamos', 'ubicacion'],
-  ['Preguntas', 'preguntas'],
-  ['Galería', 'galeria'],
-  ['Testimonios', 'testimonios'],
-  ['Redes', 'redes'],
-  ['Privacidad', 'privacidad'],
-] as const;
 
-function Bloque({ id, titulo, ayuda, children }: { id: string; titulo: string; ayuda?: string; children: ReactNode }) {
+
+/**
+ * Una sección del editor: cerrada muestra su título y un resumen ("6 fotos", "Falta la foto de portada"); al
+ * tocarla se abre ahí mismo. Antes todo estaba abierto (≈7,000 px de página) con atajos para saltar.
+ */
+function Bloque({
+  id,
+  titulo,
+  ayuda,
+  resumen,
+  falta,
+  abierta,
+  onAbrir,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  ayuda?: string;
+  resumen: string;
+  falta?: boolean;
+  abierta: boolean;
+  onAbrir: () => void;
+  children: ReactNode;
+}) {
   return (
-    // scroll-mt: que el título no quede tapado por la barra de arriba al saltar
-    <section id={`seccion-${id}`} className={cx('scroll-mt-20 space-y-3 border-t border-ink-100 pt-5')}>
-      <div>
-        <h3 className="text-base font-extrabold">{titulo}</h3>
-        {ayuda && <p className="text-xs text-ink-500">{ayuda}</p>}
-      </div>
-      {children}
+    <section id={`seccion-${id}`} className="scroll-mt-20 border-t border-ink-100">
+      <button type="button" onClick={onAbrir} aria-expanded={abierta} className="flex min-h-16 w-full items-center gap-3 py-3 text-left active:bg-ink-50">
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-extrabold">{titulo}</span>
+          <span className={cx('block truncate text-sm', falta ? 'font-semibold text-warn-600' : 'text-ink-500')}>{resumen}</span>
+        </span>
+        <ChevronDown size={20} className={cx('shrink-0 text-ink-300 transition', abierta && 'rotate-180')} aria-hidden="true" />
+      </button>
+      {abierta && (
+        <div className="space-y-3 pb-5">
+          {ayuda && <p className="text-xs text-ink-500">{ayuda}</p>}
+          {children}
+        </div>
+      )}
     </section>
   );
 }
