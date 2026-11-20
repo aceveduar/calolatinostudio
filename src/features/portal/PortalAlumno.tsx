@@ -48,7 +48,13 @@ export function PortalAlumno({ token }: { token: string }) {
     let vivo = true;
     (async () => {
       if (!supabase) return setEstado((e) => (e.fase === 'listo' ? e : { fase: 'error' }));
-      const { data, error } = await supabase.rpc('portal_alumno', { p_token: token });
+      let { data, error } = await supabase.rpc('portal_alumno', { p_token: token });
+      // un enlace recién creado en recepción puede tardar unos segundos en llegar a la nube: reintentar
+      // antes de decir "ya no funciona" (antes salía ese mensaje al abrirlo de inmediato)
+      for (let intento = 0; !error && !data && intento < 4 && vivo; intento++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        ({ data, error } = await supabase.rpc('portal_alumno', { p_token: token }));
+      }
       if (!vivo) return;
       if (error) return setEstado((e) => (e.fase === 'listo' ? e : { fase: 'error' }));
       if (!data) {
@@ -436,22 +442,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         )}
 
         {/* Últimas clases */}
-        {datos.clases.length > 0 && (
-          <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-            <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
-              <CalendarCheck size={14} aria-hidden="true" /> Tus últimas clases
-            </p>
-            <ul className="mt-2 divide-y divide-ink-100">
-              {datos.clases.map((c, i) => (
-                <li key={i} className="flex items-center gap-3 py-2">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
-                  <span className="flex-1 font-medium">{c.clase}</span>
-                  <span className="text-sm text-ink-500">{fechaCorta(c.fecha)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {datos.clases.length > 0 && <UltimasClases clases={datos.clases} />}
 
         <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
       </div>
@@ -568,7 +559,7 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circ
           {/* tocar fuera lo cierra */}
           <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Cerrar" onClick={() => setMenu(false)} />
           {/* el círculo está a la derecha del pase: el menú abre hacia la izquierda para no salirse */}
-          <div className="absolute top-full right-0 z-30 mt-2 w-48 overflow-hidden rounded-2xl bg-superficie shadow-lg ring-1 ring-ink-100">
+          <div className="absolute top-full right-0 z-30 mt-2 w-48 overflow-hidden rounded-2xl bg-superficie text-ink-900 shadow-lg ring-1 ring-ink-100">
             <button type="button" onClick={tomar} className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm font-semibold active:bg-ink-50">
               <Camera size={18} className="text-brand-600" aria-hidden="true" /> Tomar foto
             </button>
@@ -580,6 +571,33 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circ
       )}
       {entradas}
       {estado === 'error' && <span className="block text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
+    </div>
+  );
+}
+
+/** Sus últimas clases: las 3 más recientes a la vista y "Ver las 8" (antes 8 renglones casi iguales). */
+function UltimasClases({ clases }: { clases: DatosPortal['clases'] }) {
+  const [todas, setTodas] = useState(false);
+  const visibles = todas ? clases : clases.slice(0, 3);
+  return (
+    <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+        <CalendarCheck size={14} aria-hidden="true" /> Tus últimas clases
+      </p>
+      <ul className="mt-2 divide-y divide-ink-100">
+        {visibles.map((c, i) => (
+          <li key={i} className="flex items-center gap-3 py-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
+            <span className="flex-1 font-medium">{c.clase}</span>
+            <span className="text-sm text-ink-500">{fechaCorta(c.fecha)}</span>
+          </li>
+        ))}
+      </ul>
+      {clases.length > 3 && (
+        <button type="button" onClick={() => setTodas(!todas)} className="mt-1 min-h-11 w-full rounded-xl text-sm font-semibold text-brand-600 active:bg-ink-50">
+          {todas ? 'Ver menos' : `Ver las ${clases.length}`}
+        </button>
+      )}
     </div>
   );
 }
