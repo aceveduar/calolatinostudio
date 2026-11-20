@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CalendarDays, ChevronDown, RefreshCw, Sparkles, Users } from 'lucide-react';
+import { BookOpen, CalendarDays, ChevronDown, RefreshCw, Sparkles, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { colorClase, nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { Avatar, Encabezado, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
@@ -79,6 +80,9 @@ export function PantallaMaestro() {
 
       <MisNumeros mias={mias} />
       <TestimoniosDeMisAlumnos mias={mias} />
+      <Link to="/ayuda" className="mt-6 flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-ink-700 active:bg-ink-100">
+        <BookOpen size={17} aria-hidden="true" /> Cómo se usa
+      </Link>
     </div>
   );
 }

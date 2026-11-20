@@ -38,7 +38,11 @@ export default defineConfig({
         // /a/<slug> (página pública) siempre del servidor: trae los datos y la vista previa ya escritos en el HTML
         navigateFallbackDenylist: [/^\/api/, /^\/a\//],
         // Lector de códigos de barras (~1 MB): se guarda la primera vez que se escanea y luego sirve sin internet
-        runtimeCaching: [{ urlPattern: /\.wasm$/, handler: 'CacheFirst', options: { cacheName: 'lector-codigos', expiration: { maxEntries: 4 } } }],
+        runtimeCaching: [
+          { urlPattern: /\.wasm$/, handler: 'CacheFirst', options: { cacheName: 'lector-codigos', expiration: { maxEntries: 4 } } },
+          // capturas del manual: no van en la instalación (no todos las ven); se guardan al verlas por primera vez
+          { urlPattern: /\/ayuda\/.*\.jpg$/, handler: 'CacheFirst', options: { cacheName: 'manual', expiration: { maxEntries: 40 } } },
+        ],
       },
     }),
   ],

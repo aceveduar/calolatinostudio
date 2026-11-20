@@ -19,6 +19,7 @@ const PantallaAgenda = lazy(() => import('./features/agenda/PantallaAgenda').the
 const PantallaEventos = lazy(() => import('./features/eventos/PantallaEventos').then((m) => ({ default: m.PantallaEventos })));
 const PantallaEncargos = lazy(() => import('./features/tienda/PantallaEncargos').then((m) => ({ default: m.PantallaEncargos })));
 const PantallaMas = lazy(() => import('./features/mas/PantallaMas').then((m) => ({ default: m.PantallaMas })));
+const PantallaAyuda = lazy(() => import('./features/ayuda/PantallaAyuda').then((m) => ({ default: m.PantallaAyuda })));
 const PantallaPendientes = lazy(() => import('./features/pendientes/PantallaPendientes').then((m) => ({ default: m.PantallaPendientes })));
 const PantallaEvento = lazy(() => import('./features/eventos/PantallaEvento').then((m) => ({ default: m.PantallaEvento })));
 const PantallaMaestro = lazy(() => import('./features/maestro/PantallaMaestro').then((m) => ({ default: m.PantallaMaestro })));
@@ -85,6 +86,7 @@ export default function App() {
               {estado.usuario.rol === 'maestro' ? (
                 <Route element={<Layout />}>
                   <Route index element={<PantallaMaestro />} />
+                  <Route path="ayuda" element={<PantallaAyuda />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
               ) : (
@@ -104,6 +106,7 @@ export default function App() {
                 <Route path="reportes/gastos" element={estado.usuario.rol === 'dueno' ? <PantallaGastos /> : <Navigate to="/" replace />} />
                 <Route path="mas" element={<PantallaMas />} />
                 <Route path="pendientes" element={<PantallaPendientes />} />
+                <Route path="ayuda" element={<PantallaAyuda />} />
                 <Route path="ajustes" element={<Navigate to="/mas" replace />} />
                 <Route path="ajustes/:seccion" element={<PantallaAjustes />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

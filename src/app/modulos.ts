@@ -29,6 +29,8 @@ import {
   WalletCards,
   MessageSquareQuote,
   type LucideIcon,
+  BookOpen,
+  LifeBuoy,
 } from 'lucide-react';
 import type { Rol } from '../db/types';
 
@@ -90,7 +92,9 @@ export const MODULOS: Modulo[] = [
   { id: 'mensajes', titulo: 'Mensajes de WhatsApp', icono: MessageCircle, ruta: '/ajustes/mensajes', para: ['dueno'], grupo: 'config' },
   { id: 'academia', titulo: 'Academia', ayuda: 'Nombre, logo y color', icono: Building2, ruta: '/ajustes/academia', para: ['dueno'], grupo: 'config' },
   // ---------- cuenta ----------
+  { id: 'manual', titulo: 'Cómo se usa', ayuda: 'Guía paso a paso', icono: BookOpen, ruta: '/ayuda', para: ['dueno', 'recepcion'], grupo: 'cuenta' },
   { id: 'nube', titulo: 'Nube y respaldo', icono: Cloud, ruta: '/ajustes/nube', para: ['dueno', 'recepcion'], grupo: 'cuenta' },
+  { id: 'errores', titulo: 'Ayuda y errores', ayuda: 'Reportar un problema', icono: LifeBuoy, ruta: '/ajustes/ayuda', para: ['dueno', 'recepcion'], grupo: 'cuenta' },
   // "Más" siempre es la última pestaña
   { id: 'mas', titulo: 'Más', icono: LayoutGrid, ruta: '/mas', para: ['dueno', 'recepcion'], pestana: { dueno: 9, recepcion: 9 } },
 ];
