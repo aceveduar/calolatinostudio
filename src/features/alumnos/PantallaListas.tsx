@@ -129,19 +129,36 @@ export function PantallaListas() {
                         {deFecha(f).getDate()}
                       </th>
                     ))}
-                    <th className="px-3 py-2 text-right text-xs font-bold text-ink-500">Estado</th>
+                    <th className="hidden px-3 py-2 text-right text-xs font-bold text-ink-500 sm:table-cell">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {datos.map((f) => {
                     const a = f.alumno!;
                     const wa = f.debe > 0 ? waLink(a.telefono, armarMensaje(plantilla(academia, 'adeudo'), { nombre: a.nombre.split(' ')[0], academia: academia.nombre, monto: dinero(f.debe) })) : null;
+                    const estado =
+                      f.debe > 0 ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="font-bold text-bad-600">Debe {dinero(f.debe)}</span>
+                          {wa && (
+                            <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-ok-50 p-1.5 text-ok-600" aria-label={`Recordarle a ${a.nombre} lo que debe`}>
+                              <MessageCircle size={16} />
+                            </a>
+                          )}
+                        </span>
+                      ) : f.plan ? (
+                        <span className="text-xs text-ok-600">Plan hasta {fechaCorta(f.plan.fin)}</span>
+                      ) : (
+                        <span className="text-xs text-ink-500">Por clase</span>
+                      );
                     return (
                       <tr key={f.alumnoId} className="group">
                         <td className="sticky left-0 z-10 border-t border-ink-100 bg-superficie px-3 py-2">
-                          <Link to={`/alumnos/${a.id}`} className="-my-2 block max-w-40 truncate py-2.5 font-semibold">
+                          <Link to={`/alumnos/${a.id}`} className="-my-2 block max-w-40 truncate py-2.5 font-semibold sm:py-2.5">
                             {a.nombre}
                           </Link>
+                          {/* en el celular, el estado va aquí: la columna de la derecha quedaba cortada */}
+                          <span className="-mt-1.5 block pb-0.5 sm:hidden">{estado}</span>
                         </td>
                         {sesiones.map((s: Fecha) => {
                           const m = f.marcas.get(s);
@@ -157,22 +174,7 @@ export function PantallaListas() {
                             </td>
                           );
                         })}
-                        <td className="border-t border-ink-100 px-3 py-1.5 text-right whitespace-nowrap">
-                          {f.debe > 0 ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span className="font-bold text-bad-600">Debe {dinero(f.debe)}</span>
-                              {wa && (
-                                <a href={wa} target="_blank" rel="noreferrer" className="rounded-full bg-ok-50 p-1.5 text-ok-600" aria-label={`Recordarle a ${a.nombre} lo que debe`}>
-                                  <MessageCircle size={16} />
-                                </a>
-                              )}
-                            </span>
-                          ) : f.plan ? (
-                            <span className="text-xs text-ok-600">Plan hasta {fechaCorta(f.plan.fin)}</span>
-                          ) : (
-                            <span className="text-xs text-ink-500">Por clase</span>
-                          )}
-                        </td>
+                        <td className="hidden border-t border-ink-100 px-3 py-1.5 text-right whitespace-nowrap sm:table-cell">{estado}</td>
                       </tr>
                     );
                   })}

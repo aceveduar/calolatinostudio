@@ -72,7 +72,7 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
         <div className="min-w-0 flex-1">
           <p className="truncate text-xl font-bold">{alumno.nombre}</p>
           <div className="mt-1 flex items-center gap-2">
-            <Etiqueta tono={sem.tono}>{sem.texto}</Etiqueta>
+            <Etiqueta tono={sem.color}>{sem.texto}</Etiqueta>
             {clase && <span className="truncate text-sm text-ink-500">→ {nClase}</span>}
           </div>
         </div>

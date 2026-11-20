@@ -35,6 +35,9 @@ const datos = await p.evaluate(async () => {
 await ir(`/alumnos/${datos.paq.alumnoId}`);
 await p.getByRole('button', { name: /Vender plan/ }).click();
 const dlg = p.getByRole('dialog');
+await p.waitForTimeout(400);
+// de entrada viene SU plan (antes el más barato): ya dice que es renovación de su paquete, sin tocar nada
+console.log('0) al abrir "Vender plan" viene elegido el plan que ya tiene:', ok(/Vale desde hoy/.test(await dlg.innerText())));
 await dlg.getByRole('button', { name: new RegExp(datos.paq.plan) }).first().click();
 await p.waitForTimeout(300);
 const txt = (await dlg.innerText()).replace(/\s+/g, ' ');

@@ -48,7 +48,14 @@ export function VenderPlan({
     .filter((p) => p.activo && p.tipo !== 'suelta' && sirveEn(p.sedeId, sedeVenta) && (esDueno || !esBeca(p)))
     .sort((a, b) => Number(esBeca(a)) - Number(esBeca(b)) || a.precio - b.precio);
   const [planId, setPlanId] = useState<ID | null>(null);
-  const plan = planes.find((p) => p.id === planId) ?? planes[0];
+  // de entrada, el plan que ya tiene o tuvo (lo normal es renovar el mismo); antes venía el más barato
+  // y con prisa se vendía el equivocado
+  const suPlan = [...estados]
+    .filter((e) => !e.membresia.anuladaAt && !e.membresia.deletedAt)
+    .sort((a, b) => (a.membresia.fin < b.membresia.fin ? 1 : -1))
+    .map((e) => planes.find((p) => p.id === e.membresia.planId))
+    .find((p) => !!p);
+  const plan = planes.find((p) => p.id === planId) ?? suPlan ?? planes[0];
   // Al renovar un plan por clase, vienen marcadas las clases que ya tenía
   const clasesPrevias = (p: Plan | undefined): ID[] =>
     (p && estados.map((e) => e.membresia).filter((m) => m.planId === p.id && m.claseIds?.length).sort((a, b) => (a.fin < b.fin ? 1 : -1))[0]?.claseIds) || [];

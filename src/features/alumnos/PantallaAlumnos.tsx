@@ -149,7 +149,7 @@ export function PantallaAlumnos() {
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
                 {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
-                {archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>}
+                {archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.color}>{s.texto}</Etiqueta>}
               </button>
             ))}
           </Tarjeta>

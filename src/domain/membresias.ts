@@ -45,17 +45,31 @@ export function membresiaQueCubre(
 export type Semaforo = 'ok' | 'pronto' | 'sin';
 
 /** Estado general del alumno para mostrar en listas. */
-export function semaforoAlumno(estados: EstadoMembresia[]): { tono: Semaforo; texto: string } {
+/**
+ * Estado del alumno para listas. `color` es cómo se pinta la etiqueta: "Sin plan" en rojo solo si su plan
+ * venció hace poco (hay que renovarlo); quien paga por clase desde siempre va en gris (es normal, no una
+ * alarma: tanto rojo en la lista hacía que nadie le hiciera caso al que sí urge).
+ */
+export function semaforoAlumno(estados: EstadoMembresia[]): { tono: Semaforo; texto: string; color: Semaforo | 'neutro' } {
   const vig = estados.filter((e) => e.vigente).sort((a, b) => b.diasRestantes - a.diasRestantes);
   const mejor = vig[0];
-  if (!mejor) return { tono: 'sin', texto: 'Sin plan' };
+  if (!mejor) {
+    const vencidos = estados.filter((e) => !e.membresia.anuladaAt && !e.membresia.deletedAt && e.diasRestantes < 0 && e.diasRestantes >= -30);
+    const reciente = vencidos.sort((a, b) => b.diasRestantes - a.diasRestantes)[0];
+    if (reciente) {
+      const d = -reciente.diasRestantes;
+      return { tono: 'sin', texto: d === 1 ? 'Venció ayer' : `Venció hace ${d} días`, color: 'sin' };
+    }
+    return { tono: 'sin', texto: 'Sin plan', color: 'neutro' };
+  }
   const pocas = mejor.restantes !== null && mejor.restantes <= 1;
   if (mejor.diasRestantes <= 3 || pocas) {
     const t = mejor.restantes !== null ? `${mejor.restantes} clase${mejor.restantes === 1 ? '' : 's'}` : textoDias(mejor.diasRestantes);
-    return { tono: 'pronto', texto: t };
+    return { tono: 'pronto', texto: t, color: 'pronto' };
   }
   return {
     tono: 'ok',
+    color: 'ok',
     texto: mejor.restantes !== null ? `${mejor.restantes} clases` : `${mejor.diasRestantes} días`,
   };
 }
