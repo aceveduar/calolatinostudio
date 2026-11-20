@@ -68,7 +68,11 @@ export function VenderPlan({
 
   if (!plan) return <p className="py-6 text-center text-ink-500">No hay mensualidades ni paquetes activos. Créalos en Ajustes → Planes.</p>;
 
-  const inicio = vigenteMismoTipo ? sumarDias(vigenteMismoTipo.membresia.fin, 1) : atraso && conservarCorte ? atraso.inicioConCorte : hoy();
+  // Paquete con clases contadas: el nuevo vale desde hoy (si se forma detrás y se le acaban las clases antes de
+  // la fecha, se quedaría sin plan habiendo pagado). Al dar entrada se usa primero el que vence antes, así que
+  // primero se gastan las clases que le quedaban. La mensualidad sí se forma detrás, para no encimar días.
+  const juntoAlActual = !!vigenteMismoTipo && plan.tipo === 'paquete' && vigenteMismoTipo.restantes !== null;
+  const inicio = vigenteMismoTipo && !juntoAlActual ? sumarDias(vigenteMismoTipo.membresia.fin, 1) : atraso && conservarCorte ? atraso.inicioConCorte : hoy();
   const beca = esBeca(plan);
   const recargo = atraso && conRecargo && academia.recargoDiario ? atraso.dias * academia.recargoDiario : 0;
   const base = montoTxt === null ? plan.precio : aCentavos(montoTxt);
@@ -212,7 +216,14 @@ export function VenderPlan({
         <p>
           Vigencia: <b>{fechaCorta(inicio)}</b> al <b>{fechaCorta(calcularFin(plan, inicio))}</b>
         </p>
-        {vigenteMismoTipo && <p className="mt-1 text-ink-500">Renovación: empieza cuando termine su plan actual.</p>}
+        {vigenteMismoTipo &&
+          (juntoAlActual ? (
+            <p className="mt-1 text-ink-500">
+              Vale desde hoy. Primero usa {vigenteMismoTipo.restantes === 1 ? 'la clase que le queda' : `las ${vigenteMismoTipo.restantes} clases que le quedan`} del paquete actual.
+            </p>
+          ) : (
+            <p className="mt-1 text-ink-500">Renovación: empieza cuando termine su plan actual.</p>
+          ))}
       </div>
 
       {beca ? (

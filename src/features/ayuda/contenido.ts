@@ -83,7 +83,8 @@ export const MANUAL: Capitulo[] = [
         imagen: 'vender',
         para: RECEPCION,
         claves: 'mensualidad paquete renovar plan vender',
-        pasos: ['Abre su ficha (desde Alumnos o tocando su nombre).', 'Toca "Vender plan" y elige el plan.', 'Revisa el monto y cómo pagó, y toca "Cobrar".', 'En el aviso toca "Enviar ticket" para mandarle su ticket por WhatsApp.'],
+        pasos: ['Abre su ficha (desde Alumnos o tocando su nombre).', 'Toca "Vender plan" y elige el plan.', 'Revisa el monto y cómo pagó, y toca "Cobrar".',
+          'Si aún tiene plan: una mensualidad nueva empieza cuando termine la actual; un paquete vale desde hoy y primero gasta las clases que le quedaban.', 'En el aviso toca "Enviar ticket" para mandarle su ticket por WhatsApp.'],
         consejo: 'Si vendiste el plan equivocado, tócalo en su ficha para anularlo y vende el correcto.',
       },
       {
