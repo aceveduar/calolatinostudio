@@ -50,8 +50,10 @@ function ParejaBailando() {
             <path d="M32 24Q40 20 48 24L46 50L47.5 84H42.5L40.6 60H39.4L37.5 84H32.5L34 50Z" />
             <path d="M34 27Q27 37 31 47" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
           </g>
-          {/* las manos tomadas */}
-          <path d="M46 28Q59 35 73 30" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+          {/* cada quien con su brazo, y las manos tomadas a la mitad (antes una sola línea: a ella le "faltaba" una mano) */}
+          <path d="M46 28Q53 34 60 33" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+          <path d="M75 27.5Q68 34 60.5 33" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" opacity="0.82" />
+          <circle cx="60.2" cy="33" r="2.8" />
           {/* ella: da una vuelta cada cuatro tiempos */}
           <g className="baile-ella" opacity="0.82">
             <path d="M74 70L72.8 84M86 70L87.2 84" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
