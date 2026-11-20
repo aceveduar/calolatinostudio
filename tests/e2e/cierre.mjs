@@ -18,7 +18,7 @@ const listo = page.getByRole('button', { name: 'Listo', exact: true });
 
 // 1) alumno con plan: sin dinero, la cuenta se cierra sola
 await page.locator('main button').filter({ hasText: /^.*Plan$/ }).first().click();
-await page.getByText(/Entra con su plan · se cierra solo/).waitFor({ timeout: 3000 });
+await page.getByText(/con su (plan|beca) · se cierra solo/).waitFor({ timeout: 3000 });
 await page.screenshot({ path: `${OUT}cierre-plan.png` });
 await page.clock.runFor(3000);
 await page.waitForTimeout(300);

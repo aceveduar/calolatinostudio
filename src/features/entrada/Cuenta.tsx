@@ -116,7 +116,7 @@ export function Cuenta({
               <span className="text-sm text-white/60">
                 {sinCobro ? (
                   <span className="flex items-center gap-1.5 text-[#7ee2a8]">
-                    <Check size={16} aria-hidden="true" /> {movs.length === 1 ? 'Entra con su plan' : 'Entran con su plan'} · se cierra solo
+                    <Check size={16} aria-hidden="true" /> {movs.length === 1 ? 'Entra' : 'Entran'} con su {movs.every((m) => m.beca) ? 'beca' : 'plan'} · se cierra solo
                   </span>
                 ) : transfer ? (
                   `${dinero(transfer)} por transferencia`
