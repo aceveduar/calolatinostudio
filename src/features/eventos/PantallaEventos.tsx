@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { prepararFlyer } from '../../app/fotos';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, PartyPopper, Plus } from 'lucide-react';
+import { ArrowLeft, ImagePlus, PartyPopper, Plus, Trash2 } from 'lucide-react';
 import { useClases, useRentas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -114,6 +115,8 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
   const [precio, setPrecio] = useState(evento ? aPesosTexto(evento.precio) : '');
   const [descripcion, setDescripcion] = useState(evento?.descripcion ?? '');
   const [vestimenta, setVestimenta] = useState(evento?.vestimenta ?? '');
+  const [foto, setFoto] = useState<string | null>(evento?.foto ?? null);
+  const archivoFoto = useRef<HTMLInputElement>(null);
   const sedes = useSedes();
   // dónde es: aquí (aparta el salón), en otra sede, o en otro lugar (salón de fiestas, terraza…)
   const [donde, setDonde] = useState<string>(evento?.lugar ? OTRO : (evento?.sedeId ?? ''));
@@ -134,6 +137,7 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
     precio: aCentavos(precio),
     descripcion: descripcion.trim(),
     vestimenta: vestimenta.trim(),
+    foto,
     lugar: donde === OTRO ? lugar.trim() : '',
     direccion: donde === OTRO ? direccion.trim() : '',
     sedeId: donde && donde !== OTRO ? donde : null,
@@ -227,6 +231,43 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
           </Selector>
         </Campo>
       )}
+      {/* el flyer es lo que más "vende" un evento en la página y el portal */}
+      <Campo etiqueta="Flyer o foto (opcional)" ayuda="Se ve completo, sin recortar. Lo que más anima a ir." grupo>
+        {foto ? (
+          <div className="space-y-2">
+            <img src={foto} alt="Flyer del evento" className="mx-auto max-h-72 w-auto rounded-2xl object-contain ring-1 ring-ink-100" />
+            <div className="grid grid-cols-2 gap-2">
+              <Boton variante="secundario" onClick={() => archivoFoto.current?.click()}>
+                <ImagePlus size={18} /> Cambiar
+              </Boton>
+              <Boton variante="secundario" onClick={() => setFoto(null)}>
+                <Trash2 size={18} className="text-bad-600" /> Quitar
+              </Boton>
+            </div>
+          </div>
+        ) : (
+          <Boton bloque variante="secundario" onClick={() => archivoFoto.current?.click()}>
+            <ImagePlus size={18} /> Subir flyer o foto
+          </Boton>
+        )}
+        <input
+          ref={archivoFoto}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          aria-label="Flyer o foto del evento"
+          onChange={async (ev) => {
+            const f = ev.target.files?.[0];
+            ev.target.value = '';
+            if (!f) return;
+            try {
+              setFoto(await prepararFlyer(f));
+            } catch (e) {
+              avisar(e instanceof Error ? e.message : 'No se pudo usar esa imagen', 'error');
+            }
+          }}
+        />
+      </Campo>
       <Campo etiqueta="¿Cómo venir? (opcional)" ayuda="Se ve resaltado. Déjalo vacío si da igual.">
         <Entrada value={vestimenta} onChange={(e) => setVestimenta(e.target.value)} placeholder="Ej. Ven disfrazado 💀 · De blanco · Gala" maxLength={60} />
       </Campo>

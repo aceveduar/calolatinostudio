@@ -25,7 +25,8 @@ await entrar('Dirección Calo', '1234');
 // 1) ajustes: página publicada con su enlace
 await ir('/ajustes/pagina');
 await page.getByText('Tu página:').waitFor();
-const slug = await page.getByLabel('Dirección de la página').inputValue();
+await page.getByRole('button', { name: /^Enlace y WhatsApp/ }).click(); // sección plegada
+const slug =await page.getByLabel('Dirección de la página').inputValue();
 const abrir = await page.getByRole('link', { name: /Abrir/ }).getAttribute('href');
 console.log('1) página pública configurada:', ok(slug === 'calo-latino' && abrir.endsWith('/a/calo-latino')), abrir);
 
@@ -102,9 +103,9 @@ await page.goto('http://localhost:4173/a/calo-latino');
 await page.getByText('Horarios').first().waitFor();
 await page.getByRole('button', { name: 'Toda la semana' }).click();
 t = await body();
-for (const [k, re] of Object.entries({ lunes: /Lunes Salsa 0 19:00–20:00/i, contemp: /Contemporáneo 11:00–13:00 \$80/, suelta: /Clase suelta .{0,40}\$60/, bloque: /Bloque completo 8 clases · vigencia 30 días \$400/, navidad: /Baile de Navidad/, quedan: /Quedan 37 lugares/, playera: /Playera Calo/ })) if (!re.test(t)) console.log('   falta', k, (t.match(new RegExp(k === 'lunes' ? 'LUNES.{0,80}' : k === 'contemp' ? 'Contempor.{0,60}' : k === 'bloque' ? 'Bloque.{0,80}' : 'zzz', 'i')) || [''])[0]);
+for (const [k, re] of Object.entries({ lunes: /Lunes Salsa 0 19:00–20:00/i, contemp: /Contemporáneo 11:00–13:00 \$80/, suelta: /Clase suelta .{0,40}\$60/, bloque: /Bloque completo 8 clases · vigencia 30 días \$400/, navidad: /Baile de Navidad/, playera: /Playera Calo/ })) if (!re.test(t)) console.log('   falta', k, (t.match(new RegExp(k === 'lunes' ? 'LUNES.{0,80}' : k === 'contemp' ? 'Contempor.{0,60}' : k === 'bloque' ? 'Bloque.{0,80}' : 'zzz', 'i')) || [''])[0]);
 console.log('   wa', await page.getByRole('link', { name: /Escríbenos por WhatsApp/ }).count());
-console.log('8) página: horario del estudio, precios, evento, tienda, WhatsApp:', ok(/Lunes Salsa 0 19:00–20:00/i.test(t) && /Contemporáneo 11:00–13:00 \$80/.test(t) && /Clase suelta .{0,40}\$60/.test(t) && /Bloque completo 8 clases · vigencia 30 días \$400/.test(t) && /Baile de Navidad/.test(t) && /Quedan 37 lugares/.test(t) && /Playera Calo/.test(t) && (await page.getByRole('link', { name: /Escríbenos por WhatsApp/ }).count()) >= 1));
+console.log('8) página: horario del estudio, precios, evento (sin anunciar cupo de sobra), tienda, WhatsApp:', ok(/Lunes Salsa 0 19:00–20:00/i.test(t) && /Contemporáneo 11:00–13:00 \$80/.test(t) && /Clase suelta .{0,40}\$60/.test(t) && /Bloque completo 8 clases · vigencia 30 días \$400/.test(t) && /Baile de Navidad/.test(t) && !/Quedan 37 lugares/.test(t) && /Playera Calo/.test(t) && (await page.getByRole('link', { name: /Escríbenos por WhatsApp/ }).count()) >= 1));
 console.log('   sin maestros ni teléfonos:', ok(!/Profe|Profa|55\d{8}/.test(t.replace('5512345678', ''))));
 await page.screenshot({ path: `${OUT}publica-2-pagina.png`, fullPage: true });
 await page.getByRole('tab', { name: /Casa de Cultura/ }).click();

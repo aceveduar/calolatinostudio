@@ -52,6 +52,19 @@ export async function prepararPortada(archivo: File): Promise<string> {
   return comprimir(lienzo, [0.78, 0.7, 0.6, 0.5], 200_000);
 }
 
+/** Flyer o foto de un evento: sin recortar (un flyer trae texto), máximo 1080 px y ~180 KB (WebP). */
+export async function prepararFlyer(archivo: File): Promise<string> {
+  if (!archivo.type.startsWith('image/')) throw new Error('Elige una imagen.');
+  const bmp = await createImageBitmap(archivo);
+  const k = Math.min(1, 1080 / Math.max(bmp.width, bmp.height));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.round(bmp.width * k);
+  lienzo.height = Math.round(bmp.height * k);
+  lienzo.getContext('2d')!.drawImage(bmp, 0, 0, lienzo.width, lienzo.height);
+  bmp.close();
+  return comprimir(lienzo, [0.8, 0.7, 0.6, 0.5], 180_000);
+}
+
 /** Foto para la galería de la página: sin recortar, máximo 900 px y ~80 KB (WebP). */
 export async function prepararFotoGaleria(archivo: File): Promise<string> {
   if (!archivo.type.startsWith('image/')) throw new Error('Elige una foto.');

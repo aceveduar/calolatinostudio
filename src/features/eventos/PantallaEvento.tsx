@@ -68,6 +68,7 @@ export function PantallaEvento() {
         {fechaLarga(e.fecha)} · {rangoHora(e.horaInicio, e.duracionMin)} · boleto {dinero(e.precio)}
         {!e.activo && ' · CANCELADO'}
       </p>
+      {e.foto && <img src={e.foto} alt={`Flyer de ${e.nombre}`} className="mb-3 max-h-80 w-full rounded-2xl bg-ink-50 object-contain ring-1 ring-ink-100" />}
       {(e.descripcion || e.vestimenta || e.lugar) && (
         <div className="mb-3 rounded-xl bg-superficie px-4 py-2.5 ring-1 ring-ink-100">
           {/* lo mismo que ve la gente en la página y el portal */}

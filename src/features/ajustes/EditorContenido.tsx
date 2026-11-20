@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { avisoPrivacidadBase } from '../../domain/privacidad';
+import { Link } from 'react-router-dom';
 import { ChevronDown, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { prepararFotoGaleria, prepararPortada } from '../../app/fotos';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -8,7 +9,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Tarjeta, cx } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import type { ContenidoPagina } from '../../db/types';
-import { PREGUNTAS_SUGERIDAS } from '../../domain/publica';
+import { PREGUNTAS_SUGERIDAS, REDES, NOMBRE_RED } from '../../domain/publica';
 
 const areaTexto =
   'w-full rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-300 resize-y';
@@ -77,8 +78,7 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const [abiertas, setAbiertas] = useState<string[]>([]);
   const abrir = (id: string) => setAbiertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
   const conDireccion = lugares.filter((l) => c.ubicaciones?.[l.clave]?.direccion?.trim()).length;
-  const redes = (['instagram', 'facebook', 'tiktok'] as const).filter((r) => c.redes?.[r]?.trim());
-  const nombreRed = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' } as const;
+  const redes = REDES.filter((r) => c.redes?.[r]?.trim());
   const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
   const plegable = (id: string) => ({ abierta: abiertas.includes(id), onAbrir: () => abrir(id) });
 
@@ -192,6 +192,13 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
       </Bloque>
 
       <Bloque id="ubicacion" {...plegable('ubicacion')} resumen={conDireccion === lugares.length ? (lugares.length > 1 ? 'Todas con dirección' : 'Con dirección') : `${conDireccion} de ${lugares.length} con dirección`} falta={!c.ubicaciones?.principal?.direccion?.trim()} titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
+        <p className="rounded-xl bg-ink-50 px-3 py-2 text-xs text-ink-500">
+          Los lugares son tus sedes. ¿Das clases en otro lugar? Agrégalo en{' '}
+          <Link to="/ajustes/sedes" className="font-semibold text-brand-600 underline underline-offset-2">
+            Sedes
+          </Link>
+          . Si dejas la dirección vacía, ese lugar no se muestra.
+        </p>
         {lugares.map((l) => {
           const u = c.ubicaciones?.[l.clave] ?? { direccion: '' };
           const ponU = (p: Partial<typeof u>) => pon({ ubicaciones: { ...(c.ubicaciones ?? {}), [l.clave]: { ...u, ...p } } });
@@ -226,10 +233,10 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
         </Boton>
       </Bloque>
 
-      <Bloque id="redes" {...plegable('redes')} resumen={redes.length ? redes.map((r) => nombreRed[r]).join(', ') : 'Ninguna'} titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo.">
-        {(['instagram', 'facebook', 'tiktok'] as const).map((r) => (
-          <Campo key={r} etiqueta={{ instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' }[r]}>
-            <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder="@usuario" autoCapitalize="off" />
+      <Bloque id="redes" {...plegable('redes')} resumen={redes.length ? redes.map((r) => NOMBRE_RED[r]).join(', ') : 'Ninguna'} titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo. La que dejes vacía no aparece en tu página.">
+        {REDES.map((r) => (
+          <Campo key={r} etiqueta={NOMBRE_RED[r]}>
+            <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder={r === 'youtube' ? '@canal' : '@usuario'} autoCapitalize="off" />
           </Campo>
         ))}
       </Bloque>

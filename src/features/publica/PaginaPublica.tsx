@@ -8,7 +8,7 @@ import { dinero } from '../../domain/dinero';
 import { hoy } from '../../domain/fechas';
 import { estadoCurso } from '../../domain/cursos';
 import { PRINCIPAL } from '../../domain/sedes';
-import { comoLlegar, urlRed, type DatosPublica } from '../../domain/publica';
+import { comoLlegar, urlRed, type DatosPublica, REDES, NOMBRE_RED } from '../../domain/publica';
 import { leerHuella } from '../../domain/invitar';
 import { recordarOrigen } from '../../domain/origen';
 import { textoAvisoPrivacidad } from '../../domain/privacidad';
@@ -116,7 +116,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     const u = p.ubicaciones?.[s.id ?? 'principal'];
     return u?.direccion ? [{ ...u, nombre: s.nombre }] : [];
   });
-  const redes = (['instagram', 'facebook', 'tiktok'] as const).flatMap((r) => {
+  const redes = REDES.flatMap((r) => {
     const url = urlRed(r, p.redes?.[r]);
     return url ? [{ red: r, url }] : [];
   });
@@ -504,35 +504,47 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           <Seccion eyebrow="Agenda" titulo="Próximos eventos" fondo="superficie">
             <ul className="grid gap-3 sm:grid-cols-2">
               {d.eventos.map((e, i) => {
-                const [, mm, dd] = e.fecha.split('-').map(Number);
+                const [yy, mm, dd] = e.fecha.split('-').map(Number);
+                const dia = DIA_EVENTO[new Date(yy, mm - 1, dd).getDay()];
+                const wa = e.quedan !== 0 ? waCon(`Hola, quiero boletos para ${e.nombre} (${dia} ${dd} de ${MESES[mm - 1]}, ${e.hora}).`) : null;
+                // igual que en el portal: flyer arriba, día de la semana en la fecha, lo urgente como etiqueta y
+                // abajo una barra con el precio grande y "Quiero ir" (antes el precio iba en gris junto a la hora)
                 return (
-                  <li key={i} className="pp-revela flex gap-4 rounded-3xl bg-ink-50 p-4 ring-1 ring-ink-100">
-                    <span className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white">
-                      <span className="text-2xl leading-none font-extrabold">{dd}</span>
-                      <span className="text-xs font-bold uppercase">{MESES[mm - 1]}</span>
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-lg font-extrabold">{e.nombre}</span>
-                      <span className="block text-sm text-ink-500">
-                        {e.hora} · boleto {dinero(e.precio)}
-                      </span>
-                      <DetalleEvento e={e} />
-                      {e.quedan !== null && (
-                        <span className={cx('mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-extrabold', e.quedan === 0 ? 'bg-bad-50 text-bad-600' : e.quedan <= 20 ? 'bg-warn-50 text-warn-600' : 'bg-brand-50 text-brand-600')}>
-                          {e.quedan === 0 ? 'Agotado' : e.quedan <= 20 ? `¡Últimos ${e.quedan} lugares!` : `Quedan ${e.quedan} lugares`}
+                  <li key={i} className="pp-revela flex flex-col overflow-hidden rounded-3xl bg-ink-50 ring-1 ring-ink-100">
+                    {e.foto && <img src={e.foto} alt={`Flyer de ${e.nombre}`} loading="lazy" className="max-h-96 w-full bg-ink-100 object-contain" />}
+                    <div className="flex flex-1 flex-col p-4">
+                      <div className="flex gap-4">
+                        <span className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white">
+                          <span className="text-[10px] font-bold tracking-wider uppercase opacity-90">{dia}</span>
+                          <span className="text-2xl leading-none font-extrabold">{dd}</span>
+                          <span className="text-[10px] font-bold uppercase">{MESES[mm - 1]}</span>
                         </span>
-                      )}
-                      {e.quedan !== 0 && waCon(`Hola, quiero boletos para ${e.nombre} (${dd} de ${MESES[mm - 1]}, ${e.hora}).`) && (
-                        <a
-                          href={waCon(`Hola, quiero boletos para ${e.nombre} (${dd} de ${MESES[mm - 1]}, ${e.hora}).`)!}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-[#15803d] px-4 text-sm font-bold text-white active:scale-[0.98]"
-                        >
-                          <MessageCircle size={18} /> Quiero ir
-                        </a>
-                      )}
-                    </span>
+                        <span className="min-w-0">
+                          <span className="block text-lg leading-tight font-extrabold">{e.nombre}</span>
+                          <span className="mt-0.5 block text-sm text-ink-500">{e.hora}</span>
+                          {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && (
+                            <span className="mt-1.5 inline-block rounded-full bg-warn-50 px-2.5 py-0.5 text-xs font-extrabold text-warn-600">¡Últimos {e.quedan} lugares!</span>
+                          )}
+                        </span>
+                      </div>
+                      <DetalleEvento e={e} />
+                      <span className="flex-1" />
+                      <span className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-superficie py-2 pr-2 pl-4 ring-1 ring-ink-100">
+                        <span>
+                          <span className="block text-lg leading-tight font-extrabold">{e.precio > 0 ? dinero(e.precio) : 'Gratis'}</span>
+                          <span className="block text-xs text-ink-500">{e.precio > 0 ? 'boleto' : 'entrada libre'}</span>
+                        </span>
+                        {e.quedan === 0 ? (
+                          <span className="rounded-full bg-bad-50 px-3 py-1 text-sm font-extrabold text-bad-600">Agotado</span>
+                        ) : (
+                          wa && (
+                            <a href={wa} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl bg-[#15803d] px-5 text-sm font-bold text-white active:scale-[0.98]">
+                              <MessageCircle size={18} aria-hidden="true" /> Quiero ir
+                            </a>
+                          )
+                        )}
+                      </span>
+                    </div>
                   </li>
                 );
               })}
@@ -602,7 +614,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             <div className="flex flex-wrap gap-2">
               {redes.map((r) => (
                 <a key={r.red} href={r.url} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/15 hover:bg-white/15">
-                  <AtSign size={15} /> {{ instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' }[r.red]}
+                  <AtSign size={15} /> {NOMBRE_RED[r.red]}
                 </a>
               ))}
             </div>
@@ -691,3 +703,4 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
   );
 }
 
+const DIA_EVENTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];

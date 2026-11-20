@@ -1,6 +1,7 @@
 // Eventos con más detalle: cómo venir, descripción larga y lugar (aquí, en otra sede o en otro lugar).
 // En otro lugar no se aparta el salón; en la página y el portal se ve el lugar con "Cómo llegar".
 import { chromium } from 'playwright-core';
+import { readFileSync } from 'node:fs';
 import { revisarPagina } from './revisar.mjs';
 const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const ok = (c) => (c ? 'OK' : 'MAL');
@@ -41,13 +42,15 @@ await dlg.getByPlaceholder('Ej. Salón Los Arcos').fill('Terraza El Mirador');
 await dlg.getByPlaceholder('Calle, número y colonia').fill('Calle Ejemplo 12, Col. Lomas');
 await dlg.getByPlaceholder(/Ven disfrazado/).fill('De blanco');
 await dlg.locator('textarea').fill('Social al aire libre.\nDJ y clase muestra de bachata.');
+await dlg.getByLabel('Flyer o foto del evento').setInputFiles(new URL('./archivos/grupo.jpg', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+await dlg.getByRole('img', { name: 'Flyer del evento' }).waitFor({ timeout: 5000 });
 const sinChoque = (await dlg.getByText(/El salón ya está ocupado/).count()) === 0;
 await p.screenshot({ path: `${OUT}eventolugar-form.png`, fullPage: true });
 await dlg.getByRole('button', { name: 'Crear evento' }).click();
 await p.waitForTimeout(800);
 ev = await eventos();
 const terraza = ev.find((e) => e.nombre === 'Social en la terraza');
-console.log('2) otro lugar a la hora de clases: sin choque, guarda lugar, dirección, cómo venir y varias líneas:', ok(sinChoque && terraza?.lugar === 'Terraza El Mirador' && terraza.direccion === 'Calle Ejemplo 12, Col. Lomas' && terraza.vestimenta === 'De blanco' && terraza.descripcion.includes('\n') && !terraza.rentaId), JSON.stringify(terraza && { lugar: terraza.lugar, renta: terraza.rentaId }));
+console.log('2) otro lugar a la hora de clases: sin choque, guarda lugar, dirección, cómo venir, varias líneas y el flyer ligero:', ok(sinChoque && /^data:image\/(webp|jpeg)/.test(terraza?.foto ?? '') && terraza.foto.length < 200000 && terraza?.lugar === 'Terraza El Mirador' && terraza.direccion === 'Calle Ejemplo 12, Col. Lomas' && terraza.vestimenta === 'De blanco' && terraza.descripcion.includes('\n') && !terraza.rentaId), JSON.stringify(terraza && { lugar: terraza.lugar, renta: terraza.rentaId }));
 
 // 3) el de Día de Muertos se cambia a otro lugar: el salón de aquí queda libre
 await ir(`/agenda/eventos/${muertos.id}`);
@@ -63,13 +66,14 @@ await p.screenshot({ path: `${OUT}eventolugar-detalle.png` });
 
 // 4) página pública: cómo venir resaltado, descripción con "Ver más" y "Cómo llegar" al mapa
 const largo = 'Social de salsa y bachata con concurso de disfraces: premios al mejor disfraz y a la mejor pareja.\nAltar de muertos.\nPan de muerto y chocolate para todos.\nFoto del recuerdo.';
+const FLYER = 'data:image/jpeg;base64,' + readFileSync(new URL('./archivos/grupo.jpg', import.meta.url)).toString('base64');
 const D = {
   academia: { nombre: 'Calo Latino Studio', color: '#d6334a', logo: null, whatsapp: '5648141057', sede_principal: 'Estudio' },
   pagina: { frase: 'Ven a bailar', preguntas: [] },
   sedes: [],
   clases: [],
   planes: [],
-  eventos: [{ nombre: 'Fiesta de Día de Muertos', fecha: '2026-11-30', hora: '20:00', precio: 18000, descripcion: largo, quedan: 30, vestimenta: 'Ven disfrazado 💀', lugar: 'Jardín Las Flores', direccion: 'Av. Ejemplo 450, Col. Centro', otro_lugar: true }],
+  eventos: [{ nombre: 'Fiesta de Día de Muertos', fecha: '2026-11-30', hora: '20:00', precio: 18000, descripcion: largo, quedan: 30, vestimenta: 'Ven disfrazado 💀', lugar: 'Jardín Las Flores', direccion: 'Av. Ejemplo 450, Col. Centro', otro_lugar: true, foto: FLYER }],
   tienda: [],
 };
 await ctx.route('**/rest/v1/rpc/pagina_publica', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(D) }));
@@ -82,6 +86,7 @@ const verMas = pub.getByRole('button', { name: 'Ver más' });
 const hayVerMas = (await verMas.count()) === 1;
 await pub.screenshot({ path: `${OUT}eventolugar-pagina.png` });
 await verMas.click();
+console.log('   página: el flyer arriba de la tarjeta:', ok((await pub.getByRole('img', { name: 'Flyer de Fiesta de Día de Muertos' }).count()) === 1));
 console.log('4) página: "Ven disfrazado" resaltado, lugar con "Cómo llegar" al mapa y "Ver más" en lo largo:', ok((await pub.getByText('Ven disfrazado 💀').count()) === 1 && /google\.com\/maps\/search\/.*Av\.%20Ejemplo%20450/.test(mapa ?? '') && hayVerMas && (await pub.getByRole('button', { name: 'Ver menos' }).count()) === 1), mapa);
 const r = await revisarPagina(pub);
 console.log('5) sin desbordes, botones con nombre y buen contraste:', ok(!r.ancho && !r.sinNombre.length && !r.contraste?.length), JSON.stringify({ ancho: r.ancho, sinNombre: r.sinNombre, contraste: r.contraste }));

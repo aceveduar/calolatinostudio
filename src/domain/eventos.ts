@@ -18,7 +18,7 @@ export function codigoBoleto(): string {
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 export const boletoValido = (b: Boleto) => vivo(b) && !b.anuladoAt;
 
-export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion' | 'enPagina' | 'enPortal' | 'vestimenta' | 'lugar' | 'direccion'> & {
+export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion' | 'enPagina' | 'enPortal' | 'vestimenta' | 'lugar' | 'direccion' | 'foto'> & {
   salonId: ID | null;
   /** en otra sede (null = aquí) */
   sedeId: ID | null;

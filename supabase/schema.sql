@@ -373,6 +373,8 @@ alter table eventos add column if not exists en_portal boolean;
 alter table eventos add column if not exists vestimenta text;
 alter table eventos add column if not exists lugar text;
 alter table eventos add column if not exists direccion text;
+-- 20261129: flyer o foto del evento (data URL; la página y el portal lo reciben como enlace /img/<slug>/e_<id>…)
+alter table eventos add column if not exists foto text;
 alter table interesados add column if not exists origen text;
 alter table cortes add column if not exists fondo int;
 alter table cortes add column if not exists salidas int;
@@ -561,6 +563,7 @@ begin
                                   'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
                                   'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select coalesce(nullif(x.sede_principal, ''), x.nombre) from academias x where x.id = e.academia_id), ''),
                                   'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
+                                  'foto', case when base is null then e.foto else img_publica(base, 'e_' || e.id, e.foto) end,
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) ev
         from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and coalesce(e.en_portal, true) and e.fecha >= hoy and e.fecha <= hoy + 90
         order by e.fecha, e.hora_inicio limit 6
@@ -675,6 +678,7 @@ begin
                                           'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
                                   'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select coalesce(nullif(x.sede_principal, ''), x.nombre) from academias x where x.id = e.academia_id), ''),
                                   'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
+                                  'foto', img_publica(base, 'e_' || e.id, e.foto),
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
       from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and coalesce(e.en_pagina, true) and e.fecha >= hoy
     ), '[]'::jsonb),
@@ -704,6 +708,9 @@ begin
   elsif p_clave ~ '^p_[0-9a-f-]{36}$' then
     return (select p.foto from productos p
             where p.id = substr(p_clave, 3)::uuid and p.academia_id = ac.id and p.en_linea and p.activo and p.deleted_at is null);
+  elsif p_clave ~ '^e_[0-9a-f-]{36}$' then
+    return (select e.foto from eventos e
+            where e.id = substr(p_clave, 3)::uuid and e.academia_id = ac.id and e.activo and e.deleted_at is null);
   end if;
   return null;
 end $$;
@@ -826,7 +833,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261128 $$;
+language sql immutable as $$ select 20261129 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

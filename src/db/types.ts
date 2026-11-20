@@ -57,7 +57,7 @@ export interface ContenidoPagina {
   /** dirección y referencias por sede ("principal" = el lugar principal) */
   ubicaciones?: Record<string, { direccion: string; referencias?: string }>;
   preguntas?: { p: string; r: string }[];
-  redes?: { instagram?: string; facebook?: string; tiktok?: string };
+  redes?: { instagram?: string; facebook?: string; tiktok?: string; youtube?: string };
   /** fotos de clases y eventos (JPEG en data URL, ≤900 px) */
   galeria?: string[];
   /** crédito de las fotos si no son propias (p. ej. licencias Creative Commons) */
@@ -208,6 +208,8 @@ export interface Evento extends Base {
   /** en otro lugar (salón de fiestas, terraza…): nombre y dirección. Vacío = en la academia o en su sede. */
   lugar?: string | null;
   direccion?: string | null;
+  /** flyer o foto del evento (WebP/JPEG en data URL, ≤1080 px): lo que más lo "vende" en la página y el portal */
+  foto?: string | null;
 }
 
 /** Un boleto = una persona. Se venden juntos en un cobro (pagoId) y se marcan al entrar. */

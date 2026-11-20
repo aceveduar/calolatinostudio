@@ -974,6 +974,7 @@ function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: 
             // Reacomodada: se leía como lista de datos. Ahora el día de la semana en la fecha, hora y lugar en una
             // línea, lo urgente como etiquetas, y abajo una barra con el precio grande y "Quiero ir".
             <li key={i} className={cx(i > 0 && 'border-t border-ink-100 pt-4')}>
+              {e.foto && <img src={e.foto} alt={`Flyer de ${e.nombre}`} loading="lazy" className="mb-3 max-h-80 w-full rounded-2xl bg-ink-50 object-contain" />}
               <div className="flex gap-3">
                 <span className="flex h-16 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white" aria-hidden="true">
                   <span className="text-[10px] font-bold tracking-wider uppercase opacity-90">{DIA_CORTO[new Date(yy, mm - 1, dd).getDay()]}</span>

@@ -12,7 +12,7 @@ interface Contexto {
   waitUntil: (p: Promise<unknown>) => void;
 }
 
-const ARCHIVO = /^(portada|logo|g\d{1,2}|p_[0-9a-f-]{36})\.[0-9a-f]{10}$/;
+const ARCHIVO = /^(portada|logo|g\d{1,2}|[pe]_[0-9a-f-]{36})\.[0-9a-f]{10}$/;
 
 export async function onRequestGet({ request, env, params, waitUntil }: Contexto): Promise<Response> {
   const m = String(params.archivo ?? '').match(ARCHIVO);

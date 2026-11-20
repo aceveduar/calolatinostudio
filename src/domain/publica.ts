@@ -10,6 +10,8 @@ export interface DetalleDeEvento {
   lugar?: string;
   direccion?: string;
   otro_lugar?: boolean;
+  /** flyer o foto del evento (enlace /img/… o data URL) */
+  foto?: string | null;
 }
 
 export interface DatosPublica {
@@ -57,12 +59,16 @@ export const PREGUNTAS_SUGERIDAS: { p: string; r: string }[] = [
 
 const limpiar = (s: string) => s.trim().replace(/^@/, '').replace(/\/+$/, '');
 /** "@calolatino", "calolatino" o una URL → URL de la red social. */
-export function urlRed(red: 'instagram' | 'facebook' | 'tiktok', valor: string | undefined): string | null {
+/** Las redes que puede mostrar la página, en este orden. Vacía = no aparece. */
+export const REDES = ['instagram', 'facebook', 'tiktok', 'youtube'] as const;
+export const NOMBRE_RED = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube' } as const;
+
+export function urlRed(red: (typeof REDES)[number], valor: string | undefined): string | null {
   const v = limpiar(valor ?? '');
   if (!v) return null;
   if (/^https?:\/\//i.test(v)) return v;
-  const base = { instagram: 'https://instagram.com/', facebook: 'https://facebook.com/', tiktok: 'https://www.tiktok.com/@' }[red];
-  return base + v.replace(/^(www\.)?(instagram|facebook|tiktok)\.com\/@?/i, '');
+  const base = { instagram: 'https://instagram.com/', facebook: 'https://facebook.com/', tiktok: 'https://www.tiktok.com/@', youtube: 'https://www.youtube.com/@' }[red];
+  return base + v.replace(/^(www\.)?(instagram|facebook|tiktok|youtube)\.com\/@?/i, '').replace(/^@/, '');
 }
 
 /** Mapa de Google sin clave (se muestra en un iframe) y enlace para llegar. */
