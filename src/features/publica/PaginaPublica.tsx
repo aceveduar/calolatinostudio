@@ -540,24 +540,11 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </Seccion>
         )}
 
-        {/* ---------- tienda ---------- */}
-        {d.tienda.length > 0 && (
-          <Seccion eyebrow="Tienda" titulo="Lleva tu estilo">
-            <div className="no-scrollbar -mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] sm:overflow-visible sm:px-0">
-              {d.tienda.map((x, i) => (
-                <div key={i} className="w-40 shrink-0 snap-start rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100 sm:w-auto">
-                  {x.foto ? <img src={x.foto} alt="" loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" /> : <span className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-ink-50 text-6xl">{x.emoji}</span>}
-                  <p className="mt-2 text-sm font-bold">{x.nombre}</p>
-                  <p className="text-sm font-extrabold text-brand-600">{dinero(x.precio)}</p>
-                  {x.sobre_pedido && <p className="text-[11px] text-ink-500">Sobre pedido</p>}
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-500">
-              <ShoppingBag size={16} /> Pídelo en recepción o por WhatsApp.
-            </p>
-          </Seccion>
-        )}
+        {/* ---------- tienda ----------
+            Secundaria: la página es para que alguien se inscriba. Antes mostraba TODOS los productos (38 = un tercio
+            de la página, empujando las preguntas y la inscripción). Ahora unos cuantos (con foto primero) y
+            "Ver toda la tienda"; cada producto abre WhatsApp con su nombre. Apartar es desde el portal del alumno. */}
+        {d.tienda.length > 0 && <TiendaPublica productos={d.tienda} wa={waCon} />}
 
         {/* ---------- preguntas ---------- */}
         {(p.preguntas?.length ?? 0) > 0 && (
@@ -654,3 +641,53 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     </div>
   );
 }
+
+/** Tienda de la página: 4 en el celular y 8 en pantallas grandes a la vista; el resto con "Ver toda la tienda". */
+function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; wa: (texto: string) => string | null }) {
+  const [todos, setTodos] = useState(false);
+  // primero los que tienen foto (se ven mejor y suelen ser la ropa y accesorios), en su orden
+  const orden = [...productos].sort((a, b) => Number(!a.foto) - Number(!b.foto));
+  return (
+    <Seccion eyebrow="Tienda" titulo="Lleva tu estilo">
+      {/* 4 columnas fijas en pantallas grandes: los 8 a la vista son 2 renglones completos (con 5 quedaba 5 + 3) */}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {orden.map((x, i) => {
+          const enlace = wa(`Hola, me interesa ${x.nombre} (${dinero(x.precio)}) que vi en su página.`);
+          const tarjeta = (
+            <>
+              {x.foto ? <img src={x.foto} alt="" loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" /> : <span className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-ink-50 text-6xl">{x.emoji}</span>}
+              <span className="mt-2 block text-sm font-bold">{x.nombre}</span>
+              <span className="block text-sm font-extrabold text-brand-600">{dinero(x.precio)}</span>
+              {x.sobre_pedido && <span className="block text-[11px] text-ink-500">Sobre pedido</span>}
+            </>
+          );
+          const clase = 'block h-full rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100';
+          return (
+            <li key={i} className={cx(!todos && i >= 8 && 'hidden', !todos && i >= 4 && 'max-sm:hidden')}>
+              {enlace ? (
+                <a href={enlace} target="_blank" rel="noreferrer" className={cx(clase, 'active:scale-[0.98]')} aria-label={`${x.nombre}, ${dinero(x.precio)}: preguntar por WhatsApp`}>
+                  {tarjeta}
+                </a>
+              ) : (
+                <div className={clase}>{tarjeta}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {productos.length > 4 && (
+        <button
+          type="button"
+          onClick={() => setTodos(!todos)}
+          className={cx('mt-3 min-h-11 w-full rounded-2xl text-sm font-bold text-brand-600 ring-1 ring-ink-100 active:bg-ink-50', productos.length <= 8 && 'sm:hidden')}
+        >
+          {todos ? 'Ver menos' : `Ver toda la tienda (${productos.length})`}
+        </button>
+      )}
+      <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-500">
+        <ShoppingBag size={16} aria-hidden="true" /> Toca un producto para preguntar por WhatsApp. ¿Ya eres alumno? Apártalo desde tu portal.
+      </p>
+    </Seccion>
+  );
+}
+
