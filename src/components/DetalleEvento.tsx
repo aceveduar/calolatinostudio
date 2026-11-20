@@ -10,8 +10,10 @@ const enlaceMapa = (direccion: string) => `https://www.google.com/maps/search/?a
 /**
  * Detalle de un evento: cómo venir (resaltado), la descripción completa (con "Ver más" si es larga) y dónde es,
  * con "Cómo llegar". Se usa igual en la página pública y en el portal del alumno.
+ * `paraAlumno` (portal): si es en la academia, solo su nombre; quien va cada semana ya sabe llegar y la
+ * dirección completa alargaba la tarjeta. La dirección y "Cómo llegar" quedan para cuando es en otro lugar.
  */
-export function DetalleEvento({ e }: { e: DetalleDeEvento }) {
+export function DetalleEvento({ e, paraAlumno }: { e: DetalleDeEvento; paraAlumno?: boolean }) {
   const [todo, setTodo] = useState(false);
   const texto = e.descripcion?.trim() ?? '';
   const largo = texto.length > LARGO || texto.split('\n').length > 3;
@@ -37,7 +39,7 @@ export function DetalleEvento({ e }: { e: DetalleDeEvento }) {
           <MapPin size={16} className="mt-0.5 shrink-0 text-brand-600" aria-hidden="true" />
           <span className="min-w-0">
             <span className={e.otro_lugar ? 'font-bold' : 'font-semibold'}>{e.lugar.trim()}</span>
-            {e.direccion?.trim() && (
+            {e.direccion?.trim() && (!paraAlumno || e.otro_lugar) && (
               <>
                 <span className="block text-xs text-ink-500">{e.direccion.trim()}</span>
                 <a href={enlaceMapa(e.direccion.trim())} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center text-sm font-semibold text-brand-600 underline-offset-2 hover:underline">

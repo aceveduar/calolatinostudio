@@ -46,6 +46,15 @@ const TOKEN = 'AbCdEfGhJkLmNpQrStUvWxYz23';
   await page.getByText('¡Gracias! Lo estamos revisando.').waitFor();
   console.log('1d) se envía con su enlace y queda en revisión:', ok(enviado?.p_token === TOKEN && /no me pierdo un social/.test(enviado?.p_texto)));
   await page.screenshot({ path: `${OUT}testimonio-portal.png`, fullPage: true });
+  // 1e) es opcional: con la ✕ se quita, queda "Contar mi experiencia" abajo y se recuerda al volver
+  await page.getByRole('button', { name: /Quitar “Tu experiencia”/ }).click();
+  const quitada = (await page.getByText('Tu experiencia').count()) === 0;
+  await page.reload();
+  await page.getByText('Calo Latino Studio').first().waitFor();
+  await page.waitForTimeout(400);
+  const recuerda = (await page.getByText('Tu experiencia').count()) === 0;
+  await page.getByRole('button', { name: 'Contar mi experiencia' }).click();
+  console.log('1e) la ✕ la quita, se recuerda al volver y "Contar mi experiencia" la regresa:', ok(quitada && recuerda && (await page.getByText('Tu experiencia').count()) === 1));
   await ctx.close();
 }
 

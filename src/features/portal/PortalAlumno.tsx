@@ -224,6 +224,24 @@ function Centro({ titulo, children }: { titulo?: string; children: React.ReactNo
 }
 
 function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPortal; guardadoEl: number | null; token: string; recargar: () => void }) {
+  // "Tu experiencia" es opcional: con la ✕ se quita (se recuerda en este teléfono) y queda un enlace abajo
+  const claveOpinar = `compas-portal-opinar-oculto:${token}`;
+  const [opinarOculto, setOpinarOculto] = useState(() => {
+    try {
+      return localStorage.getItem(claveOpinar) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const ocultarOpinar = (si: boolean) => {
+    setOpinarOculto(si);
+    try {
+      if (si) localStorage.setItem(claveOpinar, '1');
+      else localStorage.removeItem(claveOpinar);
+    } catch {
+      /* sin almacenamiento: solo por esta visita */
+    }
+  };
   // datos guardados por una versión anterior pueden no traer campos nuevos
   const datos: DatosPortal = { ...crudos, tienda: (crudos.tienda ?? []).map((p) => ({ ...p, opciones: p.opciones ?? [], disponibles: p.disponibles ?? null })) };
   const [qr, setQr] = useState<string | null>(null);
@@ -345,7 +363,9 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
 
         {datos.invita && datos.academia.slug && <InvitaAmigo academia={datos.academia.nombre} slug={datos.academia.slug} invita={datos.invita} />}
 
-        {datos.testimonio !== undefined && puedeOpinar(datos) && <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} />}
+        {datos.testimonio !== undefined && puedeOpinar(datos) && !opinarOculto && (
+          <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} onOcultar={() => ocultarOpinar(true)} />
+        )}
 
         {aviso && (
           <p role="status" className="flex items-center gap-2 rounded-2xl bg-ok-50 px-4 py-3 text-sm font-semibold text-ok-600">
@@ -444,6 +464,12 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {/* Últimas clases */}
         {datos.clases.length > 0 && <UltimasClases clases={datos.clases} />}
 
+        {/* si la quitó, no se pierde: queda este enlace discreto por si después se anima */}
+        {datos.testimonio !== undefined && puedeOpinar(datos) && opinarOculto && (
+          <button type="button" onClick={() => ocultarOpinar(false)} className="mx-auto flex min-h-11 items-center gap-1.5 px-3 text-sm font-semibold text-brand-600">
+            <MessageCircle size={16} aria-hidden="true" /> Contar mi experiencia
+          </button>
+        )}
         <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
       </div>
       {pase && <PaseCompleto qr={qr} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} foto={datos.alumno.foto ?? null} onCerrar={() => setPase(false)} />}
@@ -794,7 +820,7 @@ function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | nul
  * "Cuéntanos tu experiencia": el alumno escribe su testimonio. Se revisa antes de publicarse y en la página
  * aparece solo con su nombre de pila e inicial. Si ya mandó uno, ve si está en revisión o publicado.
  */
-function TuTestimonio({ token, nombre, academia, actual, sinConexion, onListo }: { token: string; nombre: string; academia: string; actual: DatosPortal['testimonio']; sinConexion: boolean; onListo: () => void }) {
+function TuTestimonio({ token, nombre, academia, actual, sinConexion, onListo, onOcultar }: { token: string; nombre: string; academia: string; actual: DatosPortal['testimonio']; sinConexion: boolean; onListo: () => void; onOcultar: () => void }) {
   const [texto, setTexto] = useState('');
   const [escribiendo, setEscribiendo] = useState(false);
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviado'>('listo');
@@ -817,9 +843,14 @@ function TuTestimonio({ token, nombre, academia, actual, sinConexion, onListo }:
   const formulario = escribiendo || (!actual && estado !== 'enviado');
   return (
     <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
-      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
-        <MessageCircle size={14} aria-hidden="true" /> Tu experiencia
-      </p>
+      <div className="-mt-2 -mr-2 flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
+          <MessageCircle size={14} aria-hidden="true" /> Tu experiencia
+        </p>
+        <button type="button" onClick={onOcultar} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="Quitar “Tu experiencia”">
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
       {formulario ? (
         <>
           <p className="mt-2 font-semibold">¿Qué te ha dejado bailar en {academia}?</p>
@@ -945,7 +976,7 @@ function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: 
                   {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && <b className="text-warn-600"> · ¡quedan {e.quedan}!</b>}
                 </span>
                 <span className="block text-ink-700">
-                  <DetalleEvento e={e} />
+                  <DetalleEvento e={e} paraAlumno />
                 </span>
                 {e.quedan === 0 ? (
                   <span className="mt-2 inline-block rounded-full bg-bad-50 px-2.5 py-0.5 text-xs font-extrabold text-bad-600">Agotado</span>
