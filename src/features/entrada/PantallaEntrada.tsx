@@ -282,7 +282,8 @@ export function PantallaEntrada() {
               aria-label={`${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}: a quién escribir y qué cobrar`}
             >
               <ListChecks size={18} className="text-brand-600" aria-hidden="true" />
-              <span className="tabular-nums">{pendientes}</span>
+              {/* más de 99 ya no dice nada (y abruma): "99+" */}
+              <span className="tabular-nums">{pendientes > 99 ? '99+' : pendientes}</span>
               <span className="hidden font-semibold lg:inline">{pendientes === 1 ? 'pendiente' : 'pendientes'}</span>
             </Link>
           ) : undefined
@@ -376,7 +377,7 @@ export function PantallaEntrada() {
         >
           <ShoppingBag size={24} />
           {porRecoger > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1 text-xs font-extrabold text-white shadow">{porRecoger}</span>
+            <span className="absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1 text-xs font-extrabold text-white shadow">{porRecoger > 99 ? '99+' : porRecoger}</span>
           )}
         </button>
         <button

@@ -6,7 +6,7 @@ import { db } from '../../db/db';
 import type { Alumno, Clase, ID } from '../../db/types';
 import { hoy, sumarDias } from '../../domain/fechas';
 import { membresiaQueCubre } from '../../domain/membresias';
-import { nombreCorto } from '../../domain/nombres';
+import { nombresSinRepetir } from '../../domain/nombres';
 
 const MAX = 30;
 
@@ -87,6 +87,8 @@ export function Frecuentes({
   const mostrar = [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
 
   if (!mostrar.length) return null;
+  // dos "Camila R." en la cuadrícula: se distinguen con el apellido completo
+  const etiquetas = nombresSinRepetir(mostrar);
 
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
@@ -94,14 +96,14 @@ export function Frecuentes({
         const entro = adentro.has(a.id);
         const plan = !!membresiaQueCubre(estados.get(a.id) ?? [], clase);
         return (
-          <Ficha key={a.id} alumno={a} entro={entro} plan={plan} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
+          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} entro={entro} plan={plan} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
         );
       })}
     </div>
   );
 }
 
-function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; entro: boolean; plan: boolean; onToque: () => void; onOpciones: () => void }) {
+function Ficha({ alumno, etiqueta, entro, plan, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; entro: boolean; plan: boolean; onToque: () => void; onOpciones: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const largo = useRef(false);
 
@@ -136,7 +138,8 @@ function Ficha({ alumno, entro, plan, onToque, onOpciones }: { alumno: Alumno; e
           </span>
         )}
       </span>
-      <span className={cx('w-full truncate px-1 text-center text-sm leading-tight font-semibold', entro && 'text-ink-500')}>{nombreCorto(alumno.nombre)}</span>
+      {/* hasta 2 renglones: si se agrega el apellido para distinguir, que no se corte justo esa parte */}
+      <span className={cx('line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold break-words', entro && 'text-ink-500')}>{etiqueta}</span>
       <span className={cx('text-[11px] font-bold', entro ? 'text-ok-600' : plan ? 'text-ok-600' : 'text-brand-600')}>
         {entro ? 'Adentro' : plan ? 'Plan' : 'Paga'}
       </span>
