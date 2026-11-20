@@ -268,7 +268,8 @@ export function PantallaEntrada() {
       <div className="min-w-0">
       <Encabezado
         titulo="Entrada"
-        sub={sedes.length > 0 ? `${fechaLarga(hoy())} · ${nombreSede(sedeActual, sedes, academia)}` : fechaLarga(hoy())}
+        // con varias sedes, fecha corta para que quepa en un renglón junto a la sede
+        sub={sedes.length > 0 ? `${fechaLarga(hoy()).replace(/,? de [a-záéíóú]+$/i, '').replace(',', '')} · ${nombreSede(sedeActual, sedes, academia)}` : fechaLarga(hoy())}
         accion={
           pendientes > 0 ? (
             <Link

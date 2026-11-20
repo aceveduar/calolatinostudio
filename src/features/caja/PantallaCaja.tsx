@@ -405,14 +405,16 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
             <span className="block font-medium">Feria con la que abrió</span>
             <span className="block text-xs text-ink-500">Se queda en el cajón para dar cambio</span>
           </span>
-          <Entrada
-            inputMode="decimal"
-            aria-label="Feria con la que abrió"
-            value={fondoTxt ?? (ultimoFondo ? String(ultimoFondo / 100) : '')}
-            onChange={(e) => setFondoTxt(e.target.value)}
-            placeholder="0"
-            className="h-11 w-28 text-right font-bold"
-          />
+          <span className="w-28 shrink-0">
+            <Entrada
+              inputMode="decimal"
+              aria-label="Feria con la que abrió"
+              value={fondoTxt ?? (ultimoFondo ? String(ultimoFondo / 100) : '')}
+              onChange={(e) => setFondoTxt(e.target.value)}
+              placeholder="0"
+              className="h-11 text-right font-bold"
+            />
+          </span>
         </label>
         <div className="flex justify-between px-4 py-2.5">
           <span>+ Cobrado en efectivo</span>

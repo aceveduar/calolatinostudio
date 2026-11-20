@@ -75,10 +75,13 @@ export function FichaAlumno() {
   };
 
   return (
-    <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
+    <div className="px-4 pb-8 lg:mx-auto lg:max-w-5xl">
       <button onClick={() => nav(-1)} className="mt-3 -ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Atrás">
         <ArrowLeft />
       </button>
+      {/* en computadora: datos y acciones a la izquierda, historial a la derecha (antes una columna angosta) */}
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+      <div className="min-w-0">
 
       {!alumno.activo && (
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-sm text-warn-600">
@@ -165,6 +168,8 @@ export function FichaAlumno() {
         )}
       </Seccion>
 
+      </div>
+      <div className="min-w-0 lg:[&>section:first-child]:mt-0">
       <Seccion titulo="Últimas clases">
         {!historial?.asistencias.length ? (
           <Tarjeta className="p-4 text-sm text-ink-500">Todavía no ha tomado clases.</Tarjeta>
@@ -196,6 +201,8 @@ export function FichaAlumno() {
           </Tarjeta>
         )}
       </Seccion>
+      </div>
+      </div>
 
       <div className="mt-8 space-y-1">
         <button className="flex w-full items-center justify-center gap-2 py-3 text-sm font-semibold text-ink-700" onClick={() => setFusionar(true)}>
