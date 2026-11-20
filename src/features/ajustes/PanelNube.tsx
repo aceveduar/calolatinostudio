@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CloudOff, RefreshCw } from 'lucide-react';
+import { CloudOff, LogOut, RefreshCw } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { Boton, Campo, Entrada, EntradaClave, Segmentos, Tarjeta } from '../../components/ui';
 import { db, getMeta } from '../../db/db';
 import { horaDe } from '../../domain/fechas';
-import { sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
+import { cerrarSesionEnTodos, sincronizar, useEstadoSync, vincularAcademia } from '../../sync/engine';
+import { useAvisos } from '../../components/avisos';
 import { nubeConfigurada } from '../../sync/supabase';
 import { RespaldoLocal, RestaurarRespaldo } from './Respaldo';
 
@@ -62,8 +63,57 @@ export function PanelNube() {
       <div className="space-y-2 pt-2">
         <p className="px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">Respaldo en archivo</p>
         <RespaldoLocal />
+        {vinculada && <p className="px-1 text-xs text-ink-500">Lleva lo que hay en este teléfono: alumnos, planes y clases completos, y entradas y cobros de los últimos 18 meses. El historial completo está en la nube.</p>}
         <RestaurarRespaldo />
       </div>
+
+      {esDueno && vinculada && sync.fase !== 'desconectada' && <CerrarEnTodos />}
+    </div>
+  );
+}
+
+/** Para un teléfono perdido o alguien que deja de trabajar en la academia. Pide confirmar. */
+function CerrarEnTodos() {
+  const avisar = useAvisos();
+  const [confirmar, setConfirmar] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="space-y-2 pt-2">
+      <p className="px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">Seguridad</p>
+      {!confirmar ? (
+        <Boton bloque variante="secundario" onClick={() => setConfirmar(true)}>
+          <LogOut size={18} /> Cerrar sesión en todos los equipos
+        </Boton>
+      ) : (
+        <Tarjeta className="space-y-3 p-4 text-sm">
+          <p className="font-semibold">¿Se perdió un teléfono o alguien dejó de trabajar aquí?</p>
+          <p className="text-ink-700">Todos los equipos (también este) dejan de respaldar hasta que los vuelvas a conectar con el correo y la contraseña de la academia. Lo guardado en cada equipo no se pierde.</p>
+          <p className="text-ink-700">Después, <b>cambia la contraseña de la academia</b> si alguien más la sabía, y el PIN de quien ya no trabaja aquí (Usuarios y PIN).</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Boton variante="secundario" onClick={() => setConfirmar(false)}>
+              Cancelar
+            </Boton>
+            <Boton
+              variante="peligro"
+              disabled={ocupado}
+              onClick={async () => {
+                setOcupado(true);
+                try {
+                  await cerrarSesionEnTodos();
+                  avisar('Sesión cerrada en todos los equipos');
+                  setConfirmar(false);
+                } catch (e) {
+                  avisar(e instanceof Error ? e.message : 'No se pudo', 'error');
+                } finally {
+                  setOcupado(false);
+                }
+              }}
+            >
+              Sí, cerrar en todos
+            </Boton>
+          </div>
+        </Tarjeta>
+      )}
     </div>
   );
 }

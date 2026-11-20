@@ -5,11 +5,11 @@ import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, 
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
+import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import { db } from '../../db/db';
 import type { Alumno, Pago } from '../../db/types';
-import { fusionarAlumnos, resumenAlumno } from '../../domain/correcciones';
+import { NOMBRE_ANONIMO, anonimizarAlumno, fusionarAlumnos, resumenAlumno } from '../../domain/correcciones';
 import { dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, textoFechaHora } from '../../domain/fechas';
 import { semaforoAlumno, textoDias } from '../../domain/membresias';
@@ -40,6 +40,7 @@ export function FichaAlumno() {
   const [fusionar, setFusionar] = useState(false);
   const [qr, setQr] = useState(false);
   const [whats, setWhats] = useState(false);
+  const [anonimizar, setAnonimizar] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   // recién dado de alta (desde Alumnos o Interesados): ofrecer mandarle su acceso
   const loc = useLocation();
@@ -220,6 +221,11 @@ export function FichaAlumno() {
             Dar de baja
           </button>
         )}
+        {esDueno && alumno.nombre !== NOMBRE_ANONIMO && (
+          <button className="w-full py-3 text-xs font-semibold text-ink-500" onClick={() => setAnonimizar(true)}>
+            Borrar sus datos personales (lo pide el alumno)
+          </button>
+        )}
       </div>
 
       <Hoja abierta={editar} onCerrar={() => setEditar(false)} titulo="Editar alumno">
@@ -237,6 +243,9 @@ export function FichaAlumno() {
             onHecho={() => setPagoSel(null)}
           />
         )}
+      </Hoja>
+      <Hoja abierta={anonimizar} onCerrar={() => setAnonimizar(false)} titulo="Borrar datos personales">
+        {anonimizar && <BorrarDatos nombre={alumno.nombre} onSi={async () => { await anonimizarAlumno(alumno.id); setAnonimizar(false); avisar('Datos personales borrados'); nav('/alumnos'); }} />}
       </Hoja>
       <Hoja abierta={whats} onCerrar={() => setWhats(false)} titulo={`WhatsApp a ${nombre1}`}>
         {whats && <EnviarWhatsApp alumno={alumno} estados={estados} onEnviado={() => setWhats(false)} />}
@@ -345,6 +354,35 @@ function Fusionar({ actual, onHecho }: { actual: Alumno; onHecho: (destinoId: st
       </Boton>
       <Boton bloque variante="fantasma" onClick={() => setOtro(null)}>
         Elegir otro
+      </Boton>
+    </div>
+  );
+}
+
+/** Confirmación fuerte: es para cuando el alumno lo pide (aviso de privacidad) y no se puede deshacer. */
+function BorrarDatos({ nombre, onSi }: { nombre: string; onSi: () => void | Promise<void> }) {
+  const [texto, setTexto] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="space-y-4 text-sm">
+      <p>
+        Se borran el nombre, teléfono, foto, notas, su portal y su código QR de <b>{nombre}</b>. Sus pagos y entradas se quedan como “Alumno anónimo”, para que la caja y los reportes sigan cuadrando.
+      </p>
+      <p className="rounded-xl bg-warn-50 px-3 py-2 font-medium text-warn-600">No se puede deshacer. Hazlo solo si el alumno lo pidió.</p>
+      <Campo etiqueta="Escribe BORRAR para confirmar">
+        <Entrada value={texto} onChange={(e) => setTexto(e.target.value)} autoCapitalize="characters" placeholder="BORRAR" />
+      </Campo>
+      <Boton
+        bloque
+        grande
+        variante="peligro"
+        disabled={texto.trim().toUpperCase() !== 'BORRAR' || ocupado}
+        onClick={async () => {
+          setOcupado(true);
+          await onSi();
+        }}
+      >
+        Borrar sus datos
       </Boton>
     </div>
   );

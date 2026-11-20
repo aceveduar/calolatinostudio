@@ -1,0 +1,42 @@
+# Respaldo automático de la nube, cada domingo. Baja toda la academia (también el historial que los teléfonos
+# ya no guardan), lo cifra con COMPAS_LLAVE y lo guarda aquí mismo 90 días (pestaña Actions → la corrida → Artifacts).
+# Cifrado: aunque el repositorio fuera público, sin la llave nadie puede leerlo.
+# Si falla (contraseña cambiada, Supabase caído), GitHub manda un correo.
+#
+# Configurar una vez en GitHub → Settings → Secrets and variables → Actions → New repository secret:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (los mismos de la app)
+#   COMPAS_CORREO, COMPAS_CLAVE                (la cuenta de la academia)
+#   COMPAS_LLAVE                               (una frase larga solo para respaldos; guárdala aparte: sin ella no se abren)
+# Para abrir uno: COMPAS_LLAVE='…' node tools/abrir-respaldo.mjs respaldo-AAAA-MM-DD.compas
+name: Respaldo semanal
+
+on:
+  schedule:
+    - cron: '0 9 * * 0' # domingo 3:00 en Ciudad de México
+  workflow_dispatch: {}
+
+jobs:
+  respaldar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Bajar, comprimir y cifrar
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          COMPAS_CORREO: ${{ secrets.COMPAS_CORREO }}
+          COMPAS_CLAVE: ${{ secrets.COMPAS_CLAVE }}
+          COMPAS_LLAVE: ${{ secrets.COMPAS_LLAVE }}
+        run: node tools/respaldo-nube.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_number }}
+          path: respaldos/*.compas
+          retention-days: 90
+          if-no-files-found: error

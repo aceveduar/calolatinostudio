@@ -19,11 +19,11 @@ vi.mock('../../src/sync/supabase', () => {
   const tabla = (t: string) => nube.tablas.get(t) ?? nube.tablas.set(t, new Map()).get(t)!;
   const sello = () => new Date(Date.UTC(2026, 10, 18) + ++nube.reloj).toISOString();
   const from = (t: string) => {
-    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string; hasta?: string; orden?: [string, boolean]; rango?: [number, number]; limite?: number; cuenta?: boolean } = { filtros: [] };
+    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string; hasta?: string; desdeFecha?: string; orden?: [string, boolean]; rango?: [number, number]; limite?: number; cuenta?: boolean } = { filtros: [] };
     // consulta normal (sin gt): filtra por academia y "hasta", ordena, y corta por rango o límite; con head, solo cuenta
     const leer = () => {
       const [col, v] = q.filtros.find(([c]) => c === 'academia_id' || c === 'id') ?? [];
-      let filas = [...tabla(t).values()].filter((f) => (col ? f[col] === v : true) && (!q.hasta || (f.server_updated_at as string) <= q.hasta));
+      let filas = [...tabla(t).values()].filter((f) => (col ? f[col] === v : true) && (!q.hasta || (f.server_updated_at as string) <= q.hasta) && (!q.desdeFecha || (f.fecha as string) >= q.desdeFecha));
       if (q.cuenta) return { data: null, count: filas.length, error: null };
       if (q.orden) filas = filas.sort((a, b) => ((a[q.orden![0]] as string) < (b[q.orden![0]] as string) ? -1 : 1) * (q.orden![1] ? 1 : -1));
       if (q.rango) {
@@ -63,6 +63,10 @@ vi.mock('../../src/sync/supabase', () => {
         q.hasta = v;
         return q;
       },
+      gte(_c: string, v: string) {
+        q.desdeFecha = v;
+        return q;
+      },
       range(a: number, b: number) {
         q.rango = [a, b];
         return q;
@@ -100,7 +104,8 @@ vi.mock('../../src/sync/supabase', () => {
 
 const { db, setMeta } = await import('../../src/db/db');
 const { actualizar, crear } = await import('../../src/db/repo');
-const { sincronizar, vincularAcademia } = await import('../../src/sync/engine');
+const { sincronizar, vincularAcademia, podar, VENTANA_DIAS } = await import('../../src/sync/engine');
+const { hoy, sumarDias } = await import('../../src/domain/fechas');
 
 beforeEach(async () => {
   vi.stubGlobal('navigator', { onLine: true });
@@ -172,6 +177,37 @@ describe('sincronizar', () => {
     expect(locales).toHaveLength(2501);
     expect(locales.find((a) => a.codigo === 'C0')?.nombre).toBe('Editado a media descarga');
     expect(locales.some((a) => a.codigo === 'NUEVO')).toBe(true);
+  });
+
+  it('teléfono nuevo: de entradas y cobros baja solo los últimos 18 meses; lo viejo queda en la nube', async () => {
+    const T = (n: number) => new Date(Date.UTC(2026, 9, 1) + n).toISOString();
+    const base = { academia_id: 'a1', clase_id: 'c1', usuario_id: 'u1', alumno_id: 'al1', created_at: 1, updated_at: 1, deleted_at: null, anulada_at: null };
+    const reciente = sumarDias(hoy(), -30);
+    const vieja = sumarDias(hoy(), -VENTANA_DIAS - 30);
+    const a = new Map<string, Record<string, unknown>>();
+    a.set('r1', { ...base, id: 'r1', fecha: reciente, server_updated_at: T(1) });
+    a.set('v1', { ...base, id: 'v1', fecha: vieja, server_updated_at: T(2) });
+    nube.tablas.set('asistencias', a);
+    await sincronizar();
+    expect((await db.asistencias.toArray()).map((x) => x.id)).toEqual(['r1']);
+  });
+
+  it('una vez al día se quita del teléfono lo de hace más de 18 meses, solo si ya está en la nube', async () => {
+    await setMeta('nubeVinculada', true);
+    const vieja = sumarDias(hoy(), -VENTANA_DIAS - 10);
+    const fila = (id: string, fecha: string) => ({ id, academiaId: 'a1', claseId: 'c1', usuarioId: 'u1', alumnoId: 'al1', fecha, membresiaId: null, pagoId: null, anuladaAt: null, createdAt: 1, updatedAt: 1, deletedAt: null });
+    await db.asistencias.bulkPut([fila('vieja-subida', vieja), fila('vieja-pendiente', vieja), fila('reciente', hoy())] as never[]);
+    await db.outbox.add({ table: 'asistencias', id: 'vieja-pendiente', at: 1 });
+    expect(await podar()).toBe(1);
+    expect((await db.asistencias.toArray()).map((x) => x.id).sort()).toEqual(['reciente', 'vieja-pendiente']);
+    expect(await podar()).toBe(0); // ya se hizo hoy
+  });
+
+  it('en un equipo sin nube nunca se quita nada (ahí es la única copia)', async () => {
+    await setMeta('nubeVinculada', false);
+    await db.asistencias.put({ id: 'v', academiaId: 'a1', claseId: 'c1', usuarioId: 'u1', alumnoId: null, fecha: '2020-01-01', membresiaId: null, pagoId: null, anuladaAt: null, createdAt: 1, updatedAt: 1, deletedAt: null } as never);
+    expect(await podar()).toBe(0);
+    expect(await db.asistencias.count()).toBe(1);
   });
 
   it('lo que llega igual a como ya está no se reescribe', async () => {

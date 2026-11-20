@@ -32,3 +32,5 @@ dist-ssr
 dist-prueba
 tests/e2e/salida
 dist-nube
+respaldos/
+dist-sim/

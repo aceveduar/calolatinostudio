@@ -151,6 +151,10 @@ export class CompasDB extends Dexie {
     // v12: testimonios que los alumnos escriben desde su portal (por aprobar)
     this.version(12).stores({ testimonios: 'id, academiaId, estado, alumnoId' });
 
+    // v13: [fecha+alumnoId] para saber quién vino en los últimos meses leyendo solo el índice (sin abrir cada
+    // registro): así se archivan solos los alumnos que dejaron de venir, aunque haya años de historial.
+    this.version(13).stores({ asistencias: 'id, academiaId, fecha, alumnoId, membresiaId, [claseId+fecha], pagoId, deuda, [fecha+alumnoId]' });
+
     // `deuda` se mantiene sola en cada escritura (cobro, fiado, anulación o bajada de la nube)
     this.asistencias.hook('creating', (_id, a) => {
       if (esDeuda(a)) a.deuda = 1;

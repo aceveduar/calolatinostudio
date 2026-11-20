@@ -233,6 +233,7 @@ async function pull(academiaId: ID, conProgreso = false): Promise<void> {
       SYNC_TABLES.map(async (t) => {
         let q = supabase!.from(aSnake(t)).select('id', { count: 'exact', head: true }).eq(t === 'academias' ? 'id' : 'academia_id', academiaId);
         if (t === PRIMERO_RECIENTE) q = q.gte('fecha', desde);
+        else if (CON_VENTANA.has(t)) q = q.gte('fecha', desdeVentana());
         return (await q).count ?? 0;
       }),
     );
@@ -246,6 +247,16 @@ async function pull(academiaId: ID, conProgreso = false): Promise<void> {
   const falla = r.find((x): x is PromiseRejectedResult => x.status === 'rejected');
   if (falla) throw falla.reason;
 }
+
+/**
+ * Lo que vive en el teléfono: de las tablas que crecen sin fin (cada entrada y cada cobro), solo los últimos
+ * 18 meses; lo anterior queda en la nube. Alcanza para todo lo que usa la app (cobrar, paquetes, cortes,
+ * Reportes con sus 12 meses, archivado, "dejaron de venir"). Lo demás (alumnos, planes, clases…) va completo.
+ * A 5 años, sin esto, el teléfono guardaría ~270 MB (ver tools/simular-anios.mjs).
+ */
+export const VENTANA_DIAS = 540;
+const CON_VENTANA = new Set<SyncTable>(['asistencias', 'pagos']);
+const desdeVentana = () => sumarDias(hoy(), -VENTANA_DIAS);
 
 /** Páginas que se piden a la vez en la primera descarga. */
 const EN_PARALELO = 6;
@@ -263,19 +274,18 @@ async function primeraDescarga(tabla: SyncTable, academiaId: ID): Promise<string
   if (ultimo.error) throw ultimo.error;
   const corte = (ultimo.data?.[0]?.server_updated_at as string | undefined) ?? null;
   if (!corte) return null;
-  const { count, error } = await supabase!.from(aSnake(tabla)).select('id', { count: 'exact', head: true }).eq(col, academiaId).lte('server_updated_at', corte);
+  const ventana = CON_VENTANA.has(tabla) ? desdeVentana() : null;
+  let cuenta = supabase!.from(aSnake(tabla)).select('id', { count: 'exact', head: true }).eq(col, academiaId).lte('server_updated_at', corte);
+  if (ventana) cuenta = cuenta.gte('fecha', ventana);
+  const { count, error } = await cuenta;
   if (error) throw error;
   const paginas = Math.ceil((count ?? 0) / POR_PAGINA);
   let siguiente = 0;
   const trabajador = async () => {
     for (let i = siguiente++; i < paginas; i = siguiente++) {
-      const { data, error: e } = await supabase!
-        .from(aSnake(tabla))
-        .select('*')
-        .eq(col, academiaId)
-        .lte('server_updated_at', corte)
-        .order('id', { ascending: true })
-        .range(i * POR_PAGINA, (i + 1) * POR_PAGINA - 1);
+      let consulta = supabase!.from(aSnake(tabla)).select('*').eq(col, academiaId).lte('server_updated_at', corte);
+      if (ventana) consulta = consulta.gte('fecha', ventana);
+      const { data, error: e } = await consulta.order('id', { ascending: true }).range(i * POR_PAGINA, (i + 1) * POR_PAGINA - 1);
       if (e) throw new Error(`${tabla}: ${e.message}`);
       if (!data.length) continue;
       await guardarDeLaNube(tabla, data, true);
@@ -380,6 +390,29 @@ async function bajarTabla(tabla: SyncTable, academiaId: ID): Promise<void> {
   await setMeta(claveTraslape, nuevos);
 }
 
+/**
+ * Una vez al día: quita del teléfono las entradas y cobros de hace más de 18 meses que YA están en la nube
+ * (nada pendiente de subir). En un equipo sin nube no se borra nada: ahí es la única copia.
+ */
+export async function podar(ahora = new Date()): Promise<number> {
+  if (!(await getMeta<boolean>('nubeVinculada'))) return 0;
+  const dia = ahora.toISOString().slice(0, 10);
+  if ((await getMeta<string>('podadoEl')) === dia) return 0;
+  const limite = sumarDias(hoy(), -VENTANA_DIAS);
+  let quitados = 0;
+  for (const tabla of CON_VENTANA) {
+    await db.transaction('rw', db.table(tabla), db.outbox, async () => {
+      const pendientes = new Set((await db.outbox.where('table').equals(tabla).toArray()).map((o) => o.id));
+      const viejos = (await db.table(tabla).where('fecha').below(limite).primaryKeys()) as string[];
+      const aQuitar = viejos.filter((id) => !pendientes.has(id));
+      if (aQuitar.length) await db.table(tabla).bulkDelete(aQuitar);
+      quitados += aQuitar.length;
+    });
+  }
+  await setMeta('podadoEl', dia);
+  return quitados;
+}
+
 let corriendo: Promise<void> | null = null;
 
 export async function sincronizar(): Promise<void> {
@@ -399,6 +432,7 @@ export async function sincronizar(): Promise<void> {
       setEstado({ fase: 'sincronizando', error: null });
       await push();
       await pull(academiaId);
+      await podar();
       // Solo avisar si algo quedó esperando por la base vieja (si no hay nada de la tienda, no molestar)
       const esperando = await db.outbox.count();
       const falta = esperando ? [...tablasFaltantes, ...columnasFaltantes] : [...columnasFaltantes];
@@ -483,6 +517,18 @@ export async function entrarEnDispositivoNuevo(email: string, password: string):
   setTimeout(() => void sincronizar(), 1500);
 }
 
+
+/**
+ * Teléfono perdido o robado, o alguien que deja de trabajar ahí: cierra la sesión de la nube en TODOS los
+ * equipos (también en este). Cada uno deja de respaldar hasta que alguien vuelva a conectarlo con el correo y
+ * la contraseña de la academia; si alguien más sabía la contraseña, conviene cambiarla.
+ */
+export async function cerrarSesionEnTodos(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+  if (error) throw new Error(traducirError(error.message));
+  setEstado({ fase: 'desconectada', error: null });
+}
 
 export const BORRAR_AL_INICIAR = 'compas:borrar-al-iniciar';
 

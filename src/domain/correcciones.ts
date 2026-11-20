@@ -6,7 +6,7 @@
 import { db } from '../db/db';
 import { actualizar, borrar, enTransaccion } from '../db/repo';
 import type { Asistencia, ID, MetodoPago } from '../db/types';
-import { anularPago } from './operaciones';
+import { anularPago, generarCodigo } from './operaciones';
 
 /** Quita una entrada. Si se cobró, también anula el cobro (el dinero se devuelve y la caja cuadra). */
 export async function quitarEntrada(a: Asistencia, usuarioId: ID, motivo = 'Entrada quitada'): Promise<() => Promise<void>> {
@@ -162,4 +162,19 @@ export function mismoTelefono<T extends { id: string; telefono: string }>(telefo
   const t = telefono.replace(/\D/g, '').slice(-10);
   if (t.length < 10) return [];
   return lista.filter((a) => a.id !== excluirId && a.telefono.replace(/\D/g, '').slice(-10) === t);
+}
+
+/**
+ * Derecho de cancelación (aviso de privacidad, derechos ARCO): el alumno pide que se borren sus datos.
+ * Se quitan su nombre, teléfono, foto, notas, enlace del portal y su código QR (el anterior deja de servir),
+ * y queda dado de baja. Sus pagos y entradas se quedan sin nombre, para que la caja y los reportes cuadren.
+ * También se limpian sus datos en boletos e interesados.
+ */
+export const NOMBRE_ANONIMO = 'Alumno anónimo';
+export async function anonimizarAlumno(id: ID): Promise<void> {
+  await enTransaccion(async () => {
+    await actualizar('alumnos', id, { nombre: NOMBRE_ANONIMO, telefono: '', notas: '', foto: null, portal: null, avisos: null, codigo: generarCodigo(), activo: false });
+    for (const b of await db.boletos.filter((x) => x.alumnoId === id).toArray()) await actualizar('boletos', b.id, { nombre: NOMBRE_ANONIMO, telefono: '' });
+    for (const i of await db.interesados.filter((x) => x.alumnoId === id).toArray()) await actualizar('interesados', i.id, { nombre: NOMBRE_ANONIMO, telefono: '', mensaje: '' });
+  });
 }

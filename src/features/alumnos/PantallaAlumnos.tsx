@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { ChevronRight, ClipboardList, Megaphone, Plus, Search, Users } from 'lucide-react';
-import { useAlumnos, useEstadosPorAlumno, usePlanes } from '../../app/datos';
+import { DIAS_ARCHIVO, useAlumnos, useEstadosPorAlumno, usePlanes, useVinieronDesde } from '../../app/datos';
+import { estaArchivado } from '../../domain/archivo';
+import { hoy, sumarDias } from '../../domain/fechas';
 import { esBeca } from '../../domain/becas';
 import { Avatar, Boton, Chips, Encabezado, Etiqueta, Hoja, Tarjeta, Vacio } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
@@ -32,14 +34,25 @@ export function PantallaAlumnos() {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
-  const [verBajas, setVerBajas] = useState(false);
+  // qué se ve: los que vienen (por defecto), los archivados (no vienen hace ~6 meses) o los dados de baja
+  const [vista, setVista] = useState<'activos' | 'archivados' | 'bajas'>('activos');
+  const verBajas = vista === 'bajas';
   const bajas = alumnos.filter((a) => !a.activo).length;
+  const vinieron = useVinieronDesde(sumarDias(hoy(), -DIAS_ARCHIVO));
+  const archivados = useMemo(() => {
+    const ahora = Date.now();
+    const set = new Set<string>();
+    if (!vinieron) return set; // mientras se lee, nadie se archiva (no "brincan" de lugar)
+    for (const a of alumnos) if (estaArchivado(a, vinieron, (estados.get(a.id) ?? []).some((e) => e.vigente), ahora, DIAS_ARCHIVO)) set.add(a.id);
+    return set;
+  }, [alumnos, vinieron, estados]);
   const [nuevo, setNuevo] = useState(false);
 
   const filas = useMemo(() => {
     const t = normalizar(q.trim());
     return alumnos
-      .filter((a) => a.activo !== verBajas)
+      // al buscar se encuentran también los archivados (no se pierde a nadie); sin buscar, cada vista lo suyo
+      .filter((a) => (verBajas ? !a.activo : a.activo && (vista === 'archivados' ? archivados.has(a.id) : t ? true : !archivados.has(a.id))))
       .map((a) => {
         const est = estados.get(a.id) ?? [];
         return { a, s: semaforoAlumno(est), beca: est.some((e) => e.vigente && planesBeca.has(e.membresia.planId)) };
@@ -47,12 +60,12 @@ export function PantallaAlumnos() {
       .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || a.telefono.includes(t))
       .filter(({ a, s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : filtro === 'debe' ? deben.has(a.id) : s.tono === filtro));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alumnos, estados, q, filtro, verBajas, planesBeca.size, deben]);
+  }, [alumnos, estados, q, filtro, vista, verBajas, archivados, planesBeca.size, deben]);
 
   // Con miles de alumnos se dibujan por tandas: 60 y otros 60 al llegar al final (la búsqueda y los filtros
   // siguen siendo sobre todos). Dibujar 5,000 filas de golpe es lento en un celular y la lista no se acaba.
   const [cuantos, setCuantos] = useState(TANDA);
-  useEffect(() => setCuantos(TANDA), [q, filtro, verBajas]);
+  useEffect(() => setCuantos(TANDA), [q, filtro, vista]);
   const final = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = final.current;
@@ -67,7 +80,7 @@ export function PantallaAlumnos() {
       <div className="-mx-4">
         <Encabezado
           titulo="Alumnos"
-          sub={`${alumnos.filter((a) => a.activo).length} registrados`}
+          sub={`${(alumnos.filter((a) => a.activo).length - archivados.size).toLocaleString('es-MX')} activos${archivados.size ? ` · ${archivados.size.toLocaleString('es-MX')} archivados` : ''}`}
           accion={
             <div className="flex gap-2">
               <Link to="/alumnos/listas">
@@ -126,7 +139,7 @@ export function PantallaAlumnos() {
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
                 {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
-                <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>
+                {archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.tono}>{s.texto}</Etiqueta>}
               </button>
             ))}
           </Tarjeta>
@@ -141,11 +154,29 @@ export function PantallaAlumnos() {
             </button>
           </div>
         )}
-        {(bajas > 0 || verBajas) && (
-          <button onClick={() => setVerBajas(!verBajas)} className="mt-4 w-full py-3 text-sm font-semibold text-ink-500">
-            {verBajas ? '← Volver a alumnos activos' : `Ver dados de baja (${bajas})`}
-          </button>
+        {vista === 'archivados' && filas.length > 0 && (
+          <p className="mt-3 px-1 text-xs text-ink-500">No han venido en 6 meses y no tienen plan. Siguen aquí con todo su historial; en cuanto vuelvan a entrar, regresan solos a la lista.</p>
         )}
+        <div className="mt-4 flex flex-col">
+          {vista !== 'activos' ? (
+            <button onClick={() => setVista('activos')} className="min-h-11 py-2 text-sm font-semibold text-ink-500">
+              ← Volver a los que vienen
+            </button>
+          ) : (
+            <>
+              {archivados.size > 0 && (
+                <button onClick={() => setVista('archivados')} className="min-h-11 py-2 text-sm font-semibold text-ink-500">
+                  Ver archivados ({archivados.size.toLocaleString('es-MX')}) · no vienen hace 6 meses
+                </button>
+              )}
+              {bajas > 0 && (
+                <button onClick={() => setVista('bajas')} className="min-h-11 py-2 text-sm font-semibold text-ink-500">
+                  Ver dados de baja ({bajas})
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Alumno nuevo">

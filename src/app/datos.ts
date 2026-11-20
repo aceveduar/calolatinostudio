@@ -1,5 +1,6 @@
 /** Consultas reactivas: la UI se actualiza sola cuando cambia IndexedDB (también tras sincronizar). */
 import { useLiveQuery } from 'dexie-react-hooks';
+import Dexie from 'dexie';
 import { db } from '../db/db';
 import type { Asistencia, Clase, Disciplina, Fecha, ID, Maestro } from '../db/types';
 import { estadoMembresia, type EstadoMembresia } from '../domain/membresias';
@@ -110,5 +111,23 @@ export function usePedidosPendientes() {
     },
     [],
     [],
+  );
+}
+
+/** Días sin venir (y sin plan vigente) para que un alumno pase a "archivado": sale de la lista, no se borra. */
+export const DIAS_ARCHIVO = 180;
+
+/**
+ * Quiénes vinieron desde una fecha: se lee solo el índice [fecha+alumnoId] (no cada entrada completa),
+ * así es rápido aunque haya cientos de miles de entradas.
+ */
+export function useVinieronDesde(desde: Fecha) {
+  return useLiveQuery(
+    async () => {
+      const llaves = (await db.asistencias.where('[fecha+alumnoId]').between([desde, Dexie.minKey], [Dexie.maxKey, Dexie.maxKey]).keys()) as unknown as [string, string][];
+      return new Set(llaves.map((k) => k[1]));
+    },
+    [desde],
+    null as Set<ID> | null,
   );
 }

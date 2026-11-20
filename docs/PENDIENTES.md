@@ -18,6 +18,21 @@ Primero se pule lo que ya existe (seguridad, UX/UI, arquitectura, escenarios). L
 | 10 | **Respuestas rápidas para WhatsApp Business** (si la academia lo usa) | En Ajustes → Mensajes, textos listos con los enlaces de la academia (#horarios, #precios, eventos, ubicación) para copiar a la app. | Pequeño. Esperar a saber si usan WhatsApp Business. |
 | 11 | **Revisión de cada pantalla: qué sobra, qué se mueve, qué se reubica** (UX/UI) | Que nadie se abrume: cada pantalla con lo esencial a la vista y lo demás un toque más allá. Lo que ya está bien se deja. | Pedido el 19 nov 2026. Empezar por **Entrada** (donde Monse cobra: ¿hay demasiados elementos?), luego Alumnos/ficha, Caja, Agenda, Más. Hecho ya: Reportes (orden por lo accionable) y portal del alumno. |
 
+## Fase de largo plazo (pedido el 19 nov 2026: "¿qué pasa en 2, 3, 5 años?")
+
+Estimado con ~300 alumnos activos: ~50 mil registros por año; a 5 años ~250 mil (la demo de prueba tiene 168 mil y funciona bien).
+
+| # | Qué | Por qué | Notas |
+|---|---|---|---|
+| L1 | ~~Respaldos automáticos fuera de Supabase~~ | **Hecho** (19 nov 2026): `.github/workflows/respaldo.yml` cada domingo, cifrado (AES-256) con COMPAS_LLAVE, 90 días en GitHub. Falta que la academia ponga los secretos en GitHub. | Abrir: `tools/abrir-respaldo.mjs` → .json.gz → "Restaurar un respaldo". |
+| L2 | ~~Archivado automático de alumnos inactivos~~ | **Hecho**: 6 meses sin venir y sin plan → "Archivado" (sale de la lista, se encuentra al buscar, vuelve solo al entrar). | Índice local [fecha+alumnoId] (v13). |
+| L3 | ~~Simular 2, 3 y 5 años~~ | **Hecho** (`tools/simular-anios.mjs`): pantallas en ~1 s y cobro en 0.7 s aun a 5 años; el espacio crecía a 267 MB → L4. | |
+| L4 | ~~Historial limitado en el teléfono (18 meses)~~ | **Hecho**: entradas y cobros de los últimos 18 meses en el teléfono; lo viejo se quita una vez al día solo si ya está en la nube. | Sin nube no se quita nada. |
+| L5 | ~~"Cerrar sesión en todos los equipos"~~ | **Hecho**: Más → Nube y respaldo → Seguridad (solo el dueño, con confirmación). | |
+| L6 | ~~Anonimizar a un alumno que lo pida~~ | **Hecho**: ficha → "Borrar sus datos personales" (solo el dueño, escribiendo BORRAR); pagos y entradas quedan como "Alumno anónimo". | |
+| L7 | **Vigilar el espacio del plan de Supabase** | A 5 años debería caber en el gratis (500 MB). | Revisar cada pocos meses. |
+| L8 | **Cuenta de la academia protegida** | Contraseña fuerte y verificación en dos pasos en el correo. | Tarea de la academia. |
+
 ## Lo que depende de la academia
 
 - Horarios y precios reales (hoy la página muestra los de ejemplo).
