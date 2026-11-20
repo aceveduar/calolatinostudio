@@ -50,16 +50,16 @@ const abrir = async (ua, d = datos) => {
   await page.getByText('Próximos eventos').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${OUT}portal3-eventos.png` });
 
-  // 2) tienda en carrusel
-  const tienda = page.getByRole('list', { name: /Productos/ });
+  // 2) tienda en cuadrícula: 4 a la vista y "Ver toda la tienda" (en un carrusel casi nadie pasaba del segundo)
+  const tienda = page.getByRole('list', { name: 'Productos' });
   await tienda.scrollIntoViewIfNeeded();
-  const m = await tienda.evaluate((el) => ({ ancho: el.scrollWidth, visible: el.clientWidth, alto: el.getBoundingClientRect().height }));
+  const vistos = await tienda.getByRole('listitem').count();
+  const sinDeslizar = await tienda.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
   await page.screenshot({ path: `${OUT}portal3-tienda.png` });
-  console.log('2a) 8 productos en una fila que se desliza (no 4 filas):', ok(m.ancho > m.visible * 2 && m.alto < 360), JSON.stringify(m));
-  await tienda.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
-  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Ver toda la tienda (8)' }).click();
+  console.log('2a) 8 productos: se ven 4 en dos columnas, sin deslizar, y "Ver toda la tienda (8)" muestra todos:', ok(vistos === 4 && sinDeslizar && (await tienda.getByRole('listitem').count()) === 8), vistos);
   await page.getByRole('button', { name: 'Apartar' }).last().click();
-  console.log('2b) se puede apartar el último del carrusel:', ok((await page.getByText(/pagas .* al recoger|Elige talla/).count()) >= 1));
+  console.log('2b) se puede apartar el último de la tienda:', ok((await page.getByText(/pagas .* al recoger|Elige talla/).count()) >= 1));
   await page.keyboard.press('Escape');
   const r = await revisarPagina(page);
   await page.evaluate(() => scrollTo(0, 0));

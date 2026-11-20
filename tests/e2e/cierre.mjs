@@ -37,5 +37,20 @@ await page.clock.runFor(4000);
 await page.waitForTimeout(300);
 console.log('3) pareja mixta (uno paga, otro con plan): sigue esperando Listo:', ok((await listo.count()) === 1));
 await listo.click();
+
+// 4) con plan, pero recepción toca la cuenta: el cierre se detiene (p. ej. para agregarle un agua con calma)
+await page.locator('main button').filter({ hasText: /Plan$/ }).nth(1).click();
+await page.getByText(/· se cierra solo/).waitFor({ timeout: 3000 });
+await page.getByText(/con su (plan|beca)/).click();
+await page.clock.runFor(5000);
+await page.waitForTimeout(300);
+console.log('4) al tocar la cuenta deja de cerrarse sola y ya no dice "se cierra solo":', ok((await listo.count()) === 1 && (await page.getByText(/· se cierra solo/).count()) === 0));
+
+// 5) tocar su nombre en la cuenta abre sus opciones (el camino visible a "mantén presionado")
+await page.getByRole('button', { name: /^Opciones de / }).first().click();
+await page.getByRole('button', { name: /Vender mensualidad o paquete/ }).waitFor({ timeout: 3000 }).catch(() => {});
+await page.screenshot({ path: `${OUT}cierre-opciones.png` });
+console.log('5) tocar su nombre en la cuenta abre sus opciones:', ok((await page.getByRole('button', { name: /Vender mensualidad o paquete/ }).count()) === 1));
+await page.keyboard.press('Escape');
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

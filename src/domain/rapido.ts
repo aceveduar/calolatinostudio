@@ -31,6 +31,8 @@ export interface Movimiento {
   beca?: boolean;
   /** alumno creado en este mismo cobro (se borra al deshacer) */
   alumnoCreadoId: ID | null;
+  /** de quién es la entrada (para abrir sus opciones desde la cuenta) */
+  alumnoId?: ID;
 }
 
 export type Resultado = { tipo: 'ok'; mov: Movimiento } | { tipo: 'ya-entro' } | { tipo: 'sin-precio' };
@@ -46,7 +48,7 @@ export async function entradaRapida(p: { alumnoId: ID; nombre: string; clase: Cl
   const mems = await db.membresias.where('alumnoId').equals(p.alumnoId).filter((m) => !m.anuladaAt && !m.deletedAt).toArray();
   const asis = await db.asistencias.where('alumnoId').equals(p.alumnoId).toArray();
   const cubre = membresiaQueCubre(mems.map((m) => estadoMembresia(m, asis, hoy())), p.clase);
-  const base = { key: crypto.randomUUID(), nombre: p.nombre, alumnoCreadoId: p.alumnoCreadoId ?? null };
+  const base = { key: crypto.randomUUID(), nombre: p.nombre, alumnoCreadoId: p.alumnoCreadoId ?? null, alumnoId: p.alumnoId };
 
   if (cubre) {
     const a = await entrarConMembresia({ alumnoId: p.alumnoId, claseId: p.clase.id, membresiaId: cubre.membresia.id, usuarioId: p.usuarioId });

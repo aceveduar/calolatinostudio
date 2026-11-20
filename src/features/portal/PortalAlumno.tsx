@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DetalleEvento } from '../../components/DetalleEvento';
 import QRCode from 'qrcode';
-import { Camera, Image as ImageIcon, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, CalendarCheck, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { nubePublica as supabase } from '../../app/rpcPublica';
@@ -224,6 +224,7 @@ function Centro({ titulo, children }: { titulo?: string; children: React.ReactNo
 }
 
 function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPortal; guardadoEl: number | null; token: string; recargar: () => void }) {
+  const [todaTienda, setTodaTienda] = useState(false);
   // "Tu experiencia" es opcional: con la ✕ se quita (se recuerda en este teléfono) y queda un enlace abajo
   const claveOpinar = `compas-portal-opinar-oculto:${token}`;
   const [opinarOculto, setOpinarOculto] = useState(() => {
@@ -413,28 +414,21 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           </div>
         )}
 
-        {/* Tienda: en carrusel, para que el portal no se alargue con muchos productos */}
+        {/* Tienda: cuadrícula de 2 con los primeros 4 y "Ver toda la tienda". Antes era un carrusel, pero en los
+            carruseles casi nadie pasa del segundo producto; así se ven 4 sin deslizar y el resto está a un toque. */}
         {datos.tienda.length > 0 && (
           <section aria-label="Tienda de la academia" className="rounded-3xl bg-superficie py-5 ring-1 ring-ink-100">
             <div className="flex items-baseline justify-between gap-2 px-5">
               <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-ink-500 uppercase">
                 <ShoppingBag size={14} aria-hidden="true" /> Tienda de la academia
               </p>
-              {datos.tienda.length > 2 && (
-                <p className="flex shrink-0 items-center text-xs font-semibold text-ink-500" aria-hidden="true">
-                  {datos.tienda.length} artículos · desliza <ChevronRight size={14} />
-                </p>
-              )}
+              {datos.tienda.length > 4 && <p className="shrink-0 text-xs font-semibold text-ink-500">{datos.tienda.length} artículos</p>}
             </div>
-            <ul
-              tabIndex={0}
-              aria-label="Productos (desliza para ver más)"
-              className="mt-3 flex snap-x snap-mandatory scroll-px-5 gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] focus-visible:outline-2 focus-visible:outline-brand-500 [&::-webkit-scrollbar]:hidden"
-            >
-              {datos.tienda.map((p) => {
+            <ul aria-label="Productos" className="mt-3 grid grid-cols-2 gap-2 px-5">
+              {(todaTienda ? datos.tienda : datos.tienda.slice(0, 4)).map((p) => {
                 const agotado = !p.sobre_pedido && p.disponibles !== null && p.disponibles <= 0;
                 return (
-                  <li key={p.id} className="flex w-[44%] shrink-0 snap-start flex-col rounded-2xl bg-ink-50 p-3 text-center">
+                  <li key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
                     <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
                     <p className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</p>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}
@@ -457,6 +451,13 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                 );
               })}
             </ul>
+            {datos.tienda.length > 4 && (
+              <div className="px-5">
+                <button type="button" onClick={() => setTodaTienda(!todaTienda)} className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-brand-600 ring-1 ring-ink-100 active:bg-ink-50">
+                  {todaTienda ? 'Ver menos' : `Ver toda la tienda (${datos.tienda.length})`}
+                </button>
+              </div>
+            )}
             <p className="mt-3 px-5 text-center text-xs text-ink-500">Apártalo aquí y págalo al recogerlo en recepción.</p>
           </section>
         )}

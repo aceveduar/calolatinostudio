@@ -3,7 +3,8 @@ import { adeudosDe, cobrarAdeudos, entrarFiado } from '../../domain/adeudos';
 import { db } from '../../db/db';
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CheckCircle2, Ticket, CalendarPlus, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle2, Ticket, CalendarPlus, AlertTriangle, ChevronRight, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { nombreClase, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -75,6 +76,10 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
             {clase && <span className="truncate text-sm text-ink-500">→ {nClase}</span>}
           </div>
         </div>
+        {/* su ficha a un toque desde aquí (historial, pagos, WhatsApp…) */}
+        <Link to={`/alumnos/${alumno.id}`} className="flex min-h-11 shrink-0 items-center gap-0.5 rounded-xl px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
+          Ver ficha <ChevronRight size={16} aria-hidden="true" />
+        </Link>
       </div>
 
       {adeudos.length > 0 && vista !== 'vender' && (
@@ -108,9 +113,15 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
         <div className="rounded-2xl bg-ok-50 p-5 text-center">
           <CheckCircle2 className="mx-auto mb-2 text-ok-600" size={36} />
           <p className="font-semibold text-ok-600">{nombreCorto} ya tiene entrada a {nClase} hoy.</p>
-          <Boton variante="secundario" className="mt-4" onClick={onCerrar}>
-            Cerrar
-          </Boton>
+          {/* antes solo "Cerrar": un callejón sin salida si se abrió para venderle algo */}
+          <div className="mt-4 flex flex-col items-center gap-1">
+            <Boton variante="secundario" onClick={() => setVista('vender')}>
+              <CalendarPlus size={18} /> Vender mensualidad o paquete
+            </Boton>
+            <Boton variante="fantasma" onClick={onCerrar}>
+              Cerrar
+            </Boton>
+          </div>
         </div>
       ) : cubre ? (
         <div className="space-y-3">

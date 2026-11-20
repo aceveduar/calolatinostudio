@@ -235,6 +235,10 @@ export function PantallaEntrada() {
         key={movs[movs.length - 1]?.key}
         movs={movs}
         onCerrar={cerrarCuenta}
+        onOpciones={async (id) => {
+          const a = await db.alumnos.get(id);
+          if (a) setAlumnoSel(a);
+        }}
         onDeshacer={async (m) => {
           await deshacer(m);
           setMovs((x) => x.filter((y) => y.key !== m.key));
@@ -475,7 +479,7 @@ export function PantallaEntrada() {
                 <p className="mt-4 px-2 text-center text-xs leading-relaxed text-ink-500">
                   Toca a quien llegó para cobrar o darle entrada.
                   <br />
-                  Mantén presionado para más opciones. Si no aparece, búscalo arriba.
+                  Para ver su ficha o venderle un plan, toca su nombre en la cuenta (o mantén presionada su tarjeta). Si no aparece, búscalo arriba.
                 </p>
               </>
             ) : (
