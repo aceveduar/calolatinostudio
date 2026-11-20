@@ -47,7 +47,7 @@ export function quitarVacias(filas: string[][]): string[][] {
 const norm = (s: string) =>
   s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();

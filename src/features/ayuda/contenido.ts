@@ -244,6 +244,19 @@ export const MANUAL: Capitulo[] = [
         pasos: ['Más → Gastos y utilidad.', 'Toca "Registrar gasto" para la renta, la luz o el pago a maestros.', 'Los gastos fijos (renta, internet) te recuerdan cuáles faltan en el mes.'],
       },
       {
+        id: 'contador',
+        titulo: 'Excel del mes para el contador',
+        resumen: 'Cobros, gastos y cortes en un solo archivo.',
+        para: DUENO,
+        claves: 'excel contador exportar descargar contabilidad impuestos sat',
+        pasos: [
+          'Más → Gastos y utilidad, y elige el mes con las flechas.',
+          'Toca "Excel de … para el contador".',
+          'En el celular se abre el menú de compartir: mándalo por WhatsApp o correo. En computadora queda en tus descargas.',
+        ],
+        consejo: 'Trae 4 hojas: Resumen, Cobros, Gastos y Cortes de caja. Si eliges una sede, sale solo esa.',
+      },
+      {
         id: 'planes-precios',
         titulo: 'Planes y precios',
         resumen: 'Clase suelta, mensualidades y paquetes.',

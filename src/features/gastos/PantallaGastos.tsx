@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, Repeat, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Repeat, Wallet } from 'lucide-react';
+import { descargarArchivo } from '../../app/compartirImagen';
+import { VENTANA_DIAS } from '../../sync/engine';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros } from '../../app/datos';
 import { rentabilidadPorClase } from '../../domain/rentabilidad';
 import type { Maestro } from '../../db/types';
@@ -11,7 +13,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { actualizar, borrar, crear } from '../../db/repo';
-import type { CategoriaGasto, Fecha, Gasto, GastoFijo, MetodoPago, Sede } from '../../db/types';
+import type { CategoriaGasto, Fecha, Gasto, GastoFijo, MetodoPago, Pago, Sede } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { CATEGORIAS, categoria, estadoFijos, mesDe, nombreMes, rangoMes, registrarGasto, resumenMes, sumarMes, type Mes } from '../../domain/gastos';
@@ -33,6 +35,54 @@ export function PantallaGastos() {
   const [fijos, setFijos] = useState(false);
   const { desde, hasta } = rangoMes(mes);
   const esMesActual = mes === mesDe(hoy());
+  const avisar = useAvisos();
+  const [exportando, setExportando] = useState(false);
+
+  /** El mes en Excel (Resumen, Cobros, Gastos, Cortes), de la sede que se está viendo. En el celular se comparte (WhatsApp, correo); en PC se descarga. */
+  async function exportar(pagos: Pago[], gastos: Gasto[]) {
+    if (desde < sumarDias(hoy(), -VENTANA_DIAS)) {
+      avisar('Ese mes es de hace más de 18 meses: este teléfono ya no lo tiene completo. Pídeselo a soporte.', 'error');
+      return;
+    }
+    setExportando(true);
+    try {
+      const [{ hojasDelMes, nombreArchivoMes }, { crearXlsx }] = await Promise.all([import('../../domain/exportarMes'), import('../../app/xlsxEscribir')]);
+      const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
+      const [cortes, usuarios] = await Promise.all([db.cortes.where('fecha').between(desde, hasta, true, true).toArray(), db.usuarios.toArray()]);
+      const ids = [...new Set(pagos.flatMap((p) => (p.alumnoId ? [p.alumnoId] : [])))];
+      const alumnos = new Map((await db.alumnos.bulkGet(ids)).flatMap((a) => (a ? [[a.id, a.nombre] as const] : [])));
+      const quien = new Map(usuarios.map((u) => [u.id, u.nombre]));
+      const hojas = hojasDelMes({
+        academia: academia.nombre,
+        mes,
+        sede: verSede === 'todas' ? null : nombreSede(verSede === PRINCIPAL ? null : verSede, sedes, academia),
+        pagos,
+        gastos,
+        cortes: cortes.filter((c) => enSede(c.sedeId)),
+        nombres: {
+          alumno: (id) => (id ? (alumnos.get(id) ?? '') : ''),
+          usuario: (id) => quien.get(id) ?? '',
+          sede: verSedes ? (id) => nombreSede(id, sedes, academia) : null,
+        },
+        generado: Date.now(),
+      });
+      const archivo = new File([crearXlsx(hojas)], nombreArchivoMes(academia.nombre, mes), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [archivo] })) {
+        try {
+          await navigator.share({ files: [archivo], title: archivo.name });
+        } catch (e) {
+          if ((e as Error).name !== 'AbortError') descargarArchivo(archivo);
+        }
+      } else {
+        descargarArchivo(archivo);
+        avisar(`Listo: ${archivo.name} está en tus descargas`);
+      }
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo preparar el Excel', 'error');
+    } finally {
+      setExportando(false);
+    }
+  }
 
   const datos = useLiveQuery(async () => {
     const [pagos, gastos, fijos] = await Promise.all([
@@ -145,6 +195,9 @@ export function PantallaGastos() {
 
           <Boton grande bloque className="mt-3" onClick={() => setBorrador({ fecha: fechaNueva })}>
             <Plus size={20} /> Registrar gasto
+          </Boton>
+          <Boton bloque variante="secundario" className="mt-2" disabled={exportando} onClick={() => void exportar(pagos, gastos)}>
+            <FileSpreadsheet size={18} aria-hidden="true" /> {exportando ? 'Preparando…' : `Excel de ${nombreMes(mes).split(' ')[0].toLowerCase()} para el contador`}
           </Boton>
 
           {/* Gastos fijos del mes */}
