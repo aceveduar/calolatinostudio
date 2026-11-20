@@ -203,6 +203,11 @@ export interface Evento extends Base {
    *  puede no anunciarse a todos; recepción igual vende boletos a quien quiera. */
   enPagina?: boolean | null;
   enPortal?: boolean | null;
+  /** cómo venir, si importa: "Ven disfrazado", "De blanco" (se ve resaltado en la página y el portal) */
+  vestimenta?: string | null;
+  /** en otro lugar (salón de fiestas, terraza…): nombre y dirección. Vacío = en la academia o en su sede. */
+  lugar?: string | null;
+  direccion?: string | null;
 }
 
 /** Un boleto = una persona. Se venden juntos en un cobro (pagoId) y se marcan al entrar. */

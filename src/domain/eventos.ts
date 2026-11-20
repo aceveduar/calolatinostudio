@@ -18,7 +18,14 @@ export function codigoBoleto(): string {
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 export const boletoValido = (b: Boleto) => vivo(b) && !b.anuladoAt;
 
-export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion' | 'enPagina' | 'enPortal'> & { salonId: ID | null };
+export type DatosEvento = Pick<Evento, 'nombre' | 'fecha' | 'horaInicio' | 'duracionMin' | 'cupo' | 'precio' | 'descripcion' | 'enPagina' | 'enPortal' | 'vestimenta' | 'lugar' | 'direccion'> & {
+  salonId: ID | null;
+  /** en otra sede (null = aquí) */
+  sedeId: ID | null;
+};
+
+/** El evento es en el salón de la academia (no en otra sede ni en otro lugar): entonces lo aparta en la agenda. */
+export const enElSalon = (e: Pick<DatosEvento, 'sedeId' | 'lugar'>) => !e.sedeId && !e.lugar?.trim();
 
 /** Renta interna que aparta el salón ese día y horario. */
 function rentaDe(e: DatosEvento) {
@@ -38,18 +45,30 @@ function rentaDe(e: DatosEvento) {
   };
 }
 
+/** Lo que se guarda del evento: sin la sede si es aquí (y sin quitarla si antes tenía). */
+function campos(e: DatosEvento, anterior?: Evento) {
+  const { sedeId, ...resto } = e;
+  return { ...resto, ...conSede(sedeId, anterior?.sedeId) };
+}
+
 export function crearEvento(e: DatosEvento): Promise<Evento> {
   return enTransaccion(async () => {
     const id = crypto.randomUUID();
-    const renta = await crear('rentas', { ...rentaDe(e), eventoId: id });
-    return crear('eventos', { id, ...e, activo: true, rentaId: renta.id });
+    // en otra sede u otro lugar no se aparta el salón de aquí
+    const renta = enElSalon(e) ? await crear('rentas', { ...rentaDe(e), eventoId: id }) : null;
+    return crear('eventos', { id, ...campos(e), activo: true, rentaId: renta?.id ?? null });
   });
 }
 
 export function actualizarEvento(ev: Evento, e: DatosEvento): Promise<void> {
   return enTransaccion(async () => {
-    await actualizar('eventos', ev.id, { ...e });
-    if (ev.rentaId) await actualizar('rentas', ev.rentaId, { ...rentaDe(e), ...(e.salonId ? {} : { salonId: null }) });
+    const aqui = enElSalon(e);
+    let rentaId = ev.rentaId;
+    if (aqui && rentaId) await actualizar('rentas', rentaId, { ...rentaDe(e), activo: true, ...(e.salonId ? {} : { salonId: null }) });
+    else if (aqui) rentaId = (await crear('rentas', { ...rentaDe(e), eventoId: ev.id })).id;
+    // se cambió a otro lugar: el salón de aquí queda libre
+    else if (rentaId) await actualizar('rentas', rentaId, { activo: false });
+    await actualizar('eventos', ev.id, { ...campos(e, ev), rentaId: aqui ? rentaId : ev.rentaId });
   });
 }
 

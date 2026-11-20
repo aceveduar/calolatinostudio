@@ -68,7 +68,7 @@ console.log('3) al tabular siempre se ve dónde está el foco:', ok(sinFoco.size
 // 4) una hoja con teclado: se abre con Enter, el foco entra, Esc la cierra y regresa el foco
 await ir('/ajustes/clases');
 await page.waitForTimeout(600);
-const nueva = page.getByRole('button', { name: /Nueva clase/ });
+const nueva = page.getByRole('button', { name: /Nueva clase/ }).first();
 await nueva.focus();
 await page.keyboard.press('Enter');
 await page.getByRole('dialog').waitFor();

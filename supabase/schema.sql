@@ -369,6 +369,10 @@ alter table gastos_fijos add column if not exists maestro_id uuid;
 alter table interesados add column if not exists invito_alumno_id uuid;
 alter table eventos add column if not exists en_pagina boolean;
 alter table eventos add column if not exists en_portal boolean;
+-- 20261128: cómo venir (disfraz, de blanco…) y "otro lugar" (salón de fiestas, terraza) con su dirección
+alter table eventos add column if not exists vestimenta text;
+alter table eventos add column if not exists lugar text;
+alter table eventos add column if not exists direccion text;
 alter table interesados add column if not exists origen text;
 alter table cortes add column if not exists fondo int;
 alter table cortes add column if not exists salidas int;
@@ -554,6 +558,9 @@ begin
     'eventos', coalesce((
       select jsonb_agg(ev order by ev->>'fecha', ev->>'hora') from (
         select jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
+                                  'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
+                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select x.sede_principal from academias x where x.id = e.academia_id), ''),
+                                  'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) ev
         from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and coalesce(e.en_portal, true) and e.fecha >= hoy and e.fecha <= hoy + 90
         order by e.fecha, e.hora_inicio limit 6
@@ -665,7 +672,10 @@ begin
     ), '[]'::jsonb),
     'eventos', coalesce((
       select jsonb_agg(jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
-                                          'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
+                                          'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
+                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select x.sede_principal from academias x where x.id = e.academia_id), ''),
+                                  'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
+                                  'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
       from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and coalesce(e.en_pagina, true) and e.fecha >= hoy
     ), '[]'::jsonb),
     'tienda', coalesce((
@@ -816,7 +826,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261127 $$;
+language sql immutable as $$ select 20261128 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

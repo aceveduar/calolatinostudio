@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DetalleEvento } from '../../components/DetalleEvento';
 import QRCode from 'qrcode';
 import { Camera, Image as ImageIcon, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
@@ -925,7 +926,9 @@ function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: 
                   {e.hora} · {e.precio > 0 ? `boleto ${dinero(e.precio)}` : 'entrada libre'}
                   {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && <b className="text-warn-600"> · ¡quedan {e.quedan}!</b>}
                 </span>
-                {e.descripcion && <span className="mt-0.5 line-clamp-2 block text-sm text-ink-700">{e.descripcion}</span>}
+                <span className="block text-ink-700">
+                  <DetalleEvento e={e} />
+                </span>
                 {e.quedan === 0 ? (
                   <span className="mt-2 inline-block rounded-full bg-bad-50 px-2.5 py-0.5 text-xs font-extrabold text-bad-600">Agotado</span>
                 ) : (

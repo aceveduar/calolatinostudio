@@ -10,7 +10,11 @@ import { db } from '../../db/db';
 import type { Evento, ID } from '../../db/types';
 import { diaSemana, empalmes, rangoHora } from '../../domain/agenda';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
-import { boletoValido, crearEvento, actualizarEvento, type DatosEvento } from '../../domain/eventos';
+import { boletoValido, crearEvento, actualizarEvento, enElSalon, type DatosEvento } from '../../domain/eventos';
+import { nombreSede, useSedes } from '../../app/sedes';
+
+/** valor del selector "¿Dónde es?" para un lugar fuera de la academia */
+const OTRO = '__otro__';
 import { fechaLarga, hoy } from '../../domain/fechas';
 import { useDisciplinas, nombreClase } from '../../app/datos';
 
@@ -109,6 +113,12 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
   const [cupo, setCupo] = useState(evento?.cupo != null ? String(evento.cupo) : '');
   const [precio, setPrecio] = useState(evento ? aPesosTexto(evento.precio) : '');
   const [descripcion, setDescripcion] = useState(evento?.descripcion ?? '');
+  const [vestimenta, setVestimenta] = useState(evento?.vestimenta ?? '');
+  const sedes = useSedes();
+  // dónde es: aquí (aparta el salón), en otra sede, o en otro lugar (salón de fiestas, terraza…)
+  const [donde, setDonde] = useState<string>(evento?.lugar ? OTRO : (evento?.sedeId ?? ''));
+  const [lugar, setLugar] = useState(evento?.lugar ?? '');
+  const [direccion, setDireccion] = useState(evento?.direccion ?? '');
   const [salonId, setSalonId] = useState<string>(evento?.salonId ?? '');
   const [enPagina, setEnPagina] = useState(evento?.enPagina !== false);
   const [enPortal, setEnPortal] = useState(evento?.enPortal !== false);
@@ -123,17 +133,22 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
     cupo: cupo ? Number(cupo) : null,
     precio: aCentavos(precio),
     descripcion: descripcion.trim(),
-    salonId: salonId || null,
+    vestimenta: vestimenta.trim(),
+    lugar: donde === OTRO ? lugar.trim() : '',
+    direccion: donde === OTRO ? direccion.trim() : '',
+    sedeId: donde && donde !== OTRO ? donde : null,
+    salonId: !donde ? salonId || null : null,
     enPagina,
     enPortal,
   };
-  const choques = empalmes(
+  const aqui = enElSalon(datos);
+  const choques = !aqui ? [] : empalmes(
     { dias: [diaSemana(fecha)], horaInicio: hora, duracionMin, desde: fecha, hasta: fecha, id: evento?.rentaId ?? undefined, salonId: salonId || null },
     clases,
     rentas,
   );
   const pasaMedianoche = Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3)) + duracionMin > 24 * 60;
-  const listo = datos.nombre && datos.precio >= 0 && !choques.length && !pasaMedianoche;
+  const listo = datos.nombre && datos.precio >= 0 && !choques.length && !pasaMedianoche && (donde !== OTRO || !!lugar.trim());
 
   const guardar = async () => {
     setOcupado(true);
@@ -178,7 +193,29 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
         </Campo>
       </div>
-      {salones.length > 0 && (
+      <Campo etiqueta="¿Dónde es?">
+        <Selector value={donde} onChange={(e) => setDonde(e.target.value)}>
+          <option value="">Aquí, en {nombreSede(null, sedes, academia)}</option>
+          {sedes.map((x) => (
+            <option key={x.id} value={x.id}>
+              En {x.nombre}
+            </option>
+          ))}
+          <option value={OTRO}>En otro lugar (salón de fiestas, terraza…)</option>
+        </Selector>
+      </Campo>
+      {donde === OTRO && (
+        <div className="space-y-3 rounded-2xl bg-ink-50 p-3 ring-1 ring-ink-100">
+          <Campo etiqueta="Nombre del lugar">
+            <Entrada value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej. Salón Los Arcos" />
+          </Campo>
+          <Campo etiqueta="Dirección" ayuda="Aparece con el botón “Cómo llegar” en la página y en el portal.">
+            <Entrada value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle, número y colonia" />
+          </Campo>
+          <p className="text-xs text-ink-500">Fuera de la academia no se aparta el salón de aquí.</p>
+        </div>
+      )}
+      {aqui && salones.length > 0 && (
         <Campo etiqueta="Salón">
           <Selector value={salonId} onChange={(e) => setSalonId(e.target.value)}>
             <option value="">Salón principal</option>
@@ -190,8 +227,18 @@ export function FormEvento({ evento, onHecho }: { evento: Evento | null; onHecho
           </Selector>
         </Campo>
       )}
-      <Campo etiqueta="Descripción (opcional)">
-        <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Concurso de disfraces, DJ en vivo" />
+      <Campo etiqueta="¿Cómo venir? (opcional)" ayuda="Se ve resaltado. Déjalo vacío si da igual.">
+        <Entrada value={vestimenta} onChange={(e) => setVestimenta(e.target.value)} placeholder="Ej. Ven disfrazado 💀 · De blanco · Gala" maxLength={60} />
+      </Campo>
+      <Campo etiqueta="Descripción (opcional)" ayuda="Todo lo que convence: qué habrá, concursos, show, qué incluye el boleto.">
+        <textarea
+          value={descripcion}
+          onChange={(e) => setDescripcion(e.target.value)}
+          rows={4}
+          maxLength={800}
+          placeholder={'Ej. Social de salsa y bachata con DJ.\nConcurso de disfraces con premios.\nEl boleto incluye una bebida.'}
+          className="w-full resize-y rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+        />
       </Campo>
       <div className="space-y-2 rounded-2xl bg-superficie p-3 ring-1 ring-ink-100">
         <p className="px-1 text-sm font-semibold text-ink-700">¿Dónde se anuncia?</p>

@@ -71,7 +71,7 @@ await page.screenshot({ path: `${OUT}codigos-2-usb.png` });
 await page.getByRole('button', { name: /cambiar usuario/i }).first().click();
 await entrar('Dirección Calo', '1234');
 await ir('/ajustes/productos');
-await page.getByText('Escanear producto').waitFor();
+await page.getByRole('button', { name: 'Escanear', exact: true }).waitFor();
 await page.locator('body').click({ position: { x: 5, y: 300 } });
 await lector('7501000000050');
 await dlg.waitFor();

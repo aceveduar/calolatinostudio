@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DetalleEvento } from '../../components/DetalleEvento';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check, MessageCircle, Pencil, Search, Ticket, Wallet } from 'lucide-react';
@@ -67,7 +68,12 @@ export function PantallaEvento() {
         {fechaLarga(e.fecha)} · {rangoHora(e.horaInicio, e.duracionMin)} · boleto {dinero(e.precio)}
         {!e.activo && ' · CANCELADO'}
       </p>
-      {e.descripcion && <p className="mb-3 rounded-xl bg-superficie px-4 py-2 text-sm ring-1 ring-ink-100">{e.descripcion}</p>}
+      {(e.descripcion || e.vestimenta || e.lugar) && (
+        <div className="mb-3 rounded-xl bg-superficie px-4 py-2.5 ring-1 ring-ink-100">
+          {/* lo mismo que ve la gente en la página y el portal */}
+          <DetalleEvento e={{ descripcion: e.descripcion, vestimenta: e.vestimenta ?? '', lugar: e.lugar ?? '', direccion: e.direccion ?? '', otro_lugar: !!e.lugar }} />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Cifra titulo="Boletos" valor={`${r.vendidos}${e.cupo !== null ? ` / ${e.cupo}` : ''}`} pie={r.quedan === null ? 'sin límite' : lleno ? 'cupo lleno' : `quedan ${r.quedan}`} alerta={lleno} />
@@ -220,7 +226,10 @@ export function PantallaEvento() {
 }
 
 function mensajeBoleto(e: Evento, b: Boleto, academia: string) {
-  return `Hola ${b.nombre.split(' ')[0]}, este es tu boleto para ${e.nombre} (${academia}) 🎉 ${fechaLarga(e.fecha)} a las ${e.horaInicio}. Tu código: ${b.codigo}. ¡Te esperamos!`;
+  // si es fuera de la academia, el lugar va en el mensaje (si no, llegarían al estudio)
+  const donde = e.lugar ? ` en ${e.lugar}${e.direccion ? ` (${e.direccion})` : ''}` : '';
+  const como = e.vestimenta ? ` ${e.vestimenta}.` : '';
+  return `Hola ${b.nombre.split(' ')[0]}, este es tu boleto para ${e.nombre} (${academia}) 🎉 ${fechaLarga(e.fecha)} a las ${e.horaInicio}${donde}.${como} Tu código: ${b.codigo}. ¡Te esperamos!`;
 }
 
 function Cifra({ titulo, valor, pie, alerta }: { titulo: string; valor: string; pie: string; alerta?: boolean }) {

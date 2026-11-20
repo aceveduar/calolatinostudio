@@ -71,7 +71,7 @@ await page.keyboard.press('Escape');
 
 // 7) la clase puede ir en el salón de arriba
 await ir('/ajustes/clases');
-await page.getByRole('button', { name: /Nueva clase/ }).click();
+await page.getByRole('button', { name: /Nueva clase/ }).first().click();
 const conSalon = await dlg.getByText('Salón', { exact: true }).count();
 console.log('7) clase con selector de salón:', ok(conSalon === 1));
 console.log('errores:', errores.length ? errores : 'ninguno');

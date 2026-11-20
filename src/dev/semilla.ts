@@ -690,8 +690,8 @@ export async function agregarEventosDemo(): Promise<{ eventos: number; boletos: 
   if (!dueno) throw new Error('No hay usuario de dirección');
   const hoyF = hoy();
   const anio = hoyF.slice(0, 4);
-  const muertos = await crearEvento({ nombre: 'Fiesta de Día de Muertos', fecha: `${anio}-11-01`, horaInicio: '18:00', duracionMin: 300, cupo: 50, precio: 15000, descripcion: 'Concurso de disfraces y baile', salonId: null });
-  const navidad = await crearEvento({ nombre: 'Baile de Navidad', fecha: `${anio}-12-13`, horaInicio: '19:00', duracionMin: 240, cupo: 60, precio: 18000, descripcion: 'Social de salsa y bachata con DJ', salonId: null });
+  const muertos = await crearEvento({ nombre: 'Fiesta de Día de Muertos', fecha: `${anio}-11-01`, horaInicio: '18:00', duracionMin: 300, cupo: 50, precio: 15000, descripcion: 'Social de salsa y bachata con concurso de disfraces: premios al mejor disfraz y a la mejor pareja.\nAltar de muertos y pan de muerto para todos.', vestimenta: 'Ven disfrazado 💀', salonId: null, sedeId: null });
+  const navidad = await crearEvento({ nombre: 'Baile de Navidad', fecha: `${anio}-12-13`, horaInicio: '19:00', duracionMin: 240, cupo: 60, precio: 18000, descripcion: 'Social de salsa y bachata con DJ y show de los grupos avanzados. El boleto incluye una bebida.', vestimenta: 'Vestimenta de gala', lugar: 'Salón Los Arcos', direccion: 'Av. Ejemplo 450, Col. Centro', salonId: null, sedeId: null });
   const r = generador(11);
   const nombre = () => `${PILAS[Math.floor(r() * PILAS.length)]} ${APELLIDOS[Math.floor(r() * APELLIDOS.length)]}`;
   let n = 0;

@@ -100,7 +100,7 @@ console.log('7) renta terminada libera el horario:', ok(!/Profe Beto/.test((awai
 
 // 8) aviso al crear una clase encima de una renta
 await page.evaluate(() => { history.pushState(null, '', '/ajustes/clases'); dispatchEvent(new PopStateEvent('popstate')); });
-await page.getByRole('button', { name: /Nueva clase/ }).click();
+await page.getByRole('button', { name: /Nueva clase/ }).first().click();
 await dlg.getByRole('button', { name: 'Mar', exact: true }).click();
 await dlg.locator('input[type="time"]').fill('17:30');
 await page.waitForTimeout(200);

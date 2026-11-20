@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Barcode, Camera, ImagePlus, Trash2, Truck } from 'lucide-react';
+import { Barcode, Camera, ImagePlus, Plus, Trash2, Truck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLectorUSB } from '../../app/codigos';
 import { EscanerCodigo } from '../../components/EscanerCodigo';
@@ -36,16 +36,6 @@ export function EditorProductos() {
   return (
     <>
       <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
-      <div className="mb-3 grid gap-2 sm:grid-cols-2">
-        <Boton bloque variante="secundario" onClick={() => setCamara(true)}>
-          <Barcode size={18} /> Escanear producto
-        </Boton>
-        <Link to="/encargos">
-          <Boton bloque variante="secundario">
-            <Truck size={18} /> Encargos y proveedor
-          </Boton>
-        </Link>
-      </div>
       {camara && <EscanerCodigo titulo="Escanear producto" onCodigo={abrirCodigo} onCerrar={() => setCamara(false)} />}
       <Hoja
         abierta={!!porCodigo}
@@ -72,6 +62,22 @@ export function EditorProductos() {
       <Catalogo
         items={productos}
         textoNuevo="Nuevo producto"
+        arriba={(nuevo) => (
+          // lo de todos los días arriba y lado a lado (antes 3 botones a lo ancho y "Nuevo" hasta abajo de la lista)
+          <div className="mb-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Boton bloque onClick={nuevo}>
+                <Plus size={18} /> Nuevo
+              </Boton>
+              <Boton bloque variante="secundario" onClick={() => setCamara(true)}>
+                <Barcode size={18} /> Escanear
+              </Boton>
+            </div>
+            <Link to="/encargos" className="flex min-h-11 items-center justify-center gap-1.5 text-sm font-semibold text-brand-600">
+              <Truck size={16} aria-hidden="true" /> Encargos y proveedor
+            </Link>
+          </div>
+        )}
         titulo={(p) => (p ? p.nombre : 'Nuevo producto')}
         fila={(p) => {
           const d = stock.get(p.id) ?? null;

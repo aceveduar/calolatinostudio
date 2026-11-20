@@ -11,6 +11,7 @@ export function Catalogo<T extends { id: ID }>({
   form,
   textoNuevo,
   vacio,
+  arriba,
 }: {
   items: T[];
   fila: (x: T) => ReactNode;
@@ -19,12 +20,21 @@ export function Catalogo<T extends { id: ID }>({
   textoNuevo: string;
   /** qué decir cuando aún no hay ninguno (en vez de una caja vacía) */
   vacio?: string;
+  /** barra propia de arriba (recibe con qué abrir "Nuevo…"); si no hay, con más de 6 se repite el botón arriba */
+  arriba?: (nuevo: () => void) => ReactNode;
 }) {
   const [sel, setSel] = useState<T | null | 'nuevo'>(null);
   const cerrar = () => setSel(null);
   const actual = sel === 'nuevo' ? null : sel;
+  const botonNuevo = (clase: string) => (
+    <Boton bloque variante="secundario" className={clase} onClick={() => setSel('nuevo')}>
+      <Plus size={18} /> {textoNuevo}
+    </Boton>
+  );
   return (
     <>
+      {/* con muchos (la tienda, las clases) el botón de abajo quedaba lejísimos: también va arriba */}
+      {arriba ? arriba(() => setSel('nuevo')) : items.length > 6 && botonNuevo('mb-3')}
       {items.length === 0 ? (
         vacio && <p className="rounded-2xl bg-superficie px-4 py-5 text-center text-sm text-ink-500 ring-1 ring-ink-100">{vacio}</p>
       ) : (
@@ -38,9 +48,7 @@ export function Catalogo<T extends { id: ID }>({
           ))}
         </Tarjeta>
       )}
-      <Boton bloque variante="secundario" className="mt-3" onClick={() => setSel('nuevo')}>
-        <Plus size={18} /> {textoNuevo}
-      </Boton>
+      {botonNuevo('mt-3')}
       <Hoja abierta={sel !== null} onCerrar={cerrar} titulo={sel !== null ? titulo(actual) : ''}>
         {sel !== null && form(actual, cerrar)}
       </Hoja>

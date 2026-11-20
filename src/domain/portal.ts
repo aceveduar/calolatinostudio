@@ -1,3 +1,4 @@
+import type { DetalleDeEvento } from './publica';
 /**
  * Portal del alumno: un enlace personal (/p/<token>) donde ve su QR, su plan y sus clases sin crear cuenta.
  * El token es secreto y largo (≈143 bits): no se puede adivinar, a diferencia del código de 6 letras del QR.
@@ -33,7 +34,7 @@ export interface DatosPortal {
   /** invitar a un amigo: su huella y cuántos invitó (base 20261123+) */
   invita?: { de: string; invitados: number; inscritos: number };
   /** Próximos eventos de la academia (socials, talleres). */
-  eventos?: { nombre: string; fecha: string; hora: string; precio: number; descripcion: string; quedan: number | null }[];
+  eventos?: ({ nombre: string; fecha: string; hora: string; precio: number; descripcion: string; quedan: number | null } & DetalleDeEvento)[];
   /** su último testimonio (base 20261122+) */
   testimonio?: { texto: string; estado: 'pendiente' | 'aprobado' | 'rechazado' } | null;
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];

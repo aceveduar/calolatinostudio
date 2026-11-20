@@ -19,7 +19,7 @@ await entrar('Dirección Calo', '1234');
 
 // 1) crear una beca desde Ajustes
 await ir('/ajustes/planes');
-await page.getByRole('button', { name: /Nuevo plan/ }).click();
+await page.getByRole('button', { name: /Nuevo plan/ }).first().click();
 await page.getByRole('dialog').getByRole('button', { name: 'Beca', exact: true }).click();
 await page.getByRole('dialog').getByPlaceholder('Beca').fill('Beca deportiva');
 const vig = await page.getByRole('dialog').getByRole('textbox').nth(1).inputValue();

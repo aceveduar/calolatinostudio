@@ -28,7 +28,7 @@ console.log('1) crear la academia escribiendo el PIN con el teclado:', ok((await
 // 2) maestro: se eligen sus clases ahí mismo
 await ir('/ajustes/maestros');
 console.log('2) sin maestros: mensaje en vez de caja vacía:', ok((await p.getByText(/Aún no hay maestros/).count()) === 1));
-await p.getByRole('button', { name: /Nuevo maestro/ }).click();
+await p.getByRole('button', { name: /Nuevo maestro/ }).first().click();
 await dlg.getByPlaceholder('Ej. Profe Luis').fill('Profe Luis');
 await dlg.getByRole('button', { name: /Salsa 1/ }).click();
 await dlg.getByRole('button', { name: /Salsa 2/ }).click();
@@ -40,7 +40,7 @@ console.log('   las 2 clases elegidas quedan con Profe Luis:', ok(suyas === 2), 
 
 // 3) clase: dice qué falta, crea disciplina nueva, dice cuándo termina y resume
 await ir('/ajustes/clases');
-await p.getByRole('button', { name: /Nueva clase/ }).click();
+await p.getByRole('button', { name: /Nueva clase/ }).first().click();
 const falta = (await dlg.getByText('Elige al menos un día').count()) === 1 && (await dlg.getByRole('button', { name: 'Guardar' }).isDisabled());
 await dlg.getByLabel('Disciplina').selectOption({ label: '+ Nueva disciplina…' });
 await dlg.getByPlaceholder('Ej. Cumbia').fill('Cumbia');
@@ -63,7 +63,7 @@ console.log('   la lista avisa qué clases no tienen maestro:', ok((await p.getB
 
 // 4) plan: nombre opcional (se sugiere), "grupos" y resumen de cómo se verá
 await ir('/ajustes/planes');
-await p.getByRole('button', { name: /Nuevo plan/ }).click();
+await p.getByRole('button', { name: /Nuevo plan/ }).first().click();
 const faltaPrecio = (await dlg.getByText('Escribe el precio').count()) === 1;
 await dlg.getByRole('button', { name: '2 grupos' }).click();
 await dlg.getByPlaceholder('$').fill('450');
@@ -79,7 +79,7 @@ console.log('   el recargo queda después de los planes:', ok(posRecargo && posP
 
 // 5) usuario: dice qué falta
 await ir('/ajustes/usuarios');
-await p.getByRole('button', { name: /Nuevo usuario/ }).click();
+await p.getByRole('button', { name: /Nuevo usuario/ }).first().click();
 await dlg.getByPlaceholder('Ej. Monse').fill('Monse');
 const t5 = await dlg.innerText();
 console.log('5) usuario: el PIN muestra 6 puntos y dice qué falta:', ok((await dlg.getByPlaceholder('••••••').count()) === 1 && /Su PIN debe tener 6 dígitos/.test(t5)));

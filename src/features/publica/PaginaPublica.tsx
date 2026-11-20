@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DetalleEvento } from '../../components/DetalleEvento';
 import { ArrowLeft, ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
@@ -449,7 +450,8 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           <div className="mx-auto flex max-w-5xl flex-col gap-5 px-5 py-12 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">{primera ?? '¿Listo para tu primera clase?'}</p>
-              <p className="mt-1 text-white/85">{desdeCero ? 'No necesitas experiencia ni pareja. Te acompañamos desde el primer paso.' : 'Ven a conocer al grupo y bailar con nosotros.'}</p>
+              {/* blanco completo: al 85 % sobre un color de marca rojo quedaba en 3.8:1 (mínimo 4.5) */}
+              <p className="mt-1 font-medium text-white">{desdeCero ? 'No necesitas experiencia ni pareja. Te acompañamos desde el primer paso.' : 'Ven a conocer al grupo y bailar con nosotros.'}</p>
             </div>
             <a href="#inscribete" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-6 text-lg font-bold text-[var(--marca)] shadow-xl active:scale-[0.98]">
               Apartar mi lugar <ArrowRight size={20} aria-hidden="true" />
@@ -499,7 +501,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                       <span className="block text-sm text-ink-500">
                         {e.hora} · boleto {dinero(e.precio)}
                       </span>
-                      {e.descripcion && <span className="mt-1 block text-sm">{e.descripcion}</span>}
+                      <DetalleEvento e={e} />
                       {e.quedan !== null && (
                         <span className={cx('mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-extrabold', e.quedan === 0 ? 'bg-bad-50 text-bad-600' : e.quedan <= 20 ? 'bg-warn-50 text-warn-600' : 'bg-brand-50 text-brand-600')}>
                           {e.quedan === 0 ? 'Agotado' : e.quedan <= 20 ? `¡Últimos ${e.quedan} lugares!` : `Quedan ${e.quedan} lugares`}

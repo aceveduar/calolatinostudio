@@ -15,6 +15,7 @@ Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y 
 
 | Versión | Qué cambió |
 |---|---|
+| 20261128 | Eventos con más detalle: `eventos.vestimenta` (cómo venir: disfraz, de blanco…), `eventos.lugar` y `eventos.direccion` (cuando es en otro lugar). `pagina_publica` y `portal_alumno` mandan además `lugar` y `direccion` ya resueltos (los de la sede si no es en otro lugar) y `otro_lugar`. **Correr ANTES del push** (sin las columnas, la app guarda el evento pero sin esos datos). |
 | 20261127 | Corte de caja con fondo y salidas: `cortes.fondo` (feria con que abrió), `cortes.salidas` (efectivo que salió del cajón) y `gastos.de_caja` (el gasto se pagó con dinero de la caja). **Correr ANTES del push** (sin las columnas, la app guarda el corte pero sin el fondo ni las salidas). |
 | 20261126 | Origen de cada interesado: `interesados.origen` ("facebook · navidad", "instagram", "google · anuncio"…) e `inscribir_interesado` acepta `p_origen` (opcional). **Correr ANTES del push** (la página nueva manda `p_origen`). |
 | 20261125 | Eventos: `en_pagina` y `en_portal` (vacío = sí) para decidir dónde se anuncia cada evento; `pagina_publica` y `portal_alumno` los respetan. **Correr ANTES del push** (sin las columnas, la app guarda el evento pero no puede ocultarlo). |

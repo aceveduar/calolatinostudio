@@ -302,7 +302,7 @@ export const MANUAL: Capitulo[] = [
         resumen: 'Socials, talleres, fiestas.',
         para: RECEPCION,
         claves: 'evento social boleto fiesta taller',
-        pasos: ['Más → Eventos → "Nuevo" (solo el dueño crea eventos).', 'Decide si se anuncia en la página y en el portal de los alumnos.', 'Toca el evento y "Vender boleto"; en la puerta, escanea o marca la entrada.'],
+        pasos: ['Más → Eventos → "Nuevo" (solo el dueño crea eventos).', 'Elige dónde es: aquí, en otra sede o en otro lugar (con su dirección, para el botón "Cómo llegar"). Fuera de aquí no se aparta el salón.', 'Si importa cómo venir, escríbelo ("Ven disfrazado", "De blanco"): se ve resaltado. En la descripción pon todo lo que habrá.', 'Decide si se anuncia en la página y en el portal de los alumnos.', 'Toca el evento y "Vender boleto"; en la puerta, escanea o marca la entrada.'],
       },
       {
         id: 'encargos',
