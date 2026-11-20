@@ -82,7 +82,7 @@ if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) aw
 await page.getByRole('dialog').getByRole('button', { name: /Salsa 0/ }).first().click();
 await page.getByRole('button', { name: /Diana P\./ }).click();
 await page.getByText('Cobrar en efectivo').waitFor();
-await btn('Fue transferencia').click();
+await btn('Pagó por transferencia').click();
 await page.getByText(/por transferencia/).waitFor();
 await shot('r4-transferencia');
 await listo();

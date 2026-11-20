@@ -239,9 +239,10 @@ export function Hoja({ abierta, onCerrar, titulo, children }: { abierta: boolean
 
 export function Encabezado({ titulo, sub, accion }: { titulo: string; sub?: string; accion?: ReactNode }) {
   return (
-    <div className="flex items-end justify-between gap-3 px-4 pt-4 pb-3">
+    // si no cabe (letra grande del teléfono), los botones bajan a otro renglón en vez de cortar el título ("Alu…")
+    <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 px-4 pt-4 pb-3">
       <div className="min-w-0">
-        <h1 className="truncate text-2xl font-extrabold tracking-tight">{titulo}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{titulo}</h1>
         {sub && <p className="text-sm text-ink-500 first-letter:uppercase">{sub}</p>}
       </div>
       {accion}

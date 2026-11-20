@@ -47,7 +47,7 @@ export const MANUAL: Capitulo[] = [
           'Toca la tarjeta del alumno. Si tiene plan o beca, entra sin cobrar y la cuenta se cierra sola en un par de segundos.',
           'Si no tiene plan, la clase se suma a la cuenta de abajo.',
           'Si te pagan en efectivo, toca el billete con que te pagan ($200, $500…) y la app te dice el cambio.',
-          'Toca "Listo". Si fue por transferencia, toca "Fue transferencia" antes.',
+          'Toca "Listo". Si fue por transferencia, toca "Transferencia" antes.',
         ],
         consejo: 'Si te equivocaste, el aviso de abajo tiene "Deshacer" por unos segundos.',
       },

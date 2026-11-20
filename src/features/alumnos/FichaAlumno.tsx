@@ -138,7 +138,7 @@ export function FichaAlumno() {
       <div className="mt-1 flex items-center gap-4">
         <FotoAlumno alumno={alumno} />
         <div className="min-w-0 flex-1">
-          <h1 className="line-clamp-2 text-2xl leading-tight font-extrabold break-words">{alumno.nombre}</h1>
+          <h1 className="line-clamp-3 text-2xl leading-tight font-extrabold break-words">{alumno.nombre}</h1>
           <div className="mt-1 flex items-center gap-2">
             <Etiqueta tono={sem.color}>{sem.texto}</Etiqueta>
             <span className="text-xs text-ink-500">
