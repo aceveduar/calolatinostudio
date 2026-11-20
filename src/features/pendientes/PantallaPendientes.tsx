@@ -163,7 +163,8 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
         <Avatar nombre={p.alumno.nombre} foto={p.alumno.foto} tam={40} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{p.alumno.nombre}</span>
-          <span className={p.urgente ? 'block truncate text-xs font-semibold text-bad-600' : 'block truncate text-xs text-ink-500'}>{p.detalle}</span>
+          {/* hasta 2 renglones: con los dos botones al lado se cortaba justo "venció hace 7 días" */}
+          <span className={p.urgente ? 'line-clamp-2 text-xs font-semibold text-bad-600' : 'line-clamp-2 text-xs text-ink-500'}>{p.detalle}</span>
           {!link && <span className="block text-[11px] text-ink-500">Sin teléfono: avísale en persona</span>}
         </span>
       </button>
