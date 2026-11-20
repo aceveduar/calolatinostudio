@@ -76,3 +76,20 @@ export function agruparPorAlumno<T extends { alumnoId: ID | null }>(items: T[]):
   }
   return m;
 }
+
+/**
+ * Cuánto vale lo que le queda de un plan (para abonarlo si se cambia a otro): la parte de lo que pagó que
+ * aún no usa. Paquete: las clases que no ha tomado. Mensualidad: los días que faltan (sin contar hoy).
+ * Redondeado a pesos completos. Becas o planes de $0: nada.
+ */
+export function valorRestante(e: EstadoMembresia, pagado: number, dia: Fecha): number {
+  const m = e.membresia;
+  if (pagado <= 0 || !e.vigente) return 0;
+  let parte: number;
+  if (m.clasesTotal !== null && m.clasesTotal > 0) parte = (e.restantes ?? 0) / m.clasesTotal;
+  else {
+    const total = diasEntre(m.inicio, m.fin) + 1;
+    parte = Math.max(0, diasEntre(dia, m.fin)) / total;
+  }
+  return Math.floor((pagado * Math.min(1, parte)) / 100) * 100;
+}

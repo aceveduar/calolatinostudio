@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db/db';
 import { nombreClase, useClases, useDisciplinas, usePlanes } from '../../app/datos';
 import { mismaSede, useSedeActual } from '../../app/sedes';
 import { sirveEn } from '../../domain/sedes';
@@ -8,7 +10,7 @@ import { Boton, Campo, Entrada, Interruptor, Segmentos, cx } from '../../compone
 import type { Alumno, ID, MetodoPago, Plan } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
-import type { EstadoMembresia } from '../../domain/membresias';
+import { valorRestante, type EstadoMembresia } from '../../domain/membresias';
 import { calcularFin, venderPlan } from '../../domain/operaciones';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { abrirTicket } from '../../app/ticketAbierto';
@@ -21,6 +23,7 @@ import { METODOS, describirPlan } from '../../domain/planes';
  *  - Si tiene un plan vigente del mismo tipo, la renovación empieza al terminar.
  *  - Mensual por clase (1 o 2 grupos): se eligen las clases que cubre.
  *  - Si su mensualidad venció hace poco: recargo por día de atraso y puede conservar su día de corte.
+ *  - Si cambia a otro plan teniendo uno vigente: opción (apagada) de abonar lo que le quedaba; el anterior termina hoy.
  */
 export function VenderPlan({
   alumno,
@@ -40,7 +43,8 @@ export function VenderPlan({
   const disciplinas = useDisciplinas();
   // Sede de la venta: la de la clase a la que entra, o la de este equipo
   const sedeVenta = claseId ? (clases.find((c) => c.id === claseId)?.sedeId ?? null) : sedeActual;
-  const planes = usePlanes()
+  const todosPlanes = usePlanes();
+  const planes = todosPlanes
     .filter((p) => p.activo && p.tipo !== 'suelta' && sirveEn(p.sedeId, sedeVenta) && (esDueno || !esBeca(p)))
     .sort((a, b) => Number(esBeca(a)) - Number(esBeca(b)) || a.precio - b.precio);
   const [planId, setPlanId] = useState<ID | null>(null);
@@ -59,6 +63,14 @@ export function VenderPlan({
   const [elegidas, setElegidas] = useState<ID[]>(() => inicialClases(plan));
   const [conRecargo, setConRecargo] = useState(true);
   const [conservarCorte, setConservarCorte] = useState(true);
+  const [abonar, setAbonar] = useState(false);
+  // cuánto pagó por cada plan que tiene (para saber cuánto vale lo que le queda)
+  const pagoIds = estados.map((e) => e.membresia.pagoId);
+  const pagados = useLiveQuery(
+    async () => new Map((await db.pagos.bulkGet(pagoIds)).flatMap((p) => (p && !p.anuladoAt ? [[p.id, p.monto] as const] : []))),
+    [pagoIds.join()],
+    new Map<string, number>(),
+  );
 
   const vigenteMismoTipo = useMemo(
     () => estados.filter((e) => e.vigente && e.membresia.planId === plan?.id).sort((a, b) => (a.membresia.fin < b.membresia.fin ? 1 : -1))[0],
@@ -76,7 +88,16 @@ export function VenderPlan({
   const beca = esBeca(plan);
   const recargo = atraso && conRecargo && academia.recargoDiario ? atraso.dias * academia.recargoDiario : 0;
   const base = montoTxt === null ? plan.precio : aCentavos(montoTxt);
-  const monto = beca ? 0 : base + recargo;
+  // cambio a otro plan teniendo uno vigente (no una renovación): lo que le queda de ese plan, por si se abona
+  const cambio = beca || vigenteMismoTipo
+    ? undefined
+    : estados
+        .filter((e) => e.vigente && e.membresia.planId !== plan.id)
+        .map((e) => ({ e, valor: valorRestante(e, pagados.get(e.membresia.pagoId) ?? 0, hoy()), nombre: todosPlanes.find((x) => x.id === e.membresia.planId)?.nombre ?? 'plan' }))
+        .filter((x) => x.valor > 0)
+        .sort((a, b) => b.valor - a.valor)[0];
+  const abono = cambio && abonar ? Math.min(cambio.valor, base + recargo) : 0;
+  const monto = beca ? 0 : base + recargo - abono;
   // Clases que puede cubrir un plan por clase: las de esta sede (y su disciplina, si el plan es de una)
   const opcionesClase = plan.grupos
     ? clases.filter((c) => c.activo && mismaSede(c.sedeId, sedeVenta) && (!plan.disciplinaId || c.disciplinaId === plan.disciplinaId))
@@ -99,6 +120,7 @@ export function VenderPlan({
         sedeId: sedeVenta,
         claseIds: plan.grupos ? elegidas : undefined,
         recargo,
+        abono: abono && cambio ? { membresiaId: cambio.e.membresia.id, plan: cambio.nombre } : undefined,
       });
       if (beca) {
         avisar(`Beca registrada hasta el ${fechaCorta(calcularFin(plan, inicio))}`);
@@ -248,10 +270,21 @@ export function VenderPlan({
           {base > 0 && base < plan.precio * 0.5 && (
             <p className="-mt-3 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Descuento de más de la mitad. Revisa que sea correcto.</p>
           )}
+          {cambio && (
+            <div className="space-y-1.5 text-sm">
+              <Interruptor valor={abonar} onChange={setAbonar} texto={`Abonar lo que le quedaba de su ${cambio.nombre.toLowerCase()}: ${dinero(cambio.valor)}`} />
+              <p className="px-1 text-xs text-ink-500">
+                {cambio.e.restantes !== null
+                  ? `Le quedan ${cambio.e.restantes} de ${cambio.e.membresia.clasesTotal} clases.`
+                  : `Le quedan ${cambio.e.diasRestantes} ${cambio.e.diasRestantes === 1 ? 'día' : 'días'}.`}{' '}
+                {abonar ? `Su ${cambio.nombre.toLowerCase()} termina hoy y ese dinero se descuenta de este plan.` : 'Si lo abonas, ese plan termina hoy.'}
+              </p>
+            </div>
+          )}
           <BarraCobro>
             <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
             <Boton grande bloque onClick={cobrar} disabled={ocupado || monto <= 0 || faltanClases}>
-              {faltanClases ? (plan.grupos === 1 ? 'Elige la clase' : `Elige ${plan.grupos} clases`) : `Cobrar ${dinero(monto)}${recargo ? ' (con recargo)' : ''}${daEntrada ? ' y dar entrada' : ''}`}
+              {faltanClases ? (plan.grupos === 1 ? 'Elige la clase' : `Elige ${plan.grupos} clases`) : `Cobrar ${dinero(monto)}${recargo ? ' (con recargo)' : ''}${abono ? ' (con abono)' : ''}${daEntrada ? ' y dar entrada' : ''}`}
             </Boton>
           </BarraCobro>
         </>

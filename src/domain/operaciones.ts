@@ -95,6 +95,8 @@ export async function venderPlan(p: {
   claseIds?: ID[];
   /** recargo por atraso incluido en el monto (solo para el concepto del cobro) */
   recargo?: number;
+  /** cambio de plan: lo que le quedaba de otro plan ya se descontó del monto; ese plan termina hoy */
+  abono?: { membresiaId: ID; plan: string };
 }): Promise<{ pago: Pago; membresia: Membresia }> {
   if (p.plan.grupos && (p.claseIds?.length ?? 0) !== p.plan.grupos) throw new Error(`Elige ${p.plan.grupos === 1 ? 'la clase' : `las ${p.plan.grupos} clases`} que cubre`);
   return enTransaccion(async () => {
@@ -103,7 +105,7 @@ export async function venderPlan(p: {
       ...conSede(clase ? clase.sedeId : p.sedeId),
       alumnoId: p.alumnoId,
       planId: p.plan.id,
-      concepto: p.recargo ? `${p.plan.nombre} + recargo` : p.plan.nombre,
+      concepto: p.recargo ? `${p.plan.nombre} + recargo` : p.abono ? `${p.plan.nombre} · abono de su ${p.abono.plan.toLowerCase()}` : p.plan.nombre,
       monto: p.monto ?? p.plan.precio,
       metodo: p.metodo,
       usuarioId: p.usuarioId,
@@ -112,6 +114,8 @@ export async function venderPlan(p: {
       anuladoMotivo: null,
       anuladoPor: null,
     });
+    // lo que le quedaba se abonó a este plan: el anterior ya no cubre nada después de hoy
+    if (p.abono) await actualizar('membresias', p.abono.membresiaId, { fin: hoy() });
     const membresia = await crear('membresias', {
       alumnoId: p.alumnoId,
       planId: p.plan.id,
