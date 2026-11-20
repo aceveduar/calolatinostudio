@@ -25,7 +25,7 @@ export function PantallaMas() {
       {GRUPOS.map((g) => {
         const lista = modulos.filter((m) => m.grupo === g.id);
         if (!lista.length) return null;
-        const compacto = g.id === 'config' || g.id === 'cuenta';
+        const compacto = g.id === 'clases' || g.id === 'config' || g.id === 'cuenta';
         return (
           <section key={g.id} className="mb-5">
             <h2 className="mb-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">{g.titulo}</h2>
@@ -37,8 +37,9 @@ export function PantallaMas() {
               </Tarjeta>
             ) : (
               <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {lista.map((m) => (
-                  <Mosaico key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} />
+                {lista.map((m, i) => (
+                  // si sobra uno al final, ocupa el renglón completo (antes quedaba un mosaico solo a la izquierda)
+                  <Mosaico key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} ancho={lista.length % 2 === 1 && i === lista.length - 1} />
                 ))}
               </div>
             )}
@@ -63,10 +64,18 @@ function Globo({ n }: { n: number }) {
   return <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1.5 text-xs font-extrabold text-white">{n}</span>;
 }
 
-function Mosaico({ m, n }: { m: Modulo; n: number }) {
+function Mosaico({ m, n, ancho }: { m: Modulo; n: number; ancho?: boolean }) {
   const Icono = m.icono;
   return (
-    <Link to={m.ruta} className={cx('relative flex flex-col gap-2 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100 active:bg-ink-50', n > 0 && 'ring-2 ring-brand-500/40')}>
+    <Link
+      to={m.ruta}
+      className={cx(
+        'relative flex flex-col gap-2 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100 active:bg-ink-50',
+        n > 0 && 'ring-2 ring-brand-500/40',
+        // a lo ancho: ícono y texto en un renglón (en computadora la cuadrícula es de 3 y no hace falta)
+        ancho && 'col-span-2 flex-row items-center gap-3 lg:col-span-1 lg:flex-col lg:items-stretch lg:gap-2',
+      )}
+    >
       <span className="flex items-center justify-between">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
           <Icono size={22} />

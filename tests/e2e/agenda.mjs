@@ -9,6 +9,8 @@ const ir = async (r) => { await page.evaluate((x) => { history.pushState(null, '
 const ok = (c) => (c ? 'OK' : 'MAL');
 const P = pc ? 'pc' : 'm';
 const txt = async () => (await page.locator('main').innerText()).replace(/\s+/g, ' ');
+const verRentas = async () => { await page.getByRole('button', { name: 'Rentas y meta', exact: true }).click(); await page.waitForTimeout(300); };
+const verSemana = async () => { await page.getByRole('button', { name: 'Semana', exact: true }).click(); await page.waitForTimeout(300); };
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const entrar = async (nombre, pin) => {
   await page.getByText(nombre, { exact: true }).click();
@@ -31,7 +33,10 @@ let t = await txt();
 console.log('1) semana con clases, rentas y huecos libres:', ok(/Jackson \(Salsa\)/.test(t) && /Yoga con Laura/.test(t) && /Libre: /.test(t)));
 await page.screenshot({ path: `${OUT}agenda-${P}-1.png`, fullPage: true });
 
-// 2) cobros del mes
+// 2) cobros del mes: en su pestaña; en la semana, un aviso de lo que falta cobrar que lleva ahí
+console.log('   aviso de rentas por cobrar en la semana:', ok(/Rentas por cobrar en \w+: \$[\d,]+/.test(t)));
+await verRentas();
+t = await txt();
 console.log('2) Laura pagada, Jackson por cobrar:', ok(/Yoga con Laura .{0,60}\$3,000/.test(t) && /Cobrar \$3,200/.test(t)));
 
 // 3) apartar encima de una clase → bloqueado
@@ -51,6 +56,7 @@ await dlg.locator('input[type="time"]').fill('13:00');
 await page.waitForTimeout(200);
 await dlg.getByRole('button', { name: 'Apartar horario' }).click();
 await page.getByText('Horario apartado').waitFor();
+await verSemana();
 await page.getByRole('button', { name: 'Semana siguiente' }).click();
 await page.waitForTimeout(300);
 t = await txt();
@@ -71,6 +77,7 @@ console.log('5) evento encima del taller bloquea:', ok(choca === 1 && (await dlg
 await page.keyboard.press('Escape');
 
 // 6) cobrar a Ana en efectivo → entra a la caja
+await verRentas();
 await page.getByRole('button', { name: 'Cobrar $3,200' }).click();
 await dlg.getByRole('button', { name: 'Efectivo', exact: true }).click();
 await dlg.getByRole('button', { name: /^Cobrar \$3,200/ }).click();
@@ -82,9 +89,11 @@ console.log('6) caja: renta separada y con nombre:', ok(/Renta del salón \$3,20
 
 // 7) terminar la renta de Beto: la semana siguiente ya no aparece
 await ir('/agenda');
+await verRentas();
 await page.getByRole('button', { name: /Profe Beto/ }).first().click(); // en "Rentas de…"
 await dlg.getByRole('button', { name: /Terminar renta/ }).click();
 await page.waitForTimeout(300);
+await verSemana();
 await page.getByRole('button', { name: 'Semana siguiente' }).click();
 await page.waitForTimeout(300);
 console.log('7) renta terminada libera el horario:', ok(!/Profe Beto/.test((await txt()).split(/Rentas de/i)[0])));
@@ -114,6 +123,7 @@ await entrar('Dirección Calo', '1234');
 await ir('/agenda');
 await page.getByRole('heading', { name: 'Agenda', exact: true }).waitFor();
 await page.waitForTimeout(500);
+await verRentas();
 t = await txt();
 console.log('10) contemporáneo por hora:', ok(/Maestra de contemporáneo .{0,80}\d+ h × \$150 = \$[\d,]+/.test(t)), (t.match(/\d+ h × \$150 = \$[\d,]+/) || [])[0]);
 console.log('11) bachata por alumno:', ok(/\(comisión\) .{0,80}\d+ alumnos? × \$10 = \$[\d,]+/.test(t)), (t.match(/\d+ alumnos? × \$10 = \$[\d,]+/) || [])[0]);

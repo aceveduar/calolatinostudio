@@ -34,12 +34,13 @@ import {
 } from 'lucide-react';
 import type { Rol } from '../db/types';
 
-export type Grupo = 'negocio' | 'alumnos' | 'config' | 'cuenta';
+export type Grupo = 'negocio' | 'alumnos' | 'clases' | 'config' | 'cuenta';
 
 export const GRUPOS: { id: Grupo; titulo: string }[] = [
   { id: 'negocio', titulo: 'El negocio' },
   { id: 'alumnos', titulo: 'Alumnos y ventas' },
-  { id: 'config', titulo: 'Configuración' },
+  { id: 'clases', titulo: 'Clases y precios' },
+  { id: 'config', titulo: 'Tu academia' },
   { id: 'cuenta', titulo: 'Cuenta' },
 ];
 
@@ -81,16 +82,17 @@ export const MODULOS: Modulo[] = [
   { id: 'listas', titulo: 'Listas del mes', ayuda: 'Quién vino y quién debe', icono: ClipboardList, ruta: '/alumnos/listas', para: ['dueno', 'recepcion'], grupo: 'alumnos' },
   { id: 'encargos', titulo: 'Encargos', ayuda: 'Pedidos al proveedor', icono: Truck, ruta: '/encargos', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'encargos' },
   { id: 'pagina', titulo: 'Página pública', ayuda: 'Para compartir en Facebook', icono: Globe, ruta: '/ajustes/pagina', para: ['dueno'], grupo: 'alumnos' },
-  // ---------- configuración (dirección) ----------
-  { id: 'clases', titulo: 'Clases y horarios', icono: CalendarClock, ruta: '/ajustes/clases', para: ['dueno'], grupo: 'config' },
-  { id: 'planes', titulo: 'Planes y precios', icono: Tags, ruta: '/ajustes/planes', para: ['dueno'], grupo: 'config' },
-  { id: 'productos', titulo: 'Productos', ayuda: 'Tienda, costos y códigos', icono: ShoppingBag, ruta: '/ajustes/productos', para: ['dueno'], grupo: 'config' },
-  { id: 'maestros', titulo: 'Maestros', icono: GraduationCap, ruta: '/ajustes/maestros', para: ['dueno'], grupo: 'config' },
-  { id: 'sedes', titulo: 'Sedes', icono: MapPin, ruta: '/ajustes/sedes', para: ['dueno'], grupo: 'config' },
-  { id: 'disciplinas', titulo: 'Disciplinas', icono: Music2, ruta: '/ajustes/disciplinas', para: ['dueno'], grupo: 'config' },
-  { id: 'usuarios', titulo: 'Usuarios y PIN', icono: Users, ruta: '/ajustes/usuarios', para: ['dueno'], grupo: 'config' },
-  { id: 'mensajes', titulo: 'Mensajes de WhatsApp', icono: MessageCircle, ruta: '/ajustes/mensajes', para: ['dueno'], grupo: 'config' },
+  // ---------- clases y precios (en el orden en que se arma una academia) ----------
+  { id: 'clases', titulo: 'Clases y horarios', ayuda: 'Días, hora, salón y maestro', icono: CalendarClock, ruta: '/ajustes/clases', para: ['dueno'], grupo: 'clases' },
+  { id: 'maestros', titulo: 'Maestros', ayuda: 'Sus datos y lo que se les paga', icono: GraduationCap, ruta: '/ajustes/maestros', para: ['dueno'], grupo: 'clases' },
+  { id: 'planes', titulo: 'Planes y precios', ayuda: 'Mensualidades, paquetes y becas', icono: Tags, ruta: '/ajustes/planes', para: ['dueno'], grupo: 'clases' },
+  { id: 'disciplinas', titulo: 'Disciplinas', ayuda: 'Salsa, bachata… y su color', icono: Music2, ruta: '/ajustes/disciplinas', para: ['dueno'], grupo: 'clases' },
+  { id: 'productos', titulo: 'Productos', ayuda: 'Tienda, costos y códigos', icono: ShoppingBag, ruta: '/ajustes/productos', para: ['dueno'], grupo: 'clases' },
+  // ---------- tu academia (dirección) ----------
   { id: 'academia', titulo: 'Academia', ayuda: 'Nombre, logo y color', icono: Building2, ruta: '/ajustes/academia', para: ['dueno'], grupo: 'config' },
+  { id: 'usuarios', titulo: 'Usuarios y PIN', ayuda: 'Quién entra a la app y qué ve', icono: Users, ruta: '/ajustes/usuarios', para: ['dueno'], grupo: 'config' },
+  { id: 'sedes', titulo: 'Sedes', ayuda: 'Otros lugares donde das clase', icono: MapPin, ruta: '/ajustes/sedes', para: ['dueno'], grupo: 'config' },
+  { id: 'mensajes', titulo: 'Mensajes de WhatsApp', ayuda: 'Los textos listos de cada aviso', icono: MessageCircle, ruta: '/ajustes/mensajes', para: ['dueno'], grupo: 'config' },
   // ---------- cuenta ----------
   { id: 'manual', titulo: 'Cómo se usa', ayuda: 'Guía paso a paso', icono: BookOpen, ruta: '/ayuda', para: ['dueno', 'recepcion'], grupo: 'cuenta' },
   { id: 'nube', titulo: 'Nube y respaldo', icono: Cloud, ruta: '/ajustes/nube', para: ['dueno', 'recepcion'], grupo: 'cuenta' },

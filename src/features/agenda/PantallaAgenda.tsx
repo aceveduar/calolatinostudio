@@ -47,6 +47,9 @@ export function PantallaAgenda() {
   const [editar, setEditar] = useState<Renta | 'nueva' | { extraDe: Renta } | null>(null);
   const [cobrar, setCobrar] = useState<{ renta: Renta; monto: number } | null>(null);
   const [meta, setMeta] = useState(false);
+  // la semana (horario del salón) y el dinero (meta y rentas) por separado: antes lo de cobrar quedaba hasta
+  // abajo, después de los 7 días
+  const [vista, setVista] = useState<'semana' | 'rentas'>('semana');
   const salones = academia.salones ?? [];
   // salón que se ve (null = principal); con un solo salón se ve todo
   const [salon, setSalon] = useState<ID | null>(null);
@@ -86,6 +89,17 @@ export function PantallaAgenda() {
         />
       </div>
 
+      <div className="mb-3">
+        <Segmentos
+          opciones={[
+            { valor: 'semana', texto: 'Semana' },
+            { valor: 'rentas', texto: 'Rentas y meta' },
+          ]}
+          valor={vista}
+          onChange={setVista}
+        />
+      </div>
+
       <div className="mb-3 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setLunes(sumarDias(lunes, -7))} aria-label="Semana anterior">
           <ChevronLeft />
@@ -99,7 +113,16 @@ export function PantallaAgenda() {
         </button>
       </div>
 
-      {(
+      {vista === 'semana' && (
+        <>
+        {pendiente > 0 && (
+          <button onClick={() => setVista('rentas')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-left text-sm text-warn-600 active:brightness-95">
+            <span className="flex-1">
+              Rentas por cobrar en {nombreMes(mes).split(' ')[0].toLowerCase()}: <b>{dinero(pendiente)}</b>
+            </span>
+            <ChevronRight size={18} className="shrink-0" aria-hidden="true" />
+          </button>
+        )}
         <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
           <Link to="/agenda/eventos" className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-superficie px-4 py-2 text-sm font-semibold ring-1 ring-ink-100">
             <PartyPopper size={16} className="text-brand-600" /> Eventos
@@ -120,7 +143,6 @@ export function PantallaAgenda() {
             </button>
           )}
         </div>
-      )}
       <p className="mb-2 flex items-center gap-1.5 px-1 text-xs text-ink-500">
         <span className="h-3 w-3 rounded bg-[#7c4ddb]/20 ring-1 ring-[#7c4ddb]/40" /> Renta del salón
       </p>
@@ -129,11 +151,14 @@ export function PantallaAgenda() {
           <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined} onRenta={abrirBloque} />
         ))}
       </div>
+        </>
+      )}
 
-      {(metaMes > 0 || esDueno) && (
+      {vista === 'rentas' && (metaMes > 0 || esDueno) && (
         <MetaRentas metaMes={metaMes} metaDiaria={academia.metaDiaria ?? 0} total={cobrado + pendiente} cobrado={cobrado} mes={mes} onEditar={esDueno ? () => setMeta(true) : undefined} />
       )}
 
+      {vista === 'rentas' && (
       <Seccion titulo={`Rentas de ${nombreMes(mes).toLowerCase()}`}>
         {cobros.length === 0 ? (
           <Tarjeta>
@@ -185,8 +210,9 @@ export function PantallaAgenda() {
           </>
         )}
       </Seccion>
+      )}
 
-      {esDueno && otras.length > 0 && (
+      {vista === 'rentas' && esDueno && otras.length > 0 && (
         <Seccion titulo="Otras rentas">
           <Tarjeta className="divide-y divide-ink-100">
             {otras.map((r) => (

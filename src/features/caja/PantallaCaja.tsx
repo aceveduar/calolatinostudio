@@ -105,8 +105,9 @@ export function PantallaCaja() {
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
           <ChevronLeft />
         </button>
-        <button className="rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-300" disabled={esHoy} onClick={() => setFecha(hoy())}>
-          Ir a hoy
+        {/* hoy: dice "Hoy" (antes un "Ir a hoy" gris, como botón apagado); otro día: el atajo para volver */}
+        <button className="rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-900" disabled={esHoy} onClick={() => setFecha(hoy())}>
+          {esHoy ? 'Hoy' : 'Ir a hoy'}
         </button>
         <button className="rounded-xl p-2.5 active:bg-ink-100 disabled:opacity-30" disabled={esHoy} onClick={() => setFecha(sumarDias(fecha, 1))} aria-label="Día siguiente">
           <ChevronRight />
