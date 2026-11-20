@@ -90,6 +90,10 @@ console.log('6) otra clase + transferencia: OK');
 
 // 7) Mantener presionado abre opciones completas
 const lucia = page.getByRole('button', { name: /Lucía T\./ });
+// al centro de la pantalla: con la tarjeta de primeros pasos (academia nueva) la cuadrícula queda más abajo,
+// y pegada al borde quedaba detrás de la barra de abajo (la presión caía en "Caja")
+await lucia.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+await page.waitForTimeout(200);
 const box = await lucia.boundingBox();
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down();

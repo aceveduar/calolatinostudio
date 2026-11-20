@@ -42,27 +42,23 @@ function ParejaBailando() {
     <div className="flex flex-col items-center text-brand-500" aria-hidden="true">
       <svg viewBox="0 0 120 92" className="h-36 w-auto overflow-visible" fill="currentColor">
         <ellipse cx="60" cy="86" rx="40" ry="3.5" className="fill-ink-100" />
+        {/* cada figura es UNA silueta (sin piezas sueltas que se despeguen al moverse); se mueve el cuerpo entero */}
         <g className="baile-pareja">
-          {/* él */}
+          {/* él: se balancea al ritmo */}
           <g className="baile-el">
-            <circle cx="40" cy="15" r="7" />
-            <path d="M32.5 25.5Q40 21.5 47.5 25.5L45.5 52H34.5Z" />
-            {/* piernas: dan el paso por turnos */}
-            <path className="baile-pierna-a" d="M35 51H40.5L38.5 84H34Z" />
-            <path className="baile-pierna-b" d="M40 51H45.5L45 84H40.5Z" />
-            <path d="M33.5 28Q26 38 31 47" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+            <circle cx="40" cy="14" r="7" />
+            <path d="M32 24Q40 20 48 24L46 50L47.5 84H42.5L40.6 60H39.4L37.5 84H32.5L34 50Z" />
+            <path d="M34 27Q27 37 31 47" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
           </g>
           {/* las manos tomadas */}
-          <path d="M46 29Q60 36 73 30" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-          {/* ella: gira */}
-          <g className="baile-ella" opacity="0.8">
-            <circle cx="80" cy="16.5" r="6.5" />
-            <circle cx="85.5" cy="11.5" r="3.5" />
-            <path d="M74.5 26.5Q80 23 85.5 26.5L84 46H76Z" />
-            <path className="baile-falda" d="M76 45.5L64 71Q80 77 96 71L84 45.5Z" />
-            <path className="baile-pierna-b" d="M74 70L72.5 84" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-            <path className="baile-pierna-a" d="M86 70L87.5 84" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-            <path d="M85 29Q92 18 87 7" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
+          <path d="M46 28Q59 35 73 30" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+          {/* ella: da una vuelta cada cuatro tiempos */}
+          <g className="baile-ella" opacity="0.82">
+            <path d="M74 70L72.8 84M86 70L87.2 84" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+            <circle cx="80" cy="16" r="6.5" />
+            <circle cx="85.5" cy="11" r="3.3" />
+            <path d="M75 25Q80 22 85 25L84 44Q94 58 96 71Q80 77 64 71Q66 58 76 44Z" />
+            <path d="M84.5 28Q92 17 87 7" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
           </g>
         </g>
       </svg>
