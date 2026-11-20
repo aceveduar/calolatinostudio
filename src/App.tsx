@@ -9,6 +9,7 @@ import { Bloqueo } from './features/acceso/Bloqueo';
 const PantallaAjustes = lazy(() => import('./features/ajustes/PantallaAjustes').then((m) => ({ default: m.PantallaAjustes })));
 const FichaAlumno = lazy(() => import('./features/alumnos/FichaAlumno').then((m) => ({ default: m.FichaAlumno })));
 const PantallaAlumnos = lazy(() => import('./features/alumnos/PantallaAlumnos').then((m) => ({ default: m.PantallaAlumnos })));
+const PantallaImportar = lazy(() => import('./features/alumnos/PantallaImportar').then((m) => ({ default: m.PantallaImportar })));
 const PantallaListas = lazy(() => import('./features/alumnos/PantallaListas').then((m) => ({ default: m.PantallaListas })));
 const PantallaTestimonios = lazy(() => import('./features/testimonios/PantallaTestimonios').then((m) => ({ default: m.PantallaTestimonios })));
 const PantallaInteresados = lazy(() => import('./features/alumnos/PantallaInteresados').then((m) => ({ default: m.PantallaInteresados })));
@@ -94,6 +95,7 @@ export default function App() {
                 <Route index element={<PantallaEntrada />} />
                 <Route path="alumnos" element={<PantallaAlumnos />} />
                 <Route path="alumnos/listas" element={<PantallaListas />} />
+                <Route path="alumnos/importar" element={<PantallaImportar />} />
                 <Route path="alumnos/interesados" element={<PantallaInteresados />} />
                 <Route path="alumnos/testimonios" element={<PantallaTestimonios />} />
                 <Route path="alumnos/:id" element={<FichaAlumno />} />

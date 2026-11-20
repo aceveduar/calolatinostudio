@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
-import { ChevronRight, ClipboardList, Megaphone, Plus, Search, Users } from 'lucide-react';
+import { ChevronRight, ClipboardList, FileSpreadsheet, Megaphone, Plus, Search, Users } from 'lucide-react';
+import { useSesion } from '../../app/sesion';
 import { DIAS_ARCHIVO, useAlumnos, useEstadosPorAlumno, usePlanes, useVinieronDesde } from '../../app/datos';
 import { estaArchivado } from '../../domain/archivo';
 import { hoy, sumarDias } from '../../domain/fechas';
@@ -17,6 +18,7 @@ type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
 const TANDA = 60;
 
 export function PantallaAlumnos() {
+  const { esDueno } = useSesion();
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));
@@ -130,7 +132,15 @@ export function PantallaAlumnos() {
 
       <div className="mt-3">
         {filas.length === 0 ? (
-          <Vacio icono={<Users size={40} />} titulo={alumnos.length ? 'Nadie coincide' : 'Aún no hay alumnos'} texto={alumnos.length ? undefined : 'Se registran solos desde Entrada la primera vez que llegan.'} />
+          <Vacio icono={<Users size={40} />} titulo={alumnos.length ? 'Nadie coincide' : 'Aún no hay alumnos'} texto={alumnos.length ? undefined : 'Se registran solos desde Entrada la primera vez que llegan.'}>
+            {!alumnos.length && esDueno && (
+              <Link to="/alumnos/importar">
+                <Boton variante="secundario">
+                  <FileSpreadsheet size={18} /> Importar mi lista de Excel
+                </Boton>
+              </Link>
+            )}
+          </Vacio>
         ) : (
           <Tarjeta className="divide-y divide-ink-100">
             {filas.slice(0, cuantos).map(({ a, s, beca }) => (
@@ -173,6 +183,11 @@ export function PantallaAlumnos() {
                 <button onClick={() => setVista('bajas')} className="min-h-11 py-2 text-sm font-semibold text-ink-500">
                   Ver dados de baja ({bajas})
                 </button>
+              )}
+              {esDueno && alumnos.length > 0 && (
+                <Link to="/alumnos/importar" className="flex min-h-11 items-center justify-center gap-1.5 py-2 text-sm font-semibold text-ink-500">
+                  <FileSpreadsheet size={16} aria-hidden="true" /> Importar alumnos de Excel
+                </Link>
               )}
             </>
           )}
