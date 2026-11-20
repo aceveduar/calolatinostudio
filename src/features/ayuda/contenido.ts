@@ -262,7 +262,7 @@ export const MANUAL: Capitulo[] = [
         resumen: 'Clase suelta, mensualidades y paquetes.',
         para: DUENO,
         claves: 'planes precios mensualidad paquete',
-        pasos: ['Más → Planes y precios.', 'Toca un plan para cambiar su precio, o agrega uno nuevo.', 'Un plan "de 1 grupo" cubre solo la clase que elija al pagar; uno "ilimitado", todas.'],
+        pasos: ['Más → Planes y precios.', 'Toca un plan para cambiar su precio, o agrega uno nuevo.', 'En una mensualidad eliges a cuántos grupos puede ir: "Todos", o 1, 2 o 3 grupos (al cobrarla se elige a cuáles).', 'Antes de guardar ves cómo quedará; el nombre es opcional.'],
       },
       {
         id: 'clases',
@@ -270,7 +270,7 @@ export const MANUAL: Capitulo[] = [
         resumen: 'Qué se da, cuándo y con quién.',
         para: DUENO,
         claves: 'clases horario maestro sede',
-        pasos: ['Más → Clases y horarios: días, hora, sede y maestro de cada clase.', 'Más → Maestros: sus datos; para que vean su lista, dales usuario en "Usuarios y PIN".', 'Con eso, Entrada sabe sola qué clase toca a cada hora.'],
+        pasos: ['Más → Clases y horarios: disciplina (o crea una ahí mismo), maestro, días y hora. Abajo ves cómo queda.', 'Más → Maestros: su nombre y toca las clases que da. Para que vean su lista, dales usuario en "Usuarios y PIN".', 'Con eso, Entrada sabe sola qué clase toca a cada hora.'],
       },
     ],
   },

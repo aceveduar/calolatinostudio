@@ -128,7 +128,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
         <div className="flex flex-1 flex-col justify-center pb-10">
           <h1 className="text-center text-2xl font-extrabold">{paso === 'pin' ? `Crea tu PIN de ${LARGO_PIN} dígitos` : 'Repite tu PIN'}</h1>
           <p className="mt-1 mb-10 text-center text-ink-500">{error || 'Lo usarás para entrar a la app.'}</p>
-          {paso === 'pin' ? <TecladoPin valor={pin} onChange={alPin} error={!!error} /> : <TecladoPin valor={pin2} onChange={alConfirmar} error={!!error} />}
+          {paso === 'pin' ? <TecladoPin key="pin" conTeclado valor={pin} onChange={alPin} error={!!error} /> : <TecladoPin key="confirmar" conTeclado valor={pin2} onChange={alConfirmar} error={!!error} />}
         </div>
       )}
 

@@ -20,7 +20,7 @@ export function EditorPlanes() {
   const orden: Record<TipoPlan, number> = { suelta: 0, mensual: 1, paquete: 2 };
   return (
     <>
-    <Recargo />
+    <p className="mb-3 text-sm text-ink-500">Lo que puede pagar un alumno: la clase suelta, mensualidades, paquetes y becas.</p>
     <Catalogo
       items={[...planes].sort((a, b) => (esBeca(a) ? 3 : orden[a.tipo]) - (esBeca(b) ? 3 : orden[b.tipo]))}
       textoNuevo="Nuevo plan"
@@ -37,8 +37,11 @@ export function EditorPlanes() {
           {esBeca(p) ? <Etiqueta tono="ok">Beca</Etiqueta> : <span className="font-bold">{dinero(p.precio)}</span>}
         </>
       )}
+      vacio="Aún no hay planes. Empieza por la clase suelta y la mensualidad."
       form={(p, cerrar) => <FormPlan plan={p} onHecho={cerrar} />}
     />
+    <h2 className="mt-6 mb-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">Ajustes de cobro</h2>
+    <Recargo />
     </>
   );
 }
@@ -55,7 +58,7 @@ export function Recargo() {
     avisar(v ? `Recargo: ${dinero(v)} por día de atraso` : 'Sin recargo por atraso');
   };
   return (
-    <Tarjeta className="mb-3 p-4">
+    <Tarjeta className="p-4">
       <Campo etiqueta="Recargo por día de atraso (mensualidades)" ayuda="Se suma al renovar una mensualidad vencida; en cada cobro se puede quitar. Vacío = sin recargo.">
         <Entrada inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={guardar} placeholder="Ej. 10" />
       </Campo>
@@ -79,12 +82,26 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
   const [alcance, setAlcance] = useState<string>(plan?.sedeId ?? '');
   const [grupos, setGrupos] = useState<string>(String(plan?.grupos ?? ''));
 
+  const g = tipo === 'mensual' ? Number(grupos) || 0 : 0;
+  // si no le pone nombre, se usa uno claro según lo elegido
+  const sugerido =
+    tipo === 'suelta' ? 'Clase suelta' : tipo === 'beca' ? 'Beca' : tipo === 'paquete' ? `Paquete ${Number(clases) || 1} clases` : g ? `Mensual ${g} ${g === 1 ? 'grupo' : 'grupos'}` : 'Mensualidad';
+  const vista: Plan = {
+    ...(plan ?? ({} as Plan)),
+    nombre: nombre.trim() || sugerido,
+    tipo: tipo === 'beca' ? 'paquete' : tipo,
+    precio: tipo === 'beca' ? 0 : aCentavos(precio),
+    clases: tipo === 'paquete' ? Number(clases) || 1 : tipo === 'suelta' ? 1 : null,
+    vigenciaDias: tipo === 'paquete' ? Number(vigencia) || 30 : tipo === 'beca' ? Number(vigencia) || VIGENCIA_BECA : null,
+    grupos: g || null,
+  };
+  const falta = tipo === 'beca' ? (Number(vigencia) > 0 ? '' : 'Escribe cuántos días dura') : aCentavos(precio) > 0 ? '' : 'Escribe el precio';
+
   const guardar = async () => {
-    const g = tipo === 'mensual' ? Number(grupos) || 0 : 0;
     const datos = {
       ...(g ? { grupos: g } : plan?.grupos ? { grupos: null } : {}),
       ...conSede(alcance, plan?.sedeId),
-      nombre: nombre.trim(),
+      nombre: nombre.trim() || sugerido,
       tipo: tipo === 'beca' ? ('paquete' as const) : tipo,
       precio: tipo === 'beca' ? 0 : aCentavos(precio),
       clases: tipo === 'paquete' ? Number(clases) || 1 : tipo === 'suelta' ? 1 : null,
@@ -102,7 +119,7 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
     <div className="space-y-4">
       <Segmentos<TipoPlan | 'beca'>
         opciones={[
-          { valor: 'suelta', texto: 'Por clase' },
+          { valor: 'suelta', texto: 'Clase suelta' },
           { valor: 'mensual', texto: 'Mensual' },
           { valor: 'paquete', texto: 'Paquete' },
           { valor: 'beca', texto: 'Beca' },
@@ -114,13 +131,18 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
           if (t === 'paquete' && !plan) setVigencia('30');
         }}
       />
+      {tipo !== 'beca' && (
+        <p className="-mt-2 px-1 text-xs text-ink-500">
+          {tipo === 'suelta' ? 'Lo que paga quien viene a una sola clase.' : tipo === 'mensual' ? 'Un mes de clases, desde el día en que paga.' : 'Cierto número de clases para usar en un plazo.'}
+        </p>
+      )}
       {tipo === 'beca' && (
         <p className="rounded-xl bg-ok-50 px-3 py-2 text-sm text-ok-600">
           El alumno becado entra a sus clases sin pagar. Solo la dirección puede dar becas; al terminar la vigencia se renueva desde su ficha.
         </p>
       )}
-      <Campo etiqueta="Nombre">
-        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={tipo === 'suelta' ? 'Clase suelta' : tipo === 'mensual' ? 'Mensualidad' : tipo === 'beca' ? 'Beca' : 'Paquete 8 clases'} />
+      <Campo etiqueta="Nombre (opcional)" ayuda={nombre.trim() ? undefined : `Si lo dejas vacío se llamará “${sugerido}”.`}>
+        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={sugerido} />
       </Campo>
       {tipo === 'beca' ? (
         <Campo etiqueta="Vigencia (días)" ayuda="180 días ≈ un semestre.">
@@ -132,13 +154,13 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
         </Campo>
       )}
       {tipo === 'mensual' && (
-        <Campo etiqueta="¿Cuántas clases cubre?" ayuda="Para cobrar por clase: p. ej. una clase $300, dos clases $450. Al cobrar se eligen cuáles." grupo>
+        <Campo etiqueta="¿A cuántos grupos puede ir?" ayuda="Ej. mensualidad de 1 grupo $300 y de 2 grupos $450. Al cobrarla se elige a cuáles va." grupo>
           <Segmentos<string>
             opciones={[
-              { valor: '', texto: 'Todas' },
-              { valor: '1', texto: '1 clase' },
-              { valor: '2', texto: '2 clases' },
-              { valor: '3', texto: '3 clases' },
+              { valor: '', texto: 'Todos' },
+              { valor: '1', texto: '1 grupo' },
+              { valor: '2', texto: '2 grupos' },
+              { valor: '3', texto: '3 grupos' },
             ]}
             valor={grupos}
             onChange={setGrupos}
@@ -183,10 +205,23 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
           </Selector>
         </Campo>
       )}
-      <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (tipo === 'beca' ? !(Number(vigencia) > 0) : aCentavos(precio) <= 0)}>
-        Guardar
-      </Boton>
+      {plan && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
+      {/* cómo se verá al cobrar */}
+      {!falta && (
+        <p className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm">
+          <span className="min-w-0">
+            <b className="block">{vista.nombre}</b>
+            <span className="text-ink-700">{describirPlan(vista)}</span>
+          </span>
+          <b className="shrink-0 text-base">{tipo === 'beca' ? 'Sin costo' : dinero(vista.precio)}</b>
+        </p>
+      )}
+      <div>
+        <Boton grande bloque onClick={guardar} disabled={!!falta}>
+          Guardar
+        </Boton>
+        {falta && <p className="mt-2 text-center text-sm text-ink-500">{falta}</p>}
+      </div>
     </div>
   );
 }

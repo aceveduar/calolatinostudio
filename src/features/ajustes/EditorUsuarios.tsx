@@ -49,6 +49,15 @@ export function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onH
   const [activo, setActivo] = useState(usuario?.activo ?? true);
   const esUltimoDueno = usuario?.rol === 'dueno' && usuarios.filter((u) => u.rol === 'dueno' && u.activo).length === 1;
   const pinOk = pinValido(pin);
+  const falta = !nombre.trim()
+    ? 'Escribe su nombre'
+    : rol === 'maestro' && !maestroId
+      ? 'Elige qué maestro es'
+      : (!usuario || pin.length > 0) && !pinOk
+        ? `Su PIN debe tener ${LARGO_PIN} dígitos sin orden`
+        : rol === 'maestro' && !baseLista
+          ? 'Falta actualizar la base de datos'
+          : '';
 
   const guardar = async () => {
     if (usuario) {
@@ -69,9 +78,10 @@ export function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onH
   return (
     <div className="space-y-4">
       <Campo etiqueta="Nombre">
-        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <Entrada autoFocus={!usuario} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Monse" />
       </Campo>
       {!esUltimoDueno && (
+        <Campo etiqueta="¿Qué hace en la academia?" grupo>
         <Segmentos<Rol>
           opciones={[
             { valor: 'recepcion', texto: 'Recepción' },
@@ -84,6 +94,7 @@ export function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onH
             if (r === 'maestro' && !nombre.trim() && maestros.length === 1) setNombre(maestros[0].nombre);
           }}
         />
+        </Campo>
       )}
       <p className="-mt-2 px-1 text-xs text-ink-500">
         {rol === 'dueno'
@@ -117,13 +128,16 @@ export function FormUsuario({ usuario, onHecho }: { usuario: Usuario | null; onH
           </Campo>
         ))}
       <Campo etiqueta={usuario ? `Nuevo PIN de ${LARGO_PIN} dígitos (déjalo vacío para no cambiarlo)` : `PIN de ${LARGO_PIN} dígitos`} ayuda={usuario && largoPin(usuario) < LARGO_PIN ? `Su PIN actual es de ${largoPin(usuario)} dígitos: cámbialo por uno de ${LARGO_PIN} para más seguridad.` : 'Evita fechas de nacimiento o números seguidos (123456).'}>
-        <EntradaClave inputMode="numeric" maxLength={LARGO_PIN} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" />
+        <EntradaClave inputMode="numeric" maxLength={LARGO_PIN} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder={'•'.repeat(LARGO_PIN)} />
         {pin.length === LARGO_PIN && pinDebil(pin) && <span className="mt-1 block text-xs font-medium text-bad-600">Muy fácil de adivinar: usa números sin orden.</span>}
       </Campo>
       {usuario && !esUltimoDueno && usuario.id !== yo.id && <Interruptor valor={activo} onChange={setActivo} texto="Puede entrar a la app" />}
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || (!usuario && !pinOk) || (pin.length > 0 && !pinOk) || (rol === 'maestro' && (!maestroId || !baseLista))}>
-        Guardar
-      </Boton>
+      <div>
+        <Boton grande bloque onClick={guardar} disabled={!!falta}>
+          Guardar
+        </Boton>
+        {falta && <p className="mt-2 text-center text-sm text-ink-500">{falta}</p>}
+      </div>
     </div>
   );
 }

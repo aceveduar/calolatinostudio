@@ -3,7 +3,7 @@ import { nombreClase, useClases, useDisciplinas, useMaestros } from '../../app/d
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, Etiqueta, Interruptor, cx } from '../../components/ui';
 import { actualizar, crear } from '../../db/repo';
-import { type Clase, type Disciplina, type Maestro } from '../../db/types';
+import { type Disciplina, type Maestro } from '../../db/types';
 import { DIAS_CORTOS } from '../../domain/fechas';
 import { Catalogo } from './Catalogo';
 
@@ -12,10 +12,10 @@ export function EditorMaestros() {
   const maestros = useMaestros();
   const clases = useClases();
   const disciplinas = useDisciplinas();
-  const suyas = (m: Maestro) => clases.filter((c) => c.maestroId === m.id && c.activo);
+  const suyas = (m: Maestro) => clases.filter((c) => c.maestroId === m.id && c.activo).sort((a, b) => nombreClase(a, disciplinas).localeCompare(nombreClase(b, disciplinas)));
   return (
     <>
-      <p className="mb-3 text-sm text-ink-500">Da de alta a los maestros y asígnalos a sus clases. Así ves cuántos alumnos y cuánto dinero entra en cada clase de cada maestro.</p>
+      <p className="mb-3 text-sm text-ink-500">Quién da cada clase. Así cada maestro ve su lista y tú ves cuántos alumnos y cuánto dinero deja cada clase.</p>
       <Catalogo
         items={maestros}
         textoNuevo="Nuevo maestro"
@@ -32,14 +32,21 @@ export function EditorMaestros() {
             {!m.activo && <Etiqueta>Inactivo</Etiqueta>}
           </>
         )}
-        form={(m, cerrar) => <FormMaestro maestro={m} clases={m ? suyas(m) : []} disciplinas={disciplinas} onHecho={cerrar} />}
+        vacio="Aún no hay maestros. Agrega al primero y elige qué clases da."
+        form={(m, cerrar) => <FormMaestro maestro={m} disciplinas={disciplinas} onHecho={cerrar} />}
       />
     </>
   );
 }
 
-export function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro: Maestro | null; clases: Clase[]; disciplinas: Disciplina[]; onHecho: () => void }) {
+export function FormMaestro({ maestro, disciplinas, onHecho }: { maestro: Maestro | null; disciplinas: Disciplina[]; onHecho: () => void }) {
   const avisar = useAvisos();
+  const maestros = useMaestros();
+  const todas = useClases()
+    .filter((c) => c.activo)
+    .sort((a, b) => nombreClase(a, disciplinas).localeCompare(nombreClase(b, disciplinas)) || a.horaInicio.localeCompare(b.horaInicio));
+  // las clases que da: se eligen aquí mismo (antes había que abrir cada clase en "Clases y horarios")
+  const [elegidas, setElegidas] = useState<string[]>(() => (maestro ? todas.filter((c) => c.maestroId === maestro.id).map((c) => c.id) : []));
   const [nombre, setNombre] = useState(maestro?.nombre ?? '');
   const [telefono, setTelefono] = useState(maestro?.telefono ?? '');
   const [notas, setNotas] = useState(maestro?.notas ?? '');
@@ -47,8 +54,13 @@ export function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro
 
   const guardar = async () => {
     const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: telefono.replace(/\D/g, ''), notas: notas.trim(), activo };
-    if (maestro) await actualizar('maestros', maestro.id, datos);
-    else await crear('maestros', datos);
+    const id = maestro ? (await actualizar('maestros', maestro.id, datos)).id : (await crear('maestros', datos)).id;
+    // asignar las elegidas y quitarle las que ya no da
+    for (const c of todas) {
+      const la = elegidas.includes(c.id);
+      if (la && c.maestroId !== id) await actualizar('clases', c.id, { maestroId: id });
+      else if (!la && c.maestroId === id) await actualizar('clases', c.id, { maestroId: null });
+    }
     avisar('Maestro guardado');
     onHecho();
   };
@@ -64,13 +76,30 @@ export function FormMaestro({ maestro, clases, disciplinas, onHecho }: { maestro
       <Campo etiqueta="Notas (opcional)">
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Ej. cobra por clase" />
       </Campo>
-      {maestro && (
-        <div className="rounded-2xl bg-superficie p-4 text-sm ring-1 ring-ink-100">
-          <p className="font-semibold">Clases que da</p>
-          <p className="mt-1 text-ink-500">
-            {clases.length ? clases.map((c) => `${nombreClase(c, disciplinas)} (${c.dias.map((d) => DIAS_CORTOS[d]).join(' ')} ${c.horaInicio})`).join(' · ') : 'Asígnale clases en “Clases y horarios”.'}
-          </p>
-        </div>
+      {todas.length > 0 && (
+        <Campo etiqueta="¿Qué clases da?" ayuda="Toca las suyas. Si una ya tenía otro maestro, pasa a este." grupo>
+          <div className="flex flex-wrap gap-2">
+            {todas.map((c) => {
+              const si = elegidas.includes(c.id);
+              const otro = !si && c.maestroId && c.maestroId !== maestro?.id ? maestros.find((m) => m.id === c.maestroId)?.nombre : null;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={si}
+                  onClick={() => setElegidas(si ? elegidas.filter((x) => x !== c.id) : [...elegidas, c.id])}
+                  className={cx('rounded-xl px-3 py-2 text-left text-sm ring-1', si ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+                >
+                  <span className="block font-semibold">{nombreClase(c, disciplinas)}</span>
+                  <span className={cx('block text-xs', si ? 'text-white/80' : 'text-ink-500')}>
+                    {c.dias.map((d) => DIAS_CORTOS[d]).join(' ')} {c.horaInicio}
+                    {otro && ` · ahora ${otro}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Campo>
       )}
       {maestro && <Interruptor valor={activo} onChange={setActivo} texto="Sigue dando clases" />}
       <Boton grande bloque onClick={guardar} disabled={!nombre.trim()}>

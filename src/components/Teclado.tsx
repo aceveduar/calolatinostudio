@@ -1,12 +1,42 @@
+import { useEffect, useRef } from 'react';
 import { Delete } from 'lucide-react';
 import { cx } from './ui';
 
-/** Teclado numérico para el PIN (4 o 6 dígitos según el usuario). */
-export function TecladoPin({ valor, onChange, error, largo = 6 }: { valor: string; onChange: (v: string) => void; error?: boolean; largo?: number }) {
+/**
+ * Teclado numérico para el PIN (4 o 6 dígitos según el usuario).
+ * `conTeclado`: también se escribe con el teclado de la computadora (al crear la academia en una PC no
+ * funcionaba: solo los botones de la pantalla).
+ */
+export function TecladoPin({ valor, onChange, error, largo = 6, conTeclado }: { valor: string; onChange: (v: string) => void; error?: boolean; largo?: number; conTeclado?: boolean }) {
+  // lo último escrito, al momento: al teclear rápido no se pierden dígitos entre renders
+  const actual = useRef(valor);
+  actual.current = valor;
+  const cambiar = useRef(onChange);
+  cambiar.current = onChange;
   const tecla = (t: string) => {
-    if (t === 'borrar') return onChange(valor.slice(0, -1));
-    if (valor.length < largo) onChange(valor + t);
+    const v = actual.current;
+    const nuevo = t === 'borrar' ? v.slice(0, -1) : v.length < largo ? v + t : v;
+    if (nuevo === v) return;
+    actual.current = nuevo;
+    cambiar.current(nuevo);
   };
+  const teclaRef = useRef(tecla);
+  teclaRef.current = tecla;
+  useEffect(() => {
+    if (!conTeclado) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        teclaRef.current(e.key);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        teclaRef.current('borrar');
+      }
+    };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [conTeclado]);
   return (
     <div className="mx-auto w-full max-w-xs">
       <div className={cx('mb-8 flex justify-center gap-4', error && 'animate-[sube_200ms]')}>

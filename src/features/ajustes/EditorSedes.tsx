@@ -19,15 +19,16 @@ export function EditorSedes() {
   const clases = useClases();
   const [principal, setPrincipal] = useState(academia.sedePrincipal ?? '');
   const cuenta = (id: ID | null) => clases.filter((c) => (c.sedeId ?? null) === id && c.activo).length;
+  const nClases = (id: ID | null) => `${cuenta(id)} ${cuenta(id) === 1 ? 'clase' : 'clases'}`;
   return (
     <>
       <p className="mb-3 text-sm text-ink-500">
-        Los lugares donde se dan clases. Cada clase pertenece a una sede, y cada equipo elige en Entrada dónde está trabajando: así ve solo esas clases, cobra el precio de esa sede y su corte de caja es aparte.
+        ¿Das clases en más de un lugar? Cada sede tiene sus clases, su precio y su corte de caja. Si solo tienes uno, basta con ponerle nombre a tu sede principal.
       </p>
       <Tarjeta className="mb-3 space-y-2 p-4">
         <p className="text-sm font-semibold">Sede principal</p>
         <div className="flex gap-2">
-          <Entrada value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="Ej. Estudio Calo" />
+          <Entrada value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder={`Ej. ${academia.nombre} Centro`} aria-label="Nombre de la sede principal" />
           <Boton
             variante="secundario"
             disabled={principal.trim() === (academia.sedePrincipal ?? '')}
@@ -39,7 +40,7 @@ export function EditorSedes() {
             Guardar
           </Boton>
         </div>
-        <p className="text-xs text-ink-500">{cuenta(null)} clases · Es el lugar de todo lo que ya existía.</p>
+        <p className="text-xs text-ink-500">{nClases(null)} · Aquí queda todo mientras no agregues otra sede.</p>
       </Tarjeta>
       <Catalogo
         items={sedes}
@@ -49,7 +50,7 @@ export function EditorSedes() {
           <>
             <span className="h-4 w-4 rounded-full" style={{ background: x.color }} />
             <span className={cx('flex-1 font-semibold', !x.activo && 'opacity-40')}>{x.nombre}</span>
-            <span className="text-sm text-ink-500">{cuenta(x.id)} clases</span>
+            <span className="text-sm text-ink-500">{nClases(x.id)}</span>
           </>
         )}
         form={(x, cerrar) => <FormSede sede={x} onHecho={cerrar} />}
@@ -71,7 +72,7 @@ export function FormSede({ sede, onHecho }: { sede: Sede | null; onHecho: () => 
       <Campo etiqueta="Color" grupo>
         <div className="flex flex-wrap gap-3">
           {COLORES_SEDE.map((c) => (
-            <button key={c} type="button" onClick={() => setColor(c)} className={cx('h-10 w-10 rounded-full ring-offset-2', color === c && 'ring-2 ring-ink-900')} style={{ background: c }} aria-label={c} />
+            <button key={c} type="button" onClick={() => setColor(c)} className={cx('h-10 w-10 rounded-full ring-offset-2', color === c && 'ring-2 ring-ink-900')} style={{ background: c }} aria-label={`Color ${c}`} aria-pressed={color === c} />
           ))}
         </div>
       </Campo>

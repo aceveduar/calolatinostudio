@@ -84,7 +84,7 @@ export const MODULOS: Modulo[] = [
   { id: 'pagina', titulo: 'Página pública', ayuda: 'Para compartir en Facebook', icono: Globe, ruta: '/ajustes/pagina', para: ['dueno'], grupo: 'alumnos' },
   // ---------- clases y precios (en el orden en que se arma una academia) ----------
   { id: 'clases', titulo: 'Clases y horarios', ayuda: 'Días, hora, salón y maestro', icono: CalendarClock, ruta: '/ajustes/clases', para: ['dueno'], grupo: 'clases' },
-  { id: 'maestros', titulo: 'Maestros', ayuda: 'Sus datos y lo que se les paga', icono: GraduationCap, ruta: '/ajustes/maestros', para: ['dueno'], grupo: 'clases' },
+  { id: 'maestros', titulo: 'Maestros', ayuda: 'Quién da cada clase', icono: GraduationCap, ruta: '/ajustes/maestros', para: ['dueno'], grupo: 'clases' },
   { id: 'planes', titulo: 'Planes y precios', ayuda: 'Mensualidades, paquetes y becas', icono: Tags, ruta: '/ajustes/planes', para: ['dueno'], grupo: 'clases' },
   { id: 'disciplinas', titulo: 'Disciplinas', ayuda: 'Salsa, bachata… y su color', icono: Music2, ruta: '/ajustes/disciplinas', para: ['dueno'], grupo: 'clases' },
   { id: 'productos', titulo: 'Productos', ayuda: 'Tienda, costos y códigos', icono: ShoppingBag, ruta: '/ajustes/productos', para: ['dueno'], grupo: 'clases' },
