@@ -103,7 +103,8 @@ export function Cuenta({
             </div>
             <div className="mt-2 flex gap-2">
               <button onClick={onTransferencia} className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-white/70 active:bg-white/10">
-                <ArrowRightLeft size={15} /> Fue transferencia
+                <ArrowRightLeft size={15} /> <span className="max-[359px]:hidden">Fue transferencia</span>
+                <span className="hidden max-[359px]:inline">Transferencia</span>
               </button>
               <button onClick={onCerrar} className="h-10 flex-1 rounded-xl bg-[#fff] text-[15px] font-bold text-[#1c1a24] active:bg-[#ecebf1]">
                 Listo

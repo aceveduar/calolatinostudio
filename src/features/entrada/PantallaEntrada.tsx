@@ -675,8 +675,9 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { ti
             <span className="block truncate text-xs font-semibold tracking-wider text-white/75 uppercase">{detalle}</span>
             <span className="mt-0.5 flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
               <span className="truncate">{titulo}</span>
-              <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2 text-[11px] font-bold tracking-normal">
-                Cambiar <ChevronDown size={13} aria-hidden="true" />
+              {/* en teléfonos de 320 px solo la flechita: si no, el nombre de la clase se corta ("Cumbi…") */}
+              <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2 text-[11px] font-bold tracking-normal max-[359px]:px-1">
+                <span className="max-[359px]:sr-only">Cambiar</span> <ChevronDown size={13} aria-hidden="true" />
               </span>
             </span>
             <span className="block mt-0.5 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</span>

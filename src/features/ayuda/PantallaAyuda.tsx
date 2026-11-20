@@ -32,7 +32,7 @@ export function PantallaAyuda() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="¿Qué quieres hacer? Ej. corte, ticket, paquete"
+          placeholder="Ej. corte, ticket, paquete"
           aria-label="Buscar en el manual"
           className="h-12 w-full rounded-2xl bg-superficie pr-11 pl-11 ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
         />

@@ -87,7 +87,7 @@ export function PantallaAlumnos() {
             <div className="flex gap-2">
               <Link to="/alumnos/listas">
                 <Boton variante="secundario">
-                  <ClipboardList size={18} /> Listas
+                  <ClipboardList size={18} aria-hidden="true" /> <span className="max-[359px]:sr-only">Listas</span>
                 </Boton>
               </Link>
               <Boton onClick={() => setNuevo(true)}>
