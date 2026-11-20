@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, CalendarPlus, ChevronRight, Combine, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ChevronRight, Combine, Eraser, History, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
+import { HistorialAnterior } from './HistorialAnterior';
+import { puedeVerAnterior } from '../../sync/engine';
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -42,6 +44,8 @@ export function FichaAlumno() {
   const [whats, setWhats] = useState(false);
   const [anonimizar, setAnonimizar] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
+  const [anterior, setAnterior] = useState(false);
+  const verAnterior = useLiveQuery(async () => (alumno ? puedeVerAnterior(alumno.createdAt) : false), [alumno?.createdAt], false);
   // recién dado de alta (desde Alumnos o Interesados): ofrecer mandarle su acceso
   const loc = useLocation();
   const [bienvenida, setBienvenida] = useState(!!(loc.state as { recien?: boolean } | null)?.recien);
@@ -106,7 +110,9 @@ export function FichaAlumno() {
           <h1 className="line-clamp-2 text-2xl leading-tight font-extrabold break-words">{alumno.nombre}</h1>
           <div className="mt-1 flex items-center gap-2">
             <Etiqueta tono={sem.tono}>{sem.texto}</Etiqueta>
-            <span className="text-xs text-ink-500">{historial?.totalAsistencias ?? 0} clases tomadas</span>
+            <span className="text-xs text-ink-500">
+              {historial?.totalAsistencias ?? 0} {historial?.totalAsistencias === 1 ? 'clase tomada' : 'clases tomadas'}
+            </span>
           </div>
         </div>
         <button onClick={() => setEditar(true)} className="rounded-full p-2.5 text-ink-500 active:bg-ink-100" aria-label="Editar">
@@ -164,7 +170,10 @@ export function FichaAlumno() {
                 </p>
               </Tarjeta>
             ))}
-            <p className="px-1 text-xs text-ink-500">¿Se vendió el plan equivocado? Tócalo para anularlo y vende el correcto.</p>
+            {/* solo justo después de vender (cuando se nota el error), no en cada visita a la ficha */}
+            {vigentes.some((e) => Date.now() - e.membresia.createdAt < 3 * 86400000) && (
+              <p className="px-1 text-xs text-ink-500">¿Se vendió el plan equivocado? Tócalo para anularlo y vende el correcto.</p>
+            )}
           </div>
         )}
       </Seccion>
@@ -201,32 +210,39 @@ export function FichaAlumno() {
             ))}
           </Tarjeta>
         )}
+        {verAnterior && (
+          <button onClick={() => setAnterior(true)} className="mt-1 flex min-h-11 w-full items-center justify-center gap-1.5 text-sm font-semibold text-brand-600 active:bg-brand-50">
+            <History size={16} aria-hidden="true" /> Ver historial de hace más de 18 meses
+          </button>
+        )}
       </Seccion>
       </div>
       </div>
 
-      <div className="mt-8 space-y-1">
-        <button className="flex w-full items-center justify-center gap-2 py-3 text-sm font-semibold text-ink-700" onClick={() => setFusionar(true)}>
-          <Combine size={16} /> ¿Está registrado dos veces? Unir registros
-        </button>
-        {esDueno && alumno.activo && (
-          <button
-            className="w-full py-3 text-sm font-semibold text-bad-600"
-            onClick={async () => {
-              await actualizar('alumnos', alumno.id, { activo: false });
-              avisar(`${nombre1} dado de baja`, 'ok', { texto: 'Deshacer', fn: () => actualizar('alumnos', alumno.id, { activo: true }).then(() => undefined) });
-              nav('/alumnos');
-            }}
-          >
-            Dar de baja
-          </button>
-        )}
-        {esDueno && alumno.nombre !== NOMBRE_ANONIMO && (
-          <button className="w-full py-3 text-xs font-semibold text-ink-500" onClick={() => setAnonimizar(true)}>
-            Borrar sus datos personales (lo pide el alumno)
-          </button>
-        )}
-      </div>
+      {/* lo que se usa poco, junto y con su explicación (antes eran textos sueltos al final) */}
+      <Seccion titulo="Más opciones">
+        <Tarjeta className="divide-y divide-ink-100">
+          <Opcion icono={<Combine size={18} />} titulo="Unir registros" detalle="Si está registrado dos veces" onClick={() => setFusionar(true)} />
+          {esDueno && alumno.activo && (
+            <Opcion
+              icono={<UserX size={18} />}
+              titulo="Dar de baja"
+              detalle="Ya no viene: sale de Entrada y de la lista"
+              peligro
+              onClick={async () => {
+                await actualizar('alumnos', alumno.id, { activo: false });
+                avisar(`${nombre1} dado de baja`, 'ok', { texto: 'Deshacer', fn: () => actualizar('alumnos', alumno.id, { activo: true }).then(() => undefined) });
+                nav('/alumnos');
+              }}
+            />
+          )}
+          {esDueno && alumno.nombre !== NOMBRE_ANONIMO && (
+            <Opcion icono={<Eraser size={18} />} titulo="Borrar sus datos personales" detalle="Solo si el alumno lo pide" onClick={() => setAnonimizar(true)} />
+          )}
+        </Tarjeta>
+      </Seccion>
+
+      <HistorialAnterior abierta={anterior} onCerrar={() => setAnterior(false)} alumnoId={alumno.id} nombre={nombre1} />
 
       <Hoja abierta={editar} onCerrar={() => setEditar(false)} titulo="Editar alumno">
         <FormAlumno alumno={alumno} onGuardado={() => setEditar(false)} />
@@ -268,6 +284,21 @@ export function FichaAlumno() {
         )}
       </Hoja>
     </div>
+  );
+}
+
+function Opcion({ icono, titulo, detalle, peligro, onClick }: { icono: ReactNode; titulo: string; detalle: string; peligro?: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-ink-50">
+      <span className={cx('shrink-0', peligro ? 'text-bad-600' : 'text-ink-500')} aria-hidden="true">
+        {icono}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block font-semibold', peligro && 'text-bad-600')}>{titulo}</span>
+        <span className="block text-xs text-ink-500">{detalle}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-ink-300" aria-hidden="true" />
+    </button>
   );
 }
 

@@ -19,11 +19,13 @@ vi.mock('../../src/sync/supabase', () => {
   const tabla = (t: string) => nube.tablas.get(t) ?? nube.tablas.set(t, new Map()).get(t)!;
   const sello = () => new Date(Date.UTC(2026, 10, 18) + ++nube.reloj).toISOString();
   const from = (t: string) => {
-    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string; hasta?: string; desdeFecha?: string; orden?: [string, boolean]; rango?: [number, number]; limite?: number; cuenta?: boolean } = { filtros: [] };
+    const q: Record<string, unknown> & { filtros: [string, unknown][]; desde?: string; hasta?: string; desdeFecha?: string; antesFecha?: string; orden?: [string, boolean]; rango?: [number, number]; limite?: number; cuenta?: boolean } = { filtros: [] };
     // consulta normal (sin gt): filtra por academia y "hasta", ordena, y corta por rango o límite; con head, solo cuenta
     const leer = () => {
-      const [col, v] = q.filtros.find(([c]) => c === 'academia_id' || c === 'id') ?? [];
-      let filas = [...tabla(t).values()].filter((f) => (col ? f[col] === v : true) && (!q.hasta || (f.server_updated_at as string) <= q.hasta) && (!q.desdeFecha || (f.fecha as string) >= q.desdeFecha));
+      const [col, v] = q.filtros.find(([c]) => c === 'academia_id' || c === 'id' || c === 'alumno_id') ?? [];
+      let filas = [...tabla(t).values()].filter(
+        (f) => (col ? f[col] === v : true) && (!q.hasta || (f.server_updated_at as string) <= q.hasta) && (!q.desdeFecha || (f.fecha as string) >= q.desdeFecha) && (!q.antesFecha || (f.fecha as string) < q.antesFecha),
+      );
       if (q.cuenta) return { data: null, count: filas.length, error: null };
       if (q.orden) filas = filas.sort((a, b) => ((a[q.orden![0]] as string) < (b[q.orden![0]] as string) ? -1 : 1) * (q.orden![1] ? 1 : -1));
       if (q.rango) {
@@ -67,6 +69,10 @@ vi.mock('../../src/sync/supabase', () => {
         q.desdeFecha = v;
         return q;
       },
+      lt(_c: string, v: string) {
+        q.antesFecha = v;
+        return q;
+      },
       range(a: number, b: number) {
         q.rango = [a, b];
         return q;
@@ -104,7 +110,7 @@ vi.mock('../../src/sync/supabase', () => {
 
 const { db, setMeta } = await import('../../src/db/db');
 const { actualizar, crear } = await import('../../src/db/repo');
-const { sincronizar, vincularAcademia, podar, VENTANA_DIAS } = await import('../../src/sync/engine');
+const { sincronizar, vincularAcademia, podar, historialAnterior, VENTANA_DIAS } = await import('../../src/sync/engine');
 const { hoy, sumarDias } = await import('../../src/domain/fechas');
 
 beforeEach(async () => {
@@ -201,6 +207,23 @@ describe('sincronizar', () => {
     expect(await podar()).toBe(1);
     expect((await db.asistencias.toArray()).map((x) => x.id).sort()).toEqual(['reciente', 'vieja-pendiente']);
     expect(await podar()).toBe(0); // ya se hizo hoy
+  });
+
+  it('el historial de hace más de 18 meses de un alumno se pide a la nube (sin guardarlo) y sin lo borrado o anulado', async () => {
+    const base = { academia_id: 'a1', clase_id: 'c1', usuario_id: 'u1', created_at: 1, updated_at: 1, deleted_at: null, anulada_at: null, server_updated_at: 'x' };
+    const vieja = sumarDias(hoy(), -VENTANA_DIAS - 30);
+    const a = new Map<string, Record<string, unknown>>();
+    a.set('v1', { ...base, id: 'v1', alumno_id: 'al1', fecha: vieja });
+    a.set('v2', { ...base, id: 'v2', alumno_id: 'al1', fecha: vieja, anulada_at: 5 }); // anulada
+    a.set('v3', { ...base, id: 'v3', alumno_id: 'otro', fecha: vieja }); // de otro alumno
+    a.set('r1', { ...base, id: 'r1', alumno_id: 'al1', fecha: hoy() }); // reciente: ya está en el teléfono
+    nube.tablas.set('asistencias', a);
+    nube.tablas.set('pagos', new Map([['p1', { ...base, id: 'p1', alumno_id: 'al1', fecha: vieja, monto: 40000, deleted_at: 9 }]]));
+    const r = await historialAnterior('al1');
+    expect(r.asistencias.map((x) => x.id)).toEqual(['v1']);
+    expect(r.asistencias[0].alumnoId).toBe('al1'); // llega en camelCase, como lo usa la app
+    expect(r.pagos).toEqual([]); // borrado
+    expect(await db.asistencias.count()).toBe(0); // no se guarda en el teléfono
   });
 
   it('en un equipo sin nube nunca se quita nada (ahí es la única copia)', async () => {

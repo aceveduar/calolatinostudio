@@ -10,7 +10,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { db, getMeta, setMeta } from '../db/db';
-import { SYNC_TABLES, type ID, type SyncTable } from '../db/types';
+import { SYNC_TABLES, type Asistencia, type ID, type Pago, type SyncTable } from '../db/types';
 import { alCambiarLocal } from './bus';
 import { supabase } from './supabase';
 import { anotarError } from '../app/errores';
@@ -528,6 +528,27 @@ export async function cerrarSesionEnTodos(): Promise<void> {
   const { error } = await supabase.auth.signOut({ scope: 'global' });
   if (error) throw new Error(traducirError(error.message));
   setEstado({ fase: 'desconectada', error: null });
+}
+
+/** Si en este teléfono le falta historial a alguien dado de alta hace más de 18 meses (y hay nube para pedírselo). */
+export async function puedeVerAnterior(alumnoCreadoEn: number): Promise<boolean> {
+  return !!supabase && !!(await getMeta<boolean>('nubeVinculada')) && alumnoCreadoEn < Date.now() - VENTANA_DIAS * 86400000;
+}
+
+/**
+ * Lo de un alumno de hace más de 18 meses (sus clases y sus pagos): ya no vive en el teléfono, se pide a la nube
+ * al verlo y no se guarda. La nube solo deja ver lo de esta academia (RLS).
+ */
+export async function historialAnterior(alumnoId: ID): Promise<{ pagos: Pago[]; asistencias: Asistencia[] }> {
+  if (!supabase) throw new Error('Esta instalación no tiene nube.');
+  if (!navigator.onLine) throw new Error('Necesitas internet para ver el historial anterior.');
+  const antes = desdeVentana();
+  const pedir = (t: 'pagos' | 'asistencias') => supabase!.from(t).select('*').eq('alumno_id', alumnoId).lt('fecha', antes).order('fecha', { ascending: false }).limit(1000);
+  const [p, a] = await Promise.all([pedir('pagos'), pedir('asistencias')]);
+  const error = p.error ?? a.error;
+  if (error) throw new Error(traducirError(error.message));
+  const vivos = <T,>(filas: Record<string, unknown>[] | null) => (filas ?? []).map(aLocal).filter((f) => !f.deletedAt) as T[];
+  return { pagos: vivos<Pago>(p.data), asistencias: vivos<Asistencia>(a.data).filter((x) => !x.anuladaAt) };
 }
 
 export const BORRAR_AL_INICIAR = 'compas:borrar-al-iniciar';
