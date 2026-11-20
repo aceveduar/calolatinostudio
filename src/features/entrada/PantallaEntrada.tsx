@@ -47,6 +47,8 @@ export function PantallaEntrada() {
   const { usuario, academia } = useSesion();
   const esc = useEsEscritorio();
   const angosta = useAngosta();
+  // la pista "(escribe para buscar)" es para computadora con teclado; en una tablet táctil (también ancha) no aplica y se cortaba
+  const conTeclado = typeof matchMedia === 'undefined' || !matchMedia('(pointer: coarse)').matches;
   const avisar = useAvisos();
   const todasLasClases = useClases();
   const sedes = useSedes();
@@ -352,7 +354,7 @@ export function PantallaEntrada() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
             }}
-            placeholder={esc ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
+            placeholder={esc && conTeclado ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
             className="h-14 w-full rounded-2xl bg-superficie pr-10 pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
             enterKeyHint="go"
