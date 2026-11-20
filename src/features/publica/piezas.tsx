@@ -35,7 +35,7 @@ export function Dato({ valor, texto }: { valor: number; texto: string }) {
 
 export function Precio({ nombre, detalle, precio, extra, destacado }: { nombre: string; detalle: string; precio: number; extra?: string; destacado?: boolean }) {
   return (
-    <div className={cx('pp-revela relative flex flex-col rounded-3xl p-5 ring-1', destacado ? 'bg-panel text-white ring-panel' : 'bg-superficie shadow-sm ring-ink-100')}>
+    <div className={cx('pp-revela relative flex flex-col rounded-3xl p-5 ring-1', destacado ? 'mt-4 bg-panel pt-6 text-white ring-panel sm:mt-0' : 'bg-superficie shadow-sm ring-ink-100')}>
       {destacado && <span className="absolute -top-3 left-5 rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-white">Para venir cuando quieras</span>}
       <p className="text-lg font-extrabold">{nombre}</p>
       <p className={cx('text-sm', destacado ? 'text-white/70' : 'text-ink-500')}>{detalle}</p>

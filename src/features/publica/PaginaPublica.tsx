@@ -361,14 +361,14 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         <Seccion id="horarios" eyebrow={disciplinas.length > 1 ? undefined : 'Nuestras clases'} titulo="Horarios" fondo={disciplinas.length > 1 ? 'superficie' : undefined} idAlterno={disciplinas.length > 1 ? undefined : 'clases'}>
           <div className="space-y-3">
             {conSedes && (
-              <div className="flex flex-wrap gap-2" role="tablist" aria-label="Sede">
+              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Sede">
                 {sedes.map((s) => (
                   <button
                     key={s.id ?? 'principal'}
                     role="tab"
                     aria-selected={sede === s.id}
                     onClick={() => setSede(s.id)}
-                    className={cx('flex min-h-11 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100')}
+                    className={cx('flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100')}
                   >
                     <MapPin size={14} /> {s.nombre}
                   </button>
