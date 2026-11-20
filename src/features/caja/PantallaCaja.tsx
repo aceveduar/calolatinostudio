@@ -172,14 +172,16 @@ export function PantallaCaja() {
       </div>
 
       {porClase.length > 0 && (
-        <Seccion titulo={`Asistencia · ${datos.asis.length}`}>
+        <Seccion titulo="Por clase">
           <Tarjeta className="divide-y divide-ink-100">
             {porClase.map(({ c, n }) => (
               <div key={c.id} className="flex items-center justify-between px-4 py-2.5">
                 <span className="font-medium">
                   {nombreClase(c, disciplinas)} <span className="text-sm text-ink-500">{c.horaInicio}</span>
                 </span>
-                <span className="font-bold">{n}</span>
+                <span className="font-bold">
+                  {n} <span className="text-sm font-normal text-ink-500">{n === 1 ? 'alumno' : 'alumnos'}</span>
+                </span>
               </div>
             ))}
           </Tarjeta>
