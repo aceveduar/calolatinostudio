@@ -45,3 +45,14 @@ export function nombresSinRepetir(alumnos: { id: string; nombre: string }[]): Ma
   }
   return r;
 }
+
+const TITULOS = new Set(['profe', 'profa', 'prof', 'prof.', 'maestro', 'maestra', 'mtro', 'mtro.', 'mtra', 'mtra.', 'miss', 'teacher', 'dirección', 'direccion', 'director', 'directora', 'recepción', 'recepcion']);
+
+/** Para saludar: el nombre de pila ("Ana López" → "Ana"), pero sin quedarse en un título: "Profe Luis Herrera" → "Profe Luis" (antes "Hola, Profe"). */
+export function nombreSaludo(n: string): string {
+  const p = n.trim().split(/\s+/);
+  return p.length > 1 && TITULOS.has(p[0].toLowerCase()) ? `${p[0]} ${p[1]}` : p[0];
+}
+
+/** "Contemporáneo 0" sin que el nivel quede solo en el siguiente renglón (espacio que no se parte). */
+export const sinPartirNivel = (t: string) => t.replace(/ (\S{1,3})$/, '\u00a0$1');

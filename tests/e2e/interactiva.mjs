@@ -37,7 +37,7 @@ const horario = (await page.locator('#horarios').innerText()).replace(/\s+/g, ' 
 console.log('2) horario abre en hoy con "Ahora" y "En 30 min":', ok((await hoyBtn.getAttribute('aria-pressed')) === 'true' && /Salsa 0 Ahora/i.test(horario) && /Bachata 1 En 30 min/i.test(horario) && !/Cumbia/.test(horario.split('Toda la semana')[1])));
 await page.getByRole('button', { name: /^Lun/ }).click();
 await page.waitForTimeout(200);
-console.log('3) otro día: solo sus clases, sin "Ahora":', ok(/Cumbia 0/.test(await page.locator('#horarios ul').innerText()) && !/Ahora/.test(await page.locator('#horarios ul').innerText())));
+console.log('3) otro día: solo sus clases, sin "Ahora":', ok(/Cumbia\s0/.test(await page.locator('#horarios ul').innerText()) && !/Ahora/.test(await page.locator('#horarios ul').innerText())));
 await page.locator('#horarios').scrollIntoViewIfNeeded();
 await page.getByRole('button', { name: /^Hoy/ }).click();
 await page.screenshot({ path: `${OUT}int-horario.png` });

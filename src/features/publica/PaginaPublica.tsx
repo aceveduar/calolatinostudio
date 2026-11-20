@@ -56,16 +56,31 @@ export function PaginaPublica({ slug }: { slug: string }) {
 
   if (datos === null) return <Centro>Cargando…</Centro>;
   if (datos === 'no') return <Centro titulo="Página no encontrada">Revisa el enlace.</Centro>;
-  if (datos === 'error') return <Centro titulo="No se pudo cargar">Revisa tu conexión e inténtalo de nuevo.</Centro>;
+  if (datos === 'error')
+    return (
+      <Centro titulo="No se pudo cargar" accion={<Reintentar />}>
+        Revisa tu conexión e inténtalo de nuevo.
+      </Centro>
+    );
   return <Vista d={datos} slug={slug} />;
 }
 
-function Centro({ titulo, children }: { titulo?: string; children: ReactNode }) {
+function Centro({ titulo, children, accion }: { titulo?: string; children: ReactNode; accion?: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-ink-50 px-8 text-center">
       {titulo && <p className="text-lg font-bold">{titulo}</p>}
       <p className="text-ink-500">{children}</p>
+      {accion}
     </div>
+  );
+}
+
+/** Un error de conexión debe poder reintentarse aquí mismo (antes solo decía "inténtalo de nuevo"). */
+function Reintentar() {
+  return (
+    <button type="button" onClick={() => location.reload()} className="mt-3 h-12 rounded-2xl bg-brand-500 px-6 font-bold text-white active:scale-[0.98]">
+      Reintentar
+    </button>
   );
 }
 

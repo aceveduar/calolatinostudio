@@ -98,7 +98,15 @@ export function PortalAlumno({ token }: { token: string }) {
         Pide en recepción que te envíen tu enlace nuevo por WhatsApp.
       </Centro>
     );
-  if (estado.fase === 'error') return <Centro titulo="No se pudo cargar">Revisa tu conexión a internet e inténtalo de nuevo.</Centro>;
+  if (estado.fase === 'error')
+    return (
+      <Centro titulo="No se pudo cargar">
+        Revisa tu conexión a internet e inténtalo de nuevo.
+        <button type="button" onClick={() => location.reload()} className="mt-4 block w-full rounded-2xl bg-brand-500 px-6 py-3 font-bold text-white active:scale-[0.98]">
+          Reintentar
+        </button>
+      </Centro>
+    );
   return <Vista datos={estado.datos} guardadoEl={estado.guardadoEl} token={token} recargar={() => setVersion((v) => v + 1)} />;
 }
 
@@ -218,7 +226,7 @@ function Centro({ titulo, children }: { titulo?: string; children: React.ReactNo
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-ink-50 px-8 text-center">
       {titulo && <p className="text-lg font-bold">{titulo}</p>}
-      <p className="text-ink-500">{children}</p>
+      <div className="text-ink-500">{children}</div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { sinPartirNivel } from '../../domain/nombres';
 import { ChevronRight, MessageCircle } from 'lucide-react';
 import { cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
@@ -46,7 +47,7 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
         <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: c.color ?? 'var(--marca)' }} />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
-            {c.clase}
+            {sinPartirNivel(c.clase)}
             {esAhora && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-50 px-2 py-0.5 text-[11px] font-extrabold whitespace-nowrap text-ok-600 uppercase">
                 <span className="pp-pulso h-2 w-2 rounded-full bg-ok-600" /> Ahora

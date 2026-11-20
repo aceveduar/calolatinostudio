@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nombresSinRepetir } from '../../src/domain/nombres';
+import { nombreSaludo, nombresSinRepetir, sinPartirNivel } from '../../src/domain/nombres';
 
 describe('nombres en la cuadrícula de Entrada', () => {
   it('corto si es único; con más apellido solo cuando dos se verían igual', () => {
@@ -20,5 +20,18 @@ describe('nombres en la cuadrícula de Entrada', () => {
     expect(r.get('5')).toBe('Martín Cruz M.');
     expect(r.get('6')).toBe('Ana');
     expect(r.get('7')).toBe('José Luis Pérez'); // idénticos: el nombre completo (y su foto o la ficha los distinguen)
+  });
+});
+
+describe('saludo y nivel', () => {
+  it('saluda por el nombre, sin quedarse en el título', () => {
+    expect(nombreSaludo('Ana López')).toBe('Ana');
+    expect(nombreSaludo('Profe Luis Herrera')).toBe('Profe Luis');
+    expect(nombreSaludo('Dirección Calo')).toBe('Dirección Calo');
+    expect(nombreSaludo('Monse')).toBe('Monse');
+  });
+  it('el nivel no se separa del nombre de la clase', () => {
+    expect(sinPartirNivel('Contemporáneo 0')).toBe('Contemporáneo 0');
+    expect(sinPartirNivel('Salsa en línea 2')).toBe('Salsa en línea 2');
   });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { nombreSaludo } from '../../domain/nombres';
 import { useEsEscritorio } from '../../app/pantalla';
 import { ArrowLeft } from 'lucide-react';
 import { useUsuarios } from '../../app/datos';
@@ -110,7 +111,7 @@ export function Bloqueo({ academia, onAbrir }: { academia: Academia; onAbrir: (u
           )}
           <div className="mb-8 flex flex-col items-center">
             <Avatar nombre={usuario.nombre} tam={72} />
-            <p className="mt-3 text-xl font-bold">Hola, {usuario.nombre.split(' ')[0]}</p>
+            <p className="mt-3 text-xl font-bold">Hola, {nombreSaludo(usuario.nombre)}</p>
             <p className={error || espera ? 'font-medium text-bad-600' : 'text-ink-500'}>
               {espera ? `Demasiados intentos. Espera ${espera} s` : error ? 'PIN incorrecto' : escritorio ? 'Escribe tu PIN (puedes usar el teclado)' : 'Escribe tu PIN'}
             </p>
