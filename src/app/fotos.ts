@@ -20,8 +20,22 @@ export async function prepararFoto(archivo: File, lado = 200, maximo = 60_000): 
 }
 
 /**
+ * La foto más ligera que quepa en `maximo`: WebP (~30 % menos que JPEG a la misma calidad) si el navegador
+ * sabe generarlo; si no (Safari en iPhone), JPEG. Todos los navegadores actuales muestran ambos.
+ */
+function comprimir(lienzo: HTMLCanvasElement, calidades: number[], maximo: number): string {
+  const webp = lienzo.toDataURL('image/webp', calidades[0]).startsWith('data:image/webp');
+  const tipo = webp ? 'image/webp' : 'image/jpeg';
+  for (const q of calidades) {
+    const url = lienzo.toDataURL(tipo, q);
+    if (url.length < maximo) return url;
+  }
+  return lienzo.toDataURL(tipo, 0.4);
+}
+
+/**
  * Foto de portada de la página pública: horizontal (recorte 16:10 al centro si viene vertical),
- * máximo 1280 px de ancho y ~200 KB, para que cargue rápido en el celular.
+ * máximo 1280 px de ancho y ~140 KB (WebP), para que cargue rápido en el celular.
  */
 export async function prepararPortada(archivo: File): Promise<string> {
   if (!archivo.type.startsWith('image/')) throw new Error('Elige una foto.');
@@ -34,14 +48,11 @@ export async function prepararPortada(archivo: File): Promise<string> {
   lienzo.height = Math.round((alto * ancho) / bmp.width);
   lienzo.getContext('2d')!.drawImage(bmp, 0, (bmp.height - alto) / 2, bmp.width, alto, 0, 0, lienzo.width, lienzo.height);
   bmp.close();
-  for (const q of [0.8, 0.7, 0.6, 0.5]) {
-    const url = lienzo.toDataURL('image/jpeg', q);
-    if (url.length < 280_000) return url;
-  }
-  return lienzo.toDataURL('image/jpeg', 0.4);
+  // es lo primero que carga la página: con WebP baja a ~140 KB (antes ~200 KB en JPEG)
+  return comprimir(lienzo, [0.78, 0.7, 0.6, 0.5], 200_000);
 }
 
-/** Foto para la galería de la página: sin recortar, máximo 900 px y ~110 KB. */
+/** Foto para la galería de la página: sin recortar, máximo 900 px y ~80 KB (WebP). */
 export async function prepararFotoGaleria(archivo: File): Promise<string> {
   if (!archivo.type.startsWith('image/')) throw new Error('Elige una foto.');
   const bmp = await createImageBitmap(archivo);
@@ -51,11 +62,7 @@ export async function prepararFotoGaleria(archivo: File): Promise<string> {
   lienzo.height = Math.round(bmp.height * k);
   lienzo.getContext('2d')!.drawImage(bmp, 0, 0, lienzo.width, lienzo.height);
   bmp.close();
-  for (const q of [0.78, 0.68, 0.58, 0.5]) {
-    const url = lienzo.toDataURL('image/jpeg', q);
-    if (url.length < 150_000) return url;
-  }
-  return lienzo.toDataURL('image/jpeg', 0.4);
+  return comprimir(lienzo, [0.76, 0.66, 0.56, 0.5], 110_000);
 }
 
 /** Reduce una imagen subida a ≤ max px y la devuelve como data URL (PNG si tiene transparencia). */

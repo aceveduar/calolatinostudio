@@ -81,19 +81,20 @@ export function EditorProductos() {
               <ImagenProducto foto={p.foto} emoji={p.emoji} tam={40} />
               <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
                 <span className="block truncate font-semibold">{p.nombre}</span>
-                <span className="block text-sm text-ink-500">
+                {/* una línea corta de texto y lo demás como etiquetas (antes 3 renglones apretados) */}
+                <span className="block truncate text-sm text-ink-500">
                   {p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}
-                  {p.enLinea && ' · en el portal'}
-                  {reservadas(p.id) > 0 && ` · ${reservadas(p.id)} apartad${reservadas(p.id) === 1 ? 'a' : 'as'}`}
-                  {p.costo ? ` · deja ${dinero(p.precio - p.costo)}` : ''}
+                  {p.costo ? ` · te deja ${dinero(p.precio - p.costo)}` : ''}
                 </span>
-                {est !== 'libre' && (
-                  <span className="mt-1 block">
-                    <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>
+                {(est !== 'libre' || p.enLinea || reservadas(p.id) > 0) && (
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
+                    {p.enLinea && <Etiqueta tono="marca">En el portal</Etiqueta>}
+                    {reservadas(p.id) > 0 && <Etiqueta tono="pronto">{reservadas(p.id) === 1 ? '1 apartada' : `${reservadas(p.id)} apartadas`}</Etiqueta>}
                   </span>
                 )}
               </span>
-              <span className="w-16 text-right font-bold">{dinero(p.precio)}</span>
+              <span className="shrink-0 text-right font-bold">{dinero(p.precio)}</span>
             </>
           );
         }}

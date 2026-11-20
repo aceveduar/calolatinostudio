@@ -223,7 +223,8 @@ export function PantallaGastos() {
                   <div key={fijo.id} className="flex items-center gap-3 px-4 py-3">
                     <span className="text-2xl leading-none">{categoria(fijo.categoria).emoji}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{fijo.concepto}</span>
+                      {/* hasta 2 renglones: con el botón al lado, "Pago Profa Daniela" se cortaba en "Pago Profa D…" */}
+                      <span className="line-clamp-2 leading-snug font-semibold">{fijo.concepto}</span>
                       <span className="block truncate text-xs text-ink-500">
                         {pagado ? `Pagado el ${fechaCorta(pagado.fecha)}` : `Se paga el día ${fijo.dia}`}
                         {verSedes && verSede === 'todas' && ` · ${nombreSede(fijo.sedeId, sedes, academia)}`}
@@ -235,7 +236,7 @@ export function PantallaGastos() {
                         <span className="font-bold">{dinero(pagado.monto)}</span>
                       </button>
                     ) : (
-                      <Boton variante="secundario" onClick={() => setBorrador({ fijo, fecha: esMesActual ? hoy() : fecha })}>
+                      <Boton variante="secundario" className="shrink-0 px-3" onClick={() => setBorrador({ fijo, fecha: esMesActual ? hoy() : fecha })}>
                         Registrar {dinero(fijo.monto)}
                       </Boton>
                     )}

@@ -57,7 +57,20 @@ export function EditorContenido() {
 
   return (
     <div className="space-y-5">
-      <Bloque titulo="Portada" ayuda="Lo primero que ve la gente. Una foto de una clase con ambiente funciona mejor que el logo.">
+      {/* la página es larga: atajos a cada parte (antes había que bajar ~4,000 px para llegar a Redes o Privacidad) */}
+      <nav aria-label="Ir a una sección" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:px-0">
+        {SECCIONES.map(([texto, id]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => document.getElementById(`seccion-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="min-h-10 shrink-0 rounded-full bg-superficie px-4 text-sm font-semibold text-ink-700 ring-1 ring-ink-100 active:bg-ink-50"
+          >
+            {texto}
+          </button>
+        ))}
+      </nav>
+      <Bloque id="portada" titulo="Portada" ayuda="Lo primero que ve la gente. Una foto de una clase con ambiente funciona mejor que el logo.">
         <div className="overflow-hidden rounded-2xl bg-ink-100 ring-1 ring-ink-100">
           {c.portada ? <img src={c.portada} alt="Foto de portada" className="aspect-[16/9] w-full object-cover" /> : <div className="flex aspect-[16/9] items-center justify-center text-sm text-ink-500">Sin foto de portada</div>}
         </div>
@@ -98,7 +111,7 @@ export function EditorContenido() {
         </Campo>
       </Bloque>
 
-      <Bloque titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
+      <Bloque id="ubicacion" titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
         {lugares.map((l) => {
           const u = c.ubicaciones?.[l.clave] ?? { direccion: '' };
           const ponU = (p: Partial<typeof u>) => pon({ ubicaciones: { ...(c.ubicaciones ?? {}), [l.clave]: { ...u, ...p } } });
@@ -116,7 +129,7 @@ export function EditorContenido() {
         })}
       </Bloque>
 
-      <Bloque titulo="Preguntas frecuentes" ayuda="Las dudas que frenan a quien nunca ha venido. Revisa que las respuestas sean ciertas para tu academia.">
+      <Bloque id="preguntas" titulo="Preguntas frecuentes" ayuda="Las dudas que frenan a quien nunca ha venido. Revisa que las respuestas sean ciertas para tu academia.">
         {preguntas.map((x, i) => (
           <Tarjeta key={i} className="space-y-2 p-3">
             <div className="flex items-center gap-2">
@@ -133,7 +146,7 @@ export function EditorContenido() {
         </Boton>
       </Bloque>
 
-      <Bloque titulo="Galería" ayuda={`Fotos de clases y eventos (hasta ${MAX_GALERIA}). A la gente le gusta ver el ambiente: grupos, parejas bailando, eventos.`}>
+      <Bloque id="galeria" titulo="Galería" ayuda={`Fotos de clases y eventos (hasta ${MAX_GALERIA}). A la gente le gusta ver el ambiente: grupos, parejas bailando, eventos.`}>
         {(c.galeria?.length ?? 0) > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {c.galeria!.map((f, i) => (
@@ -178,7 +191,7 @@ export function EditorContenido() {
         <Entrada value={c.creditos ?? ''} onChange={(e) => pon({ creditos: e.target.value })} placeholder="Ej. Fotos: Ana Pérez (CC BY-SA 4.0)" />
       </Campo>
 
-      <Bloque titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
+      <Bloque id="testimonios" titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
         {(c.testimonios ?? []).map((x, i) => {
           const lista = c.testimonios ?? [];
           const ponT = (p: Partial<typeof x>) => pon({ testimonios: lista.map((y, j) => (j === i ? { ...y, ...p } : y)) });
@@ -200,7 +213,7 @@ export function EditorContenido() {
         </Boton>
       </Bloque>
 
-      <Bloque titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo.">
+      <Bloque id="redes" titulo="Redes sociales" ayuda="Tu usuario (@calolatino) o el enlace completo.">
         {(['instagram', 'facebook', 'tiktok'] as const).map((r) => (
           <Campo key={r} etiqueta={{ instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' }[r]}>
             <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder="@usuario" autoCapitalize="off" />
@@ -208,7 +221,7 @@ export function EditorContenido() {
         ))}
       </Bloque>
 
-      <Bloque titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">
+      <Bloque id="privacidad" titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">
         <textarea
           className={areaTexto}
           rows={8}
@@ -251,9 +264,20 @@ export function EditorContenido() {
   );
 }
 
-function Bloque({ titulo, ayuda, children }: { titulo: string; ayuda?: string; children: ReactNode }) {
+const SECCIONES = [
+  ['Portada', 'portada'],
+  ['Dónde estamos', 'ubicacion'],
+  ['Preguntas', 'preguntas'],
+  ['Galería', 'galeria'],
+  ['Testimonios', 'testimonios'],
+  ['Redes', 'redes'],
+  ['Privacidad', 'privacidad'],
+] as const;
+
+function Bloque({ id, titulo, ayuda, children }: { id: string; titulo: string; ayuda?: string; children: ReactNode }) {
   return (
-    <section className={cx('space-y-3 border-t border-ink-100 pt-5')}>
+    // scroll-mt: que el título no quede tapado por la barra de arriba al saltar
+    <section id={`seccion-${id}`} className={cx('scroll-mt-20 space-y-3 border-t border-ink-100 pt-5')}>
       <div>
         <h3 className="text-base font-extrabold">{titulo}</h3>
         {ayuda && <p className="text-xs text-ink-500">{ayuda}</p>}

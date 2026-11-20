@@ -37,7 +37,7 @@ await page.getByPlaceholder('@usuario').first().fill('@calolatino');
 await page.getByRole('button', { name: 'Guardar contenido' }).click();
 await page.getByText('Página actualizada').waitFor();
 const pag = await page.evaluate(async () => (await window.compasDev.db.academias.toArray())[0].pagina);
-console.log('1) contenido guardado (portada, frase, ubicación, 5 preguntas, redes):', ok(sugeridas === 5 && pag?.portada?.startsWith('data:image/jpeg') && pag.portada.length < 280000 && pag.frase && pag.ubicaciones?.principal?.direccion && pag.preguntas?.length === 5 && pag.redes?.instagram), pag?.portada?.length);
+console.log('1) contenido guardado (portada WebP ligera, frase, ubicación, 5 preguntas, redes):', ok(sugeridas === 5 && /^data:image\/(webp|jpeg)/.test(pag?.portada ?? '') && pag.portada.length < 200000 && pag.frase && pag.ubicaciones?.principal?.direccion && pag.preguntas?.length === 5 && pag.redes?.instagram), pag?.portada?.length);
 console.log('   sin cambios → botón apagado:', ok(await page.getByRole('button', { name: 'Sin cambios' }).isDisabled()));
 
 // 1b) clase por curso desde Clases y horarios

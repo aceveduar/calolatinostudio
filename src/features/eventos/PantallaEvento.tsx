@@ -103,6 +103,7 @@ export function PantallaEvento() {
                 className="h-11 w-full rounded-xl bg-superficie pr-3 pl-10 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
+            <p className="mb-2 px-1 text-xs text-ink-500">En la puerta: toca el círculo de quien va entrando. Puedes buscarlo por nombre o por el código de su boleto.</p>
             <Tarjeta className="divide-y divide-ink-100">
               {lista.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 px-3 py-2.5">
@@ -126,10 +127,11 @@ export function PantallaEvento() {
                       href={waLink(b.telefono, mensajeBoleto(e, b, academia.nombre)) ?? undefined}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-full bg-ok-50 p-2 text-ok-600"
+                      // discreto: con 60 boletos, 60 círculos verdes eran mucho ruido; el área de toque sigue de 40 px
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ok-50 active:text-ok-600"
                       aria-label={`Mandar boleto a ${b.nombre}`}
                     >
-                      <MessageCircle size={16} />
+                      <MessageCircle size={18} />
                     </a>
                   )}
                 </div>

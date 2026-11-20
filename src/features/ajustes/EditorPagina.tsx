@@ -25,8 +25,8 @@ export function EditorPagina() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-500">
-        Una página para compartir en Facebook o WhatsApp con tus <b>horarios, precios, eventos y tienda</b>, y un formulario para que la gente se inscriba. No muestra nombres de maestros ni
-        datos de alumnos. Quien se inscribe aparece en <b>Alumnos → Interesados</b>.
+        Tu página para Facebook y WhatsApp: <b>horarios, precios, eventos y tienda</b> salen solos de la app, y quien se inscribe llega a <b>Interesados</b>. No muestra maestros ni
+        datos de alumnos.
       </p>
       <Campo etiqueta="Dirección de la página" ayuda="Solo letras, números y guiones.">
         <div className="flex items-center gap-1 rounded-xl bg-superficie pl-3 ring-1 ring-ink-100 focus-within:ring-2 focus-within:ring-brand-500">

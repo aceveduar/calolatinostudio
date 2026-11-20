@@ -17,7 +17,7 @@ await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 await ir('/ajustes/productos');
 await page.getByText('Agua 600 ml').waitFor();
 const fila = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
-console.log('1) la lista muestra cuánto deja:', ok(/Agua 600 ml Snacks y bebidas · deja \$8/.test(fila)));
+console.log('1) la lista muestra cuánto deja:', ok(/Agua 600 ml Snacks y bebidas · te deja \$8/.test(fila)));
 await page.getByText('Agua 600 ml').click();
 const margen = (await dlg.innerText()).replace(/\s+/g, ' ');
 console.log('2) el producto muestra ganancia y margen:', ok(/Te deja \$8 por pieza \(53% del precio\)/.test(margen)));
