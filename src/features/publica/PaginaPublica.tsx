@@ -149,20 +149,22 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const [solida, setSolida] = useState(false);
   useEffect(() => {
     const vistos = new Map<Element, boolean>();
-    const io = new IntersectionObserver(
-      (es) => {
-        for (const e of es) vistos.set(e.target, e.isIntersecting);
-        setVerBarra(![...vistos.values()].some(Boolean));
-        // lo de abajo de la pantalla no cuenta: un formulario que apenas asoma no esconde el botón
-      },
-      { rootMargin: '0px 0px -25% 0px' },
-    );
+    const actualizar = (es: IntersectionObserverEntry[]) => {
+      for (const e of es) vistos.set(e.target, e.isIntersecting);
+      setVerBarra(![...vistos.values()].some(Boolean));
+    };
+    // El botón de la portada cuenta en cuanto se ve, aunque sea abajo de la pantalla (en celulares chicos
+    // queda en la parte baja: antes se mostraban los dos botones encimados).
+    const io = new IntersectionObserver(actualizar);
+    // El formulario, en cambio, solo cuenta si ya se ve bien: si apenas asoma, el botón fijo sigue ayudando.
+    const ioForm = new IntersectionObserver(actualizar, { rootMargin: '0px 0px -25% 0px' });
     if (hero.current) io.observe(hero.current);
-    if (form.current) io.observe(form.current);
+    if (form.current) ioForm.observe(form.current);
     const io2 = new IntersectionObserver(([e]) => setSolida(!e.isIntersecting), { rootMargin: '-72px 0px 0px 0px', threshold: 0 });
     if (portada.current) io2.observe(portada.current);
     return () => {
       io.disconnect();
+      ioForm.disconnect();
       io2.disconnect();
     };
   }, []);

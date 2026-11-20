@@ -57,5 +57,24 @@ for (const nombre of ['Fotos', 'Lo que dicen nuestros alumnos']) {
   console.log('3) con los datos en el HTML la página aparece sin pedirlos otra vez:', ok(pidio === 0), pidio);
   await c2.close();
 }
+// 4) celular chico: el botón de la portada queda abajo de la pantalla y el botón fijo NO debe encimarse
+{
+  const c3 = await browser.newContext({ viewport: { width: 360, height: 600 }, isMobile: true, hasTouch: true, locale: 'es-MX' });
+  const p3 = await c3.newPage();
+  await c3.route('**/rest/v1/rpc/pagina_publica', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
+  await p3.goto('http://localhost:4173/a/calo-latino');
+  await p3.getByRole('heading', { level: 1 }).waitFor();
+  await p3.waitForTimeout(800);
+  const portada = await p3.getByRole('link', { name: /Tu primera clase/ }).first().boundingBox();
+  const fija = p3.getByRole('link', { name: 'Quiero mi primera clase' });
+  const fijaVisible = (await fija.count()) && (await fija.evaluate((el) => getComputedStyle(el.closest('[aria-hidden]') ?? el).opacity !== '0' && el.closest('[aria-hidden]')?.getAttribute('aria-hidden') !== 'true'));
+  await p3.screenshot({ path: `${OUT}celular-chico.png` });
+  console.log('4a) celular chico: el botón de la portada se ve y el fijo de abajo no se encima:', ok(portada && portada.y < 600 && !fijaVisible), JSON.stringify({ y: portada && Math.round(portada.y), fijaVisible: !!fijaVisible }));
+  await p3.mouse.wheel(0, 900);
+  await p3.waitForTimeout(700);
+  const despues = await fija.evaluate((el) => el.closest('[aria-hidden]')?.getAttribute('aria-hidden') !== 'true');
+  console.log('4b) al bajar (la portada ya no se ve), aparece el botón fijo:', ok(despues));
+  await c3.close();
+}
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
