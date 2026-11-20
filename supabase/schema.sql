@@ -559,7 +559,7 @@ begin
       select jsonb_agg(ev order by ev->>'fecha', ev->>'hora') from (
         select jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
                                   'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
-                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select x.sede_principal from academias x where x.id = e.academia_id), ''),
+                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select coalesce(nullif(x.sede_principal, ''), x.nombre) from academias x where x.id = e.academia_id), ''),
                                   'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) ev
         from eventos e where e.academia_id = a.academia_id and e.activo and e.deleted_at is null and coalesce(e.en_portal, true) and e.fecha >= hoy and e.fecha <= hoy + 90
@@ -673,7 +673,7 @@ begin
     'eventos', coalesce((
       select jsonb_agg(jsonb_build_object('nombre', e.nombre, 'fecha', e.fecha, 'hora', e.hora_inicio, 'precio', e.precio, 'descripcion', e.descripcion,
                                           'vestimenta', coalesce(e.vestimenta, ''), 'otro_lugar', coalesce(e.lugar, '') <> '',
-                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select x.sede_principal from academias x where x.id = e.academia_id), ''),
+                                  'lugar', coalesce(nullif(e.lugar, ''), (select s.nombre from sedes s where s.id = e.sede_id), (select coalesce(nullif(x.sede_principal, ''), x.nombre) from academias x where x.id = e.academia_id), ''),
                                   'direccion', coalesce(nullif(e.direccion, ''), (select x.pagina->'ubicaciones'->coalesce(e.sede_id::text, 'principal')->>'direccion' from academias x where x.id = e.academia_id), ''),
                                   'quedan', case when e.cupo is null then null else greatest(0, e.cupo - (select count(*) from boletos b where b.evento_id = e.id and b.anulado_at is null and b.deleted_at is null)) end) order by e.fecha)
       from eventos e where e.academia_id = ac.id and e.activo and e.deleted_at is null and coalesce(e.en_pagina, true) and e.fecha >= hoy
