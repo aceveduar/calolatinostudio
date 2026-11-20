@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Camera, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, CalendarCheck, ChevronRight, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { nubePublica as supabase } from '../../app/rpcPublica';
@@ -471,11 +471,19 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
   );
 }
 
-/** Su foto en la credencial: si no tiene, se la pide (para que en recepción lo reconozcan). */
-/** Su foto: el círculo del pase, o (si aún no tiene) una tarjeta amable que se va al ponerla. */
+/**
+ * Su foto: el círculo del pase, o (si aún no tiene) una tarjeta amable que se va al ponerla.
+ * Dos caminos claros: "Tomar foto" abre directo la cámara de frente (capture="user") y "Elegir foto" sus fotos.
+ * Antes era un solo selector y en algunos teléfonos (sobre todo abierto dentro de WhatsApp) la opción de
+ * cámara no abría nada.
+ */
 function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circulo' }: { token: string; foto: string | null; nombre: string; sinConexion: boolean; onListo: () => void; variante?: 'circulo' | 'tarjeta' }) {
-  const input = useRef<HTMLInputElement>(null);
+  const camara = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<'listo' | 'subiendo' | 'error'>('listo');
+  const [menu, setMenu] = useState(false);
+  // después de intentar con la cámara: por si en ese navegador no abre, decir qué hacer
+  const [probóCamara, setProbóCamara] = useState(false);
   const subir = async (f: File | undefined) => {
     if (!f || !supabase) return;
     setEstado('subiendo');
@@ -488,41 +496,61 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circ
       setEstado('error');
     }
   };
-  // sin "capture": el teléfono deja elegir entre la cámara y sus fotos
-  const archivo = <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />;
+  const tomar = () => {
+    setMenu(false);
+    setProbóCamara(true);
+    camara.current?.click();
+  };
+  const elegir = () => {
+    setMenu(false);
+    galeria.current?.click();
+  };
+  const entradas = (
+    <>
+      <input ref={camara} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />
+      <input ref={galeria} type="file" accept="image/*" className="hidden" onChange={(e) => void subir(e.target.files?.[0])} />
+    </>
+  );
+  const ayuda = probóCamara && estado !== 'subiendo' && (
+    <p className="text-xs text-ink-500">¿No se abrió la cámara? Abre tu enlace en Chrome o Safari, o toma la foto con la cámara del teléfono y usa “Elegir foto”.</p>
+  );
   if (variante === 'tarjeta')
     return (
-      <div className="flex items-center gap-4 rounded-3xl bg-superficie p-4 ring-1 ring-ink-100">
-        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xl font-extrabold text-brand-600 border-2 border-dashed border-brand-500/40" aria-hidden="true">
-          {nombre.trim()[0]?.toUpperCase()}
-          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white ring-2 ring-superficie">
-            <Camera size={13} />
+      <div className="space-y-3 rounded-3xl bg-superficie p-4 ring-1 ring-ink-100">
+        <div className="flex items-center gap-4">
+          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xl font-extrabold text-brand-600 border-2 border-dashed border-brand-500/40" aria-hidden="true">
+            {nombre.trim()[0]?.toUpperCase()}
+            <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white ring-2 ring-superficie">
+              <Camera size={13} />
+            </span>
           </span>
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold">Pon tu foto</p>
-          <p className="text-sm text-ink-500">Así te reconocen en recepción y en tu clase.</p>
-          {estado === 'error' && <p className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</p>}
+          <div className="min-w-0 flex-1">
+            <p className="font-bold">Pon tu foto</p>
+            <p className="text-sm text-ink-500">Así te reconocen en recepción y en tu clase.</p>
+          </div>
         </div>
-        <button
-          type="button"
-          disabled={estado === 'subiendo'}
-          onClick={() => input.current?.click()}
-          className="h-11 shrink-0 rounded-xl bg-brand-50 px-4 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:opacity-50"
-        >
-          {estado === 'subiendo' ? 'Subiendo…' : 'Poner foto'}
-        </button>
-        {archivo}
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" disabled={estado === 'subiendo'} onClick={tomar} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-brand-50 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:opacity-50">
+            <Camera size={16} aria-hidden="true" /> {estado === 'subiendo' ? 'Subiendo…' : 'Tomar foto'}
+          </button>
+          <button type="button" disabled={estado === 'subiendo'} onClick={elegir} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-superficie text-sm font-bold text-ink-700 ring-1 ring-ink-100 active:scale-95 disabled:opacity-50">
+            <ImageIcon size={16} aria-hidden="true" /> Elegir foto
+          </button>
+        </div>
+        {estado === 'error' && <p className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</p>}
+        {ayuda}
+        {entradas}
       </div>
     );
   return (
-    <>
+    <div className="relative shrink-0">
       <button
         type="button"
         disabled={sinConexion || estado === 'subiendo'}
-        onClick={() => input.current?.click()}
-        className="relative shrink-0 rounded-full"
+        onClick={() => setMenu(!menu)}
+        className="relative rounded-full"
         aria-label={foto ? 'Cambiar mi foto' : 'Poner mi foto'}
+        aria-expanded={menu}
       >
         {foto ? (
           <img src={foto} alt={nombre} className="h-14 w-14 rounded-full object-cover" />
@@ -534,9 +562,24 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circ
         )}
         {estado === 'subiendo' && <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-[10px] font-bold text-white">…</span>}
       </button>
-      {archivo}
-      {estado === 'error' && <span className="text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
-    </>
+      {menu && (
+        <>
+          {/* tocar fuera lo cierra */}
+          <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Cerrar" onClick={() => setMenu(false)} />
+          {/* el círculo está a la derecha del pase: el menú abre hacia la izquierda para no salirse */}
+          <div className="absolute top-full right-0 z-30 mt-2 w-48 overflow-hidden rounded-2xl bg-superficie shadow-lg ring-1 ring-ink-100">
+            <button type="button" onClick={tomar} className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm font-semibold active:bg-ink-50">
+              <Camera size={18} className="text-brand-600" aria-hidden="true" /> Tomar foto
+            </button>
+            <button type="button" onClick={elegir} className="flex w-full items-center gap-2.5 border-t border-ink-100 px-4 py-3 text-left text-sm font-semibold active:bg-ink-50">
+              <ImageIcon size={18} className="text-ink-500" aria-hidden="true" /> Elegir foto
+            </button>
+          </div>
+        </>
+      )}
+      {entradas}
+      {estado === 'error' && <span className="block text-xs font-semibold text-bad-600">No se pudo subir; inténtalo otra vez</span>}
+    </div>
   );
 }
 
