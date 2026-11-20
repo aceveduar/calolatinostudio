@@ -44,7 +44,8 @@ export const MANUAL: Capitulo[] = [
         claves: 'cobrar clase suelta llegó asistencia',
         pasos: [
           'En Entrada ya está la clase de la hora (la tarjeta de color). Si es otra, tócala y elige.',
-          'Toca la tarjeta del alumno. Si tiene plan, entra sin cobrar; si no, se suma a la cuenta de abajo.',
+          'Toca la tarjeta del alumno. Si tiene plan o beca, entra sin cobrar y la cuenta se cierra sola en un par de segundos.',
+          'Si no tiene plan, la clase se suma a la cuenta de abajo.',
           'Si te pagan en efectivo, toca el billete con que te pagan ($200, $500…) y la app te dice el cambio.',
           'Toca "Listo". Si fue por transferencia, toca "Fue transferencia" antes.',
         ],
@@ -138,6 +139,20 @@ export const MANUAL: Capitulo[] = [
         consejo: 'Si el teléfono ya lo tiene alguien, te avisa: puede ser un familiar (está bien) o la misma persona registrada dos veces.',
       },
       {
+        id: 'importar',
+        titulo: 'Importar tu lista de Excel',
+        resumen: 'Todos tus alumnos de una vez, sin capturarlos.',
+        para: DUENO,
+        claves: 'importar excel csv google sheets lista subir masivo',
+        pasos: [
+          'En Alumnos, hasta abajo, toca "Importar alumnos de Excel".',
+          'Toca "Elegir archivo" (Excel o CSV), o copia las celdas en Excel y pégalas.',
+          'Revisa qué columna es el nombre y cuál el WhatsApp, y cómo quedaría la lista.',
+          'Toca "Importar". Los que ya estaban registrados se saltan solos.',
+        ],
+        consejo: 'Nadie recibe mensajes. Si algo salió mal, al terminar toca "Deshacer la importación".',
+      },
+      {
         id: 'ficha',
         titulo: 'La ficha del alumno',
         resumen: 'Su plan, sus clases, sus pagos y sus botones.',
@@ -156,6 +171,32 @@ export const MANUAL: Capitulo[] = [
         consejo: 'El enlace es solo suyo. Si se compartió por error, en la misma hoja toca "Crear uno nuevo".',
       },
       {
+        id: 'archivados',
+        titulo: 'Alumnos archivados',
+        resumen: 'Los que ya no vienen se apartan solos.',
+        para: RECEPCION,
+        claves: 'archivado archivados no viene inactivo baja regresó',
+        pasos: [
+          'Quien no viene hace 6 meses y no tiene plan se archiva solo: ya no estorba en la lista.',
+          'Para verlos, al final de Alumnos toca "Ver archivados".',
+          'Si buscas su nombre, sale aunque esté archivado. En cuanto vuelve a entrar, regresa solo a la lista.',
+        ],
+        consejo: 'Archivar no borra nada: conserva su ficha y todo su historial. "Dar de baja" es otra cosa: lo decides tú.',
+      },
+      {
+        id: 'borrar-datos',
+        titulo: 'Si un alumno pide borrar sus datos',
+        resumen: 'Se quitan su nombre, teléfono y foto; los cobros se quedan.',
+        para: DUENO,
+        claves: 'borrar datos personales privacidad anonimizar eliminar',
+        pasos: [
+          'Abre su ficha y, hasta abajo, toca "Borrar sus datos personales".',
+          'Escribe BORRAR para confirmar y toca "Borrar sus datos".',
+          'Queda como "Alumno anónimo": sus pagos y entradas siguen contando en tus reportes y tu caja.',
+        ],
+        consejo: 'No se puede deshacer. Hazlo solo si el alumno lo pide (así lo dice tu aviso de privacidad).',
+      },
+      {
         id: 'pendientes',
         titulo: 'A quién escribir hoy',
         resumen: 'Planes por vencer, quien debe clases, rentas por cobrar.',
@@ -171,6 +212,18 @@ export const MANUAL: Capitulo[] = [
     titulo: 'Para el dueño',
     emoji: '📊',
     temas: [
+      {
+        id: 'primeros-pasos',
+        titulo: 'Dejar lista la academia',
+        resumen: 'La tarjeta "Deja lista tu academia" en Entrada.',
+        para: DUENO,
+        claves: 'primeros pasos empezar configurar nueva academia',
+        pasos: [
+          'En Entrada verás cuántos pasos llevas y cuál sigue: tócalo y te lleva ahí.',
+          'Cada paso se palomea solo cuando lo terminas (logo, clases, precios, recepción, nube…).',
+          'Al terminar todo, la tarjeta desaparece. Si quieres quitarla antes, toca la ✕.',
+        ],
+      },
       {
         id: 'reportes',
         titulo: 'Reportes: ¿cómo vamos?',
@@ -291,7 +344,20 @@ export const MANUAL: Capitulo[] = [
         para: RECEPCION,
         claves: 'nube respaldo sincronizar teléfono nuevo',
         pasos: ['Abajo a la izquierda (o arriba en el celular) ves si está "Respaldado".', 'Para otro teléfono: abre la app, "Conectar a mi academia" con el correo de la academia.', 'Más → Nube y respaldo → "Descargar respaldo" para guardar una copia en archivo.'],
-        consejo: 'La app funciona sin internet: cobra igual y sube todo cuando vuelve la señal.',
+        consejo: 'La app funciona sin internet. En el teléfono quedan las entradas y cobros de los últimos 18 meses, para que no se llene; todo lo anterior está guardado en la nube.',
+      },
+      {
+        id: 'seguridad',
+        titulo: 'Se perdió un teléfono o alguien dejó de trabajar aquí',
+        resumen: 'Cierra la sesión en todos los equipos.',
+        para: DUENO,
+        claves: 'seguridad robo perdido teléfono cerrar sesión empleado contraseña',
+        pasos: [
+          'Más → Nube y respaldo → "Cerrar sesión en todos los equipos" y confirma.',
+          'Todos los equipos dejan de respaldar, también este. Lo guardado en cada uno no se pierde.',
+          'Cambia la contraseña de la academia si alguien más la sabía, y el PIN de quien se fue (Usuarios y PIN).',
+          'Vuelve a conectar los equipos buenos con el correo y la nueva contraseña.',
+        ],
       },
       {
         id: 'falla',
