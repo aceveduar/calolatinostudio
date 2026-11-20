@@ -955,6 +955,8 @@ function InvitaAmigo({ academia, slug, invita }: { academia: string; slug: strin
 const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /** Próximos eventos (socials, talleres): los 3 primeros y el resto al tocar "Ver más". "Quiero ir" escribe por WhatsApp. */
+const DIA_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
 function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: NonNullable<DatosPortal['eventos']>; hoy: string; nombre: string; codigo: string; whatsapp: string | null }) {
   const [todos, setTodos] = useState(false);
   const visibles = todos ? eventos : eventos.slice(0, 3);
@@ -965,38 +967,55 @@ function ProximosEventos({ eventos, hoy, nombre, codigo, whatsapp }: { eventos: 
       </p>
       <ul className="mt-3 space-y-3">
         {visibles.map((e, i) => {
-          const [, mm, dd] = e.fecha.split('-').map(Number);
+          const [yy, mm, dd] = e.fecha.split('-').map(Number);
           const falta = faltaParaEvento(hoy, e.fecha);
           const link = e.quedan !== 0 && whatsapp ? waLink(whatsapp, mensajeEvento(nombre, codigo, e)) : null;
           return (
-            <li key={i} className={cx('flex gap-3', i > 0 && 'border-t border-ink-100 pt-3')}>
-              <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white" aria-hidden="true">
-                <span className="text-xl leading-none font-extrabold">{dd}</span>
-                <span className="text-[11px] font-bold uppercase">{MES_CORTO[mm - 1]}</span>
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-x-2">
-                  <span className="font-bold">{e.nombre}</span>
-                  {falta && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold text-brand-600">{falta}</span>}
+            // Reacomodada: se leía como lista de datos. Ahora el día de la semana en la fecha, hora y lugar en una
+            // línea, lo urgente como etiquetas, y abajo una barra con el precio grande y "Quiero ir".
+            <li key={i} className={cx(i > 0 && 'border-t border-ink-100 pt-4')}>
+              <div className="flex gap-3">
+                <span className="flex h-16 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-500 text-white" aria-hidden="true">
+                  <span className="text-[10px] font-bold tracking-wider uppercase opacity-90">{DIA_CORTO[new Date(yy, mm - 1, dd).getDay()]}</span>
+                  <span className="text-xl leading-none font-extrabold">{dd}</span>
+                  <span className="text-[10px] font-bold uppercase">{MES_CORTO[mm - 1]}</span>
                 </span>
-                <span className="block text-sm text-ink-500">
-                  <span className="sr-only">{`${dd} de ${MES_CORTO[mm - 1]}, `}</span>
-                  {e.hora} · {e.precio > 0 ? `boleto ${dinero(e.precio)}` : 'entrada libre'}
-                  {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && <b className="text-warn-600"> · ¡quedan {e.quedan}!</b>}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-lg leading-tight font-bold">{e.nombre}</span>
+                  <span className="mt-0.5 block text-sm text-ink-500">
+                    <span className="sr-only">{`${DIA_CORTO[new Date(yy, mm - 1, dd).getDay()]} ${dd} de ${MES_CORTO[mm - 1]}, `}</span>
+                    {e.hora}
+                    {/* en su academia basta el nombre del lugar; fuera de ella va abajo con dirección y "Cómo llegar" */}
+                    {!e.otro_lugar && e.lugar ? ` · ${e.lugar}` : ''}
+                  </span>
+                  {(falta || (e.quedan !== null && e.quedan > 0 && e.quedan <= 20)) && (
+                    <span className="mt-1.5 flex flex-wrap gap-1.5">
+                      {falta && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold text-brand-600">{falta}</span>}
+                      {e.quedan !== null && e.quedan > 0 && e.quedan <= 20 && (
+                        <span className="rounded-full bg-warn-50 px-2 py-0.5 text-[11px] font-extrabold text-warn-600">¡Quedan {e.quedan}!</span>
+                      )}
+                    </span>
+                  )}
                 </span>
-                <span className="block text-ink-700">
-                  <DetalleEvento e={e} paraAlumno />
+              </div>
+              <div className="text-ink-700">
+                <DetalleEvento e={e.otro_lugar ? e : { ...e, lugar: '' }} paraAlumno />
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-ink-50 py-2 pr-2 pl-4">
+                <span>
+                  <span className="block text-lg leading-tight font-extrabold">{e.precio > 0 ? dinero(e.precio) : 'Gratis'}</span>
+                  <span className="block text-xs text-ink-500">{e.precio > 0 ? 'boleto' : 'entrada libre'}</span>
                 </span>
                 {e.quedan === 0 ? (
-                  <span className="mt-2 inline-block rounded-full bg-bad-50 px-2.5 py-0.5 text-xs font-extrabold text-bad-600">Agotado</span>
+                  <span className="rounded-full bg-bad-50 px-3 py-1 text-sm font-extrabold text-bad-600">Agotado</span>
                 ) : (
                   link && (
-                    <a href={link} target="_blank" rel="noreferrer" className={cx('mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl px-4 text-sm font-bold active:scale-[0.98]', WA_SUAVE)}>
+                    <a href={link} target="_blank" rel="noreferrer" className={cx('flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-bold active:scale-[0.98]', WA_FUERTE)}>
                       <MessageCircle size={18} aria-hidden="true" /> Quiero ir
                     </a>
                   )
                 )}
-              </span>
+              </div>
             </li>
           );
         })}

@@ -42,7 +42,7 @@ const abrir = async (ua, d = datos) => {
   const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   const quiero = page.getByRole('link', { name: 'Quiero ir' });
   const texto = decodeURIComponent((await quiero.first().getAttribute('href')).split('text=')[1]);
-  console.log("1a) próximos eventos con \"En 2 días\" y lugares que quedan:", ok(/Próximos eventos/i.test(t) && /Social de salsa ?En 2 días/.test(t) && /¡quedan 12!/.test(t)));
+  console.log("1a) próximos eventos con \"En 2 días\" y lugares que quedan:", ok(/Próximos eventos/i.test(t) && /Social de salsa.{0,40}En 2 días/.test(t) && /¡Quedan 12!/.test(t) && /\$\d+ boleto/.test(t)));
   console.log('1b) "Quiero ir" escribe por WhatsApp diciendo quién es y a qué evento:', ok(/Ana López \(código K7P2QX\)/.test(texto) && /Social de salsa \(sábado 21 de noviembre, 21:00\)/.test(texto)), texto);
   console.log('1c) agotado: sin botón; se ven 3 y "Ver 1 evento más":', ok(/Taller de giros.*Agotado/.test(t) && (await quiero.count()) === 2 && !/Social de bachata/.test(t) && (await page.getByRole('button', { name: 'Ver 1 evento más' }).count()) === 1));
   await page.getByRole('button', { name: 'Ver 1 evento más' }).click();
