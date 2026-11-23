@@ -61,6 +61,8 @@ export function PantallaEntrada() {
   const disciplinas = useDisciplinas();
   const maestros = useMaestros();
   const alumnos = useAlumnos();
+  // null mientras carga: así la bienvenida de "aún no tienes alumnos" no parpadea en una academia con alumnos
+  const totalAlumnos = useLiveQuery(() => db.alumnos.count(), [], null);
   const estados = useEstadosPorAlumno();
   const planes = usePlanes();
   const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
@@ -483,11 +485,20 @@ export function PantallaEntrada() {
             {vista === 'llegan' || esc ? (
               <>
                 <Frecuentes clase={clase} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                {totalAlumnos === 0 ? (
+                  // el primer día: todavía no hay a quién tocar, así que se dice cómo se registra al primero
+                  <Vacio
+                    icono={<UserPlus size={36} />}
+                    titulo="Aún no tienes alumnos"
+                    texto="Cuando llegue alguien, escribe su nombre arriba y toca “Nuevo”: queda registrado y entra en un toque."
+                  />
+                ) : (
                 <p className="mt-4 px-2 text-center text-xs leading-relaxed text-ink-500">
                   Toca a quien llegó para cobrar o darle entrada.
                   <br />
                   Para ver su ficha o venderle un plan, toca su nombre en la cuenta (o mantén presionada su tarjeta). Si no aparece, búscalo arriba.
                 </p>
+                )}
               </>
             ) : (
               <EnClase clase={clase} onVisitante={() => setVisitante(true)} />
@@ -739,7 +750,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
       </div>
       {lista.length === 0 ? (
         <Tarjeta>
-          <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="Toca a los alumnos en “Por llegar”." />
+          <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="Cuando des entrada a alguien, aparece aquí." />
         </Tarjeta>
       ) : (
         <Tarjeta className="divide-y divide-ink-100">
