@@ -113,16 +113,19 @@ function EditorAcademia() {
       <Campo etiqueta="Nombre de la academia">
         <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} />
       </Campo>
-      <Boton
-        bloque
-        disabled={!nombre.trim() || nombre === academia.nombre}
-        onClick={async () => {
-          await actualizar('academias', academia.id, { nombre: nombre.trim() });
-          avisar('Guardado');
-        }}
-      >
-        Guardar
-      </Boton>
+      {/* solo si se cambió el nombre (el logo y el color se guardan solos): antes estaba siempre, como si faltara algo */}
+      {nombre.trim() !== academia.nombre && (
+        <Boton
+          bloque
+          disabled={!nombre.trim()}
+          onClick={async () => {
+            await actualizar('academias', academia.id, { nombre: nombre.trim() });
+            avisar('Guardado');
+          }}
+        >
+          Guardar nombre
+        </Boton>
+      )}
       <SubirLogo />
       <Campo grupo etiqueta="Color de la academia" ayuda="Se aplica al instante en toda la app.">
         <div className="grid grid-cols-4 gap-3">

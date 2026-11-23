@@ -93,7 +93,8 @@ export function EditorMensajes() {
                 </div>
               </div>
             ) : (
-              <p className="mt-2 rounded-xl bg-ink-50 p-3 text-sm text-ink-700">{armarMensaje(actual, { ...EJEMPLO, academia: academia.nombre })}</p>
+              // 2 renglones para reconocerlo; "Editar" muestra el texto completo (antes 9 mensajes completos = ~2,200 px)
+              <p className="mt-2 line-clamp-2 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">{armarMensaje(actual, { ...EJEMPLO, academia: academia.nombre })}</p>
             )}
           </Tarjeta>
         );

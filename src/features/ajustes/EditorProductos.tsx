@@ -160,6 +160,7 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
   const [foto, setFoto] = useState<string | null>(producto?.foto ?? null);
+  const [verIconos, setVerIconos] = useState(false);
   const [precio, setPrecio] = useState(producto ? aPesosTexto(producto.precio) : '');
   const [costo, setCosto] = useState(producto?.costo ? aPesosTexto(producto.costo) : '');
   const ganancia = aCentavos(precio) - aCentavos(costo);
@@ -212,17 +213,7 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
 
   return (
     <div className="space-y-4">
-      <FotoDeProducto foto={foto} emoji={emoji} onChange={setFoto} />
-      <Campo etiqueta={foto ? 'Ícono (por si no carga la foto)' : 'Ícono (mientras no tenga foto)'} grupo>
-        <div className="grid grid-cols-7 gap-1.5">
-          {EMOJIS_PRODUCTO.map((e) => (
-            <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}
-              className={cx('flex h-11 items-center justify-center rounded-xl text-2xl ring-1', emoji === e ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-superficie ring-ink-100')}>
-              {e}
-            </button>
-          ))}
-        </div>
-      </Campo>
+      {/* lo que se escribe primero y lo único obligatorio, arriba (antes debajo de la foto y de 21 íconos) */}
       <div className="grid grid-cols-[1fr_7rem] gap-3">
         <Campo etiqueta="Nombre">
           <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Agua 600 ml" autoFocus={!producto} />
@@ -231,6 +222,24 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
         </Campo>
       </div>
+      <FotoDeProducto foto={foto} emoji={emoji} onChange={setFoto} />
+      {/* con foto, los íconos no se usan: quedan a un toque en vez de ocupar media pantalla */}
+      {foto && !verIconos ? (
+        <button type="button" onClick={() => setVerIconos(true)} className="-mt-2 min-h-10 text-sm font-semibold text-brand-600">
+          Elegir un ícono (por si no carga la foto)
+        </button>
+      ) : (
+        <Campo etiqueta={foto ? 'Ícono (por si no carga la foto)' : 'Ícono (mientras no tenga foto)'} grupo>
+          <div className="grid grid-cols-7 gap-1.5">
+            {EMOJIS_PRODUCTO.map((e) => (
+              <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}
+                className={cx('flex h-11 items-center justify-center rounded-xl text-2xl ring-1', emoji === e ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-superficie ring-ink-100')}>
+                {e}
+              </button>
+            ))}
+          </div>
+        </Campo>
+      )}
       <Campo etiqueta="¿Cuánto te cuesta? (opcional)" ayuda="Solo lo ve la dirección. Sirve para saber cuánto te deja cada venta.">
         <Entrada inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="$ costo por pieza" />
       </Campo>
