@@ -27,12 +27,14 @@ await page.getByRole('button', { name: 'Entrar' }).click();
 console.log('Bajando la academia…');
 await page.getByText('Alberto', { exact: true }).waitFor({ timeout: 300_000 });
 await page.waitForFunction(() => !!window.compasDev);
-const [clases, demoPrevia] = await page.evaluate(async () => [
+// unos cuantos cobros de prueba no estorban; muchos, o planes vendidos, = la demo ya se generó
+const [clases, cobros, planesVendidos] = await page.evaluate(async () => [
   await window.compasDev.db.clases.count(),
   await window.compasDev.db.pagos.count(),
+  await window.compasDev.db.membresias.count(),
 ]);
-if (!clases || demoPrevia > 0) {
-  console.log(clases ? `Ya hay ${demoPrevia} cobros: parece que la demo ya se generó. No se hizo nada.` : 'La academia no tiene clases. No se hizo nada.');
+if (!clases || cobros > 20 || planesVendidos > 0) {
+  console.log(clases ? `Ya hay ${cobros} cobros y ${planesVendidos} planes vendidos: parece que la demo ya se generó. No se hizo nada.` : 'La academia no tiene clases. No se hizo nada.');
   await browser.close();
   servidor.cerrar();
   process.exit(1);
