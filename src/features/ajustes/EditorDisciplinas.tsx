@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useClases, useDisciplinas } from '../../app/datos';
+import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, cx } from '../../components/ui';
 import { actualizar, borrar, crear } from '../../db/repo';
 import { type Disciplina } from '../../db/types';
@@ -38,6 +39,7 @@ export function EditorDisciplinas() {
 
 export function FormDisciplina({ disciplina, enUso, onHecho }: { disciplina: Disciplina | null; enUso: boolean; onHecho: () => void }) {
   const usados = useDisciplinas().map((d) => d.color);
+  const avisar = useAvisos();
   const [nombre, setNombre] = useState(disciplina?.nombre ?? '');
   const [color, setColor] = useState(disciplina?.color ?? colorLibre(usados));
   return (
@@ -65,7 +67,16 @@ export function FormDisciplina({ disciplina, enUso, onHecho }: { disciplina: Dis
         Guardar
       </Boton>
       {disciplina && !enUso && (
-        <Boton bloque variante="peligro" onClick={async () => { await borrar('disciplinas', disciplina.id); onHecho(); }}>
+        <Boton
+          bloque
+          variante="peligro"
+          onClick={async () => {
+            await borrar('disciplinas', disciplina.id);
+            // deshacer en vez de "¿seguro?": igual que en cobros, gastos y rentas
+            avisar(`${disciplina.nombre} eliminada`, 'ok', { texto: 'Deshacer', fn: () => actualizar('disciplinas', disciplina.id, { deletedAt: null }).then(() => undefined) });
+            onHecho();
+          }}
+        >
           Eliminar
         </Boton>
       )}

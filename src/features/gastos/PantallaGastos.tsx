@@ -567,7 +567,7 @@ function FormFijo({ fijo, sedes, sedeInicial, onHecho }: { fijo: GastoFijo | nul
           variante="fantasma"
           onClick={async () => {
             await borrar('gastosFijos', fijo.id);
-            avisar('Gasto fijo eliminado');
+            avisar('Gasto fijo eliminado', 'ok', { texto: 'Deshacer', fn: () => actualizar('gastosFijos', fijo.id, { deletedAt: null }).then(() => undefined) });
             onHecho();
           }}
         >
