@@ -6,6 +6,7 @@ import { db } from '../db/db';
 import { guardar } from '../db/repo';
 import type { Alumno, Asistencia, Clase, Corte, Fecha, EstadoPedido, GastoFijo, ID, Maestro, Membresia, MetodoPago, Pago, Pedido, Plan, Renta, Usuario } from '../db/types';
 import { crearAcademia, hashPin } from '../domain/acceso';
+import { sueltaDeClase } from '../domain/sedes';
 import { generarCodigo } from '../domain/operaciones';
 import { deFecha, hoy, sumarDias, sumarMeses } from '../domain/fechas';
 
@@ -197,7 +198,13 @@ const APELLIDOS = ['García', 'Martínez', 'Rodríguez', 'Hernández', 'López',
  * (normalmente la demo descargada de la nube) y los encola para subirlos.
  * Recalcula los cortes de caja de cada día para que sigan cuadrando.
  */
-export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): Promise<{ alumnos: number; pagos: number; asistencias: number; cortes: number }> {
+export async function ampliar(
+  cuantos = 140,
+  asisteMin = 0.5,
+  asisteMax = 0.9,
+  /** crearPlanes: si la academia no tiene mensualidad o paquete, crea unos de ejemplo (si no, todos pagan por clase) */
+  opciones: { crearPlanes?: boolean } = {},
+): Promise<{ alumnos: number; pagos: number; asistencias: number; cortes: number }> {
   const academia = await db.academias.toCollection().first();
   if (!academia) throw new Error('No hay academia en este teléfono');
   const A = academia.id;
@@ -214,9 +221,17 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
   const recepcion = (await db.usuarios.filter((u) => u.rol === 'recepcion' && !u.deletedAt).first()) ?? (await db.usuarios.toCollection().first())!;
   const clases = await db.clases.filter((c) => c.activo && !c.deletedAt).toArray();
   const planes = await db.planes.filter((p) => p.activo && !p.deletedAt).toArray();
-  const suelta = planes.find((p) => p.tipo === 'suelta')!;
-  const mensual = planes.find((p) => p.tipo === 'mensual')!;
-  const paquete = planes.find((p) => p.tipo === 'paquete')!;
+  if (opciones.crearPlanes) {
+    const ts = Date.now();
+    const plan = (p: Pick<Plan, 'nombre' | 'tipo' | 'precio' | 'clases' | 'vigenciaDias'>) =>
+      guardar('planes', { ...base(ts), ...p, disciplinaId: null, activo: true } as Plan).then((x) => planes.push(x));
+    if (!planes.some((p) => p.tipo === 'mensual')) await plan({ nombre: 'Mensualidad', tipo: 'mensual', precio: 40000, clases: null, vigenciaDias: null });
+    if (!planes.some((p) => p.tipo === 'paquete')) await plan({ nombre: 'Paquete 8 clases', tipo: 'paquete', precio: 32000, clases: 8, vigenciaDias: 30 });
+  }
+  // la clase suelta según la sede de la clase (p. ej. más barata en otra sede)
+  const sueltaDe = (c: Clase) => sueltaDeClase(planes, c)!;
+  const mensual = planes.find((p) => p.tipo === 'mensual');
+  const paquete = planes.find((p) => p.tipo === 'paquete');
   const usados = new Set((await db.alumnos.toArray()).map((a) => a.nombre));
 
   const peso = (c: Clase) => (c.nivel === '0' ? 3 : c.nivel === '1' ? 3 : 2);
@@ -233,7 +248,8 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
     const x = r();
     nuevos.push({
       alumno: { ...base(tsDe(alta, '19:00')), nombre, telefono: r() < 0.8 ? `55${Math.floor(10000000 + r() * 89999999)}` : '', notas: '', codigo: generarCodigo(), activo: r() > 0.03 },
-      tipo: x < 0.3 ? 'mensual' : x < 0.45 ? 'paquete' : 'suelta',
+      // sin mensualidad o paquete en la academia, esos pagan por clase
+      tipo: x < 0.3 && mensual ? 'mensual' : x >= 0.3 && x < 0.45 && paquete ? 'paquete' : 'suelta',
       clases: c2 ? [c1, c2] : [c1],
       asiste: asisteMin + r() * (asisteMax - asisteMin),
     });
@@ -261,7 +277,7 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
         const id = pf.alumno.id;
         let m = membresias.find((x) => x.alumnoId === id && x.inicio <= fecha && fecha <= x.fin && (x.clasesTotal === null || x.usadas < x.clasesTotal));
         if (!m && pf.tipo !== 'suelta') {
-          const plan = pf.tipo === 'mensual' ? mensual : paquete;
+          const plan = (pf.tipo === 'mensual' ? mensual : paquete)!;
           const p = pago(id, plan, metodo(0.3), fecha, ts);
           m = {
             ...base(ts), alumnoId: id, planId: plan.id, pagoId: p.id, disciplinaId: null, inicio: fecha,
@@ -275,7 +291,7 @@ export async function ampliar(cuantos = 140, asisteMin = 0.5, asisteMax = 0.9): 
           m.usadas++;
           a.membresiaId = m.id;
         } else {
-          a.pagoId = pago(id, suelta, metodo(0.12), fecha, ts).id;
+          a.pagoId = pago(id, sueltaDe(clase), metodo(0.12), fecha, ts).id;
         }
         asistencias.push(a);
       }
