@@ -40,7 +40,7 @@ export function EditorSedes() {
             Guardar
           </Boton>
         </div>
-        <p className="text-xs text-ink-500">{nClases(null)} · Aquí queda todo mientras no agregues otra sede.</p>
+        <p className="text-xs text-ink-500">{nClases(null)} · {sedes.length ? 'Lo que no es de otra sede queda aquí.' : 'Aquí queda todo mientras no agregues otra sede.'}</p>
       </Tarjeta>
       <Catalogo
         items={sedes}

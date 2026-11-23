@@ -10,7 +10,9 @@ import { apartadas, listoParaEntregar } from '../domain/pedidos';
 
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
-export const useDisciplinas = () => useLiveQuery(() => db.disciplinas.filter(vivo).toArray(), [], []);
+// por nombre: en listas y selectores se encuentran solas (antes salían en el orden de su id, sin sentido)
+export const useDisciplinas = () =>
+  useLiveQuery(async () => (await db.disciplinas.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [], []);
 export const usePlanes = () => useLiveQuery(() => db.planes.filter(vivo).toArray(), [], []);
 export const useMaestros = () =>
   useLiveQuery(async () => (await db.maestros.filter(vivo).toArray()).sort((a, b) => a.nombre.localeCompare(b.nombre)), [], []);
