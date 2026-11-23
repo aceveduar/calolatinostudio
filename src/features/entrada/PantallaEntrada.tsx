@@ -4,6 +4,7 @@ import { Search, UserPlus, X, Users, Footprints, CalendarDays, MoreHorizontal, A
 import { Link } from 'react-router-dom';
 import { usePendientes } from '../../app/pendientes';
 import { PrimerosPasos } from './PrimerosPasos';
+import { BienvenidaRecepcion } from './Bienvenida';
 import { useNoActualizarMientras } from '../../app/actualizacion';
 import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
@@ -296,6 +297,7 @@ export function PantallaEntrada() {
 
       {/* academia nueva: lo que falta configurar (solo el dueño; se va sola al terminar) */}
       <PrimerosPasos />
+      <BienvenidaRecepcion />
 
       {/* La clase: una sola tarjeta (antes la clase salía dos veces: en una fila de botones y en esta tarjeta).
           Se toca para cambiar de clase (y de sede, si hay varias). */}

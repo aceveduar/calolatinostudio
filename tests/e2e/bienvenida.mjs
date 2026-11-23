@@ -1,0 +1,33 @@
+// Bienvenida de recepción: la primera vez que Monse entra ve cómo se cobra en 3 pasos; con "Entendido" no vuelve.
+import { chromium } from 'playwright-core';
+const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const ok = (c) => (c ? 'OK' : 'MAL');
+const b = await chromium.launch({ channel: 'msedge' });
+const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-MX' })).newPage();
+const errores = [];
+p.on('pageerror', (e) => errores.push(e.message));
+const entrar = async (quien, pin) => {
+  await p.getByText(quien, { exact: true }).click();
+  await p.keyboard.type(pin, { delay: 30 });
+  await p.waitForTimeout(1200);
+};
+await p.goto('http://localhost:4173/');
+await p.waitForFunction(() => !!window.compasDev);
+await p.evaluate(() => window.compasDev.demoCompleta());
+await p.reload();
+await entrar('Monse', '1111');
+const tarjeta = p.getByRole('region', { name: 'Bienvenida' });
+const sale = (await tarjeta.count()) === 1 && /Hola, Monse/.test(await tarjeta.innerText()) && (await tarjeta.getByRole('listitem').count()) === 3;
+await p.screenshot({ path: `${OUT}bienvenida.png` });
+console.log('1) la primera vez, Monse ve cómo se cobra en 3 pasos:', ok(sale));
+await tarjeta.getByRole('button', { name: 'Entendido' }).click();
+await p.waitForTimeout(300);
+await p.reload();
+await p.waitForTimeout(1500);
+console.log('2) con "Entendido" ya no vuelve a salir:', ok((await p.getByRole('region', { name: 'Bienvenida' }).count()) === 0));
+await p.getByRole('button', { name: /cambiar usuario/i }).first().click().catch(() => {});
+await p.waitForTimeout(500);
+await entrar('Dirección Calo', '1234');
+console.log('3) al dueño no le sale (tiene "Deja lista tu academia"):', ok((await p.getByRole('region', { name: 'Bienvenida' }).count()) === 0));
+console.log('errores:', errores.length ? errores : 'ninguno');
+await b.close();
