@@ -69,9 +69,13 @@ export function Cuenta({
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
               {m.emoji ? <span className="w-[18px] shrink-0 text-center text-lg leading-none">{m.emoji}</span> : <Check size={18} className="shrink-0 text-[#7ee2a8]" />}
               {m.alumnoId && onOpciones ? (
-                <button type="button" onClick={() => onOpciones(m.alumnoId!)} className="min-w-0 flex-1 truncate text-left font-semibold underline decoration-white/30 underline-offset-4 active:text-white/70" aria-label={`Opciones de ${m.nombre}`}>
-                  {m.nombre}
-                </button>
+                <span className="min-w-0 flex-1">
+                  <button type="button" onClick={() => onOpciones(m.alumnoId!)} className="block max-w-full truncate text-left font-semibold underline decoration-white/30 underline-offset-4 active:text-white/70" aria-label={`Opciones de ${m.nombre}`}>
+                    {m.nombre}
+                  </button>
+                  {/* tiene plan pero esta clase se cobra: por qué, a la vista mientras se cobra */}
+                  {m.aviso && <span className="block text-xs text-[#ffd48a]">{m.aviso}</span>}
+                </span>
               ) : (
                 <span className="min-w-0 flex-1 truncate font-semibold">
                   {m.nombre}
