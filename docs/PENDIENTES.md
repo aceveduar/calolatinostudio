@@ -43,6 +43,7 @@ Estimado con ~300 alumnos activos: ~50 mil registros por año; a 5 años ~250 mi
 - Testimonios reales (hoy dicen "Ejemplo:"); con la función 1 llegarán solos.
 - Comprar el dominio y conectarlo a Cloudflare Pages.
 - Decidir si el repositorio de GitHub queda privado.
+- **Al arrancar en serio, quitar los datos de prueba** (pedido el 23 nov 2026): vaciar la demo de Calo Latino en la nube y borrar los generadores de academias inventadas: `src/dev/semilla.ts` (demo de Calo), `src/dev/grande.ts` (5,000 alumnos), `src/dev/hojaQR.ts` (hoja de QR) y el bloque `VITE_SEMILLA` de `src/main.tsx`. Ojo: las pruebas automáticas (`tests/e2e`) los usan; antes de borrarlos, decidir si se mueven a una carpeta solo de pruebas para no perder las pruebas de velocidad.
 
 ## Por verificar en persona
 
