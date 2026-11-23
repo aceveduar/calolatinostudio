@@ -11,6 +11,9 @@ import { EditorContenido } from './EditorContenido';
  * Página pública del estudio: dirección (/a/<slug>) y WhatsApp de contacto.
  * Muestra horarios, precios, eventos y la tienda; no muestra maestros ni datos de alumnos.
  */
+const ACCION =
+  'flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl bg-superficie text-sm font-semibold text-ink-900 ring-1 ring-ink-100 transition select-none active:bg-ink-50 sm:h-11 sm:flex-row sm:gap-2 sm:text-[15px]';
+
 export function EditorPagina() {
   const { academia } = useSesion();
   const avisar = useAvisos();
@@ -87,15 +90,14 @@ export function EditorPagina() {
           <Tarjeta className="space-y-3 p-4">
             <p className="text-sm text-ink-500">Tu página:</p>
             <p className="font-semibold break-all">{url}</p>
+            {/* en teléfono, ícono arriba y texto abajo: los tres no caben en un renglón a 360 px */}
             <div className="grid grid-cols-3 gap-2">
-              <a href={url} target="_blank" rel="noreferrer">
-                <Boton bloque variante="secundario" className="px-2">
-                  <ExternalLink size={18} /> Abrir
-                </Boton>
+              <a href={url} target="_blank" rel="noreferrer" className={ACCION}>
+                <ExternalLink size={18} aria-hidden="true" /> Abrir
               </a>
-              <Boton
-                variante="secundario"
-                className="px-2"
+              <button
+                type="button"
+                className={ACCION}
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(url);
@@ -105,12 +107,10 @@ export function EditorPagina() {
                   }
                 }}
               >
-                <Copy size={18} /> Copiar
-              </Boton>
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Conoce ${academia.nombre}: horarios, precios y tu primera clase 💃 ${url}`)}`} target="_blank" rel="noreferrer">
-                <Boton bloque variante="secundario" className="px-2">
-                  <MessageCircle size={18} className="shrink-0 text-ok-600" /> Compartir
-                </Boton>
+                <Copy size={18} aria-hidden="true" /> Copiar
+              </button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Conoce ${academia.nombre}: horarios, precios y tu primera clase 💃 ${url}`)}`} target="_blank" rel="noreferrer" className={ACCION}>
+                <MessageCircle size={18} className="text-ok-600" aria-hidden="true" /> Compartir
               </a>
             </div>
             <p className="text-xs text-ink-500">Se actualiza sola: si cambias un horario o un precio aquí, la página ya lo muestra.</p>

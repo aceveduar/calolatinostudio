@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { avisoPrivacidadBase } from '../../domain/privacidad';
 import { Link } from 'react-router-dom';
+import { useAvisarSiSale } from '../../app/sinGuardar';
 import { ChevronDown, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { prepararFotoGaleria, prepararPortada } from '../../app/fotos';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -64,13 +65,40 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const cambiosContenido = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
   const cambios = cambiosContenido || !!enlace?.cambios;
   const valido = enlace ? enlace.valido : true;
-  // si se va (cierra la pestaña o recarga) con cambios sin guardar, el navegador pregunta antes
+  // "editó algo": las preguntas sugeridas que se precargan cuentan para Guardar, pero no para avisar al salir
+  const [inicial] = useState(() => JSON.stringify(limpio(c)));
+  const editado = cambiosContenido && JSON.stringify(limpio(c)) !== inicial;
+  // con cambios sin guardar: pregunta antes de salir por un enlace de la app o al cerrar la pestaña
+  // y, por si sale con el botón atrás del teléfono o se cierra la app, un borrador en este teléfono
+  const claveBorrador = `compas:borradorPagina:${academia.id}`;
+  const avisoSalir = useAvisarSiSale(editado || !!enlace?.cambios, 'los cambios de tu página', () => {
+    try {
+      localStorage.removeItem(claveBorrador);
+    } catch {
+      /* nada */
+    }
+  });
+  const [borrador, setBorrador] = useState<ContenidoPagina | null>(() => {
+    try {
+      const b = localStorage.getItem(claveBorrador);
+      const x = b ? (JSON.parse(b) as ContenidoPagina) : null;
+      return x && JSON.stringify(limpio(x)) !== JSON.stringify(guardado) ? x : null;
+    } catch {
+      return null;
+    }
+  });
   useEffect(() => {
-    if (!cambios) return;
-    const avisarAntes = (e: BeforeUnloadEvent) => e.preventDefault();
-    addEventListener('beforeunload', avisarAntes);
-    return () => removeEventListener('beforeunload', avisarAntes);
-  }, [cambios]);
+    if (borrador) return; // primero que decida si lo recupera
+    const t = setTimeout(() => {
+      try {
+        if (editado) localStorage.setItem(claveBorrador, JSON.stringify(c));
+        else localStorage.removeItem(claveBorrador);
+      } catch {
+        /* sin espacio: solo queda el aviso al salir */
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [c, editado, borrador, claveBorrador]);
   const pon = (p: Partial<ContenidoPagina>) => setC((x) => ({ ...x, ...p }));
   const lugares = [{ clave: 'principal', nombre: nombreSede(null, sedes, academia) }, ...sedes.map((s) => ({ clave: s.id, nombre: s.nombre }))];
   const preguntas = c.preguntas ?? [];
@@ -84,6 +112,35 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
 
   return (
     <div className="rounded-3xl bg-superficie px-4 ring-1 ring-ink-100">
+      {avisoSalir}
+      {borrador && (
+        <div className="-mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-t-3xl bg-warn-50 px-4 py-3 text-sm text-warn-600">
+          <span className="min-w-48 flex-1 font-semibold">Tienes cambios sin guardar de la última vez.</span>
+          <span className="ml-auto flex gap-2">
+            <Boton
+              variante="secundario"
+              onClick={() => {
+                try {
+                  localStorage.removeItem(claveBorrador);
+                } catch {
+                  /* nada */
+                }
+                setBorrador(null);
+              }}
+            >
+              Descartar
+            </Boton>
+            <Boton
+              onClick={() => {
+                setC(borrador);
+                setBorrador(null);
+              }}
+            >
+              Recuperar
+            </Boton>
+          </span>
+        </div>
+      )}
       <Bloque id="portada" {...plegable('portada')} resumen={c.portada ? (c.frase ? `Foto · “${c.frase}”` : 'Foto · falta la frase') : 'Falta la foto de portada'} falta={!c.portada} titulo="Portada" ayuda="Lo primero que ve la gente. Una foto de una clase con ambiente funciona mejor que el logo.">
         <div className="overflow-hidden rounded-2xl bg-ink-100 ring-1 ring-ink-100">
           {c.portada ? <img src={c.portada} alt="Foto de portada" className="aspect-[16/9] w-full object-cover" /> : <div className="flex aspect-[16/9] items-center justify-center text-sm text-ink-500">Sin foto de portada</div>}
@@ -281,6 +338,11 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
             try {
               if (enlace?.cambios) await enlace.guardar();
               if (cambiosContenido) await actualizar('academias', academia.id, { pagina: limpio(c) });
+              try {
+                localStorage.removeItem(claveBorrador);
+              } catch {
+                /* nada */
+              }
               avisar('Página actualizada');
             } finally {
               setOcupado(false);
