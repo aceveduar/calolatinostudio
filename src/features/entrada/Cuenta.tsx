@@ -134,7 +134,7 @@ export function Cuenta({
               <span className="text-sm text-white/60">
                 {sinCobro ? (
                   <span className="flex items-center gap-1.5 text-[#7ee2a8]">
-                    <Check size={16} aria-hidden="true" /> {movs.length === 1 ? 'Entra' : 'Entran'} con su {movs.every((m) => m.beca) ? 'beca' : 'plan'}{pausada ? '' : ' · se cierra solo'}
+                    <Check size={16} aria-hidden="true" /> {movs.length === 1 ? 'Entra' : 'Entran'} con su {movs.every((m) => m.beca) ? 'beca' : 'plan'}
                   </span>
                 ) : transfer ? (
                   `${dinero(transfer)} por transferencia`
@@ -146,9 +146,9 @@ export function Cuenta({
                 Listo
               </button>
             </div>
-            {/* cuenta regresiva del cierre solo (se reinicia si entra alguien más; se va si la tocaron) */}
+            {/* cuenta regresiva del cierre solo: la barrita lo dice sin palabras (se reinicia si entra alguien más; se va si la tocaron) */}
             {sinCobro && !pausada && (
-              <span className="absolute inset-x-0 bottom-0 block h-0.5 overflow-hidden" aria-hidden="true">
+              <span className="absolute inset-x-0 bottom-0 block h-0.5 overflow-hidden" aria-hidden="true" data-cierre-solo="">
                 <span key={llave} className="block h-full origin-left bg-[#7ee2a8]/70" style={{ animation: `vaciar ${CIERRE_SIN_COBRO_MS}ms linear forwards` }} />
               </span>
             )}

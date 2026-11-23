@@ -18,11 +18,13 @@ const listo = page.getByRole('button', { name: 'Listo', exact: true });
 
 // 1) alumno con plan: sin dinero, la cuenta se cierra sola
 await page.locator('main button').filter({ hasText: /^.*Plan$/ }).first().click();
-await page.getByText(/con su (plan|beca) · se cierra solo/).waitFor({ timeout: 3000 });
+await page.getByText(/con su (plan|beca)/).waitFor({ timeout: 3000 });
+const cuentaAtras = page.locator('[data-cierre-solo]');
+const habia = (await cuentaAtras.count()) === 1;
 await page.screenshot({ path: `${OUT}cierre-plan.png` });
 await page.clock.runFor(3000);
 await page.waitForTimeout(300);
-console.log('1) con plan: aviso "se cierra solo" y se cierra sin tocar Listo:', ok((await listo.count()) === 0));
+console.log('1) con plan: barrita de cuenta atrás y se cierra sin tocar Listo:', ok(habia && (await listo.count()) === 0));
 
 // 2) alguien que paga: espera Listo (para ver el total y dar cambio)
 await page.locator('main button').filter({ hasText: /Paga$/ }).first().click();
@@ -40,11 +42,11 @@ await listo.click();
 
 // 4) con plan, pero recepción toca la cuenta: el cierre se detiene (p. ej. para agregarle un agua con calma)
 await page.locator('main button').filter({ hasText: /Plan$/ }).nth(1).click();
-await page.getByText(/· se cierra solo/).waitFor({ timeout: 3000 });
+await cuentaAtras.waitFor({ timeout: 3000 });
 await page.getByText(/con su (plan|beca)/).click();
 await page.clock.runFor(5000);
 await page.waitForTimeout(300);
-console.log('4) al tocar la cuenta deja de cerrarse sola y ya no dice "se cierra solo":', ok((await listo.count()) === 1 && (await page.getByText(/· se cierra solo/).count()) === 0));
+console.log('4) al tocar la cuenta deja de cerrarse sola y se quita la barrita:', ok((await listo.count()) === 1 && (await cuentaAtras.count()) === 0));
 
 // 5) tocar su nombre en la cuenta abre sus opciones (el camino visible a "mantén presionado")
 await page.getByRole('button', { name: /^Opciones de / }).first().click();

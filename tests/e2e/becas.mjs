@@ -81,7 +81,7 @@ await page.waitForTimeout(400);
 await page.locator('main button').filter({ hasText: (() => { const [n, ap] = nombre.trim().split(/\s+/); return new RegExp(ap ? `${n} ${ap[0]}` : n); })() }).first().click();
 await page.waitForTimeout(400);
 const hoja = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-console.log('6) becado: entrada sin cobro:', ok(hoja.includes(nombre) && /Entra con su beca · se cierra solo/.test(hoja) && hoja.includes(nombre + " Beca") && !/\$\d+ Listo/.test(hoja)));
+console.log('6) becado: entrada sin cobro:', ok(hoja.includes(nombre) && /Entra con su beca/.test(hoja) && !/se cierra solo/.test(hoja) && hoja.includes(nombre + " Beca") && !/\$\d+ Listo/.test(hoja)));
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 await page.screenshot({ path: `${OUT}beca-4-entrada.png` });
 await page.keyboard.press('Escape');
