@@ -71,10 +71,10 @@ export const MANUAL: Capitulo[] = [
       {
         id: 'visitante',
         titulo: 'Alguien que viene por primera vez',
-        resumen: 'Sin registrarlo: "+$60 sin nombre".',
+        resumen: 'Sin registrarlo: el botón rojo "sin nombre".',
         para: RECEPCION,
         claves: 'visitante prueba nuevo sin nombre',
-        pasos: ['Toca "+$60 sin nombre" (el precio es el de tu clase suelta).', 'Si quieres anotar su nombre, toca "Visitante con nombre".', 'Cobra y toca "Listo".'],
+        pasos: ['Toca el botón rojo "sin nombre", junto al buscador (cobra el precio de tu clase suelta).', 'Si quieres anotar su nombre, toca "Visitante con nombre".', 'Cobra y toca "Listo".'],
       },
       {
         id: 'plan',
