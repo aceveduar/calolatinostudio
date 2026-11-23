@@ -68,16 +68,22 @@ export function Frecuentes({
     .sort((x, y) => (ranking.enClase.get(y.id) ?? 0) - (ranking.enClase.get(x.id) ?? 0) || x.nombre.localeCompare(y.nombre))
     .slice(0, MAX);
 
+  // Quien tiene un plan que cubre esta clase es de los que más seguro llegan, aunque aún no tenga historial
+  // (p. ej. los primeros días, con los planes que ya traían): después de los que ya vienen, por nombre.
+  const conPlan = alumnos
+    .filter((a) => a.activo && !ranking.enClase.has(a.id) && !!membresiaQueCubre(estados.get(a.id) ?? [], clase))
+    .slice(0, Math.max(0, MAX - lista.length));
+  const base = [...lista, ...conPlan];
   // Clase nueva o sin historial: mostrar a los más asiduos de la academia
   const historicos =
-    lista.length >= 6
-      ? lista
+    base.length >= 6
+      ? base
       : [
-          ...lista,
+          ...base,
           ...alumnos
-            .filter((a) => a.activo && !lista.includes(a) && ranking.general.has(a.id))
+            .filter((a) => a.activo && !base.includes(a) && ranking.general.has(a.id))
             .sort((x, y) => (ranking.general.get(y.id) ?? 0) - (ranking.general.get(x.id) ?? 0))
-            .slice(0, MAX - lista.length),
+            .slice(0, MAX - base.length),
         ];
   // Al final, quienes ya vinieron hoy (otra clase o nuevos), en orden de llegada:
   // se agregan sin mover a nadie de su lugar.
@@ -86,7 +92,15 @@ export function Frecuentes({
   const todos = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
   const mostrar = [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
 
-  if (!mostrar.length) return null;
+  // hay alumnos pero nadie con historial ni plan para esta clase (los primeros días): decir qué hacer
+  if (!mostrar.length)
+    return alumnos.length ? (
+      <p className="rounded-2xl bg-superficie px-4 py-5 text-center text-sm text-ink-500 ring-1 ring-ink-100">
+        Aquí aparecen solos quienes suelen venir a esta clase o tienen plan para ella.
+        <br />
+        Mientras tanto, escribe arriba el nombre de quien llegó.
+      </p>
+    ) : null;
   // dos "Camila R." en la cuadrícula: se distinguen con el apellido completo
   const etiquetas = nombresSinRepetir(mostrar);
 
