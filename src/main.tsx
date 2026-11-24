@@ -37,6 +37,11 @@ if (import.meta.env.VITE_SEMILLA === '1') {
 }
 
 async function arrancar() {
+  if (location.pathname.startsWith('/prueba-altas/')) {
+    const { PruebaAltas } = await import('./dev/PruebaAltas');
+    createRoot(document.getElementById('root')!).render(<PruebaAltas />);
+    return;
+  }
   // Portal del alumno (/p/<token>): página pública aparte; no abre la base de la academia en ese teléfono
   // Página pública del estudio (/a/<slug>): para compartir en Facebook; tampoco abre la base de la academia
   const publica = location.pathname.match(/^\/a\/([a-zA-Z0-9-]{3,40})\/?$/);
