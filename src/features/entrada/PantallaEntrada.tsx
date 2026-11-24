@@ -18,7 +18,7 @@ import type { Alumno, Clase, ID, MetodoPago } from '../../db/types';
 import { claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
-import { semaforoAlumno } from '../../domain/membresias';
+import { membresiaQueCubre } from '../../domain/membresias';
 import { cobrarClaseSuelta } from '../../domain/operaciones';
 import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
 import { FormAlumno } from '../alumnos/FormAlumno';
@@ -121,12 +121,14 @@ export function PantallaEntrada() {
   );
 
   const resultados = useMemo(() => {
-    const t = normalizar(q.trim());
+    const t = normalizar(q.trim()).replace(/\s+/g, ' ');
     if (!t) return [];
-    const dig = t.replace(/\D/g, '');
-    return alumnos
-      .filter((a) => a.nombre !== NOMBRE_ANONIMO)
-      .filter((a) => normalizar(a.nombre).includes(t) || a.codigo.toLowerCase() === t || (dig.length >= 3 && a.telefono.includes(dig)))
+    const dig = /^[+\d ().-]+$/.test(t) ? t.replace(/\D/g, '').replace(/^521?(?=\d{10}$)/, '') : '';
+    const candidatos = alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO);
+    const porCodigo = candidatos.filter((a) => a.codigo.toLowerCase() === t);
+    if (porCodigo.length) return porCodigo;
+    return candidatos
+      .filter((a) => normalizar(a.nombre).includes(t) || (dig.length >= 3 && a.telefono.replace(/\D/g, '').includes(dig)))
       .slice(0, 8);
   }, [q, alumnos]);
 
@@ -265,11 +267,12 @@ export function PantallaEntrada() {
   );
 
   const nombreNuevo = capitalizar(q);
-  const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()));
+  const consultaEsNombre = /^(?=.*\p{L})[\p{L}\p{M} .’'-]{2,}$/u.test(q.trim());
+  const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()) || a.codigo.toLowerCase() === q.trim().toLowerCase());
   // Errores de dedo ("Ana Lopes", "Carlos Ruis"): mostrar parecidos antes de crear un duplicado
   const similares = useMemo(
-    () => (q.trim() && !exacto ? parecidos(q, alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO && !resultados.includes(a))) : []),
-    [q, exacto, alumnos, resultados],
+    () => (consultaEsNombre && !exacto ? parecidos(q, alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO && !resultados.includes(a))) : []),
+    [q, consultaEsNombre, exacto, alumnos, resultados],
   );
   const hayCoincidencias = resultados.length > 0 || similares.length > 0;
   const elegirAlumno = (a: Alumno) => {
@@ -367,8 +370,9 @@ export function PantallaEntrada() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && resultados.length === 1) elegirAlumno(resultados[0]);
+              if (e.key === 'Enter' && exacto && resultados.length === 1) elegirAlumno(resultados[0]);
             }}
+            aria-label="Buscar alumno por nombre, celular o código del pase"
             placeholder={esc && conTeclado ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
             className="h-14 w-full rounded-2xl bg-superficie pr-10 pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
             autoComplete="off"
@@ -420,21 +424,21 @@ export function PantallaEntrada() {
         {q.trim() ? (
           <div className="space-y-2 pt-1">
             {resultados.map((a) => {
-              const s = semaforoAlumno(estados.get(a.id) ?? []);
               const entro = adentro.has(a.id);
+              const plan = clase && membresiaQueCubre(estados.get(a.id) ?? [], clase);
               return (
                 <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                   <button onClick={() => elegirAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
                     <Avatar nombre={a.nombre} foto={a.foto} />
-                    <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
+                    <DatosResultado alumno={a} archivado={archivados.has(a.id)} />
                     {!a.activo ? (
-                      <Etiqueta tono="pronto">De baja</Etiqueta>
+                      <Etiqueta tono="pronto">Revisar ficha</Etiqueta>
                     ) : entro ? (
                       <Etiqueta tono="ok">Adentro</Etiqueta>
-                    ) : archivados.has(a.id) ? (
-                      <Etiqueta tono="neutro">Archivado</Etiqueta>
                     ) : (
-                      <Etiqueta tono={s.tono}>{s.tono === 'sin' && suelta ? `Cobrar ${dinero(suelta.precio)}` : s.texto}</Etiqueta>
+                      <Etiqueta tono={plan ? 'ok' : suelta && clase ? 'marca' : 'neutro'}>
+                        {!clase ? 'Elegir clase' : plan ? 'Entrada con plan' : suelta ? `Cobrar ${dinero(suelta.precio)}` : 'Sin tarifa'}
+                      </Etiqueta>
                     )}
                   </button>
                   {a.activo && (
@@ -451,17 +455,19 @@ export function PantallaEntrada() {
                 {similares.map((a) => (
                   <button
                     key={a.id}
-                    onClick={() => elegirAlumno(a)}
+                    onClick={() => a.activo ? setAlumnoSel(a) : setPorReactivar(a)}
                     className="flex w-full items-center gap-3 rounded-2xl bg-warn-50 p-3 text-left ring-1 ring-warn-600/20 active:brightness-95"
                   >
                     <Avatar nombre={a.nombre} foto={a.foto} />
-                    <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
-                    <Etiqueta tono="pronto">{!a.activo ? 'De baja' : archivados.has(a.id) ? 'Archivado' : 'Parecido'}</Etiqueta>
+                    <DatosResultado alumno={a} archivado={archivados.has(a.id)} />
+                    <Etiqueta tono="pronto">Revisar ficha</Etiqueta>
                   </button>
                 ))}
               </>
             )}
-            {hayCoincidencias ? (
+            {!consultaEsNombre ? (
+              !hayCoincidencias && <p className="px-2 py-3 text-sm text-ink-600">No encontramos a nadie. Revisa el celular o el código, o busca por nombre.</p>
+            ) : hayCoincidencias ? (
               <Boton bloque variante="secundario" onClick={() => setNuevo(true)}>Registrar a otra persona</Boton>
             ) : (
               <div className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
@@ -746,6 +752,18 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { ti
         </span>
       </button>
     </div>
+  );
+}
+
+function DatosResultado({ alumno, archivado }: { alumno: Alumno; archivado: boolean }) {
+  const final = alumno.telefono.replace(/\D/g, '').slice(-4);
+  const estado = !alumno.activo ? 'De baja' : archivado ? 'Archivado' : '';
+  const detalles = [final.length === 4 ? `Cel. •••• ${final}` : `Pase ${alumno.codigo}`, estado].filter(Boolean).join(' · ');
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block break-words text-sm font-semibold sm:text-[17px]">{alumno.nombre}</span>
+      <span className="block text-xs text-ink-500">{detalles}</span>
+    </span>
   );
 }
 

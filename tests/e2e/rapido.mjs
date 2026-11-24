@@ -128,5 +128,29 @@ await page.waitForTimeout(400);
 await shot('r8-entrada-morado');
 console.log('9) color academia: OK');
 
+// 10) Búsqueda en recepción: homónimos, teléfono con formato, pase y ficha de baja.
+await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const base = await db.alumnos.toCollection().first();
+  await db.alumnos.bulkAdd([
+    { ...base, id: crypto.randomUUID(), nombre: 'Andrea Mendoza', codigo: 'T35TQ7', telefono: '55 1000-1234', activo: true },
+    { ...base, id: crypto.randomUUID(), nombre: 'Andrea Mendoza', codigo: 'X35TQ7', telefono: '+52 55 1000-5678', activo: false },
+  ]);
+});
+await busca.fill('andrea mendoza');
+await btn(/Andrea Mendoza.*1234/).waitFor();
+await btn(/Andrea Mendoza.*5678.*Revisar ficha/).waitFor();
+await busca.fill('+52 (55) 1000-1234');
+await btn(/Andrea Mendoza.*1234/).waitFor();
+if (await btn(/Andrea Mendoza.*5678/).count()) throw new Error('La búsqueda por celular devolvió otro alumno');
+await busca.fill('x35tq7');
+await btn(/Andrea Mendoza.*5678.*Revisar ficha/).click();
+await page.getByRole('dialog', { name: 'Reactivar alumno' }).getByRole('button', { name: 'Reactivar ficha' }).waitFor();
+await page.keyboard.press('Escape');
+await busca.fill('5510009999');
+await page.getByText(/Revisa el celular o el código/).waitFor();
+if (await page.getByText('Nuevo: 5510009999').count()) throw new Error('Se ofreció registrar un teléfono como nombre');
+console.log('10) búsqueda por nombre, celular y pase sin cobro accidental: OK');
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
