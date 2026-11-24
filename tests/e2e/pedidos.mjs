@@ -104,7 +104,14 @@ await ctx.route('**/rest/v1/rpc/portal_pedir', (r) => {
 await page.goto(`http://localhost:4173/p/${TOKEN}`);
 await page.getByText('Tienda de la academia').waitFor();
 const agotado = await page.getByRole('button', { name: 'Agotado' }).isDisabled();
-await page.getByRole('button', { name: 'Apartar', exact: true }).first().click();
+await page.getByRole('button', { name: 'Ver Zapatillas' }).click();
+await dlg.getByText('Agotado', { exact: true }).waitFor();
+console.log('   un producto agotado se puede consultar sin apartarlo:', ok(await dlg.getByRole('button', { name: /Apartar|Encargar/ }).count() === 0 && pedido === null));
+await page.keyboard.press('Escape');
+await page.getByRole('button', { name: 'Ver Playera Calo' }).locator('img').click();
+await dlg.getByText('Algodón, logo al frente').waitFor();
+const imagenDetalle = dlg.locator('img');
+console.log('   tocar la foto abre el detalle ampliado sin enviar un pedido:', ok(await imagenDetalle.getAttribute('src') === fotoPlayera && Number(await imagenDetalle.getAttribute('width')) > 80 && pedido === null));
 const pide = await dlg.getByRole('button', { name: 'Elige talla o color' }).isDisabled();
 await dlg.getByRole('button', { name: 'M', exact: true }).click();
 await dlg.getByRole('button', { name: 'Una más' }).click();

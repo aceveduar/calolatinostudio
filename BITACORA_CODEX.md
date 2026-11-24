@@ -73,3 +73,22 @@ Para cada ajuste posterior, añadir aquí la fecha, el pedido, los archivos y de
 - Eduardo confirmó que ejecutó el archivo SQL `20261130-miniaturas-pedidos.sql` en Supabase.
 - Para una academia con slug, las fotos del catálogo y de los pedidos comparten el mismo enlace versionado. La ruta de imágenes de Cloudflare usa caché de un año y el componente usa carga diferida. El tamaño de 44 px corresponde al área visible. Se reutiliza el archivo del catálogo, sin generar otra copia. Para academias sin slug, una foto incrustada puede repetirse en la respuesta del portal y aumentar su tamaño.
 - Se preparó para publicar únicamente el trabajo de esta bitácora. El ajuste previo de `src/main.tsx`, la herramienta local de QR y los scripts SQL de prueba quedaron fuera del commit.
+- Se subió `54b7fd1` a `origin/main` y se verificó el commit en el remoto. Al consultar el sitio público seguía sirviendo los archivos anteriores. GitHub no mostraba estados de despliegue en ese commit y Wrangler pidió autenticación para consultar Cloudflare Pages. Queda pendiente confirmar el despliegue de producción en el panel de Cloudflare. La revisión verificó el mecanismo de carga y caché, sin medición comparativa de latencia en producción.
+
+## 24 de noviembre de 2026 · Verificación antes de la demo
+
+- Cloudflare Pages ya sirve la compilación con los ajustes de recuperación de fichas y miniaturas. Se confirmó en los archivos JavaScript públicos. La base enlazada a esa compilación devolvió `20261130` con la función de consulta `esquema_version`.
+- La página pública de Calo Latino cargó en Edge con una ventana de tamaño móvil, con HTTP 200 y sin errores de JavaScript. En el entorno aislado, con nube ficticia, volvieron a pasar las suites `correcciones`, `telefono`, `pedidos` y `rapido`. Se verificaron reactivación sin duplicados, foto de asistencia, clase suelta, caja y apartado con miniatura.
+- La comprobación de producción fue de solo lectura. Queda el ensayo en el equipo de la demo con una ficha y un pedido de muestra, en particular para confirmar que la app instalada ya cargó la versión publicada. No se hicieron más cambios funcionales.
+
+## 24 de noviembre de 2026 · Revisión de usabilidad de la tienda de Mi pase
+
+- Hoy la cuadrícula muestra una foto pequeña, el precio, un resumen de hasta dos líneas y las opciones disponibles. Solo **Apartar** o **Encargar** abre una hoja. Esa hoja permite elegir variante y cantidad, y muestra el total al recoger, pero la foto mide 64 px y la descripción no aparece completa.
+- Se propuso que tocar la foto o el nombre abra la misma hoja que el botón, con una foto más amplia, descripción completa, precio y disponibilidad o plazo estimado. Confirmar el pedido sigue siendo una acción explícita. Los artículos agotados podrían abrir su detalle en modo de consulta.
+- Se recomienda reutilizar la URL de imagen del catálogo y cargar fotos adicionales solo si se abre el detalle. Mantener las tarjetas enfocadas en comparar productos y el detalle en decidir. Esta revisión solicitó consejos y no incluyó cambios funcionales.
+
+## 24 de noviembre de 2026 · Detalle de producto en Mi pase
+
+- Tocar la foto o el nombre del producto abre la misma hoja que **Apartar** o **Encargar**. Muestra la foto completa a 224 px, la descripción sin recortar, el precio y el estado o plazo. Usa la misma URL de la tarjeta y carga diferida.
+- La hoja común permite desplazarse en pantallas pequeñas y volver a la cuadrícula al cerrarla. Las variantes, cantidad y total se eligen ahí mismo. El pedido solo se envía al confirmar. Un producto agotado o consultado sin conexión abre en modo de consulta.
+- Cambios en `src/features/portal/PortalAlumno.tsx`, `src/components/ImagenProducto.tsx` y `tests/e2e/pedidos.mjs`. Pasaron 124 pruebas unitarias, lint, TypeScript, compilación y la suite `pedidos` en Edge con datos simulados. El cambio es de frontend y no requiere SQL.

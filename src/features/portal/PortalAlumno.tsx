@@ -6,7 +6,7 @@ import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
-import { cx } from '../../components/ui';
+import { cx, Hoja } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
@@ -110,24 +110,24 @@ export function PortalAlumno({ token }: { token: string }) {
   return <Vista datos={estado.datos} guardadoEl={estado.guardadoEl} token={token} recargar={() => setVersion((v) => v + 1)} />;
 }
 
-function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPortal['tienda'][number]; token: string; onCerrar: () => void; onListo: (texto: string) => void }) {
+function productoAgotado(producto: DatosPortal['tienda'][number]) {
+  return !producto.sobre_pedido && producto.disponibles !== null && producto.disponibles <= 0;
+}
+
+function HojaApartar({ producto, token, sinConexion, onCerrar, onListo }: { producto: DatosPortal['tienda'][number]; token: string; sinConexion: boolean; onCerrar: () => void; onListo: (texto: string) => void }) {
   const [opcion, setOpcion] = useState<string | null>(producto.opciones.length === 1 ? producto.opciones[0] : null);
   const [cantidad, setCantidad] = useState(1);
   const encargo = !!producto.sobre_pedido;
   const [nota, setNota] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  // Esc cierra (en computadora), como las demás hojas
-  useEffect(() => {
-    const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar();
-    addEventListener('keydown', tecla);
-    return () => removeEventListener('keydown', tecla);
-  }, [onCerrar]);
+  const agotado = productoAgotado(producto);
+  const puedePedir = !agotado && !sinConexion;
   const maximo = Math.max(1, Math.min(5, producto.disponibles ?? 5));
   const falta = producto.opciones.length > 0 && !opcion;
 
   const enviar = async () => {
-    if (!supabase) return;
+    if (!supabase || !puedePedir || falta || ocupado) return;
     setOcupado(true);
     setError(null);
     try {
@@ -151,19 +151,18 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={`Apartar ${producto.nombre}`}>
-      <div className="absolute inset-0 bg-panel/40 animate-aparece" onClick={onCerrar} />
-      <div className="relative w-full max-w-md rounded-t-3xl bg-ink-50 p-5 pb-safe animate-sube sm:rounded-3xl">
-        <div className="flex items-center gap-3">
-          <ImagenProducto foto={producto.foto} emoji={producto.emoji} tam={64} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-lg font-bold">{producto.nombre}</span>
-            <span className="block font-bold text-brand-600">{dinero(producto.precio)}</span>
-          </span>
-          <button onClick={onCerrar} className="rounded-full p-2 text-ink-500 active:bg-ink-100" aria-label="Cerrar">
-            <X size={20} />
-          </button>
+    <Hoja abierta onCerrar={() => { if (!ocupado) onCerrar(); }} titulo={producto.nombre}>
+        <ImagenProducto foto={producto.foto} emoji={producto.emoji} tam={producto.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
+        <div className="mt-3 space-y-1">
+          <p className="text-lg font-bold text-brand-600">{dinero(producto.precio)}</p>
+          <p className="text-sm font-medium text-ink-700">
+            {agotado ? 'Agotado' : encargo ? `Sobre pedido${producto.dias_entrega ? ` · unos ${producto.dias_entrega} días` : ''}` : 'Recógelo y págalo en recepción'}
+          </p>
+          {producto.descripcion && <p className="whitespace-pre-line break-words text-sm text-ink-700">{producto.descripcion}</p>}
+          {!puedePedir && producto.opciones.length > 0 && <p className="text-sm text-ink-500">{producto.opciones.join(' · ')}</p>}
+          {sinConexion && !agotado && <p className="text-sm text-ink-500">Conéctate a internet para hacer un pedido.</p>}
         </div>
+        {puedePedir && <>
         {producto.opciones.length > 0 && (
           <div className="mt-4" role="group" aria-label="Talla o color">
             <p className="mb-1.5 text-sm font-medium text-ink-700">Elige talla o color</p>
@@ -207,7 +206,7 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
             />
           </label>
         )}
-        {encargo && <p className="mt-2 text-xs text-ink-500">Se pide al proveedor{producto.dias_entrega ? ` y tarda unos ${producto.dias_entrega} días` : ''}. Te avisamos por WhatsApp cuando llegue; lo pagas al recogerlo.</p>}
+        {encargo && <p className="mt-2 text-xs text-ink-500">Te avisamos por WhatsApp cuando llegue.</p>}
         {error && <p className="mt-3 rounded-xl bg-bad-50 px-3 py-2 text-sm font-medium text-bad-600">{error}</p>}
         <button
           type="button"
@@ -217,8 +216,8 @@ function HojaApartar({ producto, token, onCerrar, onListo }: { producto: DatosPo
         >
           {falta ? 'Elige talla o color' : `${encargo ? 'Encargar' : 'Apartar'} · pagas ${dinero(producto.precio * cantidad)} al recoger`}
         </button>
-      </div>
-    </div>
+        </>}
+    </Hoja>
   );
 }
 
@@ -434,11 +433,17 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             </div>
             <ul aria-label="Productos" className="mt-3 grid grid-cols-2 gap-2 px-5">
               {(todaTienda ? datos.tienda : datos.tienda.slice(0, 4)).map((p) => {
-                const agotado = !p.sobre_pedido && p.disponibles !== null && p.disponibles <= 0;
+                const agotado = productoAgotado(p);
+                const verProducto = () => {
+                  setAviso(null);
+                  setApartar(p);
+                };
                 return (
                   <li key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
-                    <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
-                    <p className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</p>
+                    <button type="button" onClick={verProducto} aria-label={`Ver ${p.nombre}`} className="rounded-xl text-center active:opacity-75">
+                      <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
+                      <span className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</span>
+                    </button>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}
                     {p.sobre_pedido && <p className="text-[11px] font-semibold text-brand-600">Sobre pedido{p.dias_entrega ? ` · ~${p.dias_entrega} días` : ''}</p>}
                     <p className="text-sm font-bold text-brand-600">{dinero(p.precio)}</p>
@@ -447,10 +452,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                     <button
                       type="button"
                       disabled={agotado || !!guardadoEl}
-                      onClick={() => {
-                        setAviso(null);
-                        setApartar(p);
-                      }}
+                      onClick={verProducto}
                       className="mt-2 h-10 rounded-xl bg-brand-50 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:bg-ink-100 disabled:text-ink-500 disabled:ring-0"
                     >
                       {p.sobre_pedido ? 'Encargar' : agotado ? 'Agotado' : 'Apartar'}
@@ -484,6 +486,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
       {pase && <PaseCompleto qr={qr} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} foto={datos.alumno.foto ?? null} onCerrar={() => setPase(false)} />}
       {apartar && (
         <HojaApartar
+          sinConexion={!!guardadoEl}
           producto={apartar}
           token={token}
           onCerrar={() => setApartar(null)}
