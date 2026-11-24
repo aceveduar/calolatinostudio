@@ -119,6 +119,8 @@ const { db, getMeta, setMeta } = await import('../../src/db/db');
 const { actualizar, crear } = await import('../../src/db/repo');
 const { sincronizar, vincularAcademia, podar, historialAnterior, VENTANA_DIAS, academiasEnDispositivoNuevo, descargarAcademiaEnDispositivoNuevo } = await import('../../src/sync/engine');
 const { hoy, sumarDias } = await import('../../src/domain/fechas');
+const { cobrarClaseSuelta } = await import('../../src/domain/operaciones');
+const { consultarRespaldo } = await import('../../src/sync/respaldoMovimiento');
 
 beforeEach(async () => {
   vi.stubGlobal('navigator', { onLine: true });
@@ -136,6 +138,25 @@ beforeEach(async () => {
 const alta = () => crear('alumnos', { nombre: 'Ana', telefono: '5511112222', activo: true } as never);
 
 describe('sincronizar', () => {
+  it('conserva un cobro sin red y lo respalda una sola vez al volver la conexión', async () => {
+    const plan = await crear('planes', { nombre: 'Clase suelta', tipo: 'suelta', precio: 4000, clases: 1, vigenciaDias: null, disciplinaId: null, activo: true });
+    const { pago, asistencia } = await cobrarClaseSuelta({ alumnoId: null, claseId: 'c1', plan, metodo: 'efectivo', usuarioId: 'u1' });
+    const ids = [pago.id, asistencia.id];
+    vi.stubGlobal('navigator', { onLine: false });
+    await sincronizar();
+    expect((await consultarRespaldo(ids)).pendientes).toEqual(new Set(ids));
+    expect(await db.pagos.get(pago.id)).toMatchObject({ monto: 4000 });
+    expect(nube.envios).toHaveLength(0);
+
+    vi.stubGlobal('navigator', { onLine: true });
+    await sincronizar();
+    await sincronizar();
+    expect((await consultarRespaldo(ids)).pendientes.size).toBe(0);
+    expect(nube.envios.filter((envio) => envio.tabla === 'pagos')).toHaveLength(1);
+    expect(nube.envios.filter((envio) => envio.tabla === 'asistencias')).toHaveLength(1);
+    expect(nube.tablas.get('asistencias')?.get(asistencia.id)?.pago_id).toBe(pago.id);
+  });
+
   it('enumera las academias y limpia una descarga interrumpida antes de vincular otra', async () => {
     await db.meta.clear();
     await setMeta('descargaAcademiaId', 'a1');

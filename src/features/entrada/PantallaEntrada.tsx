@@ -162,7 +162,7 @@ export function PantallaEntrada() {
       }
       return r;
     } catch (e) {
-      if (!silencioso) avisar(e instanceof Error ? e.message : 'No se pudo registrar', 'error');
+      if (!silencioso) avisar(e instanceof Error ? e.message : 'No se pudo guardar la entrada', 'error');
       return null;
     } finally {
       enCurso.current.delete(llave);
@@ -191,7 +191,7 @@ export function PantallaEntrada() {
     if (!a.activo) return { tono: 'aviso', titulo: nombre, detalle: 'Está dado de baja' };
     if (!clase) return { tono: 'error', titulo: 'Elige la clase primero', detalle: 'Cierra el escáner y elige la clase' };
     const r = await entrarAlumno(a, true);
-    if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo registrar' };
+    if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo guardar la entrada' };
     if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está adentro de esta clase' };
     if (r.tipo === 'sin-precio') return { tono: 'error', titulo: 'Falta el precio', detalle: 'Configura la clase suelta en Ajustes' };
     return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Cobrar ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Becado · entra sin pagar' : 'Entró con su plan' };

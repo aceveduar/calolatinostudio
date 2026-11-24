@@ -17,6 +17,7 @@ import { registrarGasto } from '../../domain/gastos';
 import { aCentavos, dinero } from '../../domain/dinero';
 import { fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';
 import { anularPago } from '../../domain/operaciones';
+import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
 
 export function PantallaCaja() {
   const [fecha, setFecha] = useState(hoy());
@@ -59,6 +60,7 @@ export function PantallaCaja() {
       corte: ultimoCorte,
     };
   }, [fecha, k, clases]);
+  const respaldo = useRespaldoMovimientos(datos?.pagos.map(({ p }) => p.id) ?? []);
 
   if (!datos || datos.fecha !== fecha || datos.sede !== k) return <Cargando texto="Actualizando totales…" />;
   const r = resumenCaja(datos.pagos.map((x) => x.p));
@@ -265,6 +267,9 @@ export function PantallaCaja() {
                   <span className="block truncate text-xs text-ink-500">
                     {p.rentaId ? 'Renta del salón' : p.concepto} · {p.monto === 0 && p.planId ? 'sin costo' : p.metodo}
                   </span>
+                  {respaldo(p.id) === 'Pendiente de sincronizar' && (
+                    <span className="block text-xs font-semibold text-warn-600">Pendiente de sincronizar</span>
+                  )}
                 </span>
                 {p.anuladoAt ? <Etiqueta tono="sin">Anulado</Etiqueta> : <span className="font-bold">{dinero(p.monto)}</span>}
               </button>
@@ -303,12 +308,14 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho }: { pago: Pa
   const { usuario } = useSesion();
   const avisar = useAvisos();
   const pago = useLiveQuery(() => db.pagos.get(inicial.id), [inicial.id]) ?? inicial;
+  const respaldo = useRespaldoMovimientos([pago.id])(pago.id);
   const [motivo, setMotivo] = useState('');
   return (
     <div className="space-y-4">
       <Tarjeta className="divide-y divide-ink-100 text-sm">
         <Fila k="Concepto" v={pago.concepto} />
         <Fila k="Monto" v={dinero(pago.monto)} />
+        {respaldo && <Fila k="Respaldo" v={respaldo} />}
         <Fila k="Cobró" v={`${cobro ?? '—'} · ${horaDe(pago.createdAt)}`} />
         {pago.anuladoAt && <Fila k="Anulado" v={`${anulo ?? '—'} · ${pago.anuladoMotivo ?? ''}`} />}
       </Tarjeta>

@@ -37,6 +37,7 @@ for (const n of nombres) {
   await busca.fill(n.toLowerCase());
   await page.getByText(`Nuevo: ${n}`).click();
   await page.getByText(n, { exact: true }).first().waitFor({ timeout: 5000 });
+  await page.getByText('Guardado en este equipo', { exact: true }).waitFor();
   await billete('$50').click();
   await page.getByText('Cambio $10').waitFor();
   const f = await filasCuenta();

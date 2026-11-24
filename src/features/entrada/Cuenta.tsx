@@ -3,6 +3,7 @@ import { Check, X, ArrowRightLeft } from 'lucide-react';
 import { Boton, Hoja, cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
 import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
+import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
 
 /**
  * Cuenta abierta: junta los cobros hasta que recepción toca "Listo". Sirve para cobrar juntos a una pareja o
@@ -35,6 +36,7 @@ export function Cuenta({
   const [corregir, setCorregir] = useState<Movimiento | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [errorCorreccion, setErrorCorreccion] = useState(false);
+  const respaldo = useRespaldoMovimientos(movs.flatMap((m) => [m.pagoId, m.asistenciaId, m.alumnoCreadoId]));
   const efectivo = movs.filter((m) => m.metodo === 'efectivo').reduce((s, m) => s + m.monto, 0);
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
   const sinCobro = movs.length > 0 && movs.every((m) => !m.monto);
@@ -71,20 +73,22 @@ export function Cuenta({
           {filas.map(({ m, cantidad, monto }) => (
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
               <Check size={18} className="shrink-0 text-[#7ee2a8]" />
-              {m.alumnoId && onOpciones ? (
-                <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1">
+                {m.alumnoId && onOpciones ? (
                   <button type="button" onClick={() => onOpciones(m.alumnoId!)} className="block max-w-full truncate text-left font-semibold underline decoration-white/30 underline-offset-4 active:text-white/70" aria-label={`Opciones de ${m.nombre}`}>
                     {m.nombre}
                   </button>
-                  {/* tiene plan pero esta clase se cobra: por qué, a la vista mientras se cobra */}
-                  {m.aviso && <span className="block text-xs text-[#ffd48a]">{m.aviso}</span>}
-                </span>
-              ) : (
-                <span className="min-w-0 flex-1 truncate font-semibold">
-                  {m.nombre}
-                  {cantidad > 1 && <span className="ml-1.5 font-bold text-white/70">×{cantidad}</span>}
-                </span>
-              )}
+                ) : (
+                  <span className="block truncate font-semibold">
+                    {m.nombre}
+                    {cantidad > 1 && <span className="ml-1.5 font-bold text-white/70">×{cantidad}</span>}
+                  </span>
+                )}
+                {m.aviso && <span className="block text-xs text-[#ffd48a]">{m.aviso}</span>}
+                {m.asistenciaId && (
+                  <span className="block text-xs text-white/75">{respaldo(m.pagoId, m.asistenciaId, m.alumnoCreadoId)}</span>
+                )}
+              </span>
               <span className={cx('text-sm font-bold', !monto && 'text-[#7ee2a8]')}>
                 {monto ? dinero(monto) : m.beca ? 'Beca' : 'Plan'}
                 {m.metodo === 'transferencia' && <span className="ml-1 font-normal text-white/60">transf.</span>}
