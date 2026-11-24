@@ -1,8 +1,8 @@
 // Derecho de cancelación: se borran los datos personales del alumno, pero sus pagos y entradas se quedan.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, setMeta } from '../../src/db/db';
-import { crear } from '../../src/db/repo';
-import { NOMBRE_ANONIMO, anonimizarAlumno } from '../../src/domain/correcciones';
+import { borrar, crear } from '../../src/db/repo';
+import { NOMBRE_ANONIMO, anonimizarAlumno, reactivarAlumno } from '../../src/domain/correcciones';
 import type { Alumno, Pago } from '../../src/db/types';
 
 beforeEach(async () => {
@@ -21,5 +21,19 @@ describe('borrar los datos personales de un alumno', () => {
     expect(x.codigo).not.toBe('K7P2QX'); // su credencial anterior deja de servir
     expect(await db.pagos.where('alumnoId').equals(a.id).count()).toBe(1); // la caja sigue cuadrando
     expect(await db.outbox.where('id').equals(a.id).count()).toBeGreaterThan(0); // y se sube a la nube
+    await expect(reactivarAlumno(a.id)).rejects.toThrow('Esta ficha ya no está disponible');
+  });
+});
+
+describe('reactivar la ficha original', () => {
+  it('conserva la identidad y el vínculo al historial aunque se solicite dos veces', async () => {
+    const baja = await crear('alumnos', { nombre: 'Ana López', telefono: '5512345678', notas: '', codigo: 'K7P2QX', activo: false, portal: 'tokenSecretoDeVeinteChars' });
+    const activadas = await Promise.all([reactivarAlumno(baja.id), reactivarAlumno(baja.id)]);
+    for (const ficha of activadas) {
+      expect(ficha).toMatchObject({ id: baja.id, codigo: baja.codigo, portal: baja.portal, activo: true });
+    }
+    expect(await db.alumnos.count()).toBe(1);
+    await borrar('alumnos', baja.id);
+    await expect(reactivarAlumno(baja.id)).rejects.toThrow('Esta ficha ya no está disponible');
   });
 });

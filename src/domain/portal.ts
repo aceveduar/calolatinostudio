@@ -40,7 +40,14 @@ export interface DatosPortal {
   planes: { plan: string; tipo: string; beca: boolean; inicio: string; fin: string; clases: number | null; usadas: number }[];
   clases: { fecha: string; clase: string; color: string | null }[];
   tienda: { id: string; nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; disponibles: number | null; sobre_pedido?: boolean; dias_entrega?: number | null }[];
-  pedidos?: { producto: string; emoji: string; opcion: string | null; nota?: string | null; cantidad: number; precio: number; anticipo?: number; estado: 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado'; creado: number }[];
+  pedidos?: { producto: string; emoji: string; foto?: string | null; opcion: string | null; nota?: string | null; cantidad: number; precio: number; anticipo?: number; estado: 'pendiente' | 'pedido' | 'llego' | 'entregado' | 'cancelado'; creado: number }[];
+}
+
+/** Los datos guardados antes de 20261130 solo traían el nombre del producto. */
+export function fotoPedido(pedido: NonNullable<DatosPortal['pedidos']>[number], tienda: DatosPortal['tienda']): string | null {
+  if (pedido.foto !== undefined) return pedido.foto;
+  const coincidencias = tienda.filter((p) => p.nombre === pedido.producto);
+  return coincidencias.length === 1 ? coincidencias[0].foto : null;
 }
 
 export const ERRORES_PEDIDO: Record<string, string> = {

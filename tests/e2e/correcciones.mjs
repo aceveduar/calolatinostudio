@@ -69,6 +69,15 @@ await shot('0-aviso-clase');
 
 // 1) Método equivocado: Ana pagó por transferencia
 await adentro();
+const fotoAna = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+await page.evaluate(async (foto) => {
+  const { db, actualizar } = window.compasDev;
+  const ana = await db.alumnos.where('nombre').equals('Ana López').first();
+  await actualizar('alumnos', ana.id, { foto });
+}, fotoAna);
+const avatarAna = page.getByRole('button', { name: /Ana López/ }).locator('img');
+await avatarAna.waitFor();
+console.log('   la lista de asistencia muestra la foto actual de Ana:', ok(await avatarAna.getAttribute('src') === fotoAna));
 await page.getByRole('button', { name: /Ana López/ }).click();
 await page.getByRole('dialog').getByRole('button', { name: 'Transferencia' }).click();
 await espera();
@@ -113,8 +122,10 @@ await page.getByText('¿Es alguno de estos?').waitFor();
 await shot('5-parecidos');
 console.log('5) sugiere "Ana López" al escribir "ana lopes": OK');
 // Se equivoca y crea el duplicado de todos modos (se cobra en otra clase para no chocar)
-await page.getByText('Nuevo: Ana Lopes').click();
-await btn('Listo').click();
+await btn('Registrar a otra persona').click();
+await page.getByRole('dialog').getByRole('button', { name: 'Registrar a otra persona' }).click();
+await btn('Confirmar nueva ficha').click();
+await page.getByRole('dialog').getByRole('button', { name: /Cobrar clase suelta/ }).click();
 
 // 6) Unir registros duplicados
 await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
@@ -148,7 +159,7 @@ await espera(400);
 const c7 = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
 console.log('7b) restaurar cobro:', c7, ok(c7.includes('Total cobrado $160')));
 
-// 8) Dar de baja + deshacer; ver dados de baja y reactivar
+// 8) Dar de baja + deshacer; recuperar desde Entrada sin duplicar la ficha
 await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await page.getByText('Jorge Mendoza').click();
 await btn('Dar de baja').click();
@@ -159,12 +170,19 @@ const t8 = await texto();
 console.log('8a) baja deshecha, Jorge sigue activo:', ok(t8.includes('Jorge Mendoza')));
 await page.getByText('Jorge Mendoza').click();
 await btn('Dar de baja').click();
-await espera(3500);
-await page.getByText(/Ver dados de baja/).click();
-await page.getByText('Jorge Mendoza').click();
-await btn('Reactivar').click();
-await espera();
-console.log('8b) reactivar desde dados de baja:', ok(!(await texto()).includes('Dado de baja')));
+const fichaJorge = () => page.evaluate(() => window.compasDev.db.alumnos.where('nombre').equals('Jorge Mendoza').toArray());
+const [baja] = await fichaJorge();
+await page.getByRole('link', { name: 'Entrada' }).click();
+await busca.fill('jorge mendoza');
+await btn(/Jorge Mendoza.*De baja/).click();
+await btn('Cancelar').click();
+console.log('8b) cancelar conserva la baja:', ok(!(await fichaJorge())[0].activo));
+await btn(/Jorge Mendoza.*De baja/).click();
+await btn('Reactivar ficha').click();
+await page.getByRole('dialog').getByText('Jorge Mendoza', { exact: true }).waitFor();
+const jorge = await fichaJorge();
+console.log('8c) reactivar conserva ID y QR:', ok(jorge.length === 1 && jorge[0].activo && jorge[0].id === baja.id && jorge[0].codigo === baja.codigo));
+await page.getByRole('dialog').getByRole('link', { name: 'Ver ficha' }).click();
 
 // 9) Monto tecleado de más
 await btn('Vender plan').click();

@@ -6,7 +6,7 @@ import { usePendientes } from '../../app/pendientes';
 import { PrimerosPasos } from './PrimerosPasos';
 import { BienvenidaRecepcion } from './Bienvenida';
 import { useNoActualizarMientras } from '../../app/actualizacion';
-import { colorClase, nombreClase, nombreMaestro, useAlumnos, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
+import { colorClase, nombreClase, nombreMaestro, useAlumnos, useAlumnosArchivados, useMaestros, useClases, useDisciplinas, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { mismaSede, nombreSede, useSedeActual, useSedes } from '../../app/sedes';
 import { sueltaDeClase, sueltaPara } from '../../domain/sedes';
@@ -22,6 +22,7 @@ import { semaforoAlumno } from '../../domain/membresias';
 import { cobrarClaseSuelta } from '../../domain/operaciones';
 import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
 import { FormAlumno } from '../alumnos/FormAlumno';
+import { ConfirmarReactivacion } from '../alumnos/ConfirmarReactivacion';
 import { METODOS } from '../../domain/planes';
 import { Cuenta } from './Cuenta';
 import { Frecuentes } from './Frecuentes';
@@ -34,7 +35,7 @@ import { productoPorCodigo, venderProducto } from '../../domain/tienda';
 import { leerQR } from '../../domain/qr';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada } from './CorregirEntrada';
-import { parecidos } from '../../domain/correcciones';
+import { NOMBRE_ANONIMO, parecidos } from '../../domain/correcciones';
 
 const normalizar =(s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const capitalizar = (s: string) =>
@@ -79,9 +80,11 @@ export function PantallaEntrada() {
   const suelta = clase ? sueltaDeClase(planes, clase) : sueltaPara(planes, sedeActual);
 
   const [q, setQ] = useState('');
+  const archivados = useAlumnosArchivados(alumnos, estados, Boolean(q.trim()));
   const [vista, setVista] = useState<'llegan' | 'adentro'>('llegan');
   const [alumnoSel, setAlumnoSel] = useState<Alumno | null>(null);
   const [nuevo, setNuevo] = useState(false);
+  const [porReactivar, setPorReactivar] = useState<Alumno | null>(null);
   const [visitante, setVisitante] = useState(false);
   const [escanear, setEscanear] = useState(false);
   const [tienda, setTienda] = useState(false);
@@ -122,7 +125,7 @@ export function PantallaEntrada() {
     if (!t) return [];
     const dig = t.replace(/\D/g, '');
     return alumnos
-      .filter((a) => a.activo)
+      .filter((a) => a.nombre !== NOMBRE_ANONIMO)
       .filter((a) => normalizar(a.nombre).includes(t) || a.codigo.toLowerCase() === t || (dig.length >= 3 && a.telefono.includes(dig)))
       .slice(0, 8);
   }, [q, alumnos]);
@@ -265,9 +268,14 @@ export function PantallaEntrada() {
   const exacto = resultados.some((a) => normalizar(a.nombre) === normalizar(q.trim()));
   // Errores de dedo ("Ana Lopes", "Carlos Ruis"): mostrar parecidos antes de crear un duplicado
   const similares = useMemo(
-    () => (q.trim() && !exacto ? parecidos(q, alumnos.filter((a) => a.activo && !resultados.includes(a))) : []),
+    () => (q.trim() && !exacto ? parecidos(q, alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO && !resultados.includes(a))) : []),
     [q, exacto, alumnos, resultados],
   );
+  const hayCoincidencias = resultados.length > 0 || similares.length > 0;
+  const elegirAlumno = (a: Alumno) => {
+    if (a.activo) void entrarAlumno(a);
+    else setPorReactivar(a);
+  };
 
   // Prevención: avisar si se cobra en una clase que no es la de ahora
   const sugerida = claseSugerida(deHoy);
@@ -358,7 +366,7 @@ export function PantallaEntrada() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && resultados.length === 1) void entrarAlumno(resultados[0]);
+              if (e.key === 'Enter' && resultados.length === 1) elegirAlumno(resultados[0]);
             }}
             placeholder={esc && conTeclado ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
             className="h-14 w-full rounded-2xl bg-superficie pr-10 pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
@@ -415,18 +423,24 @@ export function PantallaEntrada() {
               const entro = adentro.has(a.id);
               return (
                 <div key={a.id} className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
-                  <button onClick={() => entrarAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
+                  <button onClick={() => elegirAlumno(a)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-ink-50">
                     <Avatar nombre={a.nombre} foto={a.foto} />
                     <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
-                    {entro ? (
+                    {!a.activo ? (
+                      <Etiqueta tono="pronto">De baja</Etiqueta>
+                    ) : entro ? (
                       <Etiqueta tono="ok">Adentro</Etiqueta>
+                    ) : archivados.has(a.id) ? (
+                      <Etiqueta tono="neutro">Archivado</Etiqueta>
                     ) : (
                       <Etiqueta tono={s.tono}>{s.tono === 'sin' && suelta ? `Cobrar ${dinero(suelta.precio)}` : s.texto}</Etiqueta>
                     )}
                   </button>
-                  <button onClick={() => setAlumnoSel(a)} className="border-l border-ink-100 px-3 text-ink-500 active:bg-ink-50" aria-label={`Más opciones para ${a.nombre}`}>
-                    <MoreHorizontal size={20} />
-                  </button>
+                  {a.activo && (
+                    <button onClick={() => setAlumnoSel(a)} className="border-l border-ink-100 px-3 text-ink-500 active:bg-ink-50" aria-label={`Más opciones para ${a.nombre}`}>
+                      <MoreHorizontal size={20} />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -436,17 +450,19 @@ export function PantallaEntrada() {
                 {similares.map((a) => (
                   <button
                     key={a.id}
-                    onClick={() => entrarAlumno(a)}
+                    onClick={() => elegirAlumno(a)}
                     className="flex w-full items-center gap-3 rounded-2xl bg-warn-50 p-3 text-left ring-1 ring-warn-600/20 active:brightness-95"
                   >
                     <Avatar nombre={a.nombre} foto={a.foto} />
                     <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{a.nombre}</span>
-                    <Etiqueta tono="pronto">Parecido</Etiqueta>
+                    <Etiqueta tono="pronto">{!a.activo ? 'De baja' : archivados.has(a.id) ? 'Archivado' : 'Parecido'}</Etiqueta>
                   </button>
                 ))}
               </>
             )}
-            {!exacto && (
+            {hayCoincidencias ? (
+              <Boton bloque variante="secundario" onClick={() => setNuevo(true)}>Registrar a otra persona</Boton>
+            ) : (
               <div className="flex items-stretch overflow-hidden rounded-2xl bg-superficie ring-1 ring-ink-100">
                 <button
                   onClick={() => rapido(`nuevo:${nombreNuevo}`, nombreNuevo, (c) => nuevoYCobrar(nombreNuevo, c, usuario.id))}
@@ -457,7 +473,9 @@ export function PantallaEntrada() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-brand-600">Nuevo: {nombreNuevo}</span>
-                    <span className="block text-xs text-ink-500">Se registra y {suelta ? `paga ${dinero(suelta.precio)}` : 'entra'} en un toque</span>
+                    <span className="block text-xs text-ink-500">
+                      {clase && suelta ? `Crea su ficha y cobra ${dinero(suelta.precio)} · ${nombreClase(clase, disciplinas)}` : 'Elige una clase con tarifa para registrar y cobrar'}
+                    </span>
                   </span>
                 </button>
                 <button onClick={() => setNuevo(true)} className="border-l border-ink-100 px-3 text-xs leading-tight font-semibold text-ink-500 active:bg-ink-50">
@@ -533,9 +551,23 @@ export function PantallaEntrada() {
         }}
       />
 
+      <Hoja abierta={Boolean(porReactivar)} onCerrar={() => setPorReactivar(null)} titulo="Reactivar alumno">
+        {porReactivar && (
+          <ConfirmarReactivacion
+            alumno={porReactivar}
+            onCancelar={() => setPorReactivar(null)}
+            onConfirmado={(a) => {
+              setPorReactivar(null);
+              setAlumnoSel(a);
+            }}
+          />
+        )}
+      </Hoja>
+
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Alumno nuevo">
         <FormAlumno
           nombreInicial={nombreNuevo}
+          archivados={archivados}
           onGuardado={(a) => {
             setNuevo(false);
             setAlumnoSel(a);
@@ -729,7 +761,12 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
       const alumnos = await db.alumnos.bulkGet(asis.map((a) => a.alumnoId ?? ''));
       const pagos = await db.pagos.bulkGet(asis.map((a) => a.pagoId ?? ''));
       return asis
-        .map((a, i) => ({ a, nombre: alumnos[i]?.nombre ?? a.nombreVisitante ?? 'Visitante', pago: pagos[i] }))
+        .map((a, i) => ({
+          a,
+          nombre: alumnos[i]?.nombre ?? a.nombreVisitante ?? 'Visitante',
+          foto: alumnos[i]?.foto,
+          pago: pagos[i],
+        }))
         .sort((x, y) => y.a.createdAt - x.a.createdAt);
     },
     [clase.id],
@@ -754,9 +791,9 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
         </Tarjeta>
       ) : (
         <Tarjeta className="divide-y divide-ink-100">
-          {lista.map(({ a, nombre, pago }) => (
+          {lista.map(({ a, nombre, foto, pago }) => (
             <button key={a.id} onClick={() => setQuitar(a.id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-ink-50">
-              <Avatar nombre={nombre} tam={36} />
+              <Avatar nombre={nombre} foto={foto} tam={36} />
               <span className="min-w-0 flex-1 truncate font-medium">{nombre}</span>
               {pago ? <Etiqueta tono="marca">{dinero(pago.monto)}</Etiqueta> : <Etiqueta tono="ok">Plan</Etiqueta>}
               <span className="w-12 text-right text-xs text-ink-500">{horaDe(a.createdAt)}</span>
@@ -775,6 +812,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
 function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () => void }) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
+  const disciplinas = useDisciplinas();
   const suelta = sueltaDeClase(usePlanes(), clase);
   const [nombre, setNombre] = useState('');
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
@@ -785,7 +823,8 @@ function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () =>
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-500">Para quien viene a probar y no quiere registrarse. Cuenta en caja igual que la tarjeta.</p>
+      <p className="text-sm text-ink-700">Entrada a <strong>{nombreClase(clase, disciplinas)}</strong> · {clase.horaInicio}</p>
+      <p className="text-sm text-ink-500">Se registra la visita y el cobro en caja. El nombre es una referencia para esta visita.</p>
       <Campo etiqueta="Nombre (opcional)">
         <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Visitante" />
       </Campo>

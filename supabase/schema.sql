@@ -578,8 +578,11 @@ begin
                    where t.alumno_id = a.id and t.deleted_at is null order by t.created_at desc limit 1),
     'pedidos', coalesce((
       select jsonb_agg(jsonb_build_object('producto', p.nombre, 'emoji', p.emoji, 'opcion', d.opcion, 'nota', d.nota, 'cantidad', d.cantidad, 'precio', d.precio,
+                                          'foto', case when p.en_linea and p.activo and p.deleted_at is null then
+                                            case when base is null then p.foto else img_publica(base, 'p_' || p.id, p.foto) end
+                                          end,
                                           'anticipo', coalesce(d.anticipo, 0), 'estado', d.estado, 'creado', d.created_at) order by d.created_at desc)
-      from pedidos d join productos p on p.id = d.producto_id
+      from pedidos d join productos p on p.id = d.producto_id and p.academia_id = a.academia_id
       where d.alumno_id = a.id and d.deleted_at is null
         and (d.estado in ('pendiente', 'pedido', 'llego') or d.updated_at > (extract(epoch from now()) * 1000)::bigint - 30::bigint * 86400000)
     ), '[]'::jsonb)
@@ -833,7 +836,7 @@ grant execute on function portal_foto(text, text) to anon, authenticated;
 --   1) sube el número aquí y en src/sync/esquema.ts (fecha AAAAMMDD; si hay dos el mismo día, AAAAMMDD + 1),
 --   2) anota qué cambió en supabase/CAMBIOS.md.
 create or replace function esquema_version() returns int
-language sql immutable as $$ select 20261129 $$;
+language sql immutable as $$ select 20261130 $$;
 
 revoke execute on function esquema_version() from public;
 grant execute on function esquema_version() to anon, authenticated;

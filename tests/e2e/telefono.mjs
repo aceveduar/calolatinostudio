@@ -1,4 +1,4 @@
-// Teléfono repetido (aviso, no bloqueo) y aviso en la hoja de WhatsApp cuando el equipo no está conectado a la nube.
+// Teléfono compartido al dar de alta y aviso de WhatsApp en un equipo sin nube.
 import { chromium } from 'playwright-core';
 const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const browser = await chromium.launch({ channel: 'msedge' });
@@ -22,14 +22,25 @@ await ir('/alumnos');
 await page.getByRole('button', { name: 'Nuevo' }).click();
 await page.getByPlaceholder('Nombre y apellido').fill('Hermana Prueba');
 await page.getByPlaceholder('10 dígitos').fill(alguien.telefono.replace(/(\d{2})(\d{4})(\d{4})/, '$1 $2 $3'));
-const aviso = page.getByText(/Este teléfono ya lo tiene/);
-await aviso.waitFor({ timeout: 3000 }).catch(() => {});
-const t = (await aviso.count()) ? await aviso.innerText() : '';
+const formulario = page.getByRole('dialog', { name: 'Alumno nuevo' });
+const coincidencia = formulario.getByText(alguien.nombre, { exact: true });
+await coincidencia.waitFor();
 await page.screenshot({ path: `${OUT}telefono-repetido.png` });
-console.log('1a) avisa quién ya tiene ese teléfono:', ok(t.includes(alguien.nombre)), t);
-console.log('1b) se puede registrar de todos modos:', ok(await page.getByRole('button', { name: 'Registrar alumno' }).isEnabled()));
+const registrarOtra = formulario.getByRole('button', { name: 'Registrar a otra persona' });
+await registrarOtra.click();
+const confirmar = formulario.getByRole('button', { name: 'Confirmar nueva ficha' });
+await confirmar.waitFor();
+const fichas = () => page.evaluate(() => window.compasDev.db.alumnos.where('nombre').equals('Hermana Prueba').toArray());
+console.log('1a) muestra la ficha con el mismo teléfono:', ok(await coincidencia.isVisible()));
+console.log('1b) la primera pulsación pide confirmación sin crear ficha:', ok((await fichas()).length === 0));
 await page.getByPlaceholder('10 dígitos').fill('5500000001');
-console.log('1c) con un teléfono nuevo no avisa:', ok((await page.getByText(/Este teléfono ya lo tiene/).count()) === 0));
+console.log('1c) cambiar el teléfono retira la coincidencia y la confirmación:', ok((await coincidencia.count()) === 0 && (await confirmar.count()) === 0));
+await page.getByPlaceholder('10 dígitos').fill(alguien.telefono);
+await registrarOtra.click();
+await confirmar.click();
+await page.getByRole('button', { name: 'Ahora no' }).click();
+const [hermana] = await fichas();
+console.log('1d) permite registrar a otra persona con el mismo teléfono:', ok(hermana?.telefono === alguien.telefono && hermana.id !== alguien.id));
 
 // 2) hoja de WhatsApp en un equipo sin conectar a la nube
 await ir(`/alumnos/${alguien.id}`);
@@ -38,5 +49,25 @@ const sinNube = page.getByText(/no está conectado a la nube/);
 await sinNube.waitFor({ timeout: 3000 }).catch(() => {});
 await page.screenshot({ path: `${OUT}whatsapp-sin-nube.png` });
 console.log('2) la hoja de WhatsApp avisa que el portal no abrirá sin nube:', ok((await sinNube.count()) === 1));
+
+// 3) El alta puede reactivar la ficha previa desde una coincidencia.
+await page.keyboard.press('Escape');
+await page.evaluate((id) => window.compasDev.actualizar('alumnos', id, { activo: false }), alguien.id);
+await ir('/alumnos');
+await page.getByRole('button', { name: 'Nuevo' }).click();
+await formulario.getByPlaceholder('Nombre y apellido').fill(alguien.nombre);
+await formulario.getByText('De baja', { exact: true }).waitFor();
+await formulario.getByRole('button', { name: 'Reactivar', exact: true }).click();
+await formulario.getByRole('button', { name: 'Reactivar ficha' }).click();
+await page.waitForURL(`**/alumnos/${alguien.id}`);
+const reactivado = await page.evaluate((id) => window.compasDev.db.alumnos.get(id), alguien.id);
+console.log('3) el alta recupera la ficha de baja:', ok(reactivado.activo && reactivado.codigo === alguien.codigo));
+
+// 4) Una ficha archivada sale en la búsqueda de Entrada.
+await page.evaluate((id) => window.compasDev.actualizar('alumnos', id, { createdAt: Date.now() - 200 * 86_400_000 }), hermana.id);
+await page.getByRole('link', { name: 'Entrada', exact: true }).click();
+await page.getByPlaceholder(/Quién llegó|Buscar…/).fill('Hermana Prueba');
+await page.getByRole('button', { name: /Hermana Prueba.*Archivado/ }).waitFor();
+console.log('4) Entrada encuentra la ficha archivada: OK');
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

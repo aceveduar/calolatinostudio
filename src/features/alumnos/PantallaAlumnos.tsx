@@ -4,10 +4,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { ChevronRight, ClipboardList, FileSpreadsheet, Megaphone, Plus, Search, Users } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
-import { DIAS_ARCHIVO, useAlumnos, useEstadosPorAlumno, usePlanes, useVinieronDesde } from '../../app/datos';
-import { estaArchivado } from '../../domain/archivo';
-import { hoy, sumarDias } from '../../domain/fechas';
+import { useAlumnos, useAlumnosArchivados, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
+import { NOMBRE_ANONIMO } from '../../domain/correcciones';
 import { Avatar, Boton, Chips, Encabezado, Etiqueta, Hoja, Tarjeta, Vacio } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
@@ -40,21 +39,17 @@ export function PantallaAlumnos() {
   const [vista, setVista] = useState<'activos' | 'archivados' | 'bajas'>('activos');
   const verBajas = vista === 'bajas';
   const bajas = alumnos.filter((a) => !a.activo).length;
-  const vinieron = useVinieronDesde(sumarDias(hoy(), -DIAS_ARCHIVO));
-  const archivados = useMemo(() => {
-    const ahora = Date.now();
-    const set = new Set<string>();
-    if (!vinieron) return set; // mientras se lee, nadie se archiva (no "brincan" de lugar)
-    for (const a of alumnos) if (estaArchivado(a, vinieron, (estados.get(a.id) ?? []).some((e) => e.vigente), ahora, DIAS_ARCHIVO)) set.add(a.id);
-    return set;
-  }, [alumnos, vinieron, estados]);
+  const archivados = useAlumnosArchivados(alumnos, estados);
   const [nuevo, setNuevo] = useState(false);
 
   const filas = useMemo(() => {
     const t = normalizar(q.trim());
     return alumnos
-      // al buscar se encuentran también los archivados (no se pierde a nadie); sin buscar, cada vista lo suyo
-      .filter((a) => (verBajas ? !a.activo : a.activo && (vista === 'archivados' ? archivados.has(a.id) : t ? true : !archivados.has(a.id))))
+      .filter((a) => {
+        if (verBajas) return !a.activo;
+        if (vista === 'archivados') return archivados.has(a.id);
+        return t ? a.nombre !== NOMBRE_ANONIMO : a.activo && !archivados.has(a.id);
+      })
       .map((a) => {
         const est = estados.get(a.id) ?? [];
         return { a, s: semaforoAlumno(est), beca: est.some((e) => e.vigente && planesBeca.has(e.membresia.planId)) };
@@ -149,7 +144,7 @@ export function PantallaAlumnos() {
                 <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
                 {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
-                {archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.color}>{s.texto}</Etiqueta>}
+                {!a.activo ? <Etiqueta tono="pronto">De baja</Etiqueta> : archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.color}>{s.texto}</Etiqueta>}
               </button>
             ))}
           </Tarjeta>
@@ -195,7 +190,7 @@ export function PantallaAlumnos() {
       </div>
 
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Alumno nuevo">
-        <FormAlumno onGuardado={(a) => { setNuevo(false); nav(`/alumnos/${a.id}`, { state: { recien: true } }); }} />
+        <FormAlumno archivados={archivados} onGuardado={(a, creado) => { setNuevo(false); nav(`/alumnos/${a.id}`, { state: { recien: creado } }); }} />
       </Hoja>
     </div>
   );

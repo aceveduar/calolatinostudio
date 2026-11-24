@@ -18,6 +18,7 @@ import { perfilAlumno, type PerfilAlumno } from '../../domain/perfilAlumno';
 import { semaforoAlumno, textoDias } from '../../domain/membresias';
 import { DetallePago } from '../caja/PantallaCaja';
 import { FormAlumno } from './FormAlumno';
+import { ConfirmarReactivacion } from './ConfirmarReactivacion';
 import { VenderPlan } from './VenderPlan';
 import { CredencialQR } from './CredencialQR';
 import { EnviarWhatsApp } from './EnviarWhatsApp';
@@ -41,6 +42,7 @@ export function FichaAlumno() {
   const [editar, setEditar] = useState(false);
   const [vender, setVender] = useState(false);
   const [fusionar, setFusionar] = useState(false);
+  const [reactivar, setReactivar] = useState(false);
   const [qr, setQr] = useState(false);
   const [whats, setWhats] = useState(false);
   const [anonimizar, setAnonimizar] = useState(false);
@@ -94,7 +96,7 @@ export function FichaAlumno() {
         <Opcion
           icono={<UserX size={18} />}
           titulo="Dar de baja"
-          detalle="Ya no viene: sale de Entrada y de la lista"
+          detalle="Sale de la lista habitual y conserva su historial"
           peligro
           onClick={async () => {
             await actualizar('alumnos', alumno.id, { activo: false });
@@ -122,16 +124,12 @@ export function FichaAlumno() {
       {!alumno.activo && (
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-sm text-warn-600">
           <UserX size={18} className="shrink-0" />
-          <span className="flex-1 font-medium">Dado de baja. No aparece en Entrada.</span>
-          <button
-            className="rounded-lg bg-warn-600/15 px-3 py-1.5 font-bold"
-            onClick={async () => {
-              await actualizar('alumnos', alumno.id, { activo: true });
-              avisar(`${nombre1} reactivado`);
-            }}
-          >
-            Reactivar
-          </button>
+          <span className="flex-1 font-medium">Dado de baja.</span>
+          {alumno.nombre !== NOMBRE_ANONIMO && (
+            <button className="rounded-lg bg-warn-600/15 px-3 py-1.5 font-bold" onClick={() => setReactivar(true)}>
+              Reactivar
+            </button>
+          )}
         </div>
       )}
 
@@ -225,8 +223,13 @@ export function FichaAlumno() {
         ) : (
           <Tarjeta className="divide-y divide-ink-100">
             {(todasClases ? historial.asistencias : historial.asistencias.slice(0, 8)).map((a) => (
-              <div key={a.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="font-medium">{nombreClase(clases.find((c) => c.id === a.claseId), disciplinas)}</span>
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
+                <div>
+                  <p className="font-medium">{nombreClase(clases.find((c) => c.id === a.claseId), disciplinas)}</p>
+                  {a.membresiaId ? <p className="text-xs text-ink-500">Con plan</p>
+                    : a.debe ? <p className="text-xs text-ink-500">Clase por pagar</p>
+                    : a.pagoId && <p className="text-xs text-ink-500">Clase suelta</p>}
+                </div>
                 <span className="text-ink-500">{textoFechaHora(a.fecha, a.createdAt)}</span>
               </div>
             ))}
@@ -306,6 +309,9 @@ export function FichaAlumno() {
       </Hoja>
       <Hoja abierta={qr} onCerrar={() => setQr(false)} titulo="Credencial">
         {qr && <CredencialQR alumno={alumno} academia={academia} />}
+      </Hoja>
+      <Hoja abierta={reactivar} onCerrar={() => setReactivar(false)} titulo="Reactivar alumno">
+        {reactivar && <ConfirmarReactivacion alumno={alumno} onConfirmado={() => setReactivar(false)} onCancelar={() => setReactivar(false)} />}
       </Hoja>
       <Hoja abierta={fusionar} onCerrar={() => setFusionar(false)} titulo="Unir registros">
         {fusionar && (

@@ -110,6 +110,7 @@ export async function entradaSinNombre(clase: Clase, usuarioId: ID): Promise<Res
 /** Alumno nuevo en un solo toque: se registra solo con su nombre y paga. */
 export async function nuevoYCobrar(nombre: string, clase: Clase, usuarioId: ID): Promise<Resultado> {
   return enTransaccion(async () => {
+    if (!sueltaDeClase(await db.planes.toArray(), clase)) return { tipo: 'sin-precio' };
     const a = await crear('alumnos', { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: '', notas: '', codigo: generarCodigo(), activo: true });
     return entradaRapida({ alumnoId: a.id, nombre: a.nombre, clase, usuarioId, alumnoCreadoId: a.id });
   });

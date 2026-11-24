@@ -15,6 +15,7 @@ Cada cambio sube el número de `esquema_version()` (al final de `schema.sql`) y 
 
 | Versión | Qué cambió |
 |---|---|
+| 20261130 | `portal_alumno` devuelve la foto de cada producto publicado en **Tus apartados y encargos**, usando el mismo enlace de la tienda. La foto es opcional y el portal conserva la compatibilidad con respuestas previas. |
 | 20261129 | Flyer o foto de cada evento: `eventos.foto`. `pagina_publica` y `portal_alumno` la mandan como enlace `/img/<slug>/e_<id>.<huella>` (en el portal, incrustada si la academia no tiene página) e `imagen_publica` la sirve. **Correr ANTES del push** (sin la columna, la app guarda el evento pero sin el flyer). |
 | 20261128 | Eventos con más detalle: `eventos.vestimenta` (cómo venir: disfraz, de blanco…), `eventos.lugar` y `eventos.direccion` (cuando es en otro lugar). `pagina_publica` y `portal_alumno` mandan además `lugar` y `direccion` ya resueltos (los de la sede si no es en otro lugar) y `otro_lugar`. **Correr ANTES del push** (sin las columnas, la app guarda el evento pero sin esos datos). |
 | 20261127 | Corte de caja con fondo y salidas: `cortes.fondo` (feria con que abrió), `cortes.salidas` (efectivo que salió del cajón) y `gastos.de_caja` (el gasto se pagó con dinero de la caja). **Correr ANTES del push** (sin las columnas, la app guarda el corte pero sin el fondo ni las salidas). |

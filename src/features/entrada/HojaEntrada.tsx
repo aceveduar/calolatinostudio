@@ -73,7 +73,6 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
           <p className="truncate text-xl font-bold">{alumno.nombre}</p>
           <div className="mt-1 flex items-center gap-2">
             <Etiqueta tono={sem.color}>{sem.texto}</Etiqueta>
-            {clase && <span className="truncate text-sm text-ink-500">→ {nClase}</span>}
           </div>
         </div>
         {/* su ficha a un toque desde aquí (historial, pagos, WhatsApp…) */}
@@ -81,6 +80,11 @@ function Contenido({ alumno, clase, onCerrar }: { alumno: Alumno; clase: Clase |
           Ver ficha <ChevronRight size={16} aria-hidden="true" />
         </Link>
       </div>
+      {clase && (
+        <p className="mb-3 text-sm text-ink-700">
+          Entrada a <strong>{nClase}</strong> · {clase.horaInicio}
+        </p>
+      )}
 
       {adeudos.length > 0 && vista !== 'vender' && (
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-bad-50 p-3 text-sm text-bad-600">

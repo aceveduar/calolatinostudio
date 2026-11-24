@@ -5,7 +5,7 @@
  */
 import { db } from '../db/db';
 import { actualizar, borrar, enTransaccion } from '../db/repo';
-import type { Asistencia, ID, MetodoPago } from '../db/types';
+import type { Alumno, Asistencia, ID, MetodoPago } from '../db/types';
 import { anularPago, generarCodigo } from './operaciones';
 
 /** Quita una entrada. Si se cobró, también anula el cobro (el dinero se devuelve y la caja cuadra). */
@@ -171,6 +171,17 @@ export function mismoTelefono<T extends { id: string; telefono: string }>(telefo
  * También se limpian sus datos en boletos e interesados.
  */
 export const NOMBRE_ANONIMO = 'Alumno anónimo';
+
+export async function reactivarAlumno(id: ID): Promise<Alumno> {
+  return db.transaction('rw', db.alumnos, db.outbox, async () => {
+    const alumno = await db.alumnos.get(id);
+    if (!alumno || alumno.deletedAt || alumno.nombre === NOMBRE_ANONIMO) {
+      throw new Error('Esta ficha ya no está disponible');
+    }
+    return alumno.activo ? alumno : actualizar('alumnos', id, { activo: true });
+  });
+}
+
 export async function anonimizarAlumno(id: ID): Promise<void> {
   await enTransaccion(async () => {
     await actualizar('alumnos', id, { nombre: NOMBRE_ANONIMO, telefono: '', notas: '', foto: null, portal: null, avisos: null, codigo: generarCodigo(), activo: false });

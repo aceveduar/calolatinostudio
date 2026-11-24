@@ -76,11 +76,12 @@ await page.keyboard.press('Escape');
 
 // ---------- portal (base simulada) ----------
 const TOKEN = 'AbCdEfGhJkLmNpQrStUvWxYz23';
+const fotoPlayera = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 const base = {
   hoy: '2026-11-14', alumno: { nombre: 'Ana López', codigo: 'K7P2QX' }, academia: { nombre: 'Calo Latino Studio', color: '#d6334a', logo: null },
   planes: [], clases: [],
   tienda: [
-    { id: '11111111-1111-4111-8111-111111111111', nombre: 'Playera Calo', precio: 25000, emoji: '👕', foto: null, descripcion: 'Algodón, logo al frente', opciones: ['CH', 'M', 'G'], disponibles: 4 },
+    { id: '11111111-1111-4111-8111-111111111111', nombre: 'Playera Calo', precio: 25000, emoji: '👕', foto: fotoPlayera, descripcion: 'Algodón, logo al frente', opciones: ['CH', 'M', 'G'], disponibles: 4 },
     { id: '22222222-2222-4222-8222-222222222222', nombre: 'Zapatillas', precio: 120000, emoji: '👟', foto: null, descripcion: '', opciones: [], disponibles: 0 },
   ],
   pedidos: [],
@@ -91,7 +92,13 @@ let pedido = null;
 await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
 await ctx.route('**/rest/v1/rpc/portal_pedir', (r) => {
   pedido = JSON.parse(r.request().postData() || '{}');
-  if (respuestaPedir.ok) datos = { ...base, pedidos: [{ producto: 'Playera Calo', emoji: '👕', opcion: pedido.p_opcion, cantidad: pedido.p_cantidad, precio: 25000, estado: 'pendiente', creado: Date.now() }] };
+  if (respuestaPedir.ok) datos = {
+    ...base,
+    pedidos: [
+      { producto: 'Playera Calo', emoji: '👕', foto: fotoPlayera, opcion: pedido.p_opcion, cantidad: pedido.p_cantidad, precio: 25000, estado: 'pendiente', creado: Date.now() },
+      { producto: 'Zapatillas', emoji: '👟', foto: null, opcion: null, cantidad: 1, precio: 120000, estado: 'pedido', creado: Date.now() - 1000 },
+    ],
+  };
   return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(respuestaPedir) });
 });
 await page.goto(`http://localhost:4173/p/${TOKEN}`);
@@ -113,7 +120,12 @@ await dlg.getByRole('button', { name: /Apartar · pagas/ }).click();
 await page.getByText(/¡Listo! Apartaste Playera Calo \(M\) ×2/).waitFor();
 await page.waitForTimeout(500);
 t = await body();
-console.log('9) apartado enviado y en "Tus apartados":', ok(pedido.p_token === TOKEN && pedido.p_opcion === 'M' && pedido.p_cantidad === 2 && /Tus apartados y encargos 👕 Playera Calo · M ×2 Recógelo en recepción · \$500/i.test(t)));
+console.log('9) apartado enviado y en "Tus apartados":', ok(pedido.p_token === TOKEN && pedido.p_opcion === 'M' && pedido.p_cantidad === 2 && /Tus apartados y encargos Playera Calo · M ×2 Recógelo en recepción · \$500/i.test(t)));
+const filaPlayera = page.getByRole('listitem').filter({ hasText: 'Playera Calo · M' });
+const miniatura = filaPlayera.locator('img');
+await miniatura.waitFor();
+const filaZapatillas = page.getByRole('listitem').filter({ hasText: 'El proveedor lo está preparando' });
+console.log('10) miniatura para la playera e ícono para el artículo sin foto:', ok(await miniatura.getAttribute('src') === fotoPlayera && (await filaZapatillas.innerText()).includes('👟')));
 await page.screenshot({ path: `${OUT}pedidos-3-listo.png`, fullPage: true });
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

@@ -11,7 +11,7 @@ import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
-import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, puedeOpinar, type DatosPortal } from '../../domain/portal';
+import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, fotoPedido, puedeOpinar, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
 import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
 import { INSIGNIAS, faltaParaEvento, insignias, mensajeEvento, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
@@ -391,7 +391,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
             <ul className="mt-2 divide-y divide-ink-100">
               {pedidos.map((p, i) => (
                 <li key={i} className="flex items-center gap-3 py-2">
-                  <span className="text-2xl leading-none">{p.emoji}</span>
+                  <ImagenProducto foto={fotoPedido(p, datos.tienda)} emoji={p.emoji} tam={44} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">
                       {p.producto}

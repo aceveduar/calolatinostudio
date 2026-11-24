@@ -2,6 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, setMeta } from '../../src/db/db';
 import { actualizar, borrar, crear } from '../../src/db/repo';
+import { entradaSinNombre, nuevoYCobrar } from '../../src/domain/rapido';
+import { clase, plan } from './fabricas';
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
@@ -29,5 +31,30 @@ describe('guardar', () => {
     const n = await actualizar('gastos', g.id, { monto: 60000 });
     expect(n.monto).toBe(60000);
     expect(n.updatedAt).toBeGreaterThan(g.updatedAt);
+  });
+});
+
+describe('entrada por clase suelta', () => {
+  it('vincula la clase y el cobro a la ficha solo cuando se registra al alumno', async () => {
+    const salsa = clase('salsa-1');
+    await db.clases.put(salsa);
+    await db.planes.put(plan('suelta'));
+    await nuevoYCobrar('Alumno de prueba', salsa, 'u1');
+    await entradaSinNombre(salsa, 'u1');
+
+    const [alumno] = await db.alumnos.toArray();
+    const entradas = await db.asistencias.where('claseId').equals(salsa.id).toArray();
+    expect(entradas).toHaveLength(2);
+    expect(entradas.map((a) => a.alumnoId)).toEqual(expect.arrayContaining([alumno.id, null]));
+    for (const entrada of entradas) {
+      expect(entrada.membresiaId).toBeNull();
+      expect(await db.pagos.get(entrada.pagoId!)).toMatchObject({ alumnoId: entrada.alumnoId, monto: 6000 });
+    }
+  });
+
+  it('si falta tarifa, no guarda una ficha ni un movimiento incompleto', async () => {
+    expect(await nuevoYCobrar('Alumno de prueba', clase('salsa-1'), 'u1')).toEqual({ tipo: 'sin-precio' });
+    expect(await db.alumnos.count()).toBe(0);
+    expect(await db.outbox.count()).toBe(0);
   });
 });
