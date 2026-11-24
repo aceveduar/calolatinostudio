@@ -12,7 +12,7 @@ import { adeudosDe, esAdeudo } from './adeudos';
 import { cobrosDelMes, type CobroRenta } from './agenda';
 import { mesDe, sumarMes, type Mes } from './gastos';
 import { esBeca } from './becas';
-import { aFecha, diasEntre } from './fechas';
+import { aFecha, diasEntre, sumarDias } from './fechas';
 import { dejaronDeVenir } from './reportes';
 
 /** Un recordatorio de pago no se repite antes de estos días. */
@@ -52,11 +52,17 @@ export interface PorRenovar {
 /** Planes que vencen en los próximos 3 días o vencieron la última semana, sin renovar y sin avisar. */
 export function porRenovar(p: { mems: Membresia[]; alumnos: Map<ID, Alumno>; planes: Plan[]; hoy: Fecha }): PorRenovar[] {
   const vivas = p.mems.filter((m) => !m.anuladaAt && !m.deletedAt);
+  const ultimaPorAlumno = new Map<ID, Fecha>();
+  for (const m of vivas) {
+    if (m.fin > (ultimaPorAlumno.get(m.alumnoId) ?? '')) ultimaPorAlumno.set(m.alumnoId, m.fin);
+  }
+  const inicio = sumarDias(p.hoy, -AVISAR_DESPUES);
+  const fin = sumarDias(p.hoy, AVISAR_ANTES);
   return vivas
-    .filter((m) => diasEntre(p.hoy, m.fin) <= AVISAR_ANTES && diasEntre(p.hoy, m.fin) >= -AVISAR_DESPUES)
+    .filter((m) => m.fin >= inicio && m.fin <= fin)
     .filter((m) => !esBeca(p.planes.find((x) => x.id === m.planId)))
     // ya renovó: tiene otro plan que termina después
-    .filter((m) => !vivas.some((o) => o.alumnoId === m.alumnoId && o.id !== m.id && o.fin > m.fin))
+    .filter((m) => ultimaPorAlumno.get(m.alumnoId) === m.fin)
     .flatMap((m) => {
       const alumno = p.alumnos.get(m.alumnoId);
       if (!alumno?.activo || alumno.deletedAt || avisadoEl(alumno, `vence:${m.id}`)) return [];

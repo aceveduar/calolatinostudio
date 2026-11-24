@@ -1,5 +1,5 @@
 // Tienda de la página pública: no se come la página (4 en celular, 8 en computadora y "Ver toda la tienda"),
-// primero lo que tiene foto, y cada producto pregunta por WhatsApp con su nombre.
+// primero lo que tiene foto, y cada ficha permite consultar por WhatsApp.
 import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 import { revisarPagina } from './revisar.mjs';
@@ -30,11 +30,18 @@ for (const [n, vp, movil, esperados] of [['cel', { width: 390, height: 844 }, tr
   await p.waitForTimeout(600);
   const visibles = () => p.locator('section:has(h2:text("Lleva tu estilo")) li:visible').count();
   const antes = await visibles();
-  const primero = await p.locator('section:has(h2:text("Lleva tu estilo")) li:visible a').first().getAttribute('aria-label');
+  const tarjeta = p.getByRole('button', { name: /^Ver Playera 3,/ });
   await p.screenshot({ path: `${OUT}tiendapublica-${n}.png` });
-  console.log(`1) ${n}: se ven ${esperados} productos, primero los que tienen foto:`, ok(antes === esperados && /^Playera/.test(primero ?? '')), antes, primero);
-  const enlace = await p.locator('section:has(h2:text("Lleva tu estilo")) li:visible a').first().getAttribute('href');
-  console.log(`2) ${n}: cada producto pregunta por WhatsApp con su nombre y precio:`, ok(/wa\.me\/525648141057/.test(enlace) && /Playera%203.*%24200/.test(enlace)), enlace?.slice(0, 90));
+  const primera = p.locator('section:has(h2:text("Lleva tu estilo")) li:visible button').first();
+  console.log(`1) ${n}: se ven ${esperados} productos, primero los que tienen foto:`, ok(antes === esperados && /^Ver Playera/.test((await primera.getAttribute('aria-label')) ?? '')), antes);
+  await tarjeta.click();
+  const detalle = p.getByRole('dialog', { name: 'Playera 3' });
+  const enlace = new URL(await detalle.getByRole('link', { name: 'Consultar por WhatsApp' }).getAttribute('href'));
+  console.log(`2) ${n}: ficha con precio y consulta por WhatsApp:`, ok(
+    enlace.hostname === 'wa.me' && enlace.pathname === '/525648141057' && enlace.searchParams.get('text')?.includes('Playera 3') &&
+    await detalle.getByText('$200', { exact: true }).isVisible(),
+  ));
+  await p.keyboard.press('Escape');
   await p.getByRole('button', { name: 'Ver toda la tienda (12)' }).click();
   await p.waitForTimeout(300);
   console.log(`3) ${n}: "Ver toda la tienda (12)" muestra los 12:`, ok((await visibles()) === 12));

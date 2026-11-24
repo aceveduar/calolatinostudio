@@ -92,6 +92,14 @@ await dlg.getByRole('button', { name: /Entra y paga después/ }).waitFor({ timeo
 await dlg.getByRole('button', { name: /Entra y paga después/ }).click();
 await page.getByText(/queda debiendo \$40/).waitFor();
 console.log('4) fiado en Casa de Cultura ($40):', 'OK');
+await page.getByRole('button', { name: /^Adentro/ }).click();
+await page.getByRole('button', { name: new RegExp(`${sinPlan[0].nombre}.*Por pagar`) }).click();
+const correccion = page.getByRole('dialog', { name: 'Corregir entrada' });
+await correccion.getByRole('link', { name: 'Ver adeudos del alumno' }).click();
+await page.getByRole('button', { name: /Cobrar lo que debe/ }).waitFor();
+console.log('   el fiado se identifica como pendiente y lleva al cobro:', ok(new URL(page.url()).hash === '#adeudos'));
+await ir('/');
+await buscar.waitFor();
 
 // 5) mensual 2 clases: hay que elegir 2 clases
 await buscar.fill(sinPlan[1].nombre);
@@ -116,8 +124,9 @@ const p1 = planes.find((p) => p.nombre === 'Mensual 1 clase');
 const hoyF = new Date('2026-11-14T12:00:00'); const f = (d) => { const x = new Date(hoyF); x.setDate(x.getDate() + d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
 await page.evaluate((a) => window.compasDev.db.membresias.put(a), { id: crypto.randomUUID(), academiaId: p1.academiaId, alumnoId: sinPlan[2].id, planId: p1.id, pagoId: crypto.randomUUID(), disciplinaId: null, sedeId: p1.sedeId, inicio: f(-35), fin: f(-5), clasesTotal: null, anuladaAt: null, claseIds: [c.id], createdAt: Date.now(), updatedAt: Date.now(), deletedAt: null });
 await page.reload();
-await page.getByText('Monse', { exact: true }).click().catch(() => {});
-for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click().catch(() => {});
+const monse = page.getByRole('button', { name: 'Monse', exact: true });
+await buscar.or(monse).first().waitFor();
+if (await monse.isVisible()) await entrar('Monse', '1111');
 await ir(`/alumnos/${sinPlan[2].id}`);
 await page.getByRole('button', { name: /Vender plan/ }).click();
 await dlg.getByRole('button', { name: /Mensual 1 clase/ }).click();

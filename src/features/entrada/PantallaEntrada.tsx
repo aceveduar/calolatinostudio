@@ -34,7 +34,7 @@ import { useLectorUSB } from '../../app/codigos';
 import { productoPorCodigo, venderProducto } from '../../domain/tienda';
 import { leerQR } from '../../domain/qr';
 import { HojaEntrada } from './HojaEntrada';
-import { CorregirEntrada } from './CorregirEntrada';
+import { CorregirEntrada, EstadoEntrada } from './CorregirEntrada';
 import { NOMBRE_ANONIMO, parecidos } from '../../domain/correcciones';
 
 const normalizar =(s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -795,7 +795,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
             <button key={a.id} onClick={() => setQuitar(a.id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-ink-50">
               <Avatar nombre={nombre} foto={foto} tam={36} />
               <span className="min-w-0 flex-1 truncate font-medium">{nombre}</span>
-              {pago ? <Etiqueta tono="marca">{dinero(pago.monto)}</Etiqueta> : <Etiqueta tono="ok">Plan</Etiqueta>}
+              <EstadoEntrada asistencia={a} pago={pago} />
               <span className="w-12 text-right text-xs text-ink-500">{horaDe(a.createdAt)}</span>
             </button>
           ))}

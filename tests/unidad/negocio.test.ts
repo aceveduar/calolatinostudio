@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { rentabilidadPorClase } from '../../src/domain/rentabilidad';
 import { deudores, porRenovar } from '../../src/domain/pendientes';
 import { alumno, asistencia, clase, fijo, gasto, membresia, pago, plan } from './fabricas';
+import { clasesQueChocan } from '../../src/domain/agenda';
+
+it('detecta clases simultáneas solo si comparten salón o maestro y coinciden en fechas', () => {
+  const base = clase('base', { salonId: 'salon1', maestroId: 'maestro', curso: { inicio: '2026-11-02', fin: '2026-11-30' } });
+  const casos = [
+    clase('salon', { salonId: 'salon1', maestroId: 'otro' }),
+    clase('maestro', { salonId: 'salon2', maestroId: 'maestro', sedeId: 'otra' }),
+    clase('libre', { salonId: 'salon2', maestroId: 'otro' }),
+    clase('despues', { salonId: 'salon1', curso: { inicio: '2026-12-01' } }),
+    clase('pegada', { salonId: 'salon1', horaInicio: '20:00' }),
+  ];
+  expect(clasesQueChocan(base, casos, '2026-11-02').map((x) => [x.clase.id, x.salon, x.maestro])).toEqual([
+    ['salon', true, false],
+    ['maestro', false, true],
+  ]);
+});
 
 describe('lo que deja cada clase', () => {
   const clases = [clase('c1', { maestroId: 'luis' }), clase('c2', { maestroId: 'luis' })];

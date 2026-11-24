@@ -1,16 +1,24 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Link } from 'react-router-dom';
 import { ArrowRightLeft, CalendarRange, Search, Trash2, UserRoundPen } from 'lucide-react';
 import { nombreClase, useAlumnos, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Etiqueta, Segmentos, Tarjeta, cx } from '../../components/ui';
-import { db } from '../../db/db';
-import type { Asistencia, MetodoPago } from '../../db/types';
+import { db, esDeuda } from '../../db/db';
+import type { Asistencia, MetodoPago, Pago } from '../../db/types';
 import { cambiarMetodoPago, cambiarPersona, moverDeClase, quitarEntrada } from '../../domain/correcciones';
 import { dinero } from '../../domain/dinero';
 import { horaDe } from '../../domain/fechas';
 import { METODOS } from '../../domain/planes';
+
+export function EstadoEntrada({ asistencia, pago }: { asistencia: Asistencia; pago?: Pago }) {
+  if (esDeuda(asistencia)) return <Etiqueta tono="pronto">Por pagar</Etiqueta>;
+  if (pago) return <Etiqueta tono="marca">{dinero(pago.monto)}</Etiqueta>;
+  if (asistencia.membresiaId) return <Etiqueta tono="ok">Plan</Etiqueta>;
+  return <Etiqueta tono="neutro">Entrada</Etiqueta>;
+}
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -53,11 +61,16 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
             {nombreClase(clase, disciplinas)} · {horaDe(asistencia.createdAt)}
           </p>
         </div>
-        {pago ? <Etiqueta tono="marca">{dinero(pago.monto)}</Etiqueta> : <Etiqueta tono="ok">Plan</Etiqueta>}
+        <EstadoEntrada asistencia={asistencia} pago={pago} />
       </Tarjeta>
 
       {vista === 'menu' && (
         <>
+          {esDeuda(asistencia) && asistencia.alumnoId && (
+            <Link to={`/alumnos/${asistencia.alumnoId}#adeudos`} className="flex min-h-11 items-center justify-center rounded-xl bg-brand-50 font-semibold text-brand-600">
+              Ver adeudos del alumno
+            </Link>
+          )}
           {pago && (
             <div>
               <p className="mb-1.5 px-1 text-sm font-medium text-ink-700">¿Cómo pagó?</p>

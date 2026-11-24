@@ -18,6 +18,11 @@ const entrar = async (nombre, pin) => {
 await page.goto('http://localhost:4173/');
 await page.waitForFunction(() => !!window.compasDev);
 console.log('demo:', JSON.stringify(await page.evaluate(async () => { await window.compasDev.sembrar(); await window.compasDev.agregarClasesDemo(); await window.compasDev.agregarTiendaDemo(); return window.compasDev.agregarPedidosDemo(); })));
+await page.evaluate(async () => {
+  const { db, actualizar } = window.compasDev;
+  const pedido = await db.pedidos.where('estado').equals('llego').first();
+  await actualizar('alumnos', pedido.alumnoId, { telefono: '5512345678' });
+});
 await page.reload();
 await entrar('Monse', '1111');
 
@@ -72,6 +77,9 @@ console.log('5) encargo nuevo con anticipo queda por pedir:', ok(/Por pedir al p
 
 // 6) entregar el que llegó (cobra solo el resto)
 await page.getByRole('button', { name: /Zapatillas de baile \(26\)/ }).click();
+const enlaceLlegada = dlg.getByRole('link', { name: 'Avisar por WhatsApp' });
+const mensajeLlegada = new URL(await enlaceLlegada.getAttribute('href')).searchParams.get('text');
+console.log('   el detalle del encargo listo conserva el aviso con el saldo:', ok(mensajeLlegada.includes('$600') && mensajeLlegada.includes('zapatillas')));
 await dlg.getByRole('button', { name: /Entregar y cobrar \$600/ }).click();
 await page.getByText(/Entregado · \$600/).waitFor();
 await page.getByRole('link', { name: 'Caja' }).first().click().catch(() => ir('/caja'));

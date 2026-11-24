@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRentas } from '../../app/datos';
-import { rentasQueChocanConClase } from '../../domain/agenda';
+import { clasesQueChocan, rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -78,7 +78,10 @@ export function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null
   const finMal = porCurso && !!fin && !!inicio && fin <= inicio;
   const precioSede = sueltaPara(usePlanes(), sedeId || null)?.precio;
   const rentas = useRentas();
-  const chocaCon = rentasQueChocanConClase({ id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null, salonId: salonId || null }, rentas);
+  const clases = useClases();
+  const horario = { id: clase?.id, dias, horaInicio: hora, duracionMin: Number(duracion) || 60, sedeId: sedeId || null, salonId: sedeId ? null : salonId || null };
+  const chocaCon = activo ? rentasQueChocanConClase(horario, rentas) : [];
+  const empalmes = activo ? clasesQueChocan({ ...horario, maestroId: maestroId === NUEVO ? null : maestroId, curso: porCurso && inicio ? { inicio, fin: fin || null } : null }, clases) : [];
 
   const guardar = async () => {
     let idMaestro: ID | null = maestroId && maestroId !== NUEVO ? maestroId : null;
@@ -250,6 +253,16 @@ export function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null
         <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
           Ojo: a esa hora el salón está rentado a {chocaCon.map((r) => r.nombre).join(', ')}. Revisa la Agenda antes de guardar.
         </p>
+      )}
+      {empalmes.length > 0 && (
+        <div role="status" className="rounded-xl bg-warn-50 p-3 text-sm text-warn-600">
+          <p className="font-semibold">Hay clases que coinciden con este horario</p>
+          <ul className="mt-1 space-y-1">
+            {empalmes.map(({ clase: otra, dias: coinciden, salon, maestro }) => (
+              <li key={otra.id}>{nombreClase(otra, disciplinas)} · {coinciden.map((d) => DIAS_CORTOS[d]).join(', ')} {otra.horaInicio} · {salon && maestro ? 'Mismo salón y maestro' : salon ? 'Mismo salón' : 'Mismo maestro'}</li>
+            ))}
+          </ul>
+        </div>
       )}
       {/* cómo queda, en una línea: lo mismo que verá en Entrada y en la página */}
       {nombreDisc && dias.length > 0 && (

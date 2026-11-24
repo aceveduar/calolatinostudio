@@ -11,7 +11,8 @@ import { deudores, porExtranar, porRenovar, rentasPorCobrar } from '../domain/pe
 /** Lee de la base lo necesario para calcular los pendientes. */
 async function cargar(dia: string) {
   const inicioMesPasado = rangoMes(sumarMes(mesDe(dia), -1)).desde;
-  const desde = [sumarDias(dia, -90), inicioMesPasado].sort()[0];
+  // "Dejaron de venir" usa 56 días anteriores al corte de 14 días.
+  const desde = [sumarDias(dia, -70), inicioMesPasado].sort()[0];
   const [mems, alumnos, asistencias, fiados, rentas, pagosRenta] = await Promise.all([
     db.membresias.where('fin').aboveOrEqual(sumarDias(dia, -7)).toArray(),
     db.alumnos.toArray(),
@@ -19,9 +20,19 @@ async function cargar(dia: string) {
     // lo fiado puede ser de hace meses
     db.asistencias.where('deuda').equals(1).toArray(),
     db.rentas.toArray(),
-    db.pagos.where('fecha').aboveOrEqual(inicioMesPasado).toArray().then((xs) => xs.filter((p) => !!p.rentaId)),
+    db.pagos.where('rentaId').above('').filter((p) => p.fecha >= inicioMesPasado).toArray(),
   ]);
   return { mems, alumnos, asistencias, fiados, rentas, pagosRenta };
+}
+
+let lecturaCompartida: { dia: string; promesa: ReturnType<typeof cargar> } | undefined;
+function cargarContador(dia: string) {
+  if (lecturaCompartida?.dia === dia) return lecturaCompartida.promesa;
+  const promesa = cargar(dia).finally(() => {
+    if (lecturaCompartida?.promesa === promesa) lecturaCompartida = undefined;
+  });
+  lecturaCompartida = { dia, promesa };
+  return promesa;
 }
 
 /**
@@ -40,7 +51,7 @@ export function usePendientes(vivo = true) {
   useEffect(() => {
     if (vivo) return;
     let activo = true;
-    const leer = () => void cargar(dia).then((d) => activo && setFoto(d));
+    const leer = () => void cargarContador(dia).then((d) => activo && setFoto(d)).catch(() => {});
     leer();
     const t = setInterval(leer, 60_000);
     const alVolver = () => document.visibilityState === 'visible' && leer();

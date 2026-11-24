@@ -62,30 +62,41 @@ export interface FilaClase {
 /** Por clase: sesiones dadas, alumnos promedio por sesión e ingresos por clase suelta. */
 export function porClase(p: Periodo, clases: Clase[], asis: Asistencia[], pagos: Pago[]): FilaClase[] {
   const monto = new Map(pagos.filter(validoP).map((x) => [x.id, x.monto]));
+  const porClase = new Map<ID, { total: number; ingresos: number; porSesion: Map<Fecha, number> }>();
+  for (const a of asis) {
+    if (!validaA(a) || !dentro(a.fecha, p)) continue;
+    const fila = porClase.get(a.claseId) ?? { total: 0, ingresos: 0, porSesion: new Map<Fecha, number>() };
+    fila.total++;
+    fila.ingresos += a.pagoId ? (monto.get(a.pagoId) ?? 0) : 0;
+    fila.porSesion.set(a.fecha, (fila.porSesion.get(a.fecha) ?? 0) + 1);
+    porClase.set(a.claseId, fila);
+  }
   return clases
-    .map((clase) => {
-      const a = asis.filter((x) => validaA(x) && x.claseId === clase.id && dentro(x.fecha, p));
-      const porSesion = new Map<Fecha, number>();
-      for (const x of a) porSesion.set(x.fecha, (porSesion.get(x.fecha) ?? 0) + 1);
-      const sesiones = porSesion.size;
-      return {
+    .flatMap((clase) => {
+      const fila = porClase.get(clase.id);
+      if (!fila) return [];
+      const sesiones = fila.porSesion.size;
+      return [{
         clase,
         sesiones,
-        promedio: sesiones ? a.length / sesiones : 0,
-        maximo: Math.max(0, ...porSesion.values()),
-        ingresos: a.reduce((s, x) => s + (x.pagoId ? (monto.get(x.pagoId) ?? 0) : 0), 0),
-      };
+        promedio: fila.total / sesiones,
+        maximo: Math.max(...fila.porSesion.values()),
+        ingresos: fila.ingresos,
+      }];
     })
-    .filter((f) => f.sesiones > 0)
     .sort((a, b) => b.promedio - a.promedio);
 }
 
 /** Planes que vencen en los próximos `dias` y que el alumno no ha renovado. */
 export function vencenPronto(mems: Membresia[], alumnos: Map<ID, Alumno>, hoy: Fecha, dias = 7): { alumno: Alumno; membresia: Membresia; enDias: number }[] {
   const vivas = mems.filter((m) => !m.anuladaAt && !m.deletedAt);
+  const ultimaPorAlumno = new Map<ID, Fecha>();
+  for (const m of vivas) {
+    if (m.fin > (ultimaPorAlumno.get(m.alumnoId) ?? '')) ultimaPorAlumno.set(m.alumnoId, m.fin);
+  }
+  const hasta = sumarDias(hoy, dias);
   return vivas
-    .filter((m) => m.fin >= hoy && diasEntre(hoy, m.fin) <= dias)
-    .filter((m) => !vivas.some((o) => o.alumnoId === m.alumnoId && o.id !== m.id && o.fin > m.fin)) // ya renovó
+    .filter((m) => m.fin >= hoy && m.fin <= hasta && ultimaPorAlumno.get(m.alumnoId) === m.fin)
     .flatMap((m) => {
       const alumno = alumnos.get(m.alumnoId);
       return alumno?.activo && !alumno.deletedAt ? [{ alumno, membresia: m, enDias: diasEntre(hoy, m.fin) }] : [];

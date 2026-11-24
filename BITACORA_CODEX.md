@@ -105,3 +105,32 @@ Para cada ajuste posterior, añadir aquí la fecha, el pedido, los archivos y de
 - En `src/features/publica/PaginaPublica.tsx`, cada tarjeta abre una ficha con foto ampliada sin recorte, precio, descripción completa, variantes y **Sobre pedido** cuando corresponde. Se reutilizan la hoja y el componente de imagen de Mi pase.
 - **Consultar por WhatsApp** prepara un mensaje con el producto y, si se eligió, la talla o el color. La consulta es opcional y solo abre WhatsApp al tocar el enlace. Si la academia no configuró WhatsApp, la ficha sigue disponible y muestra las variantes como texto.
 - El catálogo actual ya proporciona estos datos. El ajuste no requiere SQL ni añade una solicitud nueva para la ficha. Pasaron 124 pruebas unitarias, lint, compilación y la suite `web` en Edge, con casos para la foto ampliada y la consulta con y sin variante.
+- Se publicó `cb8017b`. En Edge móvil abrimos **Gorra Calo** en la tienda pública y verificamos que se mostrara la foto ampliada y que el enlace incluyera el nombre de la gorra en el mensaje. No se envió ningún mensaje.
+
+## 24 de noviembre de 2026 · Auditoría de Compás
+
+Se revisaron los recorridos de acceso, recepción, fichas e importación, operación de maestro, caja y reportes, agenda y eventos, tienda y encargos, página pública, Mi pase, testimonios, ajustes y sincronización. Se usó una compilación con nube ficticia. La revisión remota de datos y los escenarios con varios dispositivos físicos quedan fuera de esta sesión.
+
+| Prioridad | Hallazgo | Mejora propuesta |
+|---|---|---|
+| Alta | Una clase fiada se etiqueta como **Plan** en la lista **En clase** y en **Corregir entrada**. Reproducido en Edge con una asistencia sin membresía ni pago y con deuda. La ficha ya la distingue correctamente. | Mostrar **Por pagar** y ofrecer el camino hacia el cobro del adeudo. Usar el mismo criterio en toda la app. |
+| Alta | Al pasar a **Todas las sedes**, Caja mostró temporalmente el total de la sede anterior. Una repetición instrumentada comprobó que luego convergió al total correcto. Después del corte se siguen aceptando movimientos y la tarjeta conserva el resultado del corte anterior. | Mostrar que los totales están cambiando y bloquear el corte mientras se recalculan. Indicar si hubo movimientos posteriores al último corte. |
+| Alta con volumen | En una prueba aislada con 5,000 alumnos y 108,615 asistencias, Pendientes tardó 14.2 s, Gastos 4.2 s y Reportes 3.3 s. Entrada y búsqueda respondieron en menos de 150 ms en esa misma prueba. | Reducir lecturas y cálculos repetidos. `usePendientes` lee hasta 90 días de asistencias incluso para el contador e inicia una consulta independiente en cada consumidor. Medir de nuevo con el mismo volumen después de optimizar. |
+| Media | Al marcar un encargo como **Llegó**, el enlace **Avisarle** solo aparece en un aviso temporal. En **Listos para entregar** no se ofrece volver a avisar en la hoja del encargo. | Dejar **Avisar por WhatsApp** disponible desde el encargo listo, con un mensaje que incluya artículo y saldo. |
+| Media | La Agenda contempla choques entre rentas y clases. Al crear una clase, la comprobación visible se centra en rentas. | Avisar sobre otras clases activas en el mismo salón o sobre un maestro asignado a dos clases simultáneas. Validar los casos de salones diferentes y cursos en fechas distintas. |
+| Media | El acceso de un equipo nuevo toma la primera membresía de una cuenta con varias academias. El sincronizador mantiene un sondeo periódico de 60 s, además de otros disparadores. | Elegir academia al vincular un equipo nuevo, y ensayar la propagación entre dos equipos antes de cambiar el mecanismo de sincronización. |
+| Media | La tienda pública permite consultar y Mi pase permite encargar. La página pública carece de existencias exactas y plazo estimado en su contrato actual. | Mantener explícita la diferencia entre consulta y pedido y añadir información solo si hay una fuente fiable. |
+
+El único cambio fuera de la bitácora fue actualizar `tests/e2e/tiendapublica.mjs` al flujo ya publicado. La prueba usaba selectores del enlace directo a WhatsApp. Ahora comprueba la ficha y el enlace en móvil y escritorio y conserva la revisión de desbordes, nombres de controles y contraste. Pasó tras el ajuste.
+
+Pasaron los recorridos de `basico`, `telefono`, `agenda`, `maestro`, `pedidos`, `tiendapublica`, `web`, `portal3`, `costos`, `importar`, `accesopc`, `eventolugar`, `testimonios` y `ayuda`. Al esperar que Caja cargara el filtro correcto, las seis fechas, el efectivo del corte y las cifras de Reportes y Gastos coincidieron con las sumas directas. No hubo cambios en producción.
+
+## 24 de noviembre de 2026 · Correcciones de la auditoría
+
+- **Caja** valida que el resultado de IndexedDB pertenece a la fecha y sede seleccionadas. Mientras cambia, muestra **Actualizando totales** y deja indisponible el corte. Si hay movimientos modificados después del último corte, lo indica en la tarjeta.
+- **Entrada** y **Corregir entrada** distinguen **Por pagar**, cobro registrado, plan y asistencia sin cobro. La hoja de corrección enlaza directamente al adeudo de la ficha.
+- **Encargos** mantiene **Avisar por WhatsApp** en la ficha del encargo que llegó. El mensaje incluye el producto y saldo. Requiere un teléfono en la ficha y se envía manualmente.
+- **Agenda y clases** avisan de empalmes por sede y salón o por maestro, considerando los días y fechas de los cursos. El aviso permite guardar horarios intencionales.
+- **Acceso** permite escoger academia al conectar un equipo cuando la cuenta tiene varias. Una sola se descarga directamente. Si se cambia de academia luego de una descarga interrumpida, se limpian los datos provisionales de la anterior y sus cursores antes de iniciar la nueva.
+- **Rendimiento**: se redujeron lecturas y trabajo de renderizado en Pendientes, se agruparon las asistencias de Reportes en una pasada y se separó el resumen de Gastos del cálculo de rentabilidad por clase.
+- Verificación previa al push: 126 pruebas unitarias, lint, TypeScript, compilación de prueba y escenarios de Edge para corte, cuadre con 5,000 alumnos, adeudos, encargos, gastos, agenda, acceso y tienda pública. No requiere SQL. Se dejaron fuera los archivos de prueba locales que ya existían.

@@ -47,8 +47,7 @@ export function PantallaPendientes() {
 
       {renovar.length > 0 && (
         <Seccion titulo={`Avisar que vence su plan · ${renovar.length}`}>
-          <Lista total={renovar.length}>
-            {renovar.map(({ alumno, membresia, plan, enDias }) => (
+          <Lista items={renovar} fila={({ alumno, membresia, plan, enDias }) => (
               <FilaAviso
                 key={membresia.id}
                 alumno={alumno}
@@ -58,15 +57,13 @@ export function PantallaPendientes() {
                 detalle={`${plan?.nombre ?? 'Plan'} · ${cuandoVence(enDias)}`}
                 urgente={enDias < 0}
               />
-            ))}
-          </Lista>
+          )} />
         </Seccion>
       )}
 
       {deben.length > 0 && (
         <Seccion titulo={`Deben clases · ${deben.length}`}>
-          <Lista total={deben.length}>
-            {deben.map(({ alumno, clases, total: monto }) => (
+          <Lista items={deben} fila={({ alumno, clases, total: monto }) => (
               <FilaAviso
                 key={alumno.id}
                 alumno={alumno}
@@ -76,16 +73,14 @@ export function PantallaPendientes() {
                 detalle={`${clases} ${clases === 1 ? 'clase' : 'clases'} · ${dinero(monto)}`}
                 urgente
               />
-            ))}
-          </Lista>
+          )} />
           <p className="mt-2 px-1 text-xs text-ink-500">Se cobra en su ficha o cuando vuelva a entrar. Si ya le escribiste, vuelve a salir en {DIAS_ENTRE_COBROS} días.</p>
         </Seccion>
       )}
 
       {rentas.length > 0 && (
         <Seccion titulo={`Rentas por cobrar · ${rentas.length}`}>
-          <Lista total={rentas.length}>
-            {rentas.map((c) => (
+          <Lista items={rentas} fila={(c) => (
               <Link key={c.renta.id + c.mes} to="/agenda" className="flex items-center gap-3 px-4 py-3 active:bg-ink-50">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
                   <WalletCards size={20} />
@@ -100,18 +95,15 @@ export function PantallaPendientes() {
                 <span className="font-bold">{dinero(c.monto)}</span>
                 <ChevronRight size={18} className="shrink-0 text-ink-300" />
               </Link>
-            ))}
-          </Lista>
+          )} />
         </Seccion>
       )}
 
       {extranar.length > 0 && (
         <Seccion titulo={`Dejaron de venir · ${extranar.length}`}>
-          <Lista total={extranar.length}>
-            {extranar.map(({ alumno, ultima, veces }) => (
+          <Lista items={extranar} fila={({ alumno, ultima, veces }) => (
               <FilaAviso key={alumno.id} alumno={alumno} clave="extrañamos" mensaje="extrañamos" datos={{}} detalle={`Venía seguido (${veces}) · última vez ${fechaCorta(ultima)}`} />
-            ))}
-          </Lista>
+          )} />
         </Seccion>
       )}
 
@@ -125,11 +117,12 @@ export function PantallaPendientes() {
 }
 
 /** Tarjeta que muestra los primeros 5 y "Ver los N". */
-function Lista({ total, children }: { total: number; children: ReactNode[] }) {
+function Lista<T>({ items, fila }: { items: T[]; fila: (item: T) => ReactNode }) {
   const [todos, setTodos] = useState(false);
+  const total = items.length;
   return (
     <Tarjeta className="divide-y divide-ink-100">
-      {todos ? children : children.slice(0, 5)}
+      {(todos ? items : items.slice(0, 5)).map(fila)}
       {total > 5 && <VerMas abierto={todos} total={total} onClick={() => setTodos(!todos)} />}
     </Tarjeta>
   );

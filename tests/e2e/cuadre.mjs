@@ -63,7 +63,13 @@ await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor({ timeout: 60_000
 
 // B1) Caja: total de varios días (todas las sedes) contra la suma de cobros de ese día
 await ir('/caja');
+const totalVisible = page.locator('p', { hasText: 'Total cobrado' }).locator('xpath=following-sibling::p[1]');
+const fechaHoy = '2026-11-18';
+await totalVisible.waitFor();
+const global = await suma(fechaHoy, fechaHoy);
 await page.getByRole('button', { name: 'Todas las sedes' }).click();
+const textoAlCambiar = await totalVisible.textContent({ timeout: 100 }).catch(() => null);
+console.log('B0) cambiar de sede oculta el total anterior mientras recalcula:', ok(textoAlCambiar === null || pesos(textoAlCambiar) === global));
 const fallasCaja = [];
 for (let d = 0; d < 6; d++) {
   await page.waitForTimeout(500);

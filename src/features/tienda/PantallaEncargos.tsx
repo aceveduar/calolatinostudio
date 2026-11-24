@@ -18,6 +18,12 @@ import { METODOS } from '../../domain/planes';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
+function avisoLlegada(pedido: Pedido, producto: Producto | undefined, alumno: Alumno | undefined, academia: string) {
+  if (!alumno) return null;
+  const saldo = restaPorPagar(pedido);
+  return waLink(alumno.telefono, `Hola ${alumno.nombre.split(' ')[0]}, ¡ya llegó tu ${nombrePedido(pedido, producto).toLowerCase()}! Pasa a recogerlo a ${academia}${saldo ? `; quedan ${dinero(saldo)} por pagar` : ''}. 💃🕺`);
+}
+
 /**
  * Encargos de la tienda (zapatillas por número, playeras con diseño…):
  * lista para el proveedor → pedidos en camino → listos para entregar.
@@ -155,7 +161,7 @@ export function PantallaEncargos() {
                       onClick={async () => {
                         await cambiarEstado([p.id], 'llego');
                         const prod = productos.get(p.productoId);
-                        const wa = al ? waLink(al.telefono, `Hola ${al.nombre.split(' ')[0]}, ¡ya llegó tu ${nombrePedido(p, prod).toLowerCase()}! Pasa a recogerlo a ${academia.nombre}${restaPorPagar(p) ? `; quedan ${dinero(restaPorPagar(p))} por pagar` : ''}. 💃🕺`) : null;
+                        const wa = avisoLlegada(p, prod, al, academia.nombre);
                         avisar('Marcado como llegó', 'ok', wa ? { texto: 'Avisarle', fn: () => void window.open(wa, '_blank', 'noopener') } : undefined);
                       }}
                     >
@@ -196,13 +202,20 @@ export function PantallaEncargos() {
 
 function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }: { pedido: Pedido; producto: Producto | undefined; alumno: Alumno | undefined; usuarioId: ID; sedeId: ID | null; onHecho: () => void }) {
   const avisar = useAvisos();
+  const { academia } = useSesion();
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [anticipo, setAnticipo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
   const listo = listoParaEntregar(pedido, producto);
   const resto = restaPorPagar(pedido);
+  const whatsapp = pedido.estado === 'llego' ? avisoLlegada(pedido, producto, alumno, academia.nombre) : null;
   return (
     <div className="space-y-4">
+      {whatsapp && (
+        <a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ok-50 px-4 font-semibold text-ok-600">
+          <MessageCircle size={18} aria-hidden="true" /> Avisar por WhatsApp
+        </a>
+      )}
       <div className="rounded-2xl bg-superficie p-4 text-sm ring-1 ring-ink-100">
         <p>
           <b>{alumno?.nombre ?? 'Alumno'}</b> · {pedido.cantidad} {pedido.cantidad === 1 ? 'pieza' : 'piezas'} · {dinero(totalPedido(pedido))}

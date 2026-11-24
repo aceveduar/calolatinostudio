@@ -90,6 +90,10 @@ export function PantallaGastos() {
       db.gastos.where('fecha').between(desde, hasta, true, true).toArray(),
       db.gastosFijos.toArray(),
     ]);
+    return { desde, pagos, gastos, fijos };
+  }, [desde, hasta]);
+
+  const baseRentabilidad = useLiveQuery(async () => {
     // para lo que deja cada clase: las entradas del mes y de antes (cuántas clases cubrió cada plan)
     // basta desde que empezó el plan más antiguo que aún cubre el mes: la vigencia más larga de los planes
     // con precio (las becas no reparten dinero). Leer de más eran decenas de miles de entradas extra.
@@ -104,38 +108,41 @@ export function PantallaGastos() {
     const pagoIds = new Set([...membresias.map((m) => m.pagoId), ...asistencias.flatMap((a) => (a.pagoId ? [a.pagoId] : []))]);
     const desdePagos = membresias.reduce((min, m) => (m.inicio < min ? m.inicio : min), inicioVentana);
     const pagosClase = (await db.pagos.where('fecha').between(desdePagos, hasta, true, true).toArray()).filter((x) => pagoIds.has(x.id));
-    return { pagos, gastos, fijos, asistencias, rentas, membresias, pagosClase };
+    return { desde, asistencias, rentas, membresias, pagosClase };
   }, [desde, hasta]);
 
   // Los cálculos pesados (lo que deja cada clase recorre miles de entradas) solo cuando cambian sus datos,
   // no en cada redibujo de la pantalla.
   const calculo = useMemo(() => {
-    if (!datos) return null;
+    if (!datos || datos.desde !== desde) return null;
     const enSede = (s: string | null | undefined) => verSede === 'todas' || claveSede(s) === verSede;
     const gastos = datos.gastos.filter((g) => !g.deletedAt && enSede(g.sedeId)).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.createdAt - a.createdAt));
     const fijosS = datos.fijos.filter((f) => enSede(f.sedeId));
-    const rent = rentabilidadPorClase({
+    return { enSede, gastos, fijosS };
+  }, [datos, desde, verSede]);
+  const rent = useMemo(() => {
+    if (!calculo || !baseRentabilidad || baseRentabilidad.desde !== desde) return null;
+    return rentabilidadPorClase({
       mes,
-      clases: clases.filter((c) => enSede(c.sedeId)),
-      asistencias: datos.asistencias,
-      membresias: datos.membresias,
-      pagos: datos.pagosClase,
-      gastos,
-      fijos: fijosS,
-      rentas: datos.rentas,
+      clases: clases.filter((c) => calculo.enSede(c.sedeId)),
+      asistencias: baseRentabilidad.asistencias,
+      membresias: baseRentabilidad.membresias,
+      pagos: baseRentabilidad.pagosClase,
+      gastos: calculo.gastos,
+      fijos: calculo.fijosS,
+      rentas: baseRentabilidad.rentas,
     });
-    return { enSede, gastos, fijosS, rent };
-  }, [datos, verSede, clases, mes]);
+  }, [calculo, baseRentabilidad, clases, desde, mes]);
   if (!datos || !calculo) return <Cargando texto="Calculando gastos y utilidad…" />;
 
-  const { enSede, gastos, fijosS, rent } = calculo;
+  const { enSede, gastos, fijosS } = calculo;
   const pagos = datos.pagos.filter((p) => enSede(p.sedeId));
   const r = resumenMes({ mes, pagos, gastos, fijos: fijosS });
   const estados = estadoFijos(fijosS, gastos, mes);
   const sedeNueva = verSede === 'todas' ? null : verSede === PRINCIPAL ? null : verSede;
   const fechaNueva = esMesActual ? hoy() : hasta < hoy() ? hasta : desde;
   const verSedes = sedes.length > 0;
-  const sinPagoMaestro = rent.filas.some((f) => f.sinCosto);
+  const sinPagoMaestro = rent?.filas.some((f) => f.sinCosto);
 
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-4xl">
@@ -268,7 +275,8 @@ export function PantallaGastos() {
         </div>
 
         <div className="min-w-0 lg:[&>section]:mt-0">
-          {rent.filas.length > 0 && (
+          {!rent && <Cargando texto="Calculando el detalle por clase…" />}
+          {rent && rent.filas.length > 0 && (
             <Seccion titulo="Lo que deja cada clase">
               <Tarjeta className="divide-y divide-ink-100">
                 {rent.filas.map((f) => (

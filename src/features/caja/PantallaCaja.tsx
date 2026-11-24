@@ -37,24 +37,30 @@ export function PantallaCaja() {
   const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
 
   const datos = useLiveQuery(async () => {
-    const pagos = await db.pagos.where('fecha').equals(fecha).filter((p) => !p.deletedAt && enSede(p.sedeId)).toArray();
+    const movimientos = await db.pagos.where('fecha').equals(fecha).filter((p) => enSede(p.sedeId)).toArray();
+    const pagos = movimientos.filter((p) => !p.deletedAt);
     const asis = asistenciasValidas(await db.asistencias.where('fecha').equals(fecha).toArray()).filter((a) => enSede(sedeDeClase.get(a.claseId)));
     const alumnos = await db.alumnos.bulkGet(pagos.map((p) => p.alumnoId ?? ''));
     const cortes = await db.cortes.where('fecha').equals(fecha).filter((c) => !c.deletedAt && k !== 'todas' && claveSede(c.sedeId) === k).sortBy('createdAt');
     const visitantes = new Map(asis.filter((a) => a.pagoId).map((a) => [a.pagoId!, a.nombreVisitante]));
     // efectivo que salió del cajón (garrafón, pago a un maestro): se descuenta en el corte
-    const salidas = await db.gastos.where('fecha').equals(fecha).filter((g) => !!g.deCaja && !g.deletedAt && enSede(g.sedeId)).toArray();
+    const gastosCaja = await db.gastos.where('fecha').equals(fecha).filter((g) => !!g.deCaja && enSede(g.sedeId)).toArray();
+    const ultimoCorte = cortes[cortes.length - 1];
+    const cambioTrasCorte = !!ultimoCorte && [...movimientos, ...gastosCaja].some((m) => m.updatedAt > ultimoCorte.createdAt);
     return {
-      salidas: salidas.sort((a, b) => b.createdAt - a.createdAt),
+      fecha,
+      sede: k,
+      cambioTrasCorte,
+      salidas: gastosCaja.filter((g) => !g.deletedAt).sort((a, b) => b.createdAt - a.createdAt),
       pagos: pagos
         .map((p, i) => ({ p, quien: alumnos[i]?.nombre ?? visitantes.get(p.id) ?? (p.rentaId ? p.concepto.split(' · ')[1] || 'Renta' : p.eventoId ? 'Boletos' : 'Visitante') }))
         .sort((a, b) => b.p.createdAt - a.p.createdAt),
       asis,
-      corte: cortes[cortes.length - 1],
+      corte: ultimoCorte,
     };
   }, [fecha, k, clases]);
 
-  if (!datos) return <Cargando texto="Sumando la caja…" />;
+  if (!datos || datos.fecha !== fecha || datos.sede !== k) return <Cargando texto="Actualizando totales…" />;
   const r = resumenCaja(datos.pagos.map((x) => x.p));
   const totalSalidas = datos.salidas.reduce((t, g) => t + g.monto, 0);
   const porClase = clases
@@ -154,6 +160,7 @@ export function PantallaCaja() {
                 {datos.corte.diferencia === 0 ? 'cuadró exacto' : `${datos.corte.diferencia > 0 ? 'sobró' : 'faltó'} ${dinero(Math.abs(datos.corte.diferencia))}`}
                 {!!datos.corte.fondo && ` · ${dinero(datos.corte.fondo)} de feria`}
               </p>
+              {datos.cambioTrasCorte && <p className="mt-1 font-medium text-warn-600">Hubo movimientos después de este corte.</p>}
             </div>
             <button className="text-sm font-semibold text-brand-600" onClick={() => setCorte(true)}>
               Rehacer

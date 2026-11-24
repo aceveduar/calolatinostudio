@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { nombreClase, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
@@ -19,9 +20,15 @@ export function TarjetaAdeudos({ alumno }: { alumno: Alumno }) {
   const { adeudos, total, planes } = useAdeudos(alumno.id);
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [ocupado, setOcupado] = useState(false);
+  const tarjeta = useRef<HTMLDivElement>(null);
+  const { hash } = useLocation();
+  const tieneAdeudos = adeudos.length > 0;
+  useEffect(() => {
+    if (hash === '#adeudos' && tieneAdeudos) tarjeta.current?.focus();
+  }, [hash, tieneAdeudos]);
   if (!adeudos.length) return null;
   return (
-    <div className="mt-4 space-y-3 rounded-2xl bg-bad-50 p-4">
+    <div id="adeudos" ref={tarjeta} tabIndex={-1} className="mt-4 space-y-3 rounded-2xl bg-bad-50 p-4">
       <p className="flex items-center gap-2 font-bold text-bad-600">
         <Clock size={18} /> Debe {adeudos.length} {adeudos.length === 1 ? 'clase' : 'clases'} · {dinero(total)}
       </p>

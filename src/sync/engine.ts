@@ -498,23 +498,67 @@ export async function vincularAcademia(email: string, password: string, crearCue
   await sincronizar();
 }
 
-/** Teléfono nuevo: entra con la cuenta y descarga la academia. */
-export async function entrarEnDispositivoNuevo(email: string, password: string): Promise<void> {
+/** Teléfono nuevo: entra con la cuenta y obtiene las academias accesibles. */
+export async function academiasEnDispositivoNuevo(email: string, password: string): Promise<{ id: ID; nombre: string }[]> {
   if (!supabase) throw new Error('La nube no está configurada');
   const auth = await supabase.auth.signInWithPassword({ email, password });
   if (auth.error) throw new Error(traducirError(auth.error.message));
-  const { data, error } = await supabase.from('miembros').select('academia_id').limit(1).maybeSingle();
+  const { data, error } = await supabase.from('academias').select('id,nombre').is('deleted_at', null).order('nombre').order('id');
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('Esta cuenta no tiene una academia vinculada.');
+  if (!data?.length) throw new Error('Esta cuenta no tiene una academia vinculada.');
+  return data as { id: ID; nombre: string }[];
+}
+
+const DESCARGA_PROVISIONAL = 'descargaAcademiaId';
+
+async function prepararDescargaProvisional(academiaId?: ID): Promise<void> {
+  await db.transaction('rw', [db.meta, ...SYNC_TABLES.map((tabla) => db.table(tabla))], async () => {
+    if (await getMeta<ID>('academiaId')) throw new Error('Este equipo ya tiene una academia vinculada.');
+    const anterior = await getMeta<ID>(DESCARGA_PROVISIONAL);
+    if (anterior && anterior !== academiaId) {
+      // Una descarga interrumpida puede haber guardado filas y cursores de la otra academia.
+      await Promise.all(SYNC_TABLES.map((tabla) => tabla === 'academias'
+        ? db.academias.delete(anterior)
+        : db.table(tabla).where('academiaId').equals(anterior).delete()));
+      await db.meta.bulkDelete(SYNC_TABLES.map((tabla) => `cursor:${tabla}`));
+    }
+    if (academiaId) await setMeta(DESCARGA_PROVISIONAL, academiaId);
+    else await db.meta.delete(DESCARGA_PROVISIONAL);
+  });
+}
+
+export async function descartarDescargaProvisional(): Promise<void> {
+  const limpiar = async () => {
+    if (await getMeta<ID>(DESCARGA_PROVISIONAL)) await prepararDescargaProvisional();
+  };
+  if (navigator.locks) await navigator.locks.request('compas:descarga-academia', limpiar);
+  else await limpiar();
+}
+
+async function descargarAcademia(academiaId: ID): Promise<void> {
+  if (!supabase) throw new Error('La nube no está configurada');
+  const { data, error } = await supabase.from('academias').select('id').eq('id', academiaId).is('deleted_at', null).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Esta academia ya no está disponible en tu cuenta.');
+  await prepararDescargaProvisional(academiaId);
   // Descargar TODO antes de "abrir" la academia en este teléfono:
   // si se marcara antes, la app mostraría la caja en $0 mientras bajan los cobros.
   setEstado({ fase: 'sincronizando' });
-  await pull(data.academia_id as ID, true);
-  await setMeta('nubeVinculada', true);
-  await setMeta('academiaId', data.academia_id);
+  await pull(academiaId, true);
+  await db.transaction('rw', db.meta, async () => {
+    await setMeta('nubeVinculada', true);
+    await setMeta('academiaId', academiaId);
+    await db.meta.delete(DESCARGA_PROVISIONAL);
+  });
   setEstado({ fase: 'al-dia', ultimo: Date.now() });
   // el historial viejo de asistencias: ya con la app abierta, sin esperar al siguiente minuto
   setTimeout(() => void sincronizar(), 1500);
+}
+
+export function descargarAcademiaEnDispositivoNuevo(academiaId: ID): Promise<void> {
+  return navigator.locks
+    ? navigator.locks.request('compas:descarga-academia', () => descargarAcademia(academiaId))
+    : descargarAcademia(academiaId);
 }
 
 

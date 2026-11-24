@@ -81,6 +81,13 @@ vi.mock('../../src/sync/supabase', () => {
         q.filtros.push([c, v]);
         return q;
       },
+      is() {
+        return q;
+      },
+      maybeSingle() {
+        const { data, error } = leer();
+        return Promise.resolve({ data: data?.[0] ?? null, error });
+      },
       gt(_c: string, v: string) {
         q.desde = v;
         nube.consultas.push({ tabla: t, desde: v });
@@ -108,9 +115,9 @@ vi.mock('../../src/sync/supabase', () => {
   };
 });
 
-const { db, setMeta } = await import('../../src/db/db');
+const { db, getMeta, setMeta } = await import('../../src/db/db');
 const { actualizar, crear } = await import('../../src/db/repo');
-const { sincronizar, vincularAcademia, podar, historialAnterior, VENTANA_DIAS } = await import('../../src/sync/engine');
+const { sincronizar, vincularAcademia, podar, historialAnterior, VENTANA_DIAS, academiasEnDispositivoNuevo, descargarAcademiaEnDispositivoNuevo } = await import('../../src/sync/engine');
 const { hoy, sumarDias } = await import('../../src/domain/fechas');
 
 beforeEach(async () => {
@@ -129,6 +136,27 @@ beforeEach(async () => {
 const alta = () => crear('alumnos', { nombre: 'Ana', telefono: '5511112222', activo: true } as never);
 
 describe('sincronizar', () => {
+  it('enumera las academias y limpia una descarga interrumpida antes de vincular otra', async () => {
+    await db.meta.clear();
+    await setMeta('descargaAcademiaId', 'a1');
+    await setMeta('cursor:alumnos', '2026-11-29T00:00:00Z');
+    await db.alumnos.put({ id: 'viejo', academiaId: 'a1', nombre: 'Alumno de la primera academia' } as never);
+    const sello = '2026-11-20T00:00:00Z';
+    nube.tablas.set('academias', new Map([
+      ['a1', { id: 'a1', nombre: 'Primera academia', server_updated_at: sello }],
+      ['a2', { id: 'a2', nombre: 'Segunda academia', server_updated_at: sello }],
+    ]));
+    nube.tablas.set('alumnos', new Map([
+      ['nuevo', { id: 'nuevo', academia_id: 'a2', nombre: 'Alumno de la segunda academia', server_updated_at: sello }],
+    ]));
+    const disponibles = await academiasEnDispositivoNuevo('demo@example.org', 'clave123');
+    expect(disponibles.map((a) => a.id)).toEqual(['a1', 'a2']);
+    expect(await getMeta('academiaId')).toBeUndefined();
+    await descargarAcademiaEnDispositivoNuevo('a2');
+    expect(await getMeta('academiaId')).toBe('a2');
+    expect(await getMeta('descargaAcademiaId')).toBeUndefined();
+    expect((await db.alumnos.toArray()).map((a) => a.id)).toEqual(['nuevo']);
+  });
   it('reconectar (sesión vencida) NO vuelve a subir todo el equipo: solo lo pendiente', async () => {
     await db.academias.put({ id: 'a1', nombre: 'Calo', moneda: 'MXN', createdAt: 0, updatedAt: 0, deletedAt: null });
     const viejo = await alta();

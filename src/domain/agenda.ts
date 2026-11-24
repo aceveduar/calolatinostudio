@@ -1,11 +1,11 @@
 /**
  * Agenda del salón (sede principal): clases del estudio + rentas a maestros externos, sin empalmes.
  * Supuesto: el estudio tiene UN salón. Una renta no puede empalmarse con una clase del estudio ni con otra renta.
- * (Las clases entre sí no se validan aquí: eso lo decide la academia al armar su horario.)
  */
 import { crear } from '../db/repo';
 import type { Asistencia, Clase, Fecha, ID, MetodoPago, Pago, Renta } from '../db/types';
 import { deFecha, diasEntre, hoy, minutosDelDia, sumarDias } from './fechas';
+import { claveSede } from './sedes';
 import { rangoMes, type Mes } from './gastos';
 
 /** Horario en que se muestran los huecos libres. */
@@ -111,6 +111,22 @@ export function rentasQueChocanConClase(k: Pick<Clase, 'dias' | 'horaInicio' | '
   return empalmes({ ...k, desde: hoy(), hasta: null }, [], rentas)
     .map((e) => e.renta!)
     .filter(Boolean);
+}
+
+export function clasesQueChocan(k: Pick<Clase, 'dias' | 'horaInicio' | 'duracionMin' | 'sedeId' | 'salonId' | 'maestroId' | 'curso'> & { id?: ID }, clases: Clase[], desdeHoy = hoy()) {
+  return clases.flatMap((c) => {
+    if (!vivo(c) || !c.activo || c.id === k.id || !c.horaInicio || !k.horaInicio) return [];
+    const salon = claveSede(c.sedeId) === claveSede(k.sedeId) && mismoSalon(c.salonId, k.salonId);
+    const maestro = !!k.maestroId && c.maestroId === k.maestroId;
+    if ((!salon && !maestro) || minutosDelDia(c.horaInicio) >= finMin(k.horaInicio, k.duracionMin)
+      || minutosDelDia(k.horaInicio) >= finMin(c.horaInicio, c.duracionMin)) return [];
+    const desde = [desdeHoy, c.curso?.inicio ?? desdeHoy, k.curso?.inicio ?? desdeHoy].sort()[2];
+    const hasta = [c.curso?.fin, k.curso?.fin].filter((f): f is Fecha => !!f).sort()[0] ?? null;
+    if (hasta && hasta < desde) return [];
+    const posibles = diasEnRango(desde, hasta);
+    const dias = k.dias.filter((d) => c.dias.includes(d) && posibles.has(d));
+    return dias.length ? [{ clase: c, dias, salon, maestro }] : [];
+  });
 }
 
 // ---------- cobros ----------

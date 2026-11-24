@@ -3,14 +3,14 @@ import { ArrowLeft, CloudDownload, Sparkles } from 'lucide-react';
 import { Boton, Campo, Entrada, EntradaClave } from '../../components/ui';
 import { TecladoPin } from '../../components/Teclado';
 import { LARGO_PIN, crearAcademia, pinDebil } from '../../domain/acceso';
-import { entrarEnDispositivoNuevo, useProgresoDescarga } from '../../sync/engine';
+import { academiasEnDispositivoNuevo, descargarAcademiaEnDispositivoNuevo, descartarDescargaProvisional, useProgresoDescarga } from '../../sync/engine';
 import { PantallaDescarga } from './PantallaDescarga';
 import { nubeConfigurada } from '../../sync/supabase';
 import type { Usuario } from '../../db/types';
 import { Logo } from '../../components/Logo';
 import { RestaurarRespaldo } from '../ajustes/Respaldo';
 
-type Paso = 'inicio' | 'datos' | 'pin' | 'confirmar' | 'nube';
+type Paso = 'inicio' | 'datos' | 'pin' | 'confirmar' | 'nube' | 'elegir';
 
 export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   const [paso, setPaso] = useState<Paso>('inicio');
@@ -22,6 +22,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [academias, setAcademias] = useState<Awaited<ReturnType<typeof academiasEnDispositivoNuevo>>>([]);
   const progreso = useProgresoDescarga();
 
   const alPin = (v: string) => {
@@ -50,15 +51,32 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
       }, 700);
       return;
     }
-    const u = await crearAcademia({ nombre: academia, duenoNombre: nombre, pin });
-    onListo(u);
+    try {
+      await descartarDescargaProvisional();
+      const u = await crearAcademia({ nombre: academia, duenoNombre: nombre, pin });
+      onListo(u);
+    } catch (e) {
+      setPin2('');
+      setError(e instanceof Error ? e.message : 'No se pudo crear la academia');
+    }
   };
 
-  const entrarNube = async () => {
+  const entrarNube = async (elegida?: string) => {
+    if (ocupado) return;
     setOcupado(true);
     setError('');
     try {
-      await entrarEnDispositivoNuevo(email.trim(), password);
+      if (elegida) {
+        await descargarAcademiaEnDispositivoNuevo(elegida);
+        return;
+      }
+      const disponibles = await academiasEnDispositivoNuevo(email.trim(), password);
+      if (disponibles.length === 1) await descargarAcademiaEnDispositivoNuevo(disponibles[0].id);
+      else {
+        setAcademias(disponibles);
+        setPassword('');
+        setPaso('elegir');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo entrar');
     } finally {
@@ -72,9 +90,22 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
       {paso !== 'inicio' && (
-        <button onClick={() => setPaso(paso === 'confirmar' ? 'pin' : paso === 'pin' ? 'datos' : 'inicio')} className="mt-4 -ml-2 self-start rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
+        <button disabled={ocupado} onClick={() => { setError(''); setPaso(paso === 'confirmar' ? 'pin' : paso === 'pin' ? 'datos' : paso === 'elegir' ? 'nube' : 'inicio'); }} className="mt-4 -ml-2 self-start rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
           <ArrowLeft />
         </button>
+      )}
+      {paso === 'elegir' && (
+        <div className="flex flex-1 flex-col gap-4 pt-6">
+          <h1 className="text-3xl font-extrabold tracking-tight">Elige tu academia</h1>
+          <p className="text-ink-500">Se descargará en este equipo la academia que elijas.</p>
+          {academias.map((opcion) => (
+            <Boton key={opcion.id} bloque grande variante="secundario" disabled={ocupado} onClick={() => void entrarNube(opcion.id)}>
+              {opcion.nombre}
+            </Boton>
+          ))}
+          {ocupado && <p role="status" className="text-sm text-ink-500">Preparando la descarga…</p>}
+          {error && <p role="alert" className="text-sm font-medium text-bad-600">{error}</p>}
+        </div>
       )}
 
       {paso === 'inicio' && (
