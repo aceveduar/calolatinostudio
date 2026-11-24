@@ -171,3 +171,16 @@ Pasaron los recorridos de `basico`, `telefono`, `agenda`, `maestro`, `pedidos`, 
 - Las imágenes de productos y pedidos usan un recuadro neutro **Sin foto** cuando no hay imagen o no carga. Se retiró el emoji de producto de los avisos, cuenta, lista de encargos y resumen de tienda. Las fotos existentes siguen apareciendo.
 - Se conservó el campo histórico `emoji` por compatibilidad. Los productos nuevos guardan una cadena vacía y editar otro campo no cambia ese valor en los existentes. No se requiere SQL.
 - Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites de Edge `fotoprod`, `pedidos`, `tiendapublica`, `tienda` y `costos`. Se verificó la creación sin foto, la carga desde galería, la foto en caja y el recuadro neutro en pedidos y catálogo público.
+- Se subió `488395c` y se comprobó que Cloudflare sirve el nuevo componente de imagen en producción.
+
+## 24 de noviembre de 2026 · Referencia para la animación de descarga
+
+- Eduardo compartió una captura de una pareja bailando en Spotify como referencia para el ritmo y la fluidez del bucle. Quiere mostrar únicamente a las dos personas, sin fondo.
+- La animación actual de `PantallaDescarga.tsx` usa SVG y CSS. Cada figura se mueve principalmente como una silueta completa. La propuesta es crear una pareja original para Compás, con pasos de salsa, cambios de peso, brazos coordinados y un giro corto que vuelva a la pose inicial. Mantener visible el progreso y respetar la preferencia de movimiento reducido.
+- En este turno se revisó la implementación y se definió la dirección visual. La captura permite ver el estilo y la pose. Un clip breve serviría como referencia adicional para el ritmo del movimiento.
+
+## 24 de noviembre de 2026 · Pareja bailando durante la descarga
+
+- Se reemplazó la silueta simple por una ilustración vectorial original de dos bailarines, con pasos alternos, focos de giro en las manos unidas y movimiento de brazos y falda. El ciclo de CSS dura 3.6 s. La animación ocupa la pantalla de descarga sin un fondo ilustrado y usa el color de la academia para la camisa.
+- Se retiraron las barras decorativas que acompañaban a la pareja. El avance, los registros y la estimación de tiempo conservan su lugar. El dibujo queda quieto con movimiento reducido.
+- Pasaron lint y compilación de producción. En Edge se comprobó con avance simulado al 40 % que la postura cambia, que la barra muestra el dato correcto y que se desactivan las animaciones con movimiento reducido. Se exportó un GIF de vista previa local. La app usa SVG y CSS y no descarga ese GIF. No requiere SQL.

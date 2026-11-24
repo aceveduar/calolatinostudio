@@ -357,83 +357,46 @@ textarea {
   }
 }
 
-/* ---------- Primera descarga: barras que bailan (PantallaDescarga) ---------- */
-.compas-barra {
-  transform-origin: bottom;
-}
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes compas-ritmo {
-    0%,
-    100% {
-      transform: scaleY(0.35);
-    }
-    50% {
-      transform: scaleY(1);
-    }
-  }
-  .compas-barra {
-    animation: compas-ritmo 0.9s ease-in-out infinite;
-  }
-}
-
 /* ---------- Primera descarga: pareja bailando (PantallaDescarga) ---------- */
-/* Se mueven las figuras completas (no piernas ni falda por separado: al moverse por partes se abrían huecos). */
-.baile-pareja,
-.baile-el,
-.baile-ella {
-  transform-box: fill-box;
-  transform-origin: center bottom;
-}
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes baile-mecer {
-    from {
-      transform: translateX(-4px) rotate(-1.5deg);
-    }
-    to {
-      transform: translateX(4px) rotate(1.5deg);
-    }
+  .baile-ritmo { animation: baile-desplazamiento 3.6s ease-in-out infinite; }
+
+  .baile-figura {
+    /* Las dos figuras pivotan sobre las manos, por eso el contacto no se despega. */
+    transform-origin: 150px 99px;
+    animation: baile-abertura 3.6s ease-in-out infinite;
+  }
+  .baile-figura-a { --abertura: 3.5deg; }
+  .baile-figura-b { --abertura: -3.5deg; animation-delay: -1.8s; }
+
+  .baile-pierna { animation: baile-paso 3.6s ease-in-out infinite; }
+  .baile-pierna-a1 { transform-origin: 75px 124px; --paso: 13deg; }
+  .baile-pierna-a2 { transform-origin: 91px 125px; --paso: -13deg; animation-delay: -1.8s; }
+  .baile-pierna-b1 { transform-origin: 205px 139px; --paso: 12deg; animation-delay: -1.8s; }
+  .baile-pierna-b2 { transform-origin: 225px 139px; --paso: -15deg; }
+
+  .baile-brazo-libre { animation: baile-acento 1.8s ease-in-out infinite; }
+  .baile-brazo-a { transform-origin: 67px 74px; --acento: 12deg; }
+  .baile-brazo-b { transform-origin: 232px 71px; --acento: -14deg; animation-delay: -.9s; }
+  .baile-falda { transform-origin: 213px 102px; --acento: 9deg; animation: baile-acento 1.8s ease-in-out infinite -.15s; }
+
+  @keyframes baile-desplazamiento {
+    0%, 50%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-7px, -3px); }
+    75% { transform: translate(7px, -3px); }
+  }
+  @keyframes baile-abertura {
+    0%, 50%, 100% { transform: rotate(0); }
+    22% { transform: rotate(var(--abertura)); }
+    72% { transform: rotate(calc(-1 * var(--abertura))); }
   }
   @keyframes baile-paso {
-    0%,
-    100% {
-      transform: translateY(0) rotate(0);
-    }
-    25% {
-      transform: translateY(-2px) rotate(-2deg);
-    }
-    75% {
-      transform: translateY(-2px) rotate(2deg);
-    }
+    0%, 50%, 100% { transform: rotate(0) translateY(0); }
+    23% { transform: rotate(var(--paso)) translateY(-5px); }
+    72% { transform: rotate(calc(-.5 * var(--paso))) translateY(-2px); }
   }
-  /* ella: un rebote al ritmo y, en el último tiempo, la vuelta (se voltea y regresa) */
-  @keyframes baile-vuelta {
-    0%,
-    100% {
-      transform: translateY(0) scaleX(1);
-    }
-    12%,
-    37% {
-      transform: translateY(-2px) scaleX(1);
-    }
-    25%,
-    50%,
-    62% {
-      transform: translateY(0) scaleX(1);
-    }
-    75% {
-      transform: translateY(-3px) scaleX(-1);
-    }
-    88% {
-      transform: translateY(0) scaleX(1);
-    }
-  }
-  .baile-pareja {
-    animation: baile-mecer 0.6s ease-in-out infinite alternate;
-  }
-  .baile-el {
-    animation: baile-paso 1.2s ease-in-out infinite;
-  }
-  .baile-ella {
-    animation: baile-vuelta 2.4s ease-in-out infinite;
+  @keyframes baile-acento {
+    0%, 100% { transform: rotate(0); }
+    52% { transform: rotate(var(--acento)); }
   }
 }

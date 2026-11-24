@@ -19,55 +19,65 @@ const FRASES = [
 
 const n = (x: number) => x.toLocaleString('es-MX');
 
-/** Qué animación se ve mientras baja: la pareja bailando o las barras de ritmo (la versión anterior). */
-const ANIMACION: 'pareja' | 'barras' = 'pareja';
-
-/** Barras al ritmo (sin movimiento si el teléfono pide reducirlo). */
-function Ecualizador({ chico = false }: { chico?: boolean }) {
-  return (
-    <div className={chico ? 'flex h-6 items-end gap-1' : 'flex h-20 items-end gap-2'} aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className={`compas-barra rounded-full bg-brand-500 ${chico ? 'w-1.5 opacity-60' : 'w-3'}`} style={{ animationDelay: `${i * 0.13}s`, height: `${[45, 80, 60, 95, 50][i]}%` }} />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Una pareja en silueta bailando (dibujo propio, sin imágenes): se mecen al ritmo y ella da un giro.
- * Con el color de la academia; quieta si el teléfono pide reducir el movimiento.
- */
+/** Ilustración vectorial de dos figuras articuladas. Ambas giran alrededor del mismo punto de contacto. */
 function ParejaBailando() {
   return (
-    <div className="flex flex-col items-center text-brand-500" aria-hidden="true">
-      <svg viewBox="0 0 120 92" className="h-36 w-auto overflow-visible" fill="currentColor">
-        <ellipse cx="60" cy="86" rx="40" ry="3.5" className="fill-ink-100" />
-        {/* cada figura es UNA silueta (sin piezas sueltas que se despeguen al moverse); se mueve el cuerpo entero */}
-        <g className="baile-pareja">
-          {/* él: se balancea al ritmo */}
-          <g className="baile-el">
-            <circle cx="40" cy="14" r="7" />
-            <path d="M32 24Q40 20 48 24L46 50L47.5 84H42.5L40.6 60H39.4L37.5 84H32.5L34 50Z" />
-            <path d="M34 27Q27 37 31 47" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    <svg viewBox="0 0 300 214" className="h-44 max-h-[32dvh] w-auto max-w-full sm:h-52" aria-hidden="true">
+      <g className="baile-ritmo">
+        <g className="baile-figura baile-figura-a">
+          <g className="baile-pierna baile-pierna-a1">
+            <path d="M70 120 87 124 75 161 55 187 42 181 60 151Z" fill="#273742" />
+            <path d="M43 178c4 0 8 2 13 6l-5 7-12 2-9-5c-4-2-2-6 1-7l7 2Z" fill="#ba7851" />
           </g>
-          {/* cada quien con su brazo, y las manos tomadas a la mitad (antes una sola línea: a ella le "faltaba" una mano) */}
-          <path d="M46 28Q53 34 60 33" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-          <path d="M75 27.5Q68 34 60.5 33" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" opacity="0.82" />
-          <circle cx="60.2" cy="33" r="2.8" />
-          {/* ella: da una vuelta cada cuatro tiempos */}
-          <g className="baile-ella" opacity="0.82">
-            <path d="M74 70L72.8 84M86 70L87.2 84" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-            <circle cx="80" cy="16" r="6.5" />
-            <circle cx="85.5" cy="11" r="3.3" />
-            <path d="M75 25Q80 22 85 25L84 44Q94 58 96 71Q80 77 64 71Q66 58 76 44Z" />
-            <path d="M84.5 28Q92 17 87 7" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
+          <g className="baile-pierna baile-pierna-a2">
+            <path d="m80 120 20 2 6 38 1 31-14 2-4-28-14-30Z" fill="#314552" />
+            <path d="m93 189 13-2 9 6 9 2c6 3 4 7-1 8l-28-1c-5 0-5-6-2-13Z" fill="#d4976a" />
           </g>
+          <path d="M72 50 92 47 95 65c-3 8-13 11-23 3Z" fill="#a8664c" />
+          <g className="baile-brazo-libre baile-brazo-a">
+            <path d="M67 70 44 90c-3 3-2 8 1 11l21 14 6-8-15-14 17-12Z" className="fill-brand-600" />
+            <path d="m65 107 5-1 10 6c3 2 1 6-2 6l-11-4Z" fill="#a8664c" />
+          </g>
+          <path d="m98 68 21 26 24 3-1 10-28 1c-7-1-15-9-22-16Z" className="fill-brand-600" />
+          <path d="m141 96 7-2 7 5-3 6-11 2Z" fill="#a8664c" />
+          <path d="M62 75q2-10 14-13l9 7 10-7q11 3 13 13l-10 43 2 7c-11 7-22 6-34 3l5-13Z" className="fill-brand-500" />
+          <path d="m77 65 8 5 10-7-3 12-7-4-6 6Z" fill="#f3ddb6" />
+          <path d="M84 79c3 16 2 29-1 42m12-40-5 38M75 82l2 26" fill="none" stroke="#fff" strokeOpacity=".21" strokeWidth="2" strokeLinecap="round" />
+          <path d="M72 48c-2-14 3-25 14-27 10-1 18 6 18 18l6 7-6 3c-1 6-4 10-9 11-7 1-13-4-17-10Z" fill="#b87757" />
+          <path d="M72 49c-5-5-6-13-4-20 2-8 9-13 20-13 7 0 13 3 16 10-8 0-12 6-17 11l-6 1-1 9-5-3Z" fill="#24313b" />
+          <path d="M88 51c3 4 10 7 15 2-1 5-5 8-9 7-3-1-5-4-6-9Z" fill="#24313b" />
         </g>
-      </svg>
-      <div className="-mt-1">
-        <Ecualizador chico />
-      </div>
-    </div>
+        <g className="baile-figura baile-figura-b">
+          <g className="baile-pierna baile-pierna-b1">
+            <path d="m199 132 13 2 0 28-18 29-9-4 14-31Z" fill="#925840" />
+            <path d="m189 185 9 3-5 13-4-1 1-5-8 7-10-1c-5-1-6-5-1-7l9-2Z" fill="#da8b5b" />
+          </g>
+          <g className="baile-pierna baile-pierna-b2">
+            <path d="m218 132 12-3 5 28 19 25-8 7-25-26Z" fill="#aa6b4d" />
+            <path d="m244 184 9-6 7 9 1 10-4 1-2-6-7 5-12-1c-4-2-3-6 1-6Z" fill="#e9a06c" />
+          </g>
+          <g className="baile-brazo-libre baile-brazo-b">
+            <path d="M227 66c6-4 12-1 15 5l17 16c3 4 2 9-3 11l-28 8-3-9 21-8-15-9Z" fill="#a76548" />
+            <path d="m225 97-9-1c-5 1-5 5-1 7l11 3 4-4Z" fill="#a76548" />
+          </g>
+          <path d="M200 69c4-5 12-3 13 2 2 5 0 8-4 12l-25 23c-4 3-9 4-13 3l-20-6 2-9 23 4Z" fill="#a76548" />
+          <path d="m155 95-8-4-5 3 5 7 7 3Z" fill="#a76548" />
+          <g className="baile-falda">
+            <path d="M201 101c6-5 19-7 26-2l10 20 16 24c-8 7-21 14-35 15-13 2-25-1-39-3l15-27Z" fill="#df774f" />
+            <path d="M197 121c8 4 24 7 37 3m-43 13c11 5 34 5 52-1m-57 15c15 5 37 6 61-6" fill="none" stroke="#f7b476" strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+          <path d="m207 49 14 2 2 12-3 5-15-5Z" fill="#a76548" />
+          <path d="m204 60 9 6 10-6c10 2 14 12 10 22l-8 21c-7 3-17 3-24 0l1-16c-5-5-7-11-4-19Z" fill="#e28358" />
+          <path d="m203 62 9 4 11-5-5 15c-5 2-9 2-13-1Z" fill="#f2a266" />
+          <path d="M199 42c-1-11 4-21 14-23 10 0 18 7 17 17l-4 16c-4 10-13 13-20 4l-6-5-5-3Z" fill="#ad6d4e" />
+          <path d="M197 39c-3-11 4-22 13-25 11-4 22 0 27 11 4 7 4 20-1 26l-11 4-3-12c-8-1-16-7-20-15Z" fill="#263744" />
+          <path d="M232 25c4-8 15-8 19-1 6 9 0 17-8 18-2 8-7 12-13 13Z" fill="#263744" />
+          <path d="M208 21c6-4 14-3 19 2" fill="none" stroke="#f2ba77" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="219" cy="48" r="3.2" fill="none" stroke="#f7c98b" strokeWidth="1.8" />
+        </g>
+        <ellipse cx="150" cy="99" rx="5.5" ry="3.6" transform="rotate(17 150 99)" fill="#b67858" />
+      </g>
+    </svg>
   );
 }
 
@@ -97,7 +107,7 @@ export function PantallaDescarga({ progreso }: { progreso: ProgresoDescarga | nu
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-ink-50 px-8 pt-safe pb-safe text-center" role="status" aria-live="polite">
-      {ANIMACION === 'pareja' ? <ParejaBailando /> : <Ecualizador />}
+      <ParejaBailando />
       <h1 className="mt-8 text-2xl font-extrabold tracking-tight">Bajando tu academia</h1>
       <p className="mt-1 min-h-6 text-ink-500">{FRASES[frase]}</p>
 
