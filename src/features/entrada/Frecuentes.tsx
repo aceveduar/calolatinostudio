@@ -112,7 +112,7 @@ export function Frecuentes({
       {mostrar.map((a) => {
         const entro = adentro.has(a.id);
         const plan = !!membresiaQueCubre(estados.get(a.id) ?? [], clase);
-        const accion = entro ? 'Adentro' : plan ? 'Entrada con plan'
+        const accion = entro ? 'Adentro' : plan ? 'Plan'
           : precioClase === undefined ? 'Sin tarifa' : `Cobrar ${dinero(precioClase)}`;
         return (
           <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} entro={entro} plan={plan} accion={accion} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
