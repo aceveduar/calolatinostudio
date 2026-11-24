@@ -155,3 +155,11 @@ Pasaron los recorridos de `basico`, `telefono`, `agenda`, `maestro`, `pedidos`, 
 - El aviso muestra **Actualizando…** al consultar datos, **No pudimos actualizar** con botón **Reintentar** si falla la consulta y **Sin internet** si el navegador detecta desconexión. La copia local conserva el QR y su fecha. Al recuperar red se consulta automáticamente de nuevo.
 - La lectura usa un plazo máximo de 18 segundos y cancela la consulta si se abandona la vista o cambia la conexión. El reintento para un enlace recién creado sigue activo. Los pedidos requieren datos actualizados y el detalle explica cómo recuperar esa opción.
 - Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites `portal2`, `portal3`, `pedidos` y `web` en Edge. `portal2` verificó consulta lenta, consulta fallida con conexión, reintento manual, desconexión y recuperación. No requiere SQL.
+- Se subió `3353870` y se confirmó que Cloudflare sirve el aviso nuevo en `PortalAlumno-Dz2Y48u7.js`. Se verificó el comportamiento con datos simulados, sin acceder al pase personal de Eduardo.
+
+## 24 de noviembre de 2026 · Tres correcciones de coherencia detectadas en la auditoría
+
+- **Mi pase:** un artículo sobre pedido pendiente muestra **Encargo recibido** y aclara que la academia aún debe pedirlo. Cuando llega, muestra dónde recogerlo y el saldo. Un apartado en existencia conserva su indicación de recogida. Si el catálogo actual no permite identificar el producto de forma única, se muestra **Recibido** y se pide confirmar la recogida en recepción.
+- **Pendientes:** abrir WhatsApp ya no marca el aviso como enviado. Recepción lo confirma con **Ya le avisé** después de enviar el mensaje o avisar en persona.
+- **Entrada:** ante un fallo de escritura al cobrar a un visitante con nombre, se muestra un error y se activa de nuevo el botón. La prueba simula el fallo y comprueba que reintentar deja una sola asistencia.
+- Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites de navegador `encargos`, `pedidos`, `pendientes` y `correcciones`. No requiere SQL.

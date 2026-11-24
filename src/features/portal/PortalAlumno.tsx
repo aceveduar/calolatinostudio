@@ -11,7 +11,7 @@ import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
 import { aFecha, diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
-import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, fotoPedido, puedeOpinar, type DatosPortal } from '../../domain/portal';
+import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, estadoPedidoPortal, fotoPedido, puedeOpinar, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
 import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
 import { INSIGNIAS, faltaParaEvento, insignias, mensajeEvento, mensajeRenovar, proximaClase, racha, restante, semana, type ClaseHorario } from '../../domain/miPortal';
@@ -444,7 +444,10 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
               <PackageCheck size={14} aria-hidden="true" /> Tus apartados y encargos
             </p>
             <ul className="mt-2 divide-y divide-ink-100">
-              {pedidos.map((p, i) => (
+              {pedidos.map((p, i) => {
+                const estado = estadoPedidoPortal(p, datos.tienda);
+                const saldo = Math.max(0, p.precio * p.cantidad - (p.anticipo ?? 0));
+                return (
                 <li key={i} className="flex items-center gap-3 py-2">
                   <ImagenProducto foto={fotoPedido(p, datos.tienda)} emoji={p.emoji} tam={44} />
                   <span className="min-w-0 flex-1">
@@ -454,25 +457,22 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
                       {p.cantidad > 1 && ` ×${p.cantidad}`}
                     </span>
                     {p.nota && <span className="block truncate text-xs text-ink-700">{p.nota}</span>}
-                    <span className="block text-xs text-ink-500">
-                      {p.estado === 'entregado'
-                        ? 'Entregado'
-                        : p.estado === 'llego' || p.estado === 'pendiente'
-                          ? `${p.estado === 'llego' ? '¡Ya llegó! ' : ''}Recógelo en recepción · ${dinero(Math.max(0, p.precio * p.cantidad - (p.anticipo ?? 0)))}`
-                          : 'El proveedor lo está preparando'}
-                    </span>
+                    {estado.detalle && <span className="block text-xs text-ink-500">
+                      {estado.detalle}{estado.listo && ` · ${dinero(saldo)}`}
+                    </span>}
                   </span>
                   <span
                     className={
                       p.estado === 'entregado' || p.estado === 'llego'
-                        ? 'rounded-full bg-ok-50 px-2.5 py-0.5 text-xs font-bold text-ok-600'
-                        : 'rounded-full bg-warn-50 px-2.5 py-0.5 text-xs font-bold text-warn-600'
+                        ? 'shrink-0 rounded-full bg-ok-50 px-2.5 py-0.5 text-xs font-bold text-ok-600'
+                        : 'max-w-24 shrink-0 rounded-xl bg-warn-50 px-2.5 py-0.5 text-center text-xs font-bold text-warn-600'
                     }
                   >
-                    {p.estado === 'entregado' ? '✓' : p.estado === 'llego' ? 'Llegó' : p.estado === 'pedido' ? 'En camino' : 'Apartado'}
+                    {estado.etiqueta}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         )}

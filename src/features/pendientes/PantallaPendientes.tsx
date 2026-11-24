@@ -18,7 +18,7 @@ const cuandoVence = (n: number) =>
 
 /**
  * "Pendientes": a quién escribirle y qué cobrar hoy, todo junto.
- * Cada recordatorio se manda con un toque (WhatsApp con el texto listo) y sale de la lista.
+ * WhatsApp abre el mensaje listo. Recepción confirma cuándo avisó.
  */
 export function PantallaPendientes() {
   const p = usePendientes();
@@ -109,7 +109,7 @@ export function PantallaPendientes() {
 
       {total > 0 && (
         <p className="mt-4 px-1 text-center text-xs leading-relaxed text-ink-500">
-          Al mandar el WhatsApp (o tocar <Check size={12} className="inline" /> si ya le avisaste en persona) sale de la lista en todos los equipos.
+          Después de avisar por WhatsApp o en persona, toca <Check size={12} className="inline" aria-hidden="true" /> para quitar el pendiente de la lista.
         </p>
       )}
     </div>
@@ -166,7 +166,6 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
           href={link}
           target="_blank"
           rel="noreferrer"
-          onClick={() => void hecho()}
           className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-600 px-3 text-sm font-bold text-white active:brightness-95"
           aria-label={`Mandar WhatsApp a ${p.alumno.nombre}`}
         >

@@ -50,6 +50,24 @@ export function fotoPedido(pedido: NonNullable<DatosPortal['pedidos']>[number], 
   return coincidencias.length === 1 ? coincidencias[0].foto : null;
 }
 
+export function estadoPedidoPortal(pedido: NonNullable<DatosPortal['pedidos']>[number], tienda: DatosPortal['tienda']) {
+  switch (pedido.estado) {
+    case 'entregado': return { etiqueta: 'Entregado', detalle: '', listo: false };
+    case 'cancelado': return { etiqueta: 'Cancelado', detalle: '', listo: false };
+    case 'llego': return { etiqueta: 'Llegó', detalle: 'Recógelo en recepción', listo: true };
+    case 'pedido': return { etiqueta: 'En camino', detalle: 'El proveedor lo está preparando', listo: false };
+    case 'pendiente': {
+      const coincidencias = tienda.filter((p) => p.nombre === pedido.producto);
+      if (coincidencias.length !== 1) {
+        return { etiqueta: 'Recibido', detalle: 'Confirma en recepción cuándo puedes recogerlo', listo: false };
+      }
+      return coincidencias[0].sobre_pedido
+        ? { etiqueta: 'Encargo recibido', detalle: 'La academia aún debe pedirlo al proveedor', listo: false }
+        : { etiqueta: 'Apartado', detalle: 'Recógelo en recepción', listo: true };
+    }
+  }
+}
+
 export const ERRORES_PEDIDO: Record<string, string> = {
   enlace: 'Este enlace ya no funciona. Pide uno nuevo en recepción.',
   cantidad: 'Puedes apartar de 1 a 5 piezas.',

@@ -104,9 +104,16 @@ let pedido = null;
 const TOKEN = 'AbCdEfGhJkLmNpQrStUvWxYz23';
 const datos = { hoy: '2026-11-13', alumno: { nombre: 'Ana López', codigo: 'K7P2QX' }, academia: { nombre: 'Calo Latino Studio', color: '#d6334a', logo: null }, planes: [], clases: [],
   tienda: [{ id: '22222222-2222-4222-8222-222222222222', nombre: 'Zapatillas de baile', precio: 120000, emoji: '👟', foto: null, descripcion: 'Por número y diseño', opciones: ['23', '24', '25'], disponibles: null, sobre_pedido: true, dias_entrega: 15 }],
-  pedidos: [{ producto: 'Zapatillas de baile', emoji: '👟', opcion: '24', nota: 'Rojas', cantidad: 1, precio: 120000, anticipo: 0, estado: 'pedido', creado: Date.now() }] };
+  pedidos: [
+    { producto: 'Zapatillas de baile', emoji: '👟', opcion: '24', nota: 'Rojas', cantidad: 1, precio: 120000, anticipo: 0, estado: 'pedido', creado: Date.now() },
+    { producto: 'Artículo retirado', emoji: '🛍️', opcion: null, cantidad: 1, precio: 10000, estado: 'pendiente', creado: Date.now() },
+  ] };
 await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
-await ctx.route('**/rest/v1/rpc/portal_pedir', (r) => { pedido = JSON.parse(r.request().postData() || '{}'); return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
+await ctx.route('**/rest/v1/rpc/portal_pedir', (r) => {
+  pedido = JSON.parse(r.request().postData() || '{}');
+  datos.pedidos.unshift({ producto: 'Zapatillas de baile', emoji: '👟', opcion: pedido.p_opcion, nota: pedido.p_nota, cantidad: 1, precio: 120000, anticipo: 60000, estado: 'pendiente', creado: Date.now() });
+  return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+});
 await page.goto(`http://localhost:4173/p/${TOKEN}`);
 await page.getByText('Tienda de la academia').waitFor();
 t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
@@ -118,5 +125,14 @@ await page.screenshot({ path: `${OUT}encargos-3-portal.png` });
 await dlg.getByRole('button', { name: /Encargar · pagas/ }).click();
 await page.getByText(/¡Listo! Encargaste Zapatillas de baile \(24\)/).waitFor();
 console.log('8) portal: encargar con detalle y ver "en camino":', ok(enCamino && pedido?.p_nota === 'Negras' && pedido?.p_opcion === '24'));
+const nuevoEncargo = page.getByRole('listitem').filter({ hasText: 'Negras' });
+await nuevoEncargo.getByText('Encargo recibido', { exact: true }).waitFor();
+console.log('9) recién recibido: falta pedirlo y no indica recoger:', ok(await nuevoEncargo.getByText(/aún debe pedirlo/).isVisible() && await nuevoEncargo.getByText(/Recógelo/).count() === 0));
+const retirado = page.getByRole('listitem').filter({ hasText: 'Artículo retirado' });
+console.log('10) sin producto activo: pide confirmar en recepción:', ok(await retirado.getByText(/Confirma en recepción/).isVisible() && await retirado.getByText(/Recógelo/).count() === 0));
+datos.pedidos[0].estado = 'llego';
+await page.reload();
+await nuevoEncargo.getByText('Llegó', { exact: true }).waitFor();
+console.log('11) al llegar, indica dónde recoger y cuánto falta pagar:', ok(await nuevoEncargo.getByText('Recógelo en recepción · $600', { exact: true }).isVisible()));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

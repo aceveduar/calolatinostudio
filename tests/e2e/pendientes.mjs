@@ -59,12 +59,12 @@ const tras = await page.evaluate(async (n) => (await window.compasDev.db.alumnos
 console.log('   deshacer:', nDeshacer, JSON.stringify(tras));
 console.log('3) ya le avisé → sale, se guarda; deshacer lo regresa:', ok(despues === antes - 1 && guardado && Object.keys(guardado).some((k) => k.startsWith('vence:')) && (await cuenta()) === antes), antes, despues);
 
-// 4) el WhatsApp también lo marca
+// 4) abrir WhatsApp no confirma que se envió el mensaje
 const enlaceWa = page.getByRole('link', { name: /^Mandar WhatsApp a/ }).first();
 await enlaceWa.evaluate((a) => a.addEventListener('click', (e) => e.preventDefault())); // no salir a WhatsApp
 await enlaceWa.click();
 await page.waitForTimeout(800);
-console.log('4) al mandar el WhatsApp también sale de la lista:', ok((await cuenta()) === antes - 1), await cuenta());
+console.log('4) al abrir WhatsApp conserva el pendiente hasta confirmar:', ok((await cuenta()) === antes), await cuenta());
 
 // 5) en "Más" aparece con su número
 await page.getByRole('link', { name: 'Más' }).first().click();

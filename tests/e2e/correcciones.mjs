@@ -191,5 +191,28 @@ const t9 = await page.getByRole('dialog').innerText();
 await shot('9-monto');
 console.log('9) aviso de ceros de más:', ok(t9.includes('¿Se teclearon ceros de más?')));
 
+// 10) Un fallo al guardar no deja bloqueado el cobro del visitante.
+await page.keyboard.press('Escape');
+await page.getByRole('link', { name: 'Entrada', exact: true }).click();
+await adentro();
+await btn('Visitante con nombre').click();
+const visitante = page.getByRole('dialog', { name: 'Visitante sin registro' });
+await visitante.getByPlaceholder('Visitante').fill('Visitante de reintento');
+await page.evaluate(() => {
+  const pagos = window.compasDev.db.pagos;
+  const fallarUnaVez = () => {
+    pagos.hook('creating').unsubscribe(fallarUnaVez);
+    throw new Error('Fallo de almacenamiento simulado');
+  };
+  pagos.hook('creating', fallarUnaVez);
+});
+const cobrarVisitante = visitante.getByRole('button', { name: /Cobrar/ });
+await cobrarVisitante.click();
+await page.getByText('No se pudo guardar el cobro. Intenta de nuevo.').waitFor();
+await cobrarVisitante.click();
+await visitante.waitFor({ state: 'hidden' });
+const visitas = await page.evaluate(() => window.compasDev.db.asistencias.filter((a) => a.nombreVisitante === 'Visitante de reintento').count());
+console.log('10) error de escritura permite reintentar y solo registra una visita:', ok(visitas === 1));
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

@@ -835,9 +835,15 @@ function FormVisitante({ clase, onHecho }: { clase: Clase | null; onHecho: () =>
         disabled={ocupado}
         onClick={async () => {
           setOcupado(true);
-          await cobrarClaseSuelta({ alumnoId: null, nombreVisitante: nombre, claseId: clase.id, plan: suelta, metodo, usuarioId: usuario.id });
-          avisar(`${dinero(suelta.precio)} cobrados`);
-          onHecho();
+          try {
+            await cobrarClaseSuelta({ alumnoId: null, nombreVisitante: nombre, claseId: clase.id, plan: suelta, metodo, usuarioId: usuario.id });
+            avisar(`${dinero(suelta.precio)} cobrados`);
+            onHecho();
+          } catch {
+            avisar('No se pudo guardar el cobro. Intenta de nuevo.', 'error');
+          } finally {
+            setOcupado(false);
+          }
         }}
       >
         Cobrar {dinero(suelta.precio)}
