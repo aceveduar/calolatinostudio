@@ -4,6 +4,7 @@ import { useAlumnos, useEstadosPorAlumno } from '../../app/datos';
 import { Avatar, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Alumno, Clase, ID } from '../../db/types';
+import { dinero } from '../../domain/dinero';
 import { hoy, sumarDias } from '../../domain/fechas';
 import { membresiaQueCubre } from '../../domain/membresias';
 import { nombresSinRepetir } from '../../domain/nombres';
@@ -18,12 +19,14 @@ const MAX = 30;
  */
 export function Frecuentes({
   clase,
+  precioClase,
   adentro,
   vinieronHoy,
   onToque,
   onOpciones,
 }: {
   clase: Clase;
+  precioClase?: number;
   adentro: Set<ID>;
   /** alumnos con entrada hoy en cualquier clase, en orden de llegada */
   vinieronHoy: ID[];
@@ -109,15 +112,17 @@ export function Frecuentes({
       {mostrar.map((a) => {
         const entro = adentro.has(a.id);
         const plan = !!membresiaQueCubre(estados.get(a.id) ?? [], clase);
+        const accion = entro ? 'Adentro' : plan ? 'Entrada con plan'
+          : precioClase === undefined ? 'Sin tarifa' : `Cobrar ${dinero(precioClase)}`;
         return (
-          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} entro={entro} plan={plan} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
+          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} entro={entro} plan={plan} accion={accion} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
         );
       })}
     </div>
   );
 }
 
-function Ficha({ alumno, etiqueta, entro, plan, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; entro: boolean; plan: boolean; onToque: () => void; onOpciones: () => void }) {
+function Ficha({ alumno, etiqueta, entro, plan, accion, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; entro: boolean; plan: boolean; accion: string; onToque: () => void; onOpciones: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const largo = useRef(false);
 
@@ -154,8 +159,8 @@ function Ficha({ alumno, etiqueta, entro, plan, onToque, onOpciones }: { alumno:
       </span>
       {/* hasta 2 renglones: si se agrega el apellido para distinguir, que no se corte justo esa parte */}
       <span className={cx('line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold break-words', entro && 'text-ink-500')}>{etiqueta}</span>
-      <span className={cx('text-[11px] font-bold', entro ? 'text-ok-600' : plan ? 'text-ok-600' : 'text-brand-600')}>
-        {entro ? 'Adentro' : plan ? 'Plan' : 'Paga'}
+      <span className={cx('text-center text-[11px] font-bold', entro || plan ? 'text-ok-600' : 'text-brand-600')}>
+        {accion}
       </span>
     </button>
   );

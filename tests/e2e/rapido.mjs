@@ -13,7 +13,7 @@ const pin = async (p) => { for (const d of p) await page.getByRole('button', { n
 const busca = page.getByPlaceholder(/Quién llegó|Buscar…/);
 const listo = async () => { await btn('Listo').click(); await page.waitForTimeout(150); };
 const billete = (txt) => page.locator('button', { hasText: new RegExp('^\\' + txt + '$') });
-const filasCuenta = () => page.getByRole('button', { name: /^Deshacer / }).count();
+const filasCuenta = () => page.getByRole('button', { name: /^Corregir (?!entrada de )/ }).count();
 const ok = (c) => (c ? 'OK' : 'MAL');
 
 await page.goto('http://localhost:4173/');
@@ -70,7 +70,12 @@ const f4 = await filasCuenta();
 console.log('4) la cuenta sigue tras 25 s y junta hasta Listo:', `${sigue} → ${f4}`, ok(sigue === 2 && f4 === 3));
 
 // 5) Se equivocó: deshacer
-await btn('Deshacer Sin nombre').first().click();
+await btn('Corregir Sin nombre').first().click();
+const correccion = page.getByRole('dialog', { name: 'Corregir movimiento' });
+await correccion.getByText(/Se quitará la asistencia y el cobro/).waitFor();
+await correccion.getByRole('button', { name: 'Cancelar' }).click();
+await btn('Corregir Sin nombre').first().click();
+await correccion.getByRole('button', { name: 'Quitar movimiento' }).click();
 await page.getByText('Se deshizo: Sin nombre').waitFor();
 console.log('5) deshacer: OK');
 await listo();

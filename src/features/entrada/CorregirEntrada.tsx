@@ -22,7 +22,7 @@ export function EstadoEntrada({ asistencia, pago }: { asistencia: Asistencia; pa
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-type Vista = 'menu' | 'clase' | 'persona';
+type Vista = 'menu' | 'clase' | 'persona' | 'quitar';
 
 /** Todo lo que se puede corregir de una entrada, en un solo lugar. Cada acción se puede deshacer. */
 export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: Asistencia; nombre: string; onHecho: () => void }) {
@@ -34,6 +34,7 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
   const pago = useLiveQuery(() => (asistencia.pagoId ? db.pagos.get(asistencia.pagoId) : undefined), [asistencia.pagoId]);
   const [vista, setVista] = useState<Vista>('menu');
   const [q, setQ] = useState('');
+  const [quitando, setQuitando] = useState(false);
   const clase = clases.find((c) => c.id === asistencia.claseId);
   const n1 = nombre.split(' ')[0];
 
@@ -95,16 +96,37 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
           <Boton
             bloque
             variante="peligro"
-            onClick={() =>
-              intentar(async () => {
-                const deshacer = await quitarEntrada(asistencia, usuario.id);
-                avisar(pago ? `Entrada quitada · devuelve ${dinero(pago.monto)}` : `Entrada de ${n1} quitada`, 'ok', { texto: 'Deshacer', fn: deshacer });
-              })
-            }
+            onClick={() => setVista('quitar')}
           >
-            <Trash2 size={18} /> {pago ? `Quitar entrada y devolver ${dinero(pago.monto)}` : 'Quitar entrada (se le devuelve la clase)'}
+            <Trash2 size={18} /> Quitar entrada
           </Boton>
         </>
+      )}
+
+      {vista === 'quitar' && (
+        <div className="space-y-3">
+          <p className="text-sm text-ink-700">
+            {asistencia.pagoId
+              ? `Se anularán la asistencia y el cobro${pago ? ` de ${dinero(pago.monto)}` : ''} en Caja.`
+              : asistencia.membresiaId ? 'Se anulará la asistencia y dejará de contar en su plan.'
+                : esDeuda(asistencia) ? 'Se anulará la asistencia y su saldo pendiente.' : 'Se anulará la asistencia.'}
+          </p>
+          {pago && <p className="text-sm text-ink-700">Si ya recibiste el pago, devuelve {dinero(pago.monto)} al alumno.</p>}
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" disabled={quitando} onClick={() => setVista('menu')}>Cancelar</Boton>
+            <Boton variante="peligro" disabled={quitando} onClick={async () => {
+              setQuitando(true);
+              try {
+                await intentar(async () => {
+                  const deshacer = await quitarEntrada(asistencia, usuario.id);
+                  avisar(`Entrada de ${n1} anulada`, 'ok', { texto: 'Deshacer', fn: deshacer });
+                });
+              } finally {
+                setQuitando(false);
+              }
+            }}>{quitando ? 'Anulando…' : 'Confirmar anulación'}</Boton>
+          </div>
+        </div>
       )}
 
       {vista === 'clase' && (

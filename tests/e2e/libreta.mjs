@@ -93,7 +93,7 @@ await dlg.getByRole('button', { name: /Entra y paga después/ }).click();
 await page.getByText(/queda debiendo \$40/).waitFor();
 console.log('4) fiado en Casa de Cultura ($40):', 'OK');
 await page.getByRole('button', { name: /^Adentro/ }).click();
-await page.getByRole('button', { name: new RegExp(`${sinPlan[0].nombre}.*Por pagar`) }).click();
+await page.getByRole('button', { name: `Corregir entrada de ${sinPlan[0].nombre}` }).click();
 const correccion = page.getByRole('dialog', { name: 'Corregir entrada' });
 await correccion.getByRole('link', { name: 'Ver adeudos del alumno' }).click();
 await page.getByRole('button', { name: /Cobrar lo que debe/ }).waitFor();

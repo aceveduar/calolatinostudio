@@ -317,6 +317,7 @@ export function PantallaEntrada() {
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorClase(clase, disciplinas) }} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">
               <b>{nombreClase(clase, disciplinas)}</b> · {clase.horaInicio}
+              {sedes.length > 0 && ` · ${nombreSede(sedeActual, sedes, academia)}`}
             </span>
             <span className="flex items-center font-semibold text-brand-600">
               Cambiar <ChevronDown size={14} aria-hidden="true" />
@@ -329,7 +330,7 @@ export function PantallaEntrada() {
           <HeroClase
             titulo={nombreClase(clase, disciplinas)}
             color={colorClase(clase, disciplinas)}
-            detalle={[clase.horaInicio, nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
+            detalle={[clase.horaInicio, sedes.length > 0 && nombreSede(sedeActual, sedes, academia), nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
             adentro={conteo.get(clase.id) ?? 0}
             cobrado={cobradoClase}
             onCambiar={() => setElegirClase(true)}
@@ -502,7 +503,7 @@ export function PantallaEntrada() {
             </div>
             {vista === 'llegan' || esc ? (
               <>
-                <Frecuentes clase={clase} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                <Frecuentes clase={clase} precioClase={suelta?.precio} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
                 {totalAlumnos === 0 ? (
                   // el primer día: todavía no hay a quién tocar, así que se dice cómo se registra al primero
                   <Vacio
@@ -519,7 +520,7 @@ export function PantallaEntrada() {
                 )}
               </>
             ) : (
-              <EnClase clase={clase} onVisitante={() => setVisitante(true)} />
+              <EnClase clase={clase} movs={movs} onVisitante={() => setVisitante(true)} />
             )}
           </>
         )}
@@ -536,7 +537,7 @@ export function PantallaEntrada() {
               <p className="mt-1">Al cobrar aparece aquí el total y el cambio.</p>
             </div>
           )}
-          {clase && <EnClase clase={clase} onVisitante={() => setVisitante(true)} />}
+          {clase && <EnClase clase={clase} movs={movs} onVisitante={() => setVisitante(true)} />}
         </aside>
       )}
 
@@ -748,7 +749,7 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { ti
   );
 }
 
-function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void }) {
+function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[]; onVisitante: () => void }) {
   const disciplinas = useDisciplinas();
   const [quitar, setQuitar] = useState<ID | null>(null);
   const lista = useLiveQuery(
@@ -774,6 +775,7 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
   );
 
   const sel = lista.find((x) => x.a.id === quitar);
+  const enCuenta = new Set(movs.map((m) => m.asistenciaId));
 
   return (
     <div>
@@ -792,12 +794,19 @@ function EnClase({ clase, onVisitante }: { clase: Clase; onVisitante: () => void
       ) : (
         <Tarjeta className="divide-y divide-ink-100">
           {lista.map(({ a, nombre, foto, pago }) => (
-            <button key={a.id} onClick={() => setQuitar(a.id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-ink-50">
+            <div key={a.id} className="flex w-full items-center gap-2 px-3 py-2.5">
               <Avatar nombre={nombre} foto={foto} tam={36} />
               <span className="min-w-0 flex-1 truncate font-medium">{nombre}</span>
               <EstadoEntrada asistencia={a} pago={pago} />
-              <span className="w-12 text-right text-xs text-ink-500">{horaDe(a.createdAt)}</span>
-            </button>
+              <div className="shrink-0 text-right">
+                <span className="block text-xs text-ink-500">{horaDe(a.createdAt)}</span>
+                {enCuenta.has(a.id) ? <span className="text-xs text-ink-500">En cuenta</span> : (
+                  <button type="button" onClick={() => setQuitar(a.id)} aria-label={`Corregir entrada de ${nombre}`} className="min-h-8 rounded-lg px-1 text-xs font-semibold text-brand-600 underline underline-offset-4 active:bg-brand-50">
+                    Corregir
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </Tarjeta>
       )}

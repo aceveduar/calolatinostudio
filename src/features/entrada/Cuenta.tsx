@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check, X, ArrowRightLeft } from 'lucide-react';
-import { cx } from '../../components/ui';
+import { Boton, Hoja, cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
 import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
 
@@ -27,11 +27,14 @@ export function Cuenta({
   /** en escritorio va en el panel lateral, no flotando */
   incrustado?: boolean;
   movs: Movimiento[];
-  onDeshacer: (m: Movimiento) => void;
+  onDeshacer: (m: Movimiento) => Promise<void>;
   onTransferencia: () => void;
   onCerrar: () => void;
 }) {
   const [pagoCon, setPagoCon] = useState<number | null>(null);
+  const [corregir, setCorregir] = useState<Movimiento | null>(null);
+  const [corrigiendo, setCorrigiendo] = useState(false);
+  const [errorCorreccion, setErrorCorreccion] = useState(false);
   const efectivo = movs.filter((m) => m.metodo === 'efectivo').reduce((s, m) => s + m.monto, 0);
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
   const sinCobro = movs.length > 0 && movs.every((m) => !m.monto);
@@ -39,7 +42,7 @@ export function Cuenta({
   const llave = movs.map((m) => m.key).join(',');
   // tocar la cuenta la "toma": deja de cerrarse sola (con cada alumno nuevo vuelve a contar)
   const [tomada, setTomada] = useState<string | null>(null);
-  const pausada = tomada === llave;
+  const pausada = tomada === llave || Boolean(corregir);
   useEffect(() => {
     if (!sinCobro || pausada) return;
     const t = setTimeout(onCerrar, CIERRE_SIN_COBRO_MS);
@@ -86,12 +89,49 @@ export function Cuenta({
                 {monto ? dinero(monto) : m.beca ? 'Beca' : 'Plan'}
                 {m.metodo === 'transferencia' && <span className="ml-1 font-normal text-white/60">transf.</span>}
               </span>
-              <button onClick={() => onDeshacer(m)} className="-mr-2 rounded-full p-2 text-white/50 active:bg-white/10" aria-label={`Deshacer ${m.nombre}`}>
-                <X size={18} />
-              </button>
+              {m.asistenciaId ? <button type="button" onClick={() => {
+                setTomada(llave);
+                setErrorCorreccion(false);
+                setCorregir(m);
+              }} className="-mr-2 min-h-10 shrink-0 rounded-lg px-2 text-xs font-semibold text-white/85 underline underline-offset-4 active:bg-white/10" aria-label={`Corregir ${m.nombre}`}>
+                Corregir
+              </button> : (
+                <button type="button" onClick={() => void onDeshacer(m)} className="-mr-2 rounded-full p-2 text-white/50 active:bg-white/10" aria-label={`Deshacer ${m.nombre}`}>
+                  <X size={18} />
+                </button>
+              )}
             </div>
           ))}
         </div>
+        <Hoja abierta={Boolean(corregir)} titulo="Corregir movimiento" onCerrar={() => {
+          if (!corrigiendo) setCorregir(null);
+        }}>
+          {corregir && (
+            <div className="space-y-3">
+              <p className="font-bold">{corregir.nombre}</p>
+              <p className="text-sm text-ink-700">
+                {corregir.pagoId ? `Se quitará la asistencia y el cobro de ${dinero(corregir.monto)} de Caja.` : 'Se quitará la asistencia y dejará de contar en su plan.'}
+                {corregir.alumnoCreadoId && ' También se retirará la ficha creada con esta entrada.'}
+              </p>
+              {errorCorreccion && <p role="alert" className="text-sm text-bad-600">No se pudo quitar el movimiento. Inténtalo de nuevo.</p>}
+              <div className="flex flex-wrap gap-2">
+                <Boton variante="secundario" disabled={corrigiendo} onClick={() => setCorregir(null)}>Cancelar</Boton>
+                <Boton variante="peligro" disabled={corrigiendo} onClick={async () => {
+                  setCorrigiendo(true);
+                  setErrorCorreccion(false);
+                  try {
+                    await onDeshacer(corregir);
+                    setCorregir(null);
+                  } catch {
+                    setErrorCorreccion(true);
+                  } finally {
+                    setCorrigiendo(false);
+                  }
+                }}>{corrigiendo ? 'Quitando…' : 'Quitar movimiento'}</Boton>
+              </div>
+            </div>
+          )}
+        </Hoja>
 
         {efectivo > 0 ? (
           <div className="border-t border-white/10 px-4 pt-3 pb-3">
