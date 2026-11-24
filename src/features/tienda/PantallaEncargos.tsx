@@ -56,7 +56,7 @@ export function PantallaEncargos() {
     return (
       <div className="flex items-center gap-3 px-3 py-2.5">
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setSel(p)}>
-          <ImagenProducto foto={prod?.foto} emoji={prod?.emoji} tam={40} />
+          <ImagenProducto foto={prod?.foto} tam={40} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">
               {nombrePedido(p, prod)}
@@ -337,7 +337,7 @@ function FormEncargo({ sedeId, onHecho }: { sedeId: ID | null; onHecho: () => vo
         >
           {productos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.emoji} {p.nombre} · {dinero(p.precio)}
+              {p.nombre} · {dinero(p.precio)}
               {p.sobrePedido ? ' · sobre pedido' : ''}
             </option>
           ))}

@@ -163,3 +163,11 @@ Pasaron los recorridos de `basico`, `telefono`, `agenda`, `maestro`, `pedidos`, 
 - **Pendientes:** abrir WhatsApp ya no marca el aviso como enviado. Recepción lo confirma con **Ya le avisé** después de enviar el mensaje o avisar en persona.
 - **Entrada:** ante un fallo de escritura al cobrar a un visitante con nombre, se muestra un error y se activa de nuevo el botón. La prueba simula el fallo y comprueba que reintentar deja una sola asistencia.
 - Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites de navegador `encargos`, `pedidos`, `pendientes` y `correcciones`. No requiere SQL.
+- Se subió `1440f49` y se comprobó que Cloudflare sirve el nuevo estado de encargos en producción.
+
+## 24 de noviembre de 2026 · Productos sin selector de íconos
+
+- **Ajustes → Productos** conserva cámara y galería y permite guardar sin foto. Se retiró el selector de emojis y la cuadrícula de opciones.
+- Las imágenes de productos y pedidos usan un recuadro neutro **Sin foto** cuando no hay imagen o no carga. Se retiró el emoji de producto de los avisos, cuenta, lista de encargos y resumen de tienda. Las fotos existentes siguen apareciendo.
+- Se conservó el campo histórico `emoji` por compatibilidad. Los productos nuevos guardan una cadena vacía y editar otro campo no cambia ese valor en los existentes. No se requiere SQL.
+- Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites de Edge `fotoprod`, `pedidos`, `tiendapublica`, `tienda` y `costos`. Se verificó la creación sin foto, la carga desde galería, la foto en caja y el recuadro neutro en pedidos y catálogo público.

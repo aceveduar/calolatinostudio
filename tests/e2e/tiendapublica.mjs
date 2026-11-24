@@ -45,6 +45,8 @@ for (const [n, vp, movil, esperados] of [['cel', { width: 390, height: 844 }, tr
   await p.getByRole('button', { name: 'Ver toda la tienda (12)' }).click();
   await p.waitForTimeout(300);
   console.log(`3) ${n}: "Ver toda la tienda (12)" muestra los 12:`, ok((await visibles()) === 12));
+  const sinFoto = p.getByRole('button', { name: /^Ver Snack 1,/ });
+  console.log(`   ${n}: producto sin foto usa fondo neutro:`, ok(await sinFoto.getByText('Sin foto', { exact: true }).isVisible() && !(await sinFoto.innerText()).includes('👕')));
   const r = await revisarPagina(p);
   console.log(`4) ${n}: sin desbordes, botones con nombre y buen contraste:`, ok(!r.ancho && !r.sinNombre.length && !r.contraste?.length), JSON.stringify({ ancho: r.ancho, sinNombre: r.sinNombre, contraste: r.contraste }));
   await ctx.close();

@@ -132,7 +132,7 @@ const filaPlayera = page.getByRole('listitem').filter({ hasText: 'Playera Calo �
 const miniatura = filaPlayera.locator('img');
 await miniatura.waitFor();
 const filaZapatillas = page.getByRole('listitem').filter({ hasText: 'El proveedor lo está preparando' });
-console.log('10) miniatura para la playera e ícono para el artículo sin foto:', ok(await miniatura.getAttribute('src') === fotoPlayera && (await filaZapatillas.innerText()).includes('👟')));
+console.log('10) miniatura para la playera y fondo neutro para el artículo sin foto:', ok(await miniatura.getAttribute('src') === fotoPlayera && await filaZapatillas.getByText('Sin foto', { exact: true }).isVisible() && !(await filaZapatillas.innerText()).includes('👟')));
 await page.screenshot({ path: `${OUT}pedidos-3-listo.png`, fullPage: true });
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

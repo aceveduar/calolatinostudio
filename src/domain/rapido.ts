@@ -27,7 +27,6 @@ export interface Movimiento {
   asistenciaId: ID | null;
   /** venta de tienda */
   productoId?: ID;
-  emoji?: string;
   /** entró con beca (se muestra "Beca" en lugar de "Plan") */
   beca?: boolean;
   /** alumno creado en este mismo cobro (se borra al deshacer) */

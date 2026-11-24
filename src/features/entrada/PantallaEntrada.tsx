@@ -207,7 +207,7 @@ export function PantallaEntrada() {
       try {
         const mov = await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
         setMovs((x) => [mov, ...x]);
-        avisar(`${p.emoji} ${p.nombre} · ${dinero(p.precio)}`);
+        avisar(`${p.nombre} · ${dinero(p.precio)}`);
       } catch (e) {
         avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
       }

@@ -11,12 +11,12 @@ export function ResumenTienda({ pagos }: { pagos: Pago[] }) {
   const productos = useProductos();
   const ventas = pagos.filter((p) => p.productoId && !p.anuladoAt && !p.deletedAt);
   if (!ventas.length) return null;
-  const porProducto = new Map<string, { nombre: string; emoji: string; piezas: number; vendido: number; costo: number; conCosto: boolean }>();
+  const porProducto = new Map<string, { nombre: string; piezas: number; vendido: number; costo: number; conCosto: boolean }>();
   for (const v of ventas) {
     const prod = productos.find((x) => x.id === v.productoId);
     const piezas = v.cantidad ?? 1;
     const costo = v.costo ?? (prod?.costo ? prod.costo * piezas : 0);
-    const f = porProducto.get(v.productoId!) ?? { nombre: prod?.nombre ?? v.concepto, emoji: prod?.emoji ?? '🛍️', piezas: 0, vendido: 0, costo: 0, conCosto: false };
+    const f = porProducto.get(v.productoId!) ?? { nombre: prod?.nombre ?? v.concepto, piezas: 0, vendido: 0, costo: 0, conCosto: false };
     f.piezas += piezas;
     f.vendido += v.monto;
     f.costo += costo;
@@ -47,7 +47,6 @@ export function ResumenTienda({ pagos }: { pagos: Pago[] }) {
       <Tarjeta className="mt-2 divide-y divide-ink-100">
         {filas.slice(0, 6).map((f) => (
           <div key={f.nombre} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="text-xl leading-none">{f.emoji}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-semibold">{f.nombre}</span>
               <span className="block text-xs text-ink-500">

@@ -670,7 +670,7 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
         {orden.map((x, i) => {
           const tarjeta = (
             <>
-              {x.foto ? <img src={x.foto} alt="" loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" /> : <span className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-ink-50 text-6xl">{x.emoji}</span>}
+              <ImagenProducto foto={x.foto} tam="tarjeta" />
               <span className="mt-2 block text-sm font-bold">{x.nombre}</span>
               <span className="block text-sm font-extrabold text-brand-600">{dinero(x.precio)}</span>
               {x.sobre_pedido && <span className="block text-[11px] text-ink-500">Sobre pedido</span>}
@@ -708,7 +708,7 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
       <Hoja abierta={!!seleccionado} onCerrar={() => setSeleccionado(null)} titulo={seleccionado?.nombre}>
         {seleccionado && (
           <div className="space-y-3">
-            <ImagenProducto foto={seleccionado.foto} emoji={seleccionado.emoji} tam={seleccionado.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
+            <ImagenProducto foto={seleccionado.foto} tam={seleccionado.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
             <p className="text-lg font-extrabold text-brand-600">{dinero(seleccionado.precio)}</p>
             {seleccionado.sobre_pedido && <p className="text-sm font-semibold text-ink-700">Sobre pedido</p>}
             {seleccionado.descripcion && <p className="whitespace-pre-line break-words text-sm text-ink-700">{seleccionado.descripcion}</p>}

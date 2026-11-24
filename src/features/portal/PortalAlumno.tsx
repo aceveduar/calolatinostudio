@@ -191,7 +191,7 @@ function HojaApartar({ producto, token, actualizacion, onCerrar, onListo }: { pr
 
   return (
     <Hoja abierta onCerrar={() => { if (!ocupado) onCerrar(); }} titulo={producto.nombre}>
-        <ImagenProducto foto={producto.foto} emoji={producto.emoji} tam={producto.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
+        <ImagenProducto foto={producto.foto} tam={producto.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
         <div className="mt-3 space-y-1">
           <p className="text-lg font-bold text-brand-600">{dinero(producto.precio)}</p>
           <p className="text-sm font-medium text-ink-700">
@@ -449,7 +449,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
                 const saldo = Math.max(0, p.precio * p.cantidad - (p.anticipo ?? 0));
                 return (
                 <li key={i} className="flex items-center gap-3 py-2">
-                  <ImagenProducto foto={fotoPedido(p, datos.tienda)} emoji={p.emoji} tam={44} />
+                  <ImagenProducto foto={fotoPedido(p, datos.tienda)} tam={44} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">
                       {p.producto}
@@ -497,7 +497,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
                 return (
                   <li key={p.id} className="flex flex-col rounded-2xl bg-ink-50 p-3 text-center">
                     <button type="button" onClick={verProducto} aria-label={`Ver ${p.nombre}`} className="rounded-xl text-center active:opacity-75">
-                      <ImagenProducto foto={p.foto} emoji={p.emoji} tam={80} className={cx('mx-auto', !p.foto && 'bg-transparent')} />
+                      <ImagenProducto foto={p.foto} tam={80} className="mx-auto" />
                       <span className="mt-1 line-clamp-2 text-sm font-semibold">{p.nombre}</span>
                     </button>
                     {p.descripcion && <p className="line-clamp-2 text-xs text-ink-500">{p.descripcion}</p>}

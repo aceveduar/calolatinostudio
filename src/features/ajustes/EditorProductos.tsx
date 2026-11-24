@@ -11,7 +11,7 @@ import { Boton, Campo, Entrada, Etiqueta, Hoja, Interruptor, Segmentos, cx } fro
 import { actualizar, crear } from '../../db/repo';
 import { type CategoriaProducto, type ID, type Producto } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
-import { EMOJIS_PRODUCTO, estadoExistencia } from '../../domain/tienda';
+import { estadoExistencia } from '../../domain/tienda';
 import { Catalogo } from './Catalogo';
 
 // ---------- Productos (tienda) ----------
@@ -84,7 +84,7 @@ export function EditorProductos() {
           const est = estadoExistencia(p, d);
           return (
             <>
-              <ImagenProducto foto={p.foto} emoji={p.emoji} tam={40} />
+              <ImagenProducto foto={p.foto} tam={40} />
               <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
                 <span className="block truncate font-semibold">{p.nombre}</span>
                 {/* una línea corta de texto y lo demás como etiquetas (antes 3 renglones apretados) */}
@@ -111,7 +111,7 @@ export function EditorProductos() {
 }
 
 /** Foto real del producto: con la cámara o de la galería; se guarda pequeña (400 px). */
-export function FotoDeProducto({ foto, emoji, onChange }: { foto: string | null; emoji: string; onChange: (f: string | null) => void }) {
+export function FotoDeProducto({ foto, onChange }: { foto: string | null; onChange: (f: string | null) => void }) {
   const avisar = useAvisos();
   const camara = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
@@ -128,9 +128,9 @@ export function FotoDeProducto({ foto, emoji, onChange }: { foto: string | null;
     }
   };
   return (
-    <Campo etiqueta="Foto del producto" ayuda="Una foto real vende más: así la ven en el portal y en la página. Fondo liso y buena luz." grupo>
+    <Campo etiqueta="Foto del producto" ayuda="Toma una foto o elige una imagen de tu galería. Puedes agregarla después." grupo>
       <div className="flex items-center gap-3">
-        <ImagenProducto foto={foto} emoji={emoji} tam={88} className="ring-1 ring-ink-100" />
+        <ImagenProducto foto={foto} tam={88} className="ring-1 ring-ink-100" />
         <div className="grid flex-1 gap-2">
           <Boton variante="secundario" disabled={ocupado} onClick={() => camara.current?.click()}>
             <Camera size={18} /> {foto ? 'Tomar otra' : 'Tomar foto'}
@@ -158,9 +158,7 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
   const disponibles = libres === null ? null : libres + reservadas;
   const avisar = useAvisos();
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
-  const [emoji, setEmoji] = useState(producto?.emoji ?? '💧');
   const [foto, setFoto] = useState<string | null>(producto?.foto ?? null);
-  const [verIconos, setVerIconos] = useState(false);
   const [precio, setPrecio] = useState(producto ? aPesosTexto(producto.precio) : '');
   const [costo, setCosto] = useState(producto?.costo ? aPesosTexto(producto.costo) : '');
   const ganancia = aCentavos(precio) - aCentavos(costo);
@@ -187,7 +185,6 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
     const cambioConteo = conteo && (disponibles === null || nuevoConteo !== Math.max(0, disponibles));
     const datos = {
       nombre: nombre.trim(),
-      emoji,
       // foto real del producto (si se tomó o se quitó)
       ...(foto || producto?.foto ? { foto } : {}),
       precio: aCentavos(precio),
@@ -206,14 +203,13 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
       ...(sobrePedido ? { sobrePedido: true, diasEntrega: Number(diasEntrega) || null } : producto?.sobrePedido ? { sobrePedido: false } : {}),
     };
     if (producto) await actualizar('productos', producto.id, datos);
-    else await crear('productos', { foto: null, inventario: null, inventarioAt: null, ...datos });
+    else await crear('productos', { emoji: '', foto: null, inventario: null, inventarioAt: null, ...datos });
     avisar('Producto guardado');
     onHecho();
   };
 
   return (
     <div className="space-y-4">
-      {/* lo que se escribe primero y lo único obligatorio, arriba (antes debajo de la foto y de 21 íconos) */}
       <div className="grid grid-cols-[1fr_7rem] gap-3">
         <Campo etiqueta="Nombre">
           <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Agua 600 ml" autoFocus={!producto} />
@@ -222,24 +218,7 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
           <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
         </Campo>
       </div>
-      <FotoDeProducto foto={foto} emoji={emoji} onChange={setFoto} />
-      {/* con foto, los íconos no se usan: quedan a un toque en vez de ocupar media pantalla */}
-      {foto && !verIconos ? (
-        <button type="button" onClick={() => setVerIconos(true)} className="-mt-2 min-h-10 text-sm font-semibold text-brand-600">
-          Elegir un ícono (por si no carga la foto)
-        </button>
-      ) : (
-        <Campo etiqueta={foto ? 'Ícono (por si no carga la foto)' : 'Ícono (mientras no tenga foto)'} grupo>
-          <div className="grid grid-cols-7 gap-1.5">
-            {EMOJIS_PRODUCTO.map((e) => (
-              <button key={e} type="button" onClick={() => setEmoji(e)} aria-label={e} aria-pressed={emoji === e}
-                className={cx('flex h-11 items-center justify-center rounded-xl text-2xl ring-1', emoji === e ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-superficie ring-ink-100')}>
-                {e}
-              </button>
-            ))}
-          </div>
-        </Campo>
-      )}
+      <FotoDeProducto foto={foto} onChange={setFoto} />
       <Campo etiqueta="¿Cuánto te cuesta? (opcional)" ayuda="Solo lo ve la dirección. Sirve para saber cuánto te deja cada venta.">
         <Entrada inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="$ costo por pieza" />
       </Campo>

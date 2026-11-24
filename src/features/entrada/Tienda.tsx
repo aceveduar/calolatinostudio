@@ -44,7 +44,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
     }
     try {
       onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
-      setAviso(`${p.emoji} ${p.nombre} · ${dinero(p.precio)}`);
+      setAviso(`${p.nombre} · ${dinero(p.precio)}`);
       navigator.vibrate?.(20);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
@@ -77,7 +77,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
       <div className="divide-y divide-ink-100 rounded-2xl bg-superficie ring-1 ring-ink-100">
         {pendientes.map((x) => (
           <div key={x.pedido.id} className="flex items-center gap-3 px-3 py-2.5">
-            <ImagenProducto foto={x.producto?.foto} emoji={x.producto?.emoji} tam={40} />
+            <ImagenProducto foto={x.producto?.foto} tam={40} />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-semibold">
                 {nombrePedido(x.pedido, x.producto)}
@@ -194,7 +194,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
                       )}
                       aria-label={`Agregar ${p.nombre}, ${dinero(p.precio)}`}
                     >
-                      <ImagenProducto foto={p.foto} emoji={p.emoji} tam={52} className={p.foto ? '' : 'bg-transparent'} />
+                      <ImagenProducto foto={p.foto} tam={52} />
                       <span className="mt-1 line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold">{p.nombre}</span>
                       <span className="text-sm font-bold">{dinero(p.precio)}</span>
                       {est !== 'libre' && (

@@ -67,7 +67,7 @@ export function Cuenta({
         <div className="max-h-36 lg:max-h-72 divide-y divide-white/10 overflow-y-auto">
           {filas.map(({ m, cantidad, monto }) => (
             <div key={m.key} className="flex items-center gap-3 px-4 py-2">
-              {m.emoji ? <span className="w-[18px] shrink-0 text-center text-lg leading-none">{m.emoji}</span> : <Check size={18} className="shrink-0 text-[#7ee2a8]" />}
+              <Check size={18} className="shrink-0 text-[#7ee2a8]" />
               {m.alumnoId && onOpciones ? (
                 <span className="min-w-0 flex-1">
                   <button type="button" onClick={() => onOpciones(m.alumnoId!)} className="block max-w-full truncate text-left font-semibold underline decoration-white/30 underline-offset-4 active:text-white/70" aria-label={`Opciones de ${m.nombre}`}>
