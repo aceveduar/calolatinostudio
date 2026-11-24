@@ -92,3 +92,16 @@ Para cada ajuste posterior, añadir aquí la fecha, el pedido, los archivos y de
 - Tocar la foto o el nombre del producto abre la misma hoja que **Apartar** o **Encargar**. Muestra la foto completa a 224 px, la descripción sin recortar, el precio y el estado o plazo. Usa la misma URL de la tarjeta y carga diferida.
 - La hoja común permite desplazarse en pantallas pequeñas y volver a la cuadrícula al cerrarla. Las variantes, cantidad y total se eligen ahí mismo. El pedido solo se envía al confirmar. Un producto agotado o consultado sin conexión abre en modo de consulta.
 - Cambios en `src/features/portal/PortalAlumno.tsx`, `src/components/ImagenProducto.tsx` y `tests/e2e/pedidos.mjs`. Pasaron 124 pruebas unitarias, lint, TypeScript, compilación y la suite `pedidos` en Edge con datos simulados. El cambio es de frontend y no requiere SQL.
+- Se publicó `faf31a3` y se confirmó que Cloudflare sirve el nuevo código del detalle de producto en `PortalAlumno-D_3HJANL.js`.
+
+## 24 de noviembre de 2026 · Revisión de la tienda pública
+
+- En Edge móvil, se confirmó que **Gorra Calo** enlaza directamente a WhatsApp y que existe **Ver toda la tienda**. Hoy las tarjetas muestran foto, nombre, precio y si el producto es sobre pedido. La respuesta pública ya incluye descripción y variantes, pero no las muestra en la tienda. Tampoco devuelve existencias ni plazo estimado.
+- Propuesta: abrir el detalle desde la tarjeta, al igual que en Mi pase. Mostrar la foto completa, descripción, precio y variantes. Dejar **Consultar por WhatsApp** como acción explícita, con el producto y la variante seleccionada en el mensaje. Mantener Mi pase para los apartados y encargos vinculados al alumno.
+- Prioridad: aprovechar el catálogo y las imágenes existentes sin SQL adicional. Mostrar plazos o disponibilidad exacta solo si se incorpora información fiable a la página pública. Revisión de usabilidad sin cambios funcionales.
+
+## 24 de noviembre de 2026 · Fichas de producto en la tienda pública
+
+- En `src/features/publica/PaginaPublica.tsx`, cada tarjeta abre una ficha con foto ampliada sin recorte, precio, descripción completa, variantes y **Sobre pedido** cuando corresponde. Se reutilizan la hoja y el componente de imagen de Mi pase.
+- **Consultar por WhatsApp** prepara un mensaje con el producto y, si se eligió, la talla o el color. La consulta es opcional y solo abre WhatsApp al tocar el enlace. Si la academia no configuró WhatsApp, la ficha sigue disponible y muestra las variantes como texto.
+- El catálogo actual ya proporciona estos datos. El ajuste no requiere SQL ni añade una solicitud nueva para la ficha. Pasaron 124 pruebas unitarias, lint, compilación y la suite `web` en Edge, con casos para la foto ampliada y la consulta con y sin variante.

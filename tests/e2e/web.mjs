@@ -73,7 +73,10 @@ const datos = {
   ],
   planes: [{ nombre: 'Clase suelta', tipo: 'suelta', precio: 6000, clases: 1, vigencia: 1, grupos: null, sede_id: null }, { nombre: 'Mensualidad', tipo: 'mensual', precio: 65000, clases: null, vigencia: 30, grupos: null, sede_id: null }],
   eventos: [],
-  tienda: [],
+  tienda: [
+    { nombre: 'Playera Calo', precio: 25000, emoji: '👕', foto: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', descripcion: 'Algodón, con logo bordado al frente. Cuello redondo.', opciones: ['CH', 'M', 'G'], sobre_pedido: true },
+    { nombre: 'Gorra Calo', precio: 20000, emoji: '🧢', foto: null, descripcion: 'Ajustable.', opciones: [], sobre_pedido: false },
+  ],
 };
 await ctx.route('**/rest/v1/rpc/pagina_publica', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
 await page.goto('http://localhost:4173/a/calo-latino');
@@ -122,5 +125,20 @@ await page.getByRole('button', { name: 'Avísenme del siguiente grupo' }).click(
 await page.getByText(/en cuanto abra el siguiente grupo de Salsa 0/).waitFor();
 console.log('9) a medio curso: queda en lista de espera:', ok(aviso && inscrito?.p_clase === 'c1'));
 await page.screenshot({ path: `${OUT}web-${P}-5-espera.png` });
+const tarjeta = page.getByRole('button', { name: /Ver Playera Calo/ });
+await tarjeta.click();
+const detalle = page.getByRole('dialog', { name: 'Playera Calo' });
+await detalle.getByText(datos.tienda[0].descripcion, { exact: true }).waitFor();
+const consulta = detalle.getByRole('link', { name: 'Consultar por WhatsApp' });
+await detalle.getByRole('button', { name: 'M', exact: true }).click();
+const mensaje = new URL(await consulta.getAttribute('href')).searchParams.get('text');
+console.log('10) tienda: detalle con foto ampliada, descripción y variante en WhatsApp:', ok(
+  ctx.pages().length === 1 && await detalle.getByText('Sobre pedido', { exact: true }).isVisible() &&
+  await detalle.locator('img').getAttribute('width') === '224' && mensaje.includes('Playera Calo (M)'),
+));
+await page.keyboard.press('Escape');
+await tarjeta.click();
+const mensajeNuevo = new URL(await consulta.getAttribute('href')).searchParams.get('text');
+console.log('11) tienda: volver a abrir permite consultar sin variante:', ok(!mensajeNuevo.includes('(M)')));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

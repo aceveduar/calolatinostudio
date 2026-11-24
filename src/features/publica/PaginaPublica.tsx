@@ -3,7 +3,8 @@ import { DetalleEvento } from '../../components/DetalleEvento';
 import { ArrowLeft, ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
-import { cx } from '../../components/ui';
+import { cx, Hoja } from '../../components/ui';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import { dinero } from '../../domain/dinero';
 import { hoy } from '../../domain/fechas';
 import { estadoCurso } from '../../domain/cursos';
@@ -555,7 +556,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         {/* ---------- tienda ----------
             Secundaria: la página es para que alguien se inscriba. Antes mostraba TODOS los productos (38 = un tercio
             de la página, empujando las preguntas y la inscripción). Ahora unos cuantos (con foto primero) y
-            "Ver toda la tienda"; cada producto abre WhatsApp con su nombre. Apartar es desde el portal del alumno. */}
+            "Ver toda la tienda"; cada producto abre su detalle. Apartar es desde el portal del alumno. */}
         {d.tienda.length > 0 && <TiendaPublica productos={d.tienda} wa={waCon} />}
 
         {/* ---------- preguntas ---------- */}
@@ -657,14 +658,16 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
 /** Tienda de la página: 4 en el celular y 8 en pantallas grandes a la vista; el resto con "Ver toda la tienda". */
 function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; wa: (texto: string) => string | null }) {
   const [todos, setTodos] = useState(false);
+  const [seleccionado, setSeleccionado] = useState<DatosPublica['tienda'][number] | null>(null);
+  const [opcion, setOpcion] = useState<string | null>(null);
   // primero los que tienen foto (se ven mejor y suelen ser la ropa y accesorios), en su orden
   const orden = [...productos].sort((a, b) => Number(!a.foto) - Number(!b.foto));
+  const enlace = seleccionado && wa(`Hola, me interesa ${seleccionado.nombre}${opcion ? ` (${opcion})` : ''} que vi en su página. ¿Me comparten la disponibilidad?`);
   return (
     <Seccion eyebrow="Tienda" titulo="Lleva tu estilo">
       {/* 4 columnas fijas en pantallas grandes: los 8 a la vista son 2 renglones completos (con 5 quedaba 5 + 3) */}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {orden.map((x, i) => {
-          const enlace = wa(`Hola, me interesa ${x.nombre} (${dinero(x.precio)}) que vi en su página.`);
           const tarjeta = (
             <>
               {x.foto ? <img src={x.foto} alt="" loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" /> : <span className="flex aspect-[4/3] items-center justify-center rounded-2xl bg-ink-50 text-6xl">{x.emoji}</span>}
@@ -673,16 +676,19 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
               {x.sobre_pedido && <span className="block text-[11px] text-ink-500">Sobre pedido</span>}
             </>
           );
-          const clase = 'block h-full rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100';
           return (
             <li key={i} className={cx(!todos && i >= 8 && 'hidden', !todos && i >= 4 && 'max-sm:hidden')}>
-              {enlace ? (
-                <a href={enlace} target="_blank" rel="noreferrer" className={cx(clase, 'active:scale-[0.98]')} aria-label={`${x.nombre}, ${dinero(x.precio)}: preguntar por WhatsApp`}>
-                  {tarjeta}
-                </a>
-              ) : (
-                <div className={clase}>{tarjeta}</div>
-              )}
+              <button
+                type="button"
+                className="block h-full w-full rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100 active:scale-[0.98]"
+                aria-label={`Ver ${x.nombre}, ${dinero(x.precio)}`}
+                onClick={() => {
+                  setOpcion(null);
+                  setSeleccionado(x);
+                }}
+              >
+                {tarjeta}
+              </button>
             </li>
           );
         })}
@@ -697,8 +703,43 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
         </button>
       )}
       <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-500">
-        <ShoppingBag size={16} aria-hidden="true" /> Toca un producto para preguntar por WhatsApp. ¿Ya eres alumno? Apártalo desde tu portal.
+        <ShoppingBag size={16} aria-hidden="true" /> ¿Ya eres alumno? Puedes apartar o encargar desde Mi pase.
       </p>
+      <Hoja abierta={!!seleccionado} onCerrar={() => setSeleccionado(null)} titulo={seleccionado?.nombre}>
+        {seleccionado && (
+          <div className="space-y-3">
+            <ImagenProducto foto={seleccionado.foto} emoji={seleccionado.emoji} tam={seleccionado.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
+            <p className="text-lg font-extrabold text-brand-600">{dinero(seleccionado.precio)}</p>
+            {seleccionado.sobre_pedido && <p className="text-sm font-semibold text-ink-700">Sobre pedido</p>}
+            {seleccionado.descripcion && <p className="whitespace-pre-line break-words text-sm text-ink-700">{seleccionado.descripcion}</p>}
+            {seleccionado.opciones.length > 0 && (
+              <div role="group" aria-label="Talla o color">
+                <p className="mb-2 text-sm font-semibold text-ink-700">{enlace ? 'Talla o color (opcional)' : 'Tallas y colores'}</p>
+                <div className="flex flex-wrap gap-2">
+                  {seleccionado.opciones.map((variante) => enlace ? (
+                    <button
+                      key={variante}
+                      type="button"
+                      aria-pressed={opcion === variante}
+                      className={cx('min-h-11 rounded-xl px-3 text-sm font-semibold ring-1', opcion === variante ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+                      onClick={() => setOpcion(opcion === variante ? null : variante)}
+                    >
+                      {variante}
+                    </button>
+                  ) : (
+                    <span key={variante} className="rounded-xl bg-superficie px-3 py-2 text-sm ring-1 ring-ink-100">{variante}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {enlace && (
+              <a href={enlace} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#15803d] px-4 font-bold text-white active:scale-[0.98]">
+                <MessageCircle size={20} aria-hidden="true" /> Consultar por WhatsApp
+              </a>
+            )}
+          </div>
+        )}
+      </Hoja>
     </Seccion>
   );
 }
