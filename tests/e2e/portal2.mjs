@@ -29,9 +29,19 @@ let respuesta = DATOS;
 let llamadas = 0;
 let pendientes = 0;
 let tokenPedido = null;
+let soltar;
+let inicioDemora;
+const demoraIniciada = new Promise((resolve) => { inicioDemora = resolve; });
 await ctx.route('**/rest/v1/rpc/portal_alumno', async (route) => {
   tokenPedido = JSON.parse(route.request().postData() || '{}').p_token;
   if (respuesta === 'caida') return route.abort();
+  if (respuesta === 'lenta') {
+    await new Promise((resolve) => {
+      soltar = resolve;
+      inicioDemora();
+    });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(DATOS) });
+  }
   llamadas++;
   // enlace recién creado: la nube aún no lo conoce las primeras veces
   const r = pendientes > 0 ? (pendientes--, null) : respuesta;
@@ -46,13 +56,30 @@ let t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 console.log('1) portal: QR, plan, clases, tienda:', ok(tokenPedido === TOKEN && /(días|tardes|noches), Ana/.test(t) && /5 de 8 clases usadas/.test(t) && (await page.getByRole('img', { name: 'Te quedan 3 clases' }).count()) === 1 && /Después sigue: Mensualidad/.test(t) && /Bachata 0/.test(t) && /Playera Calo/.test(t) && (await page.getByRole('button', { name: 'Mostrar mi pase en grande' }).count()) === 1));
 await page.screenshot({ path: `${OUT}portal-1.png`, fullPage: true });
 
-// 2) sin internet: se ve lo último guardado
+// 2) copia visible al actualizar, ante un fallo y sin internet.
+respuesta = 'lenta';
+await page.reload();
+await page.getByRole('status').filter({ hasText: 'Actualizando…' }).waitFor();
+console.log('2a) consulta lenta muestra Actualizando y deja ver el QR:', ok(await page.getByRole('button', { name: 'Mostrar mi pase en grande' }).isVisible()));
+await demoraIniciada;
+soltar();
+await page.getByText(/Actualizando…/).waitFor({ state: 'hidden' });
 respuesta = 'caida';
 await page.reload();
 await page.getByText('Tu pase de entrada').waitFor();
-await page.waitForTimeout(500);
+await page.getByText(/No pudimos actualizar/).waitFor();
 t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-console.log('2) sin conexión muestra lo guardado:', ok(/Sin conexión/.test(t) && /5 de 8 clases usadas/.test(t)));
+console.log('2b) fallo de consulta deja visible el pase guardado:', ok(!/Sin internet/.test(t) && /5 de 8 clases usadas/.test(t)));
+respuesta = DATOS;
+await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+await page.getByText(/Actualizando…|No pudimos actualizar/).waitFor({ state: 'hidden' });
+await ctx.setOffline(true);
+await page.getByText(/Sin internet/).waitFor();
+console.log('2c) el navegador sin red conserva el pase:', ok(await page.getByRole('button', { name: 'Mostrar mi pase en grande' }).isVisible()));
+const antesDeVolver = llamadas;
+await ctx.setOffline(false);
+await page.getByText(/Sin internet|Actualizando…/).waitFor({ state: 'hidden' });
+console.log('2d) recupera la actualización al volver internet:', ok(llamadas > antesDeVolver));
 
 // 3) enlace regenerado: ya no funciona y borra lo guardado
 respuesta = null;

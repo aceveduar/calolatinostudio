@@ -134,3 +134,24 @@ Pasaron los recorridos de `basico`, `telefono`, `agenda`, `maestro`, `pedidos`, 
 - **Acceso** permite escoger academia al conectar un equipo cuando la cuenta tiene varias. Una sola se descarga directamente. Si se cambia de academia luego de una descarga interrumpida, se limpian los datos provisionales de la anterior y sus cursores antes de iniciar la nueva.
 - **Rendimiento**: se redujeron lecturas y trabajo de renderizado en Pendientes, se agruparon las asistencias de Reportes en una pasada y se separó el resumen de Gastos del cálculo de rentabilidad por clase.
 - Verificación previa al push: 126 pruebas unitarias, lint, TypeScript, compilación de prueba y escenarios de Edge para corte, cuadre con 5,000 alumnos, adeudos, encargos, gastos, agenda, acceso y tienda pública. No requiere SQL. Se dejaron fuera los archivos de prueba locales que ya existían.
+
+## 24 de noviembre de 2026 · Segunda auditoría tras el push
+
+- Se subió `783236a` a `origin/main`. Se confirmó que Cloudflare entregaba los nuevos archivos de App y Caja en producción.
+- **Mi pase, encargo recién hecho:** la base crea apartados y encargos con estado `pendiente`. El portal renderiza ese estado como **Apartado · Recógelo en recepción**, incluso en un producto sobre pedido que todavía falta solicitar al proveedor. Siguiente mejora: distinguir **Encargo recibido** de **Apartado listo**, incluidos pedidos de artículos retirados del catálogo.
+- **Pendientes, avisos:** abrir el enlace de WhatsApp marca al alumno como avisado antes de poder saber si recepción envió el mensaje. Siguiente mejora: conservar el pendiente hasta que la persona confirme **Ya le avisé**.
+- **Entrada, visitante con nombre:** si falla la escritura local, el botón queda en estado ocupado y la hoja no muestra cómo recuperarse. Siguiente mejora: informar el fallo y volver a habilitar el cobro para reintentar.
+- La selección de academia y la separación de datos de una descarga interrumpida se probaron con Supabase simulado. La propagación de cambios entre dos dispositivos físicos sigue pendiente de una prueba controlada.
+- Segunda prueba aislada, con 5,000 alumnos y 108,615 asistencias: **Pendientes 11.4 s** (antes 14.2 s), **Reportes 2.6 s** (antes 3.3 s), **detalle por clase en Gastos 5.2 s** (antes 4.2 s) y búsqueda **63 ms**. Las tres pantallas quedan por encima de los 2.5 s del escenario de carga. El resumen de Gastos ahora tiene una ruta de carga separada, pero la prueba sigue midiendo hasta que aparece el detalle, que empeoró en esta comparación. Próximo paso de rendimiento: perfilar por separado espera de IndexedDB, cálculo y renderizado antes de ajustar más.
+
+## 24 de noviembre de 2026 · Diagnóstico del aviso de conexión en Mi pase
+
+- `PortalAlumno.tsx` muestra el aviso **Sin conexión** cuando usa la copia local, aunque haya internet. Al abrir el portal aparece mientras se consulta Supabase y desaparece si la consulta termina bien. Ante un error de la consulta conserva la copia y el mismo aviso. El texto actual no distingue carga inicial, fallo de actualización y falta real de red.
+- La fecha del aviso corresponde a la última copia guardada en ese equipo. El QR sigue visible. La captura por sí sola no permite identificar si la consulta estaba en curso o falló.
+- Mejora propuesta: distinguir **Actualizando**, **No pudimos actualizar** y **Sin internet** y ofrecer **Reintentar** desde la copia guardada. Este turno fue de diagnóstico.
+
+## 24 de noviembre de 2026 · Aviso de actualización en Mi pase
+
+- El aviso muestra **Actualizando…** al consultar datos, **No pudimos actualizar** con botón **Reintentar** si falla la consulta y **Sin internet** si el navegador detecta desconexión. La copia local conserva el QR y su fecha. Al recuperar red se consulta automáticamente de nuevo.
+- La lectura usa un plazo máximo de 18 segundos y cancela la consulta si se abandona la vista o cambia la conexión. El reintento para un enlace recién creado sigue activo. Los pedidos requieren datos actualizados y el detalle explica cómo recuperar esa opción.
+- Pasaron 126 pruebas unitarias, lint, TypeScript, compilación y las suites `portal2`, `portal3`, `pedidos` y `web` en Edge. `portal2` verificó consulta lenta, consulta fallida con conexión, reintento manual, desconexión y recuperación. No requiere SQL.

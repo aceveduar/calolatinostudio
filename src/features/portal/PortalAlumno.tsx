@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DetalleEvento } from '../../components/DetalleEvento';
 import QRCode from 'qrcode';
-import { Camera, Image as ImageIcon, CalendarCheck, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, CalendarCheck, Clock, MessageCircle, PackageCheck, PartyPopper, QrCode, RefreshCw, ShoppingBag, Sun, Ticket, Trophy, Users, WifiOff, X } from 'lucide-react';
 import { useRef } from 'react';
 import { prepararFoto } from '../../app/fotos';
 import { nubePublica as supabase } from '../../app/rpcPublica';
@@ -10,7 +10,7 @@ import { cx, Hoja } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';
 import { contenidoQR } from '../../domain/qr';
 import { dinero } from '../../domain/dinero';
-import { diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
+import { aFecha, diasEntre, fechaCorta, fechaLarga } from '../../domain/fechas';
 import { ERRORES_PEDIDO, ERRORES_TESTIMONIO, fotoPedido, puedeOpinar, type DatosPortal } from '../../domain/portal';
 import { nombrePublico } from '../../domain/nombres';
 import { enlaceInvitacion, mensajeInvitacion, textoInvitados } from '../../domain/invitar';
@@ -19,7 +19,8 @@ import { waLink } from '../../domain/reportes';
 import { GuardarEnInicio } from './GuardarEnInicio';
 import { nombresApp } from '../../../cloudflare/portal';
 
-type Estado = { fase: 'cargando' } | { fase: 'listo'; datos: DatosPortal; guardadoEl: number | null } | { fase: 'no-existe' } | { fase: 'error' };
+type Estado = { fase: 'cargando' } | { fase: 'listo'; datos: DatosPortal; guardadoEl: number } | { fase: 'no-existe' } | { fase: 'error' };
+type Actualizacion = 'actualizando' | 'al-dia' | 'error' | 'sin-internet';
 
 const CLAVE = (t: string) => `compas-portal:${t}`;
 
@@ -44,19 +45,53 @@ export function PortalAlumno({ token }: { token: string }) {
 
   // `version` cambia para volver a cargar (p. ej. después de apartar)
   const [version, setVersion] = useState(0);
+  const [enLinea, setEnLinea] = useState(() => navigator.onLine);
+  const [actualizacion, setActualizacion] = useState<Actualizacion>('actualizando');
+  const estadoActualizacion = enLinea ? actualizacion : 'sin-internet';
+  const recargar = () => {
+    setActualizacion('actualizando');
+    setEstado((e) => (e.fase === 'error' ? { fase: 'cargando' } : e));
+    setVersion((v) => v + 1);
+  };
   useEffect(() => {
+    const actualizarRed = () => {
+      const conectada = navigator.onLine;
+      if (conectada) {
+        setActualizacion('actualizando');
+        setVersion((v) => v + 1);
+      }
+      setEnLinea(conectada);
+    };
+    window.addEventListener('online', actualizarRed);
+    window.addEventListener('offline', actualizarRed);
+    return () => {
+      window.removeEventListener('online', actualizarRed);
+      window.removeEventListener('offline', actualizarRed);
+    };
+  }, []);
+  useEffect(() => {
+    if (!enLinea || !supabase) {
+      if (!supabase) setActualizacion('error');
+      setEstado((e) => e.fase === 'cargando' ? { fase: 'error' } : e);
+      return;
+    }
     let vivo = true;
+    const controlador = new AbortController();
+    const limite = setTimeout(() => controlador.abort(), 18_000);
     (async () => {
-      if (!supabase) return setEstado((e) => (e.fase === 'listo' ? e : { fase: 'error' }));
-      let { data, error } = await supabase.rpc('portal_alumno', { p_token: token });
+      let { data, error } = await supabase.rpc('portal_alumno', { p_token: token }, controlador.signal);
       // un enlace recién creado en recepción puede tardar unos segundos en llegar a la nube: reintentar
       // antes de decir "ya no funciona" (antes salía ese mensaje al abrirlo de inmediato)
       for (let intento = 0; !error && !data && intento < 4 && vivo; intento++) {
         await new Promise((r) => setTimeout(r, 2500));
-        ({ data, error } = await supabase.rpc('portal_alumno', { p_token: token }));
+        if (!vivo) return;
+        ({ data, error } = await supabase.rpc('portal_alumno', { p_token: token }, controlador.signal));
       }
       if (!vivo) return;
-      if (error) return setEstado((e) => (e.fase === 'listo' ? e : { fase: 'error' }));
+      if (error) {
+        setActualizacion('error');
+        return setEstado((e) => (e.fase === 'listo' ? e : { fase: 'error' }));
+      }
       if (!data) {
         // enlace regenerado o alumno dado de baja: no dejar datos viejos en el teléfono
         try {
@@ -66,17 +101,21 @@ export function PortalAlumno({ token }: { token: string }) {
         }
         return setEstado({ fase: 'no-existe' });
       }
+      const guardadoEl = Date.now();
       try {
-        localStorage.setItem(CLAVE(token), JSON.stringify({ datos: data, at: Date.now() }));
+        localStorage.setItem(CLAVE(token), JSON.stringify({ datos: data, at: guardadoEl }));
       } catch {
         /* sin espacio: igual se muestra */
       }
-      setEstado({ fase: 'listo', datos: data as DatosPortal, guardadoEl: null });
-    })();
+      setEstado({ fase: 'listo', datos: data as DatosPortal, guardadoEl });
+      setActualizacion('al-dia');
+    })().finally(() => clearTimeout(limite));
     return () => {
       vivo = false;
+      clearTimeout(limite);
+      controlador.abort();
     };
-  }, [token, version]);
+  }, [token, version, enLinea]);
 
   const color = estado.fase === 'listo' ? estado.datos.academia.color : null;
   useEffect(() => {
@@ -91,7 +130,7 @@ export function PortalAlumno({ token }: { token: string }) {
     document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', nombresApp(academiaNombre).corto);
   }, [academiaNombre, token]);
 
-  if (estado.fase === 'cargando') return <Centro>Cargando tu credencial…</Centro>;
+  if (estado.fase === 'cargando' || (estado.fase === 'error' && estadoActualizacion === 'actualizando')) return <Centro>Cargando tu credencial…</Centro>;
   if (estado.fase === 'no-existe')
     return (
       <Centro titulo="Este enlace ya no funciona">
@@ -100,21 +139,21 @@ export function PortalAlumno({ token }: { token: string }) {
     );
   if (estado.fase === 'error')
     return (
-      <Centro titulo="No se pudo cargar">
-        Revisa tu conexión a internet e inténtalo de nuevo.
-        <button type="button" onClick={() => location.reload()} className="mt-4 block w-full rounded-2xl bg-brand-500 px-6 py-3 font-bold text-white active:scale-[0.98]">
+      <Centro titulo={enLinea ? 'No se pudo cargar Mi pase' : 'Sin internet'}>
+        {enLinea ? 'Intenta cargar tus datos otra vez.' : 'Conéctate a internet para cargar tu pase por primera vez.'}
+        {enLinea && <button type="button" onClick={recargar} className="mt-4 block w-full rounded-2xl bg-brand-500 px-6 py-3 font-bold text-white active:scale-[0.98]">
           Reintentar
-        </button>
+        </button>}
       </Centro>
     );
-  return <Vista datos={estado.datos} guardadoEl={estado.guardadoEl} token={token} recargar={() => setVersion((v) => v + 1)} />;
+  return <Vista datos={estado.datos} guardadoEl={estado.guardadoEl} actualizacion={estadoActualizacion} token={token} recargar={recargar} />;
 }
 
 function productoAgotado(producto: DatosPortal['tienda'][number]) {
   return !producto.sobre_pedido && producto.disponibles !== null && producto.disponibles <= 0;
 }
 
-function HojaApartar({ producto, token, sinConexion, onCerrar, onListo }: { producto: DatosPortal['tienda'][number]; token: string; sinConexion: boolean; onCerrar: () => void; onListo: (texto: string) => void }) {
+function HojaApartar({ producto, token, actualizacion, onCerrar, onListo }: { producto: DatosPortal['tienda'][number]; token: string; actualizacion: Actualizacion; onCerrar: () => void; onListo: (texto: string) => void }) {
   const [opcion, setOpcion] = useState<string | null>(producto.opciones.length === 1 ? producto.opciones[0] : null);
   const [cantidad, setCantidad] = useState(1);
   const encargo = !!producto.sobre_pedido;
@@ -122,7 +161,7 @@ function HojaApartar({ producto, token, sinConexion, onCerrar, onListo }: { prod
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const agotado = productoAgotado(producto);
-  const puedePedir = !agotado && !sinConexion;
+  const puedePedir = !agotado && actualizacion === 'al-dia';
   const maximo = Math.max(1, Math.min(5, producto.disponibles ?? 5));
   const falta = producto.opciones.length > 0 && !opcion;
 
@@ -133,7 +172,7 @@ function HojaApartar({ producto, token, sinConexion, onCerrar, onListo }: { prod
     try {
       // el detalle solo se manda si lo escribió (así sirve aunque la base aún no tenga ese campo)
       const { data, error: e } = await supabase.rpc('portal_pedir', { p_token: token, p_producto: producto.id, p_opcion: opcion, p_cantidad: cantidad, ...(nota.trim() ? { p_nota: nota.trim() } : {}) });
-      if (e) throw new Error('Sin conexión. Inténtalo otra vez.');
+      if (e) throw new Error('No se pudo enviar el pedido. Inténtalo otra vez.');
       if (data?.error) {
         setError(data.error === 'agotado' && typeof data.disponibles === 'number' && data.disponibles > 0 ? `Solo quedan ${data.disponibles}.` : (ERRORES_PEDIDO[data.error] ?? 'No se pudo apartar.'));
         return;
@@ -160,7 +199,11 @@ function HojaApartar({ producto, token, sinConexion, onCerrar, onListo }: { prod
           </p>
           {producto.descripcion && <p className="whitespace-pre-line break-words text-sm text-ink-700">{producto.descripcion}</p>}
           {!puedePedir && producto.opciones.length > 0 && <p className="text-sm text-ink-500">{producto.opciones.join(' · ')}</p>}
-          {sinConexion && !agotado && <p className="text-sm text-ink-500">Conéctate a internet para hacer un pedido.</p>}
+          {!puedePedir && !agotado && (
+            <p className="text-sm text-ink-500">
+              {actualizacion === 'sin-internet' ? 'Conéctate a internet para hacer un pedido.' : 'Actualiza Mi pase para hacer un pedido.'}
+            </p>
+          )}
         </div>
         {puedePedir && <>
         {producto.opciones.length > 0 && (
@@ -230,7 +273,8 @@ function Centro({ titulo, children }: { titulo?: string; children: React.ReactNo
   );
 }
 
-function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPortal; guardadoEl: number | null; token: string; recargar: () => void }) {
+function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { datos: DatosPortal; guardadoEl: number; actualizacion: Actualizacion; token: string; recargar: () => void }) {
+  const datosPendientes = actualizacion !== 'al-dia';
   const [todaTienda, setTodaTienda] = useState(false);
   // "Tu experiencia" es opcional: con la ✕ se quita (se recuerda en este teléfono) y queda un enlace abajo
   const claveOpinar = `compas-portal-opinar-oculto:${token}`;
@@ -287,10 +331,22 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
       </div>
 
       <div className="relative mx-auto -mt-14 max-w-md space-y-3 px-4">
-        {guardadoEl && (
-          <p className="flex items-center gap-2 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm font-medium text-warn-600">
-            <WifiOff size={16} className="shrink-0" /> Sin conexión: datos del {fechaCorta(new Date(guardadoEl).toISOString().slice(0, 10))}. Tu pase sí sirve.
-          </p>
+        {datosPendientes && (
+          <div className={cx('flex flex-wrap items-center gap-x-3 rounded-2xl px-4 py-2 text-sm font-medium', actualizacion === 'actualizando' ? 'bg-superficie text-ink-700' : 'bg-warn-50 text-warn-600')}>
+            <p role="status" className="flex min-w-0 flex-1 items-start gap-2 py-1">
+              {actualizacion === 'sin-internet'
+                ? <WifiOff size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                : <RefreshCw size={16} className={cx('mt-0.5 shrink-0', actualizacion === 'actualizando' && 'motion-safe:animate-spin')} aria-hidden="true" />}
+              <span>
+                {actualizacion === 'actualizando' ? 'Actualizando… Tu pase sigue disponible.' : (
+                  <>{actualizacion === 'error' ? 'No pudimos actualizar.' : 'Sin internet.'} Datos del {fechaCorta(aFecha(new Date(guardadoEl)))}. Tu pase sigue disponible.</>
+                )}
+              </span>
+            </p>
+            {actualizacion === 'error' && (
+              <button type="button" onClick={recargar} className="min-h-11 shrink-0 rounded-lg px-2 font-bold underline active:bg-warn-600/10">Reintentar</button>
+            )}
+          </div>
         )}
 
         {/* Pase de entrada: compacto; a pantalla completa al tocarlo */}
@@ -304,7 +360,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
               <p className="truncate text-lg leading-tight font-extrabold">{datos.alumno.nombre}</p>
               <p className="font-mono text-sm tracking-[0.25em] text-[#6b6778]">{datos.alumno.codigo}</p>
             </div>
-            <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={!!guardadoEl} onListo={recargar} />
+            <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={datosPendientes} onListo={recargar} />
           </div>
           <button
             type="button"
@@ -315,7 +371,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
           </button>
         </div>
 
-        {!datos.alumno.foto && !guardadoEl && <SubirFoto variante="tarjeta" token={token} foto={null} nombre={datos.alumno.nombre} sinConexion={false} onListo={recargar} />}
+        {!datos.alumno.foto && !datosPendientes && <SubirFoto variante="tarjeta" token={token} foto={null} nombre={datos.alumno.nombre} sinConexion={false} onListo={recargar} />}
 
         {/* Plan */}
         <div className="rounded-3xl bg-superficie p-5 ring-1 ring-ink-100">
@@ -372,7 +428,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
         {datos.invita && datos.academia.slug && <InvitaAmigo academia={datos.academia.nombre} slug={datos.academia.slug} invita={datos.invita} />}
 
         {datos.testimonio !== undefined && puedeOpinar(datos) && !opinarOculto && (
-          <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={!!guardadoEl} onListo={recargar} onOcultar={() => ocultarOpinar(true)} />
+          <TuTestimonio token={token} nombre={datos.alumno.nombre} academia={datos.academia.nombre} actual={datos.testimonio} sinConexion={datosPendientes} onListo={recargar} onOcultar={() => ocultarOpinar(true)} />
         )}
 
         {aviso && (
@@ -451,7 +507,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
                     <span className="flex-1" />
                     <button
                       type="button"
-                      disabled={agotado || !!guardadoEl}
+                      disabled={agotado || datosPendientes}
                       onClick={verProducto}
                       className="mt-2 h-10 rounded-xl bg-brand-50 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-95 disabled:bg-ink-100 disabled:text-ink-500 disabled:ring-0"
                     >
@@ -486,7 +542,7 @@ function Vista({ datos: crudos, guardadoEl, token, recargar }: { datos: DatosPor
       {pase && <PaseCompleto qr={qr} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} foto={datos.alumno.foto ?? null} onCerrar={() => setPase(false)} />}
       {apartar && (
         <HojaApartar
-          sinConexion={!!guardadoEl}
+          actualizacion={actualizacion}
           producto={apartar}
           token={token}
           onCerrar={() => setApartar(null)}
