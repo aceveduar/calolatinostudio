@@ -102,6 +102,11 @@ export function PantallaAlumnos() {
           className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
+      <Link to="/alumnos/registro" className="mb-3 flex min-h-12 items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600">
+        <Users size={18} aria-hidden="true" />
+        <span className="flex-1">Registro por enlace</span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </Link>
       {interesadosNuevos > 0 && (
         <Link to="/alumnos/interesados" className="mb-3 flex items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600 ring-1 ring-brand-500/30">
           <Megaphone size={18} className="shrink-0" />

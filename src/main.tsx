@@ -37,6 +37,14 @@ if (import.meta.env.VITE_SEMILLA === '1') {
 }
 
 async function arrancar() {
+  const alta = location.pathname.match(/^\/alta\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/?$/i);
+  if (alta) {
+    const { AltaGrupal } = await import('./features/publica/AltaGrupal');
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode><Tropiezo nivel="app"><AltaGrupal token={alta[1]} /></Tropiezo></StrictMode>,
+    );
+    return;
+  }
   if (location.pathname.startsWith('/prueba-altas/')) {
     const { PruebaAltas } = await import('./dev/PruebaAltas');
     createRoot(document.getElementById('root')!).render(<PruebaAltas />);

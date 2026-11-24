@@ -6,6 +6,7 @@ import { ProveedorAvisos } from './components/avisos';
 import { pedirAlmacenamientoPersistente } from './db/db';
 import { Alta } from './features/acceso/Alta';
 import { Bloqueo } from './features/acceso/Bloqueo';
+const CampanaAlta = lazy(() => import('./features/alumnos/CampanaAlta').then((m) => ({ default: m.CampanaAlta })));
 const PantallaAjustes = lazy(() => import('./features/ajustes/PantallaAjustes').then((m) => ({ default: m.PantallaAjustes })));
 const FichaAlumno = lazy(() => import('./features/alumnos/FichaAlumno').then((m) => ({ default: m.FichaAlumno })));
 const PantallaAlumnos = lazy(() => import('./features/alumnos/PantallaAlumnos').then((m) => ({ default: m.PantallaAlumnos })));
@@ -94,6 +95,7 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route index element={<PantallaEntrada />} />
                 <Route path="alumnos" element={<PantallaAlumnos />} />
+                <Route path="alumnos/registro" element={<CampanaAlta />} />
                 <Route path="alumnos/listas" element={<PantallaListas />} />
                 <Route path="alumnos/importar" element={<PantallaImportar />} />
                 <Route path="alumnos/interesados" element={<PantallaInteresados />} />
