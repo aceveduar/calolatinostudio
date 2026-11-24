@@ -59,14 +59,16 @@ export function useAltasNuevas(academia: string, usuario: string) {
       }
     };
     void consultar();
-    const intervalo = setInterval(() => void consultar(), 60_000);
+    const intervalo = setInterval(() => void consultar(), 15_000);
     const alVolver = () => void consultar();
     document.addEventListener('visibilitychange', alVolver);
+    window.addEventListener('focus', alVolver);
     window.addEventListener('online', alVolver);
     return () => {
       pendiente?.abort();
       clearInterval(intervalo);
       document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener('focus', alVolver);
       window.removeEventListener('online', alVolver);
     };
   }, [academia, usuario]);
