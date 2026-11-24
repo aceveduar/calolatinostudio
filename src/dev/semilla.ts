@@ -885,7 +885,7 @@ export async function agregarWebDemo(): Promise<Record<string, unknown>> {
       'Los maestros tienen mucha paciencia y te corrigen sin que te de pena. Ya vengo tres veces por semana.',
       'Empecé por el estrés del trabajo y ahora es mi momento favorito de la semana.',
       'Muy buena academia, aprendí muchísimo.',
-      'jaja hola',
+      'jaja hola a todos',
     ];
     const estados = ['pendiente', 'pendiente', 'pendiente', 'aprobado', 'rechazado'] as const;
     for (const [i, alumnoId] of ids.entries())
@@ -898,3 +898,73 @@ export async function agregarWebDemo(): Promise<Record<string, unknown>> {
   if (invitador) for (const i of nuevos) await guardar('interesados', { ...i, invitoAlumnoId: invitador });
   return r;
 }
+
+/**
+ * Lo que le falta a una demo armada sobre la academia REAL (clases y precios reales): maestros de prueba con su
+ * usuario (cada uno ve solo sus clases), gastos con el pago a maestros, becas, rentas del salón, eventos con
+ * boletos y testimonios del portal por aprobar. No toca clases (solo les asigna maestro), planes ni la página.
+ * Los maestros llevan la nota PRUEBA para quitarlos después (supabase/vaciar-movimiento.sql).
+ */
+export async function agregarRestoDemo(): Promise<Record<string, unknown>> {
+  const { crearUsuario } = await import('../domain/acceso');
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if ((await db.maestros.toArray()).some((m) => !m.deletedAt && m.notas === 'PRUEBA')) throw new Error('Ya hay maestros de prueba');
+  const r: Record<string, unknown> = {};
+
+  // maestros por disciplina (las que no están aquí se quedan con quien ya las daba)
+  const MAESTROS = [
+    { nombre: 'Profe Luis Herrera', pin: '5555', disciplinas: ['Salsa en Línea'] },
+    { nombre: 'Profe Iván Ruiz', pin: '7777', disciplinas: ['Bachata'] },
+    { nombre: 'Profa Karla Méndez', pin: '6666', disciplinas: ['Gogo Dance', 'Baile Urbano', 'Tribal Huapango'] },
+    { nombre: 'Profa Daniela Soto', pin: '8888', disciplinas: ['Ballet Infantil', 'Danza Contemporánea'] },
+  ];
+  const disciplinas = await db.disciplinas.toArray();
+  const clases = (await db.clases.toArray()).filter((c) => !c.deletedAt);
+  const de = (c: Clase) => disciplinas.find((d) => d.id === c.disciplinaId)?.nombre ?? '';
+  let asignadas = 0;
+  for (const m of MAESTROS) {
+    const ahora = Date.now();
+    const maestro = await guardar('maestros', { id: crypto.randomUUID(), academiaId: academia.id, createdAt: ahora, updatedAt: ahora, deletedAt: null, nombre: m.nombre, telefono: '', notas: 'PRUEBA', activo: true });
+    for (const c of clases.filter((x) => m.disciplinas.includes(de(x)))) {
+      await guardar('clases', { ...c, maestroId: maestro.id });
+      asignadas++;
+    }
+    await crearUsuario({ nombre: m.nombre, rol: 'maestro', pin: m.pin, academiaId: academia.id, maestroId: maestro.id });
+  }
+  r.maestros = { maestros: MAESTROS.length, clases: asignadas };
+
+  r.gastos = await agregarGastosDemo(); // incluye el pago mensual a Luis, Iván y Daniela
+  r.becas = await agregarBecasDemo();
+  r.rentas = await agregarRentasDemo();
+  r.eventos = await agregarEventosDemo();
+  r.testimonios = await agregarTestimoniosDemo();
+  return r;
+}
+
+/** Testimonios del portal: tres por revisar, uno aprobado y uno rechazado, de alumnos de Profe Luis. */
+export async function agregarTestimoniosDemo(): Promise<number> {
+  const academia = await db.academias.toCollection().first();
+  if (!academia) throw new Error('No hay academia en este teléfono');
+  if (await db.testimonios.filter((t) => !t.deletedAt).count()) throw new Error('Ya hay testimonios');
+  const luis = (await db.maestros.toArray()).find((m) => m.nombre === 'Profe Luis Herrera');
+  const suyas = new Set((await db.clases.toArray()).filter((c) => c.maestroId === luis?.id).map((c) => c.id));
+  const todas = await db.asistencias.toArray();
+  const unicos = (xs: typeof todas) => [...new Set(xs.filter((a) => a.alumnoId).map((a) => a.alumnoId!))].slice(0, 5);
+  const delDeLuis = unicos(todas.filter((a) => suyas.has(a.claseId)));
+  const ids = delDeLuis.length ? delDeLuis : unicos(todas); // si sus clases aún no tienen alumnos, de cualquiera
+  const textos = [
+    'Llegué sin saber dar un paso y en dos meses ya bailo en los sociales. El ambiente es lo mejor.',
+    'Los maestros tienen mucha paciencia y te corrigen sin que te de pena. Ya vengo tres veces por semana.',
+    'Empecé por el estrés del trabajo y ahora es mi momento favorito de la semana.',
+    'Muy buena academia, aprendí muchísimo.',
+    'jaja hola a todos',
+  ];
+  const estados = ['pendiente', 'pendiente', 'pendiente', 'aprobado', 'rechazado'] as const;
+  for (const [i, alumnoId] of ids.entries())
+    await guardar('testimonios', { id: crypto.randomUUID() as ID, academiaId: academia.id, createdAt: Date.now() - (i + 1) * 86_400_000, updatedAt: Date.now(), deletedAt: null, alumnoId, texto: textos[i], estado: estados[i], revisadoAt: estados[i] === 'pendiente' ? null : Date.now(), revisadoPor: null });
+  return ids.length;
+}
+
+// Para los scripts de tests/nube sin tocar main.tsx: este archivo solo se carga en compilaciones de prueba.
+if (typeof window !== 'undefined') (window as unknown as Record<string, unknown>).compasDemoExtra = { agregarRestoDemo, agregarTestimoniosDemo };
