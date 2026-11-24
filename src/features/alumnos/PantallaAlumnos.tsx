@@ -10,6 +10,7 @@ import { NOMBRE_ANONIMO } from '../../domain/correcciones';
 import { Avatar, Boton, Chips, Encabezado, Etiqueta, Hoja, Tarjeta, Vacio } from '../../components/ui';
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { FormAlumno } from './FormAlumno';
+import { useAltasNuevas } from './seguimientoAlta';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
@@ -17,7 +18,8 @@ type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
 const TANDA = 60;
 
 export function PantallaAlumnos() {
-  const { esDueno } = useSesion();
+  const { esDueno, academia, usuario } = useSesion();
+  const altasNuevas = useAltasNuevas(academia.id, usuario.id);
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));
@@ -105,6 +107,11 @@ export function PantallaAlumnos() {
       <Link to="/alumnos/registro" className="mb-3 flex min-h-12 items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600">
         <Users size={18} aria-hidden="true" />
         <span className="flex-1">Registro por enlace</span>
+        {altasNuevas > 0 && (
+          <span className="rounded-full bg-brand-600 px-2.5 py-1 text-xs text-white">
+            {altasNuevas.toLocaleString('es-MX')} {altasNuevas === 1 ? 'alta nueva' : 'altas nuevas'}
+          </span>
+        )}
         <ChevronRight size={18} aria-hidden="true" />
       </Link>
       {interesadosNuevos > 0 && (

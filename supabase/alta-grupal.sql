@@ -26,16 +26,24 @@ revoke all on public.campanas_alta, public.registros_alta from public, anon, aut
 create or replace function public.gestionar_alta_grupal(p_academia uuid, p_accion text)
 returns jsonb language plpgsql security definer set search_path = ''
 as $$
-declare c public.campanas_alta%rowtype;
+declare
+  c public.campanas_alta%rowtype;
+  recientes jsonb;
 begin
   if not exists (select 1 from public.miembros m where m.academia_id = p_academia
                  and m.user_id = auth.uid() and m.rol in ('dueno', 'recepcion')) then
     raise exception 'Sin acceso a la academia' using errcode = '42501';
   end if;
 
-  perform 1 from public.academias where id = p_academia and deleted_at is null for update;
-  if not found then return null; end if;
-  select * into c from public.campanas_alta where academia_id = p_academia and not cerrada for update;
+  if p_accion in ('estado', 'conteo') then
+    select ca.* into c from public.campanas_alta ca
+      join public.academias a on a.id = ca.academia_id and a.deleted_at is null
+      where ca.academia_id = p_academia order by ca.cerrada, ca.vence desc limit 1;
+  else
+    perform 1 from public.academias where id = p_academia and deleted_at is null for update;
+    if not found then return null; end if;
+    select * into c from public.campanas_alta where academia_id = p_academia and not cerrada for update;
+  end if;
 
   if p_accion = 'cerrar' or (p_accion = 'abrir' and c.vence <= clock_timestamp()) then
     update public.campanas_alta set cerrada = true where token = c.token returning * into c;
@@ -45,8 +53,18 @@ begin
     returning * into c;
   end if;
   if c.token is null then return null; end if;
+  if p_accion = 'estado' then
+    select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'nombre', f.nombre, 'alta', f.created_at)
+                             order by f.created_at desc, f.id), '[]'::jsonb)
+      into recientes from (
+        select a.id, a.nombre, a.created_at
+        from public.registros_alta r join public.alumnos a on a.id = r.alumno_id
+        where r.campana = c.token and a.academia_id = p_academia and a.deleted_at is null
+        order by a.created_at desc, a.id limit 20
+      ) f;
+  end if;
   return jsonb_build_object('token', c.token, 'vence', c.vence, 'altas', c.altas,
-                            'abierta', not c.cerrada and c.vence > clock_timestamp());
+                            'abierta', not c.cerrada and c.vence > clock_timestamp(), 'recientes', recientes);
 end;
 $$;
 

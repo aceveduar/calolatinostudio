@@ -4,21 +4,16 @@ import { useSesion } from '../../app/sesion';
 import { Boton, Encabezado, Tarjeta } from '../../components/ui';
 import { sincronizar } from '../../sync/engine';
 import { supabase } from '../../sync/supabase';
-
-interface Campana {
-  token: string;
-  vence: string;
-  altas: number;
-  abierta: boolean;
-}
+import { altasNuevas, marcarAltasVistas, type Campana } from './seguimientoAlta';
 
 export function CampanaAlta() {
-  const { academia } = useSesion();
+  const { academia, usuario } = useSesion();
   const [campana, setCampana] = useState<Campana | null>(null);
   const [cargando, setCargando] = useState(true);
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
+  const [nuevas, setNuevas] = useState(0);
 
   const gestionar = useCallback(async (accion: 'estado' | 'abrir' | 'cerrar') => {
     setCargando(true);
@@ -36,7 +31,10 @@ export function CampanaAlta() {
             : 'No pudimos consultar el registro. Revisa tu conexión e inténtalo de nuevo.');
         return;
       }
-      setCampana(data as Campana | null);
+      const actual = data as Campana | null;
+      setCampana((anterior) => actual && anterior?.token === actual.token && !actual.recientes
+        ? { ...actual, recientes: anterior.recientes } : actual);
+      setNuevas(actual ? altasNuevas(actual, academia.id, usuario.id) : 0);
       setConfirmar(false);
       if (accion === 'cerrar') setAviso('Registro cerrado. Los pases que ya se crearon siguen funcionando.');
       if (accion === 'estado') void sincronizar();
@@ -45,7 +43,7 @@ export function CampanaAlta() {
     } finally {
       setCargando(false);
     }
-  }, [academia.id]);
+  }, [academia.id, usuario.id]);
 
   useEffect(() => { void gestionar('estado'); }, [gestionar]);
 
@@ -62,6 +60,16 @@ export function CampanaAlta() {
     }
   }
 
+  function marcarRevisadas() {
+    if (!campana) return;
+    if (marcarAltasVistas(campana, academia.id, usuario.id)) {
+      setNuevas(0);
+      setAviso('Altas marcadas como revisadas.');
+    } else {
+      setAviso('Este navegador no pudo guardar la revisión.');
+    }
+  }
+
   return (
     <div className="mx-auto max-w-xl px-4 pb-8">
       <Link to="/alumnos" className="mt-4 inline-block text-sm font-semibold text-brand-600">← Alumnos</Link>
@@ -74,7 +82,7 @@ export function CampanaAlta() {
           <>
             <div>
               <p className="font-bold">{campana.altas >= 1000 ? 'Cupo alcanzado' : 'Registro abierto'}</p>
-              <p className="text-sm text-ink-600">Cierra el {fecha} · {campana.altas} altas en esta campaña</p>
+              <p className="text-sm text-ink-600">Cierra el {fecha}</p>
             </div>
             {campana.altas < 1000 && (
               <div className="space-y-2">
@@ -96,7 +104,6 @@ export function CampanaAlta() {
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Actualizar conteo</Boton>
                 <Boton variante="secundario" disabled={cargando} onClick={() => setConfirmar(true)}>Cerrar registro</Boton>
               </div>
             )}
@@ -108,6 +115,39 @@ export function CampanaAlta() {
         {error && <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Reintentar</Boton>}
         {aviso && <p role="status" className="text-sm font-semibold">{aviso}</p>}
       </Tarjeta>
+      {campana && (
+        <Tarjeta className="mt-4 space-y-4 p-5">
+          <div>
+            <h2 className="font-extrabold">Altas recientes</h2>
+            <p className="text-sm text-ink-600">
+              {campana.altas.toLocaleString('es-MX')} {campana.altas === 1 ? 'alta' : 'altas'} en esta campaña
+              {nuevas > 0 && ` · ${nuevas.toLocaleString('es-MX')} sin revisar`}
+            </p>
+          </div>
+          {campana.recientes?.length ? (
+            <ul className="divide-y divide-ink-100">
+              {campana.recientes.map((alta) => (
+                <li key={alta.id}>
+                  <Link to={`/alumnos/${alta.id}`} className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 py-2">
+                    <span className="font-semibold text-brand-600">{alta.nombre}</span>
+                    <time dateTime={new Date(alta.alta).toISOString()} className="text-sm text-ink-600">
+                      {new Date(alta.alta).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                    </time>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-600">{campana.altas ? 'Actualiza para consultar las altas recientes.' : 'Aquí aparecerán los alumnos que se registren.'}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Actualizar altas</Boton>
+            {nuevas > 0 && campana.recientes && (
+              <Boton variante="secundario" disabled={cargando} onClick={marcarRevisadas}>Marcar todas como revisadas</Boton>
+            )}
+          </div>
+        </Tarjeta>
+      )}
     </div>
   );
 }
