@@ -18,9 +18,19 @@ await page.evaluate(() => { history.pushState(null, '', '/caja'); dispatchEvent(
 await page.getByText('Total cobrado').waitFor();
 const sedes = page.getByRole('button', { name: 'Estudio Calo' });
 if (await sedes.count()) await sedes.click();
-const efectivo = await page.evaluate(async () => {
+const { efectivo, transferencia, fecha, sede } = await page.evaluate(async () => {
+  const { db } = window.compasDev;
   const hoy = new Date().toLocaleDateString('en-CA');
-  return (await window.compasDev.db.pagos.where('fecha').equals(hoy).toArray()).filter((p) => !p.anuladoAt && !p.deletedAt && p.metodo === 'efectivo' && !p.sedeId).reduce((s, p) => s + p.monto, 0);
+  const original = await db.pagos.toCollection().first();
+  const base = { ...original, fecha: hoy, sedeId: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now() };
+  await db.pagos.bulkAdd([
+    { ...base, id: crypto.randomUUID(), concepto: 'Transferencia de prueba', monto: 2000, metodo: 'transferencia', anuladoAt: null },
+    { ...base, id: crypto.randomUUID(), concepto: 'Cobro corregido de prueba', monto: 99999, metodo: 'efectivo', anuladoAt: Date.now() },
+  ]);
+  const vigentes = (await db.pagos.where('fecha').equals(hoy).toArray()).filter((p) => !p.anuladoAt && !p.deletedAt && !p.sedeId);
+  const sumar = (metodo) => vigentes.filter((p) => p.metodo === metodo).reduce((s, p) => s + p.monto, 0);
+  const academia = await db.academias.toCollection().first();
+  return { efectivo: sumar('efectivo'), transferencia: sumar('transferencia'), fecha: hoy, sede: academia.sedePrincipal || 'Sede principal' };
 });
 const $ = (c) => '$' + (c / 100).toLocaleString('es-MX');
 
@@ -40,7 +50,8 @@ const corte = page.getByRole('dialog', { name: 'Corte de caja' });
 await corte.getByLabel('Feria con la que abrió').fill('500');
 const esperado = 50000 + efectivo - 4500;
 const t2 = (await corte.innerText()).replace(/\s+/g, ' ');
-console.log('2a) debe haber = feria $500 + efectivo − $45 de salida:', ok(t2.includes(`Debe haber en el cajón ${$(esperado)}`)), $(esperado));
+console.log('2a) esperado = feria $500 + efectivo válido − $45 de salida:', ok(t2.includes(`Efectivo esperado en el cajón ${$(esperado)}`)), $(esperado));
+console.log('2a) sede, fecha y transferencia separada del cajón:', ok(t2.includes(sede) && t2.includes(`Transferencia ${$(transferencia)}`) && await corte.locator('time').getAttribute('datetime') === fecha));
 // cuenta billete por billete y le faltan $20
 await corte.getByRole('button', { name: 'Contar billete por billete' }).click();
 const contar = async (etiqueta, n) => corte.getByLabel(etiqueta).fill(String(n));

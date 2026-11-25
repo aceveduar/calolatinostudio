@@ -284,7 +284,18 @@ export function PantallaCaja() {
         {pagoSel && <DetallePago pago={pagoSel} cobro={usuarios.find((u) => u.id === pagoSel.usuarioId)?.nombre} anulo={usuarios.find((u) => u.id === pagoSel.anuladoPor)?.nombre} onHecho={() => setPagoSel(null)} />}
       </Hoja>
       <Hoja abierta={corte} onCerrar={() => setCorte(false)} titulo="Corte de caja">
-        {corte && <FormCorte fecha={fecha} sedeId={k === PRINCIPAL || k === 'todas' ? null : k} efectivo={r.efectivo} salidas={datos.salidas} otros={r.transferencia + r.tarjeta} onHecho={() => setCorte(false)} />}
+        {corte && k !== 'todas' && (
+          <FormCorte
+            fecha={fecha}
+            sedeId={k === PRINCIPAL ? null : k}
+            sede={nombreSede(k === PRINCIPAL ? null : k, sedes, academia)}
+            efectivo={r.efectivo}
+            salidas={datos.salidas}
+            transferencia={r.transferencia}
+            tarjeta={r.tarjeta}
+            onHecho={() => setCorte(false)}
+          />
+        )}
       </Hoja>
       <Hoja abierta={salida} onCerrar={() => setSalida(false)} titulo="Salida de efectivo">
         {salida && <FormSalida sedeId={k === PRINCIPAL || k === 'todas' ? null : k} onHecho={() => setSalida(false)} />}
@@ -393,7 +404,16 @@ function Fila({ k, v }: { k: string; v: string }) {
  * La feria se propone sola (la del último corte de esta sede). Se puede contar billete por billete.
  * Si falta dinero se pide una nota (para que la diferencia tenga explicación).
  */
-function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha: string; sedeId: string | null; efectivo: number; salidas: Gasto[]; otros: number; onHecho: () => void }) {
+function FormCorte({ fecha, sedeId, sede, efectivo, salidas, transferencia, tarjeta, onHecho }: {
+  fecha: string;
+  sedeId: string | null;
+  sede: string;
+  efectivo: number;
+  salidas: Gasto[];
+  transferencia: number;
+  tarjeta: number;
+  onHecho: () => void;
+}) {
   const { usuario } = useSesion();
   const avisar = useAvisos();
   const clave = claveSede(sedeId);
@@ -409,6 +429,8 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
   const [contar, setContar] = useState(false);
   const [conteo, setConteo] = useState<number[]>(() => DENOMINACIONES.map(() => 0));
   const [notas, setNotas] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const fondoListo = fondoTxt !== null || ultimoFondo !== undefined;
   const contado = contar ? sumaConteo(conteo) : aCentavos(contadoTxt);
   const dif = contado - esperado;
   const listo = contar ? contado > 0 : contadoTxt.trim() !== '';
@@ -416,6 +438,13 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
 
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl bg-panel p-4 text-white">
+        <p className="text-sm font-semibold text-white/80">
+          {sede} · <time dateTime={fecha}>{fechaLarga(fecha)}</time>
+        </p>
+        <p className="mt-3 text-sm text-white/80">Efectivo esperado en el cajón</p>
+        <p className="text-3xl font-extrabold tabular-nums">{fondoListo ? dinero(esperado) : '…'}</p>
+      </div>
       <Tarjeta className="divide-y divide-ink-100 text-sm">
         <label className="flex items-center justify-between gap-3 px-4 py-2.5">
           <span>
@@ -446,16 +475,18 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
             <p className="mt-0.5 text-xs text-ink-500">{salidas.map((g) => `${g.concepto} ${dinero(g.monto)}`).join(' · ')}</p>
           </div>
         )}
-        <div className="flex items-baseline justify-between px-4 py-3">
-          <span className="font-semibold">Debe haber en el cajón</span>
-          <span className="text-2xl font-extrabold">{dinero(esperado)}</span>
-        </div>
       </Tarjeta>
-      {otros > 0 && <p className="-mt-2 px-1 text-xs text-ink-500">Además entraron {dinero(otros)} por transferencia o tarjeta (no están en el cajón).</p>}
+      {(transferencia > 0 || tarjeta > 0) && (
+        <div className="rounded-xl bg-ink-50 px-4 py-2.5 text-sm text-ink-700">
+          <p className="text-xs font-semibold text-ink-600">Cobros fuera del cajón</p>
+          {transferencia > 0 && <p className="flex justify-between gap-2">Transferencia <strong>{dinero(transferencia)}</strong></p>}
+          {tarjeta > 0 && <p className="flex justify-between gap-2">Tarjeta <strong>{dinero(tarjeta)}</strong></p>}
+        </div>
+      )}
 
       {!contar ? (
         <Campo etiqueta="¿Cuánto efectivo hay en el cajón?">
-          <Entrada autoFocus inputMode="decimal" value={contadoTxt} onChange={(e) => setContadoTxt(e.target.value)} placeholder="0" className="h-14 text-2xl font-bold" />
+          <Entrada inputMode="decimal" value={contadoTxt} onChange={(e) => setContadoTxt(e.target.value)} placeholder="0" className="h-14 text-2xl font-bold" />
         </Campo>
       ) : (
         <div>
@@ -486,13 +517,13 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
         <Calculator size={16} aria-hidden="true" /> {contar ? 'Escribir el total' : 'Contar billete por billete'}
       </button>
 
-      {listo && (
+      {fondoListo && listo && (
         <div className={cx('rounded-2xl p-4 text-center font-bold', dif === 0 ? 'bg-ok-50 text-ok-600' : 'bg-warn-50 text-warn-600')} role="status">
           {dif === 0 ? '✓ Cuadra exacto' : dif > 0 ? `Sobran ${dinero(dif)}` : `Faltan ${dinero(-dif)}`}
           {contado > fondo && <span className="mt-1 block text-sm font-medium">Guarda {dinero(contado - fondo)} y deja {dinero(fondo)} de feria</span>}
         </div>
       )}
-      {listo && dif !== 0 && (
+      {fondoListo && listo && dif !== 0 && (
         <Campo etiqueta={dif < 0 ? '¿Qué pasó? (obligatorio cuando falta)' : 'Nota (opcional)'}>
           <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder={dif < 0 ? 'Ej. se dio cambio de más, se pagó algo sin registrar' : 'Ej. propina, cobro sin registrar'} />
         </Campo>
@@ -500,14 +531,21 @@ function FormCorte({ fecha, sedeId, efectivo, salidas, otros, onHecho }: { fecha
       <Boton
         grande
         bloque
-        disabled={!listo || faltaNota}
+        disabled={!fondoListo || !listo || faltaNota || guardando}
         onClick={async () => {
-          await crear('cortes', { ...conSede(sedeId), fecha, esperadoEfectivo: esperado, contadoEfectivo: contado, diferencia: dif, totalOtros: otros, usuarioId: usuario.id, notas: notas.trim(), fondo, salidas: totalSalidas });
-          avisar(contado > fondo ? `Corte guardado · guarda ${dinero(contado - fondo)}` : 'Corte guardado');
-          onHecho();
+          setGuardando(true);
+          try {
+            await crear('cortes', { ...conSede(sedeId), fecha, esperadoEfectivo: esperado, contadoEfectivo: contado, diferencia: dif, totalOtros: transferencia + tarjeta, usuarioId: usuario.id, notas: notas.trim(), fondo, salidas: totalSalidas });
+            avisar(contado > fondo ? `Corte guardado · guarda ${dinero(contado - fondo)}` : 'Corte guardado');
+            onHecho();
+          } catch {
+            avisar('No se pudo guardar el corte. Inténtalo de nuevo.', 'error');
+          } finally {
+            setGuardando(false);
+          }
         }}
       >
-        Guardar corte
+        {guardando ? 'Guardando corte…' : 'Guardar corte'}
       </Boton>
     </div>
   );
