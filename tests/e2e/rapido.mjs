@@ -59,6 +59,7 @@ await btn(/sin nombre/).click();
 await page.getByText('Pagan juntos · 2').waitFor();
 await billete('$100').click();
 await page.getByText('Cambio $20').waitFor();
+await page.getByText('$80', { exact: true }).waitFor();
 await shot('r3-cambio');
 console.log('3) pareja junta, cambio $20: OK');
 
@@ -68,6 +69,7 @@ const sigue = await filasCuenta();
 await btn(/sin nombre/).click();
 await page.waitForTimeout(200);
 const f4 = await filasCuenta();
+if (await page.getByText(/Cambio -/).count()) throw new Error('La cuenta muestra cambio negativo');
 console.log('4) la cuenta sigue tras 25 s y junta hasta Listo:', `${sigue} → ${f4}`, ok(sigue === 2 && f4 === 3));
 
 // 5) Se equivocó: deshacer

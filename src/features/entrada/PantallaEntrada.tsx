@@ -535,14 +535,7 @@ export function PantallaEntrada() {
 
       {esc && (
         <aside className="sticky top-6 mt-6 space-y-4">
-          {movs.length ? (
-            cuenta
-          ) : (
-            <div className="rounded-3xl border-2 border-dashed border-ink-100 px-6 py-8 text-center text-sm text-ink-500">
-              <p className="font-semibold text-ink-700">Cuenta</p>
-              <p className="mt-1">Al cobrar aparece aquí el total y el cambio.</p>
-            </div>
-          )}
+          {cuenta}
           {clase && <EnClase clase={clase} movs={movs} onVisitante={() => setVisitante(true)} />}
         </aside>
       )}
@@ -794,6 +787,20 @@ function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[
 
   const sel = lista.find((x) => x.a.id === quitar);
   const enCuenta = new Set(movs.map((m) => m.asistenciaId));
+  const visitante = (
+    <button type="button" onClick={onVisitante} className="flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-left text-sm font-semibold text-brand-600 active:bg-brand-50">
+      <Footprints size={16} className="shrink-0" aria-hidden="true" /> Visitante con nombre
+    </button>
+  );
+
+  if (!lista.length) return (
+    <Tarjeta className="flex flex-wrap items-center justify-between gap-x-2 px-3 py-1.5">
+      <p className="flex items-center gap-2 text-sm font-semibold text-ink-600">
+        <Users size={17} aria-hidden="true" /> Aún no llega nadie
+      </p>
+      {visitante}
+    </Tarjeta>
+  );
 
   return (
     <div>
@@ -801,15 +808,8 @@ function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[
         <h2 className="text-xs font-bold tracking-wider text-ink-500 uppercase">
           En {nombreClase(clase, disciplinas)} · {lista.length}
         </h2>
-        <button onClick={onVisitante} className="-my-2 -mr-2 flex items-center gap-1 rounded-xl px-2 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50">
-          <Footprints size={16} /> Visitante con nombre
-        </button>
+        {visitante}
       </div>
-      {lista.length === 0 ? (
-        <Tarjeta>
-          <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="Cuando des entrada a alguien, aparece aquí." />
-        </Tarjeta>
-      ) : (
         <Tarjeta className="divide-y divide-ink-100">
           {lista.map(({ a, nombre, foto, pago }) => (
             <div key={a.id} className="flex w-full items-center gap-2 px-3 py-2.5">
@@ -827,7 +827,6 @@ function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[
             </div>
           ))}
         </Tarjeta>
-      )}
 
       <Hoja abierta={!!sel} onCerrar={() => setQuitar(null)} titulo="Corregir entrada">
         {sel && <CorregirEntrada asistencia={sel.a} nombre={sel.nombre} onHecho={() => setQuitar(null)} />}

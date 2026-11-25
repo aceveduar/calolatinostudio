@@ -38,6 +38,7 @@ export function Cuenta({
   const [errorCorreccion, setErrorCorreccion] = useState(false);
   const respaldo = useRespaldoMovimientos(movs.flatMap((m) => [m.pagoId, m.asistenciaId, m.alumnoCreadoId]));
   const efectivo = movs.filter((m) => m.metodo === 'efectivo').reduce((s, m) => s + m.monto, 0);
+  const billete = pagoCon !== null && pagoCon >= efectivo ? pagoCon : null;
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
   const sinCobro = movs.length > 0 && movs.every((m) => !m.monto);
   // la llave cambia con cada alumno que entra: el tiempo vuelve a empezar si llega otro
@@ -139,25 +140,32 @@ export function Cuenta({
 
         {efectivo > 0 ? (
           <div className="border-t border-white/10 px-4 pt-3 pb-3">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm text-white/60">
-                {pagoCon ? `Pagó con ${dinero(pagoCon)}` : hayProductos ? 'Total de la cuenta' : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
-              </span>
-              {pagoCon ? (
-                <span className="text-2xl font-extrabold text-[#7ee2a8]">Cambio {dinero(pagoCon - efectivo)}</span>
-              ) : (
-                <span className="text-2xl font-extrabold">{dinero(efectivo)}</span>
-              )}
+            <div className="flex items-start justify-between gap-3 tabular-nums">
+              <div>
+                <p className="text-xs font-semibold text-white/75">
+                  {hayProductos ? 'Total en efectivo' : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
+                </p>
+                <p className="text-3xl leading-tight font-extrabold">{dinero(efectivo)}</p>
+              </div>
+              <div aria-live="polite" className="text-right">
+                {billete !== null && (
+                  <>
+                    <p className="text-xs font-semibold text-white/75">Pagó con {dinero(billete)}</p>
+                    <p className="text-3xl leading-tight font-extrabold text-[#7ee2a8]"><span className="text-sm">Cambio</span> {dinero(billete - efectivo)}</p>
+                  </>
+                )}
+              </div>
             </div>
             <div className="mt-2.5 grid grid-cols-4 gap-2">
               {billetesSugeridos(efectivo).map((b) => (
                 <button
                   key={b}
                   onClick={() => {
-                    const v = pagoCon === b ? null : b;
+                    const v = billete === b ? null : b;
                     setPagoCon(v);
                   }}
-                  className={cx('h-11 rounded-xl text-[15px] font-bold transition', pagoCon === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
+                  aria-pressed={billete === b}
+                  className={cx('h-11 rounded-xl text-[15px] font-bold transition', billete === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
                 >
                   {dinero(b)}
                 </button>
