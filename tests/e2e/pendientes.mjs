@@ -73,10 +73,15 @@ console.log('4) al abrir WhatsApp conserva el pendiente hasta confirmar:', ok((a
 
 // 5) en "Más" aparece con su número
 await page.getByRole('link', { name: 'Más' }).first().click();
-const tile = page.locator('main a[href="/pendientes"]');
-await tile.waitFor();
-await page.waitForFunction(() => /\d/.test(document.querySelector('main a[href="/pendientes"]')?.textContent ?? ''));
-console.log('5) Más → mosaico Pendientes con número:', ok(/Pendientes\s*\d+|\d+\s*Pendientes/.test((await tile.innerText()).replace(/\s+/g, ' '))), (await tile.innerText()).replace(/\s+/g, ' '));
+const menu = page.locator('main');
+const enlacePendientes = menu.getByRole('link', { name: /^Pendientes/ });
+const contadorPendientes = enlacePendientes.getByText(/^\d+$/, { exact: true });
+await contadorPendientes.waitFor();
+console.log('5) Más muestra el contador y respeta los accesos de recepción:', ok(
+  Number(await contadorPendientes.innerText()) > 0
+  && (await menu.getByText('Tu academia', { exact: true }).count()) === 0
+  && (await menu.getByRole('link', { name: /^Agenda del salón/ }).count()) === 0,
+));
 await page.screenshot({ path: `${OUT}pend-${P}-3-mas.png` });
 
 // 6) alta de alumno → hoja para mandarle su acceso
@@ -111,6 +116,16 @@ await page.keyboard.press('Escape');
 // 8) dirección: lo que deja cada clase
 await page.getByRole('button', { name: /cambiar usuario/i }).first().click().catch(async () => { await page.getByRole('link', { name: 'Más' }).first().click(); await page.getByRole('button', { name: /Bloquear/ }).click(); });
 await entrar('Dirección Calo', '1234');
+await page.getByRole('link', { name: 'Más', exact: true }).first().click();
+const academiaMenu = menu.getByText('Tu academia', { exact: true });
+const paginaPublica = menu.getByRole('link', { name: /^Página pública/ });
+await academiaMenu.waitFor();
+console.log('   Dirección ve Agenda y los ajustes empiezan plegados:', ok(
+  await menu.getByRole('link', { name: /^Agenda del salón/ }).isVisible() && !(await paginaPublica.isVisible()),
+));
+await page.screenshot({ path: `${OUT}pend-${P}-mas-direccion.png`, animations: 'disabled' });
+await academiaMenu.click();
+await paginaPublica.waitFor();
 await ir('/reportes');
 await page.getByRole('link', { name: '¿Cuánto deja cada una?' }).click();
 await page.getByText(/Lo que deja cada clase/i).waitFor();

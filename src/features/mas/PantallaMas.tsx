@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, LockKeyhole } from 'lucide-react';
+import { ChevronDown, ChevronRight, LockKeyhole } from 'lucide-react';
 import { GRUPOS, modulosDe, type Modulo } from '../../app/modulos';
 import { useContadores } from '../../app/contadores';
 import { usePendientes } from '../../app/pendientes';
 import { useSesion } from '../../app/sesion';
-import { Avatar, Encabezado, Tarjeta, cx } from '../../components/ui';
+import { Avatar, Encabezado, Tarjeta } from '../../components/ui';
 import { NOMBRE_ROL } from '../../db/types';
 
 /**
@@ -25,24 +25,26 @@ export function PantallaMas() {
       {GRUPOS.map((g) => {
         const lista = modulos.filter((m) => m.grupo === g.id);
         if (!lista.length) return null;
-        const compacto = g.id === 'clases' || g.id === 'config' || g.id === 'cuenta';
+        const enlaces = (
+          <Tarjeta className="divide-y divide-ink-100">
+            {lista.map((m) => <Fila key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} />)}
+          </Tarjeta>
+        );
+        if (g.id === 'clases' || g.id === 'config') {
+          return (
+            <details key={g.id} className="group mb-3 rounded-2xl bg-superficie ring-1 ring-inset ring-ink-100">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                {g.titulo}
+                <ChevronDown size={18} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <div className="px-1 pb-1">{enlaces}</div>
+            </details>
+          );
+        }
         return (
           <section key={g.id} className="mb-5">
             <h2 className="mb-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">{g.titulo}</h2>
-            {compacto ? (
-              <Tarjeta className="divide-y divide-ink-100">
-                {lista.map((m) => (
-                  <Fila key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} />
-                ))}
-              </Tarjeta>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {lista.map((m, i) => (
-                  // si sobra uno al final, ocupa el renglón completo (antes quedaba un mosaico solo a la izquierda)
-                  <Mosaico key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} ancho={lista.length % 2 === 1 && i === lista.length - 1} />
-                ))}
-              </div>
-            )}
+            {enlaces}
           </section>
         );
       })}
@@ -59,50 +61,19 @@ export function PantallaMas() {
   );
 }
 
-function Globo({ n }: { n: number }) {
-  if (!n) return null;
-  return <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1.5 text-xs font-extrabold text-white">{n}</span>;
-}
-
-function Mosaico({ m, n, ancho }: { m: Modulo; n: number; ancho?: boolean }) {
-  const Icono = m.icono;
-  return (
-    <Link
-      to={m.ruta}
-      className={cx(
-        'relative flex flex-col gap-2 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100 active:bg-ink-50',
-        n > 0 && 'ring-2 ring-brand-500/40',
-        // a lo ancho: ícono y texto en un renglón (en computadora la cuadrícula es de 3 y no hace falta)
-        ancho && 'col-span-2 flex-row items-center gap-3 lg:col-span-1 lg:flex-col lg:items-stretch lg:gap-2',
-      )}
-    >
-      <span className="flex items-center justify-between">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-          <Icono size={22} />
-        </span>
-        <Globo n={n} />
-      </span>
-      <span>
-        <span className="block font-bold leading-tight">{m.titulo}</span>
-        {m.ayuda && <span className="mt-0.5 block text-xs leading-snug text-ink-500">{m.ayuda}</span>}
-      </span>
-    </Link>
-  );
-}
-
 function Fila({ m, n }: { m: Modulo; n: number }) {
   const Icono = m.icono;
   return (
-    <Link to={m.ruta} className="flex items-center gap-3 px-4 py-3 active:bg-ink-50">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink-50 text-ink-700">
-        <Icono size={19} />
+    <Link to={m.ruta} className="flex min-h-12 items-center gap-3 px-3 py-2 active:bg-ink-50">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ink-50 text-ink-700">
+        <Icono size={19} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{m.titulo}</span>
-        {m.ayuda && <span className="block truncate text-xs text-ink-500">{m.ayuda}</span>}
+        {m.ayuda && <span className="block text-xs text-ink-500">{m.ayuda}</span>}
       </span>
-      <Globo n={n} />
-      <ChevronRight size={18} className="text-ink-300" />
+      {n > 0 && <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 px-1.5 text-xs font-bold text-brand-600 tabular-nums">{n}</span>}
+      <ChevronRight size={16} className="shrink-0 text-ink-300" aria-hidden="true" />
     </Link>
   );
 }

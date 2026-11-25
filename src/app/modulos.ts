@@ -81,7 +81,6 @@ export const MODULOS: Modulo[] = [
   { id: 'testimonios', titulo: 'Testimonios', ayuda: 'Lo que escriben los alumnos', icono: MessageSquareQuote, ruta: '/alumnos/testimonios', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'testimonios' },
   { id: 'listas', titulo: 'Listas del mes', ayuda: 'Quién vino y quién debe', icono: ClipboardList, ruta: '/alumnos/listas', para: ['dueno', 'recepcion'], grupo: 'alumnos' },
   { id: 'encargos', titulo: 'Encargos', ayuda: 'Pedidos al proveedor', icono: Truck, ruta: '/encargos', para: ['dueno', 'recepcion'], grupo: 'alumnos', contador: 'encargos' },
-  { id: 'pagina', titulo: 'Página pública', ayuda: 'Para compartir en Facebook', icono: Globe, ruta: '/ajustes/pagina', para: ['dueno'], grupo: 'alumnos' },
   // ---------- clases y precios (en el orden en que se arma una academia) ----------
   { id: 'clases', titulo: 'Clases y horarios', ayuda: 'Días, hora, salón y maestro', icono: CalendarClock, ruta: '/ajustes/clases', para: ['dueno'], grupo: 'clases' },
   { id: 'maestros', titulo: 'Maestros', ayuda: 'Quién da cada clase', icono: GraduationCap, ruta: '/ajustes/maestros', para: ['dueno'], grupo: 'clases' },
@@ -92,6 +91,7 @@ export const MODULOS: Modulo[] = [
   { id: 'academia', titulo: 'Academia', ayuda: 'Nombre, logo y color', icono: Building2, ruta: '/ajustes/academia', para: ['dueno'], grupo: 'config' },
   { id: 'usuarios', titulo: 'Usuarios y PIN', ayuda: 'Quién entra a la app y qué ve', icono: Users, ruta: '/ajustes/usuarios', para: ['dueno'], grupo: 'config' },
   { id: 'sedes', titulo: 'Sedes', ayuda: 'Otros lugares donde das clase', icono: MapPin, ruta: '/ajustes/sedes', para: ['dueno'], grupo: 'config' },
+  { id: 'pagina', titulo: 'Página pública', ayuda: 'Contenido e inscripciones', icono: Globe, ruta: '/ajustes/pagina', para: ['dueno'], grupo: 'config' },
   { id: 'mensajes', titulo: 'Mensajes de WhatsApp', ayuda: 'Los textos listos de cada aviso', icono: MessageCircle, ruta: '/ajustes/mensajes', para: ['dueno'], grupo: 'config' },
   // ---------- cuenta ----------
   { id: 'manual', titulo: 'Cómo se usa', ayuda: 'Guía paso a paso', icono: BookOpen, ruta: '/ayuda', para: ['dueno', 'recepcion'], grupo: 'cuenta' },
