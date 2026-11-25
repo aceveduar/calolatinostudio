@@ -332,8 +332,21 @@ export function PantallaEntrada() {
       <div className="min-w-0">
       <Encabezado
         titulo="Entrada"
-        // con varias sedes, fecha corta para que quepa en un renglón junto a la sede
-        sub={sedes.length > 0 ? `${fechaLarga(hoy()).replace(/,? de [a-záéíóú]+$/i, '').replace(',', '')} · ${nombreSede(sedeActual, sedes, academia)}` : fechaLarga(hoy())}
+        sub={sedes.length > 0 ? (
+          <span className="flex flex-wrap items-center gap-x-2">
+            <span className="first-letter:uppercase">{fechaLarga(hoy()).replace(/,? de [a-záéíóú]+$/i, '').replace(',', '')}</span>
+            <button
+              type="button"
+              disabled={sedeOcupada}
+              onClick={() => setElegirSede(true)}
+              aria-label={`Cambiar sede: ${nombreSede(sedeActual, sedes, academia)}`}
+              aria-haspopup="dialog"
+              className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-left font-semibold text-brand-600 ring-1 ring-inset ring-brand-100 active:bg-brand-50 disabled:text-ink-500"
+            >
+              {nombreSede(sedeActual, sedes, academia)} <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
+            </button>
+          </span>
+        ) : fechaLarga(hoy())}
         accion={
           pendientes > 0 ? (
             <Link
@@ -356,10 +369,11 @@ export function PantallaEntrada() {
           nombreDeSede={(id) => nombreSede(id, sedes, academia)}
           nombreDeClase={(c) => nombreClase(c, disciplinas)}
           ocupado={sedeOcupada}
-          cuentaAbierta={movs.length > 0}
           cambiar={cambiarSedeEntrada}
-          elegir={() => setElegirSede(true)}
         />
+      )}
+      {sedes.length > 0 && movs.length > 0 && (
+        <p className="mx-4 text-sm text-ink-500">Termina la cuenta para cambiar de sede.</p>
       )}
 
       {/* academia nueva: lo que falta configurar (solo el dueño; se va sola al terminar) */}
@@ -755,15 +769,13 @@ export function PantallaEntrada() {
   );
 }
 
-function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupado, cuentaAbierta, cambiar, elegir }: {
+function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupado, cambiar }: {
   clases: Clase[];
   sedeActual: ID | null;
   nombreDeSede: (id: ID | null) => string;
   nombreDeClase: (clase: Clase) => string;
   ocupado: boolean;
-  cuentaAbierta: boolean;
   cambiar: (id: ID | null, claseId: ID) => Promise<void>;
-  elegir: () => void;
 }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => {
@@ -776,21 +788,14 @@ function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupa
     };
   }, []);
   const sugerida = claseEnOtraSede(clases, sedeActual, ahora);
-  const destino = sugerida?.sedeId ?? null;
+  if (!sugerida || ocupado) return null;
+  const destino = sugerida.sedeId ?? null;
   return (
-    <div className="mx-4 mb-2 flex flex-wrap items-center gap-x-3 text-sm">
-      {sugerida && !ocupado && (
-        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2">
-          <p><strong>{nombreDeSede(destino)}</strong> · {nombreDeClase(sugerida)} · {sugerida.horaInicio}</p>
-          <button type="button" onClick={() => void cambiar(destino, sugerida.id)} className="min-h-11 font-bold text-brand-600">
-            Cambiar a {nombreDeSede(destino)}
-          </button>
-        </div>
-      )}
-      <button type="button" disabled={ocupado} onClick={elegir} className="flex min-h-11 items-center gap-1.5 font-semibold text-brand-600 disabled:opacity-50">
-        <MapPin size={16} aria-hidden="true" /> Cambiar sede
+    <div className="mx-4 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm">
+      <p><strong>{nombreDeSede(destino)}</strong> · {nombreDeClase(sugerida)} · {sugerida.horaInicio}</p>
+      <button type="button" onClick={() => void cambiar(destino, sugerida.id)} className="min-h-11 font-bold text-brand-600">
+        Cambiar a {nombreDeSede(destino)}
       </button>
-      {cuentaAbierta && <span className="text-ink-500">Termina la cuenta para cambiar de sede.</span>}
     </div>
   );
 }

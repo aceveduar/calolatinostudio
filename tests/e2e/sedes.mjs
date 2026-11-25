@@ -26,15 +26,16 @@ if (await page.getByText('Hoy no hay clases programadas').count()) {
 }
 await page.getByRole('button', { name: /sin nombre/ }).click();
 await page.getByText('Termina la cuenta para cambiar de sede.').waitFor();
-console.log('   con una cuenta abierta no se cambia de sede:', ok(await page.getByRole('button', { name: 'Cambiar sede', exact: true }).isDisabled()));
+const selectorSede = page.getByRole('button', { name: /^Cambiar sede:/ });
+console.log('   con una cuenta abierta no se cambia de sede:', ok(await selectorSede.isDisabled()));
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 // cambiar a Casa de Cultura
-await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
-await page.getByRole('dialog').getByRole('button', { name: /Cambiar sede/ }).click();
+await selectorSede.click();
 await page.screenshot({ path: `${OUT}sede-2-elegir.png` });
 await page.getByRole('dialog').getByRole('button', { name: /Casa de Cultura/ }).click();
 await page.waitForTimeout(600);
 t = await main();
+console.log('   el selector del encabezado muestra la nueva sede:', ok(await page.getByRole('button', { name: 'Cambiar sede: Casa de Cultura' }).isVisible()));
 console.log('2) en Casa de Cultura: precio $40 y solo sus clases:', ok(t.includes('Casa de Cultura') && t.includes('+$40') && /Lady Style|Salsa 0|Bachata 0/.test(t) && !/Cumbia/.test(t)));
 await page.screenshot({ path: `${OUT}sede-3-cdc.png` });
 await page.getByRole('button', { name: /sin nombre/ }).click();
@@ -98,7 +99,7 @@ await page.getByRole('link', { name: 'Entrada', exact: true }).click();
 await page.getByRole('button', { name: /Clase: .*Estudio Calo/ }).waitFor();
 const sugerencia = page.getByRole('button', { name: 'Cambiar a Casa de Cultura', exact: true });
 console.log('9a) las clases simultáneas conservan la sede y permiten cambiar a mano:', ok((await sugerencia.count()) === 0
-  && await page.getByRole('button', { name: 'Cambiar sede', exact: true }).isEnabled()));
+  && await selectorSede.isEnabled()));
 await page.evaluate((id) => window.compasDev.db.clases.update(id, { activo: false }), clasesDePrueba.estudio);
 await sugerencia.click();
 await page.getByRole('button', { name: /Clase: .*Casa de Cultura/ }).waitFor();
