@@ -73,15 +73,11 @@ export function PantallaEncargos() {
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => seleccionar(p.id)}>
           <ImagenProducto foto={prod?.foto} tam={40} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate font-semibold">
+            <span className="block break-words text-sm font-semibold">
               {nombrePedido(p, prod)}
               {p.cantidad > 1 && ` ×${p.cantidad}`}
             </span>
-            <span className="block truncate text-xs text-ink-500">
-              {al?.nombre ?? 'Alumno'}
-              {p.nota && ` · ${p.nota}`} · {fechaCorta(new Date(p.createdAt).toISOString().slice(0, 10))}
-              {p.anticipo ? ` · anticipo ${dinero(p.anticipo)}` : ''}
-            </span>
+            <span className="block break-words text-xs text-ink-500">{al?.nombre ?? 'Alumno'}</span>
           </span>
         </button>
         {accion}
@@ -243,38 +239,47 @@ function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [anticipo, setAnticipo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
+  const [entregando, setEntregando] = useState(false);
   const listo = listoParaEntregar(pedido, producto);
   const resto = restaPorPagar(pedido);
   const whatsapp = pedido.estado === 'llego' ? avisoLlegada(pedido, producto, alumno, academia.nombre) : null;
   return (
     <div className="space-y-4">
-      {whatsapp && (
-        <a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ok-50 px-4 font-semibold text-ok-600">
-          <MessageCircle size={18} aria-hidden="true" /> Avisar por WhatsApp
-        </a>
-      )}
       <div className="rounded-2xl bg-superficie p-4 text-sm ring-1 ring-ink-100">
         <p>
-          <b>{alumno?.nombre ?? 'Alumno'}</b> · {pedido.cantidad} {pedido.cantidad === 1 ? 'pieza' : 'piezas'} · {dinero(totalPedido(pedido))}
+          <b>{alumno?.nombre ?? 'Alumno'}</b> · {pedido.cantidad} {pedido.cantidad === 1 ? 'pieza' : 'piezas'} · {fechaCorta(new Date(pedido.createdAt).toISOString().slice(0, 10))}
         </p>
         {pedido.nota && <p className="mt-1">{pedido.nota}</p>}
-        <p className="mt-1 text-ink-500">
-          {pedido.anticipo ? `Dejó ${dinero(pedido.anticipo)} de anticipo · ` : ''}falta {dinero(resto)}
-        </p>
+        <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-ink-100 pt-3 tabular-nums">
+          <div><dt className="text-xs text-ink-500">Total</dt><dd className="font-semibold">{dinero(totalPedido(pedido))}</dd></div>
+          <div><dt className="text-xs text-ink-500">Anticipo</dt><dd className="font-semibold">{dinero(pedido.anticipo ?? 0)}</dd></div>
+          <div className="col-span-2 flex items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2 font-bold">
+            <dt>{resto ? 'Saldo por cobrar' : 'Sin saldo pendiente'}</dt>
+            <dd className="text-lg text-brand-600">{dinero(resto)}</dd>
+          </div>
+        </dl>
       </div>
-      <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />
+      {resto > 0 && <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />}
       {listo ? (
         <Boton
           grande
           bloque
+          disabled={entregando || !producto}
           onClick={async () => {
-            if (!producto) return;
-            await entregarPedido({ pedido, producto, metodo, usuarioId, sedeId });
-            avisar(`Entregado · ${dinero(resto)}`);
-            onHecho();
+            if (!producto || entregando) return;
+            setEntregando(true);
+            try {
+              await entregarPedido({ pedido, producto, metodo, usuarioId, sedeId });
+              avisar(resto ? `Entregado · ${dinero(resto)}` : 'Pedido entregado');
+              onHecho();
+            } catch {
+              avisar('No se pudo registrar la entrega. Inténtalo de nuevo.', 'error');
+            } finally {
+              setEntregando(false);
+            }
           }}
         >
-          <PackageCheck size={20} /> Entregar y cobrar {dinero(resto)}
+          <PackageCheck size={20} aria-hidden="true" /> {entregando ? 'Registrando…' : resto ? `Entregar y cobrar ${dinero(resto)}` : 'Marcar como entregado'}
         </Boton>
       ) : (
         resto > 0 && (
@@ -299,10 +304,16 @@ function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }
           </div>
         )
       )}
+      {whatsapp && (
+        <a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ok-50 px-4 font-semibold text-ok-600">
+          <MessageCircle size={18} aria-hidden="true" /> Avisar por WhatsApp
+        </a>
+      )}
       {confirmar ? (
         <Boton
           bloque
           variante="secundario"
+          disabled={entregando}
           onClick={async () => {
             await cancelarPedido(pedido.id);
             avisar(pedido.anticipo ? 'Encargo cancelado: si hay que devolver el anticipo, anúlalo en Caja' : 'Encargo cancelado');
@@ -312,7 +323,7 @@ function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }
           <span className="text-bad-600">Sí, cancelar el encargo</span>
         </Boton>
       ) : (
-        <Boton bloque variante="fantasma" onClick={() => setConfirmar(true)}>
+        <Boton bloque variante="fantasma" disabled={entregando} onClick={() => setConfirmar(true)}>
           <span className="text-bad-600">Cancelar encargo</span>
         </Boton>
       )}
