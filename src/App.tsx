@@ -1,11 +1,12 @@
-import { lazy, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './app/Layout';
 import { ProveedorSesion, useEstadoApp } from './app/sesion';
 import { ProveedorAvisos } from './components/avisos';
 import { pedirAlmacenamientoPersistente } from './db/db';
-import { Alta } from './features/acceso/Alta';
+import { Cargando } from './components/ui';
 import { Bloqueo } from './features/acceso/Bloqueo';
+const Alta = lazy(() => import('./features/acceso/Alta').then((m) => ({ default: m.Alta })));
 const CampanaAlta = lazy(() => import('./features/alumnos/CampanaAlta').then((m) => ({ default: m.CampanaAlta })));
 const PantallaAjustes = lazy(() => import('./features/ajustes/PantallaAjustes').then((m) => ({ default: m.PantallaAjustes })));
 const FichaAlumno = lazy(() => import('./features/alumnos/FichaAlumno').then((m) => ({ default: m.FichaAlumno })));
@@ -81,8 +82,10 @@ export default function App() {
 
   return (
     <ProveedorAvisos>
-      {estado.fase === 'cargando' ? null : estado.fase === 'sin-academia' ? (
-        <Alta onListo={abrir} />
+      {estado.fase === 'cargando' ? <Cargando texto="Abriendo Compás…" /> : estado.fase === 'sin-academia' ? (
+        <Suspense fallback={<Cargando texto="Preparando la configuración…" />}>
+          <Alta onListo={abrir} />
+        </Suspense>
       ) : estado.fase === 'bloqueada' ? (
         <Bloqueo academia={estado.academia} onAbrir={abrir} />
       ) : (

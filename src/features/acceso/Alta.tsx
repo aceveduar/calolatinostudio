@@ -9,6 +9,7 @@ import { nubeConfigurada } from '../../sync/supabase';
 import type { Usuario } from '../../db/types';
 import { Logo } from '../../components/Logo';
 import { RestaurarRespaldo } from '../ajustes/Respaldo';
+import { anotarError } from '../../app/errores';
 
 type Paso = 'inicio' | 'datos' | 'pin' | 'confirmar' | 'nube' | 'elegir';
 
@@ -22,6 +23,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [descargaPendiente, setDescargaPendiente] = useState(false);
   const [academias, setAcademias] = useState<Awaited<ReturnType<typeof academiasEnDispositivoNuevo>>>([]);
   const progreso = useProgresoDescarga();
 
@@ -65,20 +67,31 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
     if (ocupado) return;
     setOcupado(true);
     setError('');
+    setDescargaPendiente(false);
+    let descargando = Boolean(elegida);
     try {
       if (elegida) {
         await descargarAcademiaEnDispositivoNuevo(elegida);
         return;
       }
       const disponibles = await academiasEnDispositivoNuevo(email.trim(), password);
-      if (disponibles.length === 1) await descargarAcademiaEnDispositivoNuevo(disponibles[0].id);
+      if (disponibles.length === 1) {
+        descargando = true;
+        await descargarAcademiaEnDispositivoNuevo(disponibles[0].id);
+      }
       else {
         setAcademias(disponibles);
         setPassword('');
         setPaso('elegir');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo entrar');
+      if (descargando) {
+        setDescargaPendiente(true);
+        setError('La descarga quedó incompleta. Revisa la conexión y vuelve a intentarlo.');
+        anotarError(e, 'Descarga inicial');
+      } else {
+        setError(e instanceof Error ? e.message : 'No se pudo entrar');
+      }
     } finally {
       setOcupado(false);
     }
@@ -90,7 +103,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-safe pb-safe">
       {paso !== 'inicio' && (
-        <button disabled={ocupado} onClick={() => { setError(''); setPaso(paso === 'confirmar' ? 'pin' : paso === 'pin' ? 'datos' : paso === 'elegir' ? 'nube' : 'inicio'); }} className="mt-4 -ml-2 self-start rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
+        <button disabled={ocupado} onClick={() => { setError(''); setDescargaPendiente(false); setPaso(paso === 'confirmar' ? 'pin' : paso === 'pin' ? 'datos' : paso === 'elegir' ? 'nube' : 'inicio'); }} className="mt-4 -ml-2 self-start rounded-full p-2 active:bg-ink-100" aria-label="Atrás">
           <ArrowLeft />
         </button>
       )}
@@ -104,7 +117,7 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
             </Boton>
           ))}
           {ocupado && <p role="status" className="text-sm text-ink-500">Preparando la descarga…</p>}
-          {error && <p role="alert" className="text-sm font-medium text-bad-600">{error}</p>}
+          {error && <p role="alert" className="text-sm font-medium text-bad-600">{error}{descargaPendiente && ' Toca la academia para reintentar.'}</p>}
         </div>
       )}
 
@@ -180,11 +193,11 @@ export function Alta({ onListo }: { onListo: (u: Usuario) => void }) {
             <Campo etiqueta="Contraseña">
               <EntradaClave autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Campo>
-            {error && <p className="text-sm font-medium text-bad-600">{error}</p>}
+            {error && <p role="alert" className="text-sm font-medium text-bad-600">{error}</p>}
           </div>
           <div className="mt-auto pt-8 md:mt-0">
             <Boton grande bloque type="submit" disabled={ocupado}>
-              {ocupado ? 'Descargando…' : 'Entrar'}
+              {ocupado ? 'Conectando…' : descargaPendiente ? 'Reintentar descarga' : 'Entrar'}
             </Boton>
           </div>
         </form>
