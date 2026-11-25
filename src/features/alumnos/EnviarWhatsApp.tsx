@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Copy, ExternalLink, MessageCircle } from 'lucide-react';
+import { ChevronRight, MessageCircle } from 'lucide-react';
 import { usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { db } from '../../db/db';
@@ -11,8 +11,7 @@ import type { EstadoMembresia } from '../../domain/membresias';
 import { MENSAJES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
 import { waLink } from '../../domain/reportes';
 import { enlacePortal } from '../../domain/portal';
-import { asegurarPortal, regenerarPortal } from '../../domain/enlacePortal';
-import { useAvisos } from '../../components/avisos';
+import { asegurarPortal } from '../../domain/enlacePortal';
 import { useAdeudos } from '../../app/adeudos';
 import { useEstadoSync } from '../../sync/engine';
 import { Link } from 'react-router-dom';
@@ -55,7 +54,6 @@ function useDatosMensaje(alumno: Alumno, estados: EstadoMembresia[]) {
 /** Elegir qué mensaje mandar: se abre WhatsApp con el texto ya escrito. */
 export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno; estados: EstadoMembresia[]; onEnviado: () => void }) {
   const { academia, datos, tienePlan, tieneRecibo, vencido } = useDatosMensaje(alumno, estados);
-  const avisar = useAvisos();
   const { total: debe } = useAdeudos(alumno.id);
   // El enlace del portal se crea al abrir esta hoja, para que el mensaje ya lo lleve al tocarlo
   useEffect(() => {
@@ -64,7 +62,7 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
   // El portal lo abre la nube: si este equipo no respalda, el enlace (recién creado aquí) no abrirá.
   const { fase } = useEstadoSync();
   const sinNube = fase === 'desconectada' || fase === 'solo-local';
-  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: !!alumno.portal, vence: tienePlan && !vencido, vencio: vencido, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
+  const disponible: Record<ClaveMensaje, boolean> = { bienvenida: true, credencial: true, portal: false, vence: tienePlan && !vencido, vencio: vencido, adeudo: debe > 0, extrañamos: true, recibo: tieneRecibo, interesado: false, grupo: false };
 
   return (
     <div className="space-y-2">
@@ -106,44 +104,6 @@ export function EnviarWhatsApp({ alumno, estados, onEnviado }: { alumno: Alumno;
           </a>
         );
       })}
-      {alumno.portal && (
-        <div className="flex gap-2 pt-1">
-          <a
-            href={enlacePortal(alumno.portal)}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-superficie text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
-          >
-            <ExternalLink size={16} /> Abrir su portal
-          </a>
-          <button
-            type="button"
-            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-superficie text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(enlacePortal(alumno.portal!));
-                avisar('Enlace copiado');
-              } catch {
-                avisar('No se pudo copiar; usa “Abrir su portal” y copia la dirección', 'error');
-              }
-            }}
-          >
-            <Copy size={16} /> Copiar enlace
-          </button>
-        </div>
-      )}
-      {alumno.portal && (
-        <button
-          type="button"
-          className="w-full px-1 pt-1 text-left text-xs font-semibold text-ink-500 underline-offset-2 active:underline"
-          onClick={async () => {
-            await regenerarPortal(alumno.id);
-            avisar('Enlace nuevo creado: el anterior ya no funciona');
-          }}
-        >
-          ¿Se compartió su enlace por error? Crear uno nuevo
-        </button>
-      )}
       <p className="px-1 pt-1 text-xs text-ink-500">Los textos se cambian en Ajustes → Mensajes de WhatsApp. La credencial con imagen se envía desde “Credencial con QR”.</p>
     </div>
   );

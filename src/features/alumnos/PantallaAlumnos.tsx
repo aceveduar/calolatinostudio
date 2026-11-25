@@ -46,6 +46,7 @@ export function PantallaAlumnos() {
 
   const filas = useMemo(() => {
     const t = normalizar(q.trim());
+    const digitos = /^[+\d ().-]+$/.test(t) ? t.replace(/\D/g, '').replace(/^521?(?=\d{10}$)/, '') : '';
     return alumnos
       .filter((a) => {
         if (verBajas) return !a.activo;
@@ -56,7 +57,7 @@ export function PantallaAlumnos() {
         const est = estados.get(a.id) ?? [];
         return { a, s: semaforoAlumno(est), beca: est.some((e) => e.vigente && planesBeca.has(e.membresia.planId)) };
       })
-      .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || a.telefono.includes(t))
+      .filter(({ a }) => !t || normalizar(a.nombre).includes(t) || (digitos && a.telefono.replace(/\D/g, '').includes(digitos)))
       .filter(({ a, s, beca }) => filtro === 'todos' || (filtro === 'beca' ? beca : filtro === 'debe' ? deben.has(a.id) : s.tono === filtro));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alumnos, estados, q, filtro, vista, verBajas, archivados, planesBeca.size, deben]);
@@ -153,7 +154,10 @@ export function PantallaAlumnos() {
             {filas.slice(0, cuantos).map(({ a, s, beca }) => (
               <button key={a.id} onClick={() => nav(`/alumnos/${a.id}`)} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-ink-50">
                 <Avatar nombre={a.nombre} foto={a.foto} tam={40} />
-                <span className="min-w-0 flex-1 truncate font-semibold">{a.nombre}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{a.nombre}</span>
+                  {q.trim() && a.telefono && <span className="block text-xs text-ink-500">Cel. •••• {a.telefono.replace(/\D/g, '').slice(-4)}</span>}
+                </span>
                 {deben.has(a.id) && <Etiqueta tono="sin">Debe {deben.get(a.id)}</Etiqueta>}
                 {beca && <Etiqueta tono="marca">Beca</Etiqueta>}
                 {!a.activo ? <Etiqueta tono="pronto">De baja</Etiqueta> : archivados.has(a.id) ? <Etiqueta tono="neutro">Archivado</Etiqueta> : <Etiqueta tono={s.color}>{s.texto}</Etiqueta>}

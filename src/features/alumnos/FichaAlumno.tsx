@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, CalendarPlus, ChevronRight, Combine, Eraser, History, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ChevronRight, Combine, Eraser, History, Link2, MessageCircle, Pencil, Phone, QrCode, Search, UserX } from 'lucide-react';
 import { HistorialAnterior } from './HistorialAnterior';
 import { puedeVerAnterior } from '../../sync/engine';
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
@@ -22,6 +22,7 @@ import { ConfirmarReactivacion } from './ConfirmarReactivacion';
 import { VenderPlan } from './VenderPlan';
 import { CredencialQR } from './CredencialQR';
 import { EnviarWhatsApp } from './EnviarWhatsApp';
+import { AccesoPaseAlumno } from './AccesoPaseAlumno';
 import { TarjetaAdeudos } from './Adeudos';
 import { FotoAlumno } from './FotoAlumno';
 import { Bienvenida } from './Bienvenida';
@@ -45,6 +46,7 @@ export function FichaAlumno() {
   const [reactivar, setReactivar] = useState(false);
   const [qr, setQr] = useState(false);
   const [whats, setWhats] = useState(false);
+  const [pasePersonal, setPasePersonal] = useState(false);
   const [anonimizar, setAnonimizar] = useState(false);
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [anterior, setAnterior] = useState(false);
@@ -165,6 +167,11 @@ export function FichaAlumno() {
         <Boton variante="secundario" onClick={() => setQr(true)} className="col-span-2">
           <QrCode size={18} /> Credencial con QR
         </Boton>
+        {alumno.activo && (
+          <Boton variante="secundario" onClick={() => setPasePersonal(true)} className="col-span-2">
+            <Link2 size={18} aria-hidden="true" /> Compartir Mi pase
+          </Boton>
+        )}
         {alumno.telefono && (
           <>
             <Boton bloque variante="secundario" onClick={() => setWhats(true)}>
@@ -303,6 +310,9 @@ export function FichaAlumno() {
       </Hoja>
       <Hoja abierta={whats} onCerrar={() => setWhats(false)} titulo={`WhatsApp a ${nombre1}`}>
         {whats && <EnviarWhatsApp alumno={alumno} estados={estados} onEnviado={() => setWhats(false)} />}
+      </Hoja>
+      <Hoja abierta={pasePersonal && alumno.activo} onCerrar={() => setPasePersonal(false)} titulo="Compartir Mi pase">
+        {pasePersonal && alumno.activo && <AccesoPaseAlumno alumno={alumno} />}
       </Hoja>
       <Hoja abierta={bienvenida} onCerrar={cerrarBienvenida} titulo={`¡${nombre1} ya es alumno!`}>
         {bienvenida && <Bienvenida alumno={alumno} onCerrar={cerrarBienvenida} />}

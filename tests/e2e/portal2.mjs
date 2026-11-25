@@ -110,7 +110,7 @@ await page.goto('http://localhost:4173/p/corto');
 await page.waitForTimeout(800);
 console.log('5) token corto no abre portal:', ok(!(await page.getByText('Tu pase de entrada').count())));
 
-// 6) desde la app: el mensaje "Su portal" lleva el enlace
+// 6) desde la ficha: guardar y recuperar el enlace personal
 await page.goto('http://localhost:4173/');
 await page.waitForFunction(() => !!window.compasDev);
 await page.evaluate(async () => { await window.compasDev.sembrar(); });
@@ -120,8 +120,20 @@ for (const d of '1111') await page.getByRole('button', { name: d, exact: true })
 await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 await page.getByRole('link', { name: 'Alumnos', exact: true }).click();
 await page.locator('main .divide-y button').first().click();
-await page.getByRole('button', { name: /WhatsApp/ }).first().click();
-const enlace = page.getByRole('dialog').getByRole('link', { name: /Su portal/ });
+await page.evaluate(() => window.compasDev.db.meta.put({ key: 'nubeVinculada', value: true }));
+const id = new URL(page.url()).pathname.split('/').at(-1);
+const confirmarRespaldo = () => page.evaluate((alumnoId) => window.compasDev.db.outbox.where('id').equals(alumnoId).delete(), id);
+await confirmarRespaldo();
+await page.getByRole('button', { name: 'Compartir Mi pase' }).click();
+const dlg = page.getByRole('dialog', { name: 'Compartir Mi pase' });
+const crearEnlace = dlg.getByRole('button', { name: 'Crear enlace del pase' });
+const enlace = dlg.getByRole('link', { name: 'Enviar pase por WhatsApp' });
+await crearEnlace.or(enlace).waitFor();
+if (await crearEnlace.isVisible()) {
+  await crearEnlace.click();
+  await dlg.getByText(/pendiente de sincronizar/).waitFor();
+  await confirmarRespaldo();
+}
 await enlace.waitFor();
 const href = decodeURIComponent(await enlace.getAttribute('href'));
 const m = href.match(/\/p\/([A-Za-z0-9]{26})\b/);
@@ -129,11 +141,21 @@ console.log('6) mensaje con enlace personal de 26 caracteres:', ok(!!m), m?.[1])
 await page.screenshot({ path: `${OUT}portal-2-whats.png` });
 // el mismo enlace al volver a abrir (no se regenera)
 await page.keyboard.press('Escape');
-await page.getByRole('button', { name: /WhatsApp/ }).first().click();
-const href2 = decodeURIComponent(await page.getByRole('dialog').getByRole('link', { name: /Su portal/ }).getAttribute('href'));
+await page.getByRole('button', { name: 'Compartir Mi pase' }).click();
+const href2 = decodeURIComponent(await enlace.getAttribute('href'));
 console.log('   el enlace se conserva:', ok(href2.includes(m?.[1])));
-const abrir = page.getByRole('dialog').getByRole('link', { name: 'Abrir su portal' });
+const abrir = dlg.getByRole('link', { name: 'Abrir pase' });
 const hrefAbrir = await abrir.getAttribute('href');
 console.log('7) botón Abrir su portal con el mismo enlace:', ok(hrefAbrir?.endsWith('/p/' + m?.[1]) && (await page.getByRole('dialog').getByRole('button', { name: 'Copiar enlace' }).count()) === 1));
+await dlg.getByRole('button', { name: 'Renovar enlace del pase' }).click();
+await dlg.getByRole('button', { name: 'Cancelar' }).click();
+if (await abrir.getAttribute('href') !== hrefAbrir) throw new Error('Cancelar cambió el enlace');
+await dlg.getByRole('button', { name: 'Renovar enlace del pase' }).click();
+await dlg.getByRole('button', { name: 'Confirmar renovación' }).click();
+await dlg.getByText(/pendiente de sincronizar/).waitFor();
+if (await enlace.count()) throw new Error('Se puede enviar antes del respaldo');
+await confirmarRespaldo();
+await enlace.waitFor();
+console.log('8) renovación confirmada y envío tras resguardo:', ok(await abrir.getAttribute('href') !== hrefAbrir));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
