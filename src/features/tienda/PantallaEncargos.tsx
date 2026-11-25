@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, ClipboardCopy, MessageCircle, PackageCheck, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, ClipboardCopy, MessageCircle, PackageCheck, Plus, Search, Truck } from 'lucide-react';
 import { useAlumnos, useProductos } from '../../app/datos';
 import { useSedeActual } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
@@ -35,6 +35,7 @@ export function PantallaEncargos() {
   const [sedeActual] = useSedeActual();
   const [nuevo, setNuevo] = useState(false);
   const [sel, setSel] = useState<Pedido | null>(null);
+  const [buscar, setBuscar] = useState('');
   const datos = useLiveQuery(async () => {
     const [pedidos, productos, alumnos] = await Promise.all([
       db.pedidos.where('estado').anyOf('pendiente', 'pedido', 'llego').filter((p) => !p.deletedAt).toArray(),
@@ -49,12 +50,18 @@ export function PantallaEncargos() {
   const enCamino = pedidos.filter((p) => p.estado === 'pedido');
   const listos = pedidos.filter((p) => listoParaEntregar(p, productos.get(p.productoId)));
   const texto = textoProveedor(lista, academia.nombre);
+  const consulta = normalizar(buscar.trim());
+  const encontrados = consulta ? pedidos.filter((p) => {
+    const nombre = alumnos.get(p.alumnoId)?.nombre ?? '';
+    const producto = nombrePedido(p, productos.get(p.productoId));
+    return normalizar(`${nombre} ${producto}`).includes(consulta);
+  }) : [];
 
-  const Fila = ({ p, accion }: { p: Pedido; accion?: React.ReactNode }) => {
+  const fila = (p: Pedido, accion?: React.ReactNode) => {
     const prod = productos.get(p.productoId);
     const al = alumnos.get(p.alumnoId);
     return (
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
         <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setSel(p)}>
           <ImagenProducto foto={prod?.foto} tam={40} />
           <span className="min-w-0 flex-1">
@@ -86,76 +93,96 @@ export function PantallaEncargos() {
         </Boton>
       </div>
 
-      <Seccion titulo={`Por pedir al proveedor · ${lista.reduce((s, r) => s + r.cantidad, 0)}`}>
-        {lista.length === 0 ? (
-          <Tarjeta>
-            <Vacio icono={<Truck size={32} />} titulo="Nada por pedir" texto="Aquí se juntan los encargos de productos sobre pedido para mandárselos al proveedor." />
-          </Tarjeta>
-        ) : (
-          <>
+      <label className="relative block">
+        <Search size={18} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-400" aria-hidden="true" />
+        <Entrada aria-label="Buscar pedidos por alumno, producto o talla" placeholder="Alumno, producto o talla" value={buscar} onChange={(e) => setBuscar(e.target.value)} className="pl-10" />
+      </label>
+      {consulta ? (
+        <Seccion titulo={`Pedidos encontrados · ${encontrados.length}`}>
+          {encontrados.length ? (
             <Tarjeta className="divide-y divide-ink-100">
-              {lista.map((r) => (
-                <div key={`${r.producto?.id}|${r.opcion}|${r.nota}`} className="flex items-center gap-3 px-4 py-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-lg font-extrabold text-brand-600">{r.cantidad}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">
-                      {r.producto?.nombre}
-                      {r.opcion && <span className="font-normal text-ink-500"> · talla {r.opcion}</span>}
-                    </span>
-                    {r.nota && <span className="block text-sm text-ink-700">{r.nota}</span>}
-                    <span className="block truncate text-xs text-ink-500">{r.pedidos.map((p) => alumnos.get(p.alumnoId)?.nombre.split(' ')[0]).join(', ')}</span>
+              {encontrados.map((p) => {
+                const listo = listoParaEntregar(p, productos.get(p.productoId));
+                const saldo = restaPorPagar(p);
+                return fila(p, (
+                  <span className="max-w-28 shrink-0 text-right text-xs text-ink-600">
+                    <span className={cx('block font-bold', listo && 'text-ok-600')}>{listo ? 'Listo para entregar' : p.estado === 'pedido' ? 'En camino' : 'Por pedir'}</span>
+                    {listo && <span>{saldo ? `Por cobrar ${dinero(saldo)}` : 'Sin saldo'}</span>}
                   </span>
-                </div>
-              ))}
+                ));
+              })}
             </Tarjeta>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Boton
-                variante="secundario"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(texto);
-                    avisar('Lista copiada');
-                  } catch {
-                    avisar('No se pudo copiar', 'error');
-                  }
-                }}
-              >
-                <ClipboardCopy size={18} /> Copiar lista
-              </Boton>
-              <a href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer">
-                <Boton bloque variante="secundario">
-                  <MessageCircle size={18} className="text-ok-600" /> Mandar
+          ) : <Tarjeta className="p-4 text-sm text-ink-500">No hay pedidos abiertos que coincidan.</Tarjeta>}
+          <Boton variante="secundario" className="mt-2" onClick={() => setBuscar('')}>Ver todos los pedidos</Boton>
+        </Seccion>
+      ) : (
+        <>
+          <Seccion titulo={`Por pedir al proveedor · ${lista.reduce((s, r) => s + r.cantidad, 0)}`}>
+            {lista.length === 0 ? (
+              <Tarjeta>
+                <Vacio icono={<Truck size={32} />} titulo="Nada por pedir" texto="Aquí se juntan los encargos de productos sobre pedido para mandárselos al proveedor." />
+              </Tarjeta>
+            ) : (
+              <>
+                <Tarjeta className="divide-y divide-ink-100">
+                  {lista.map((r) => (
+                    <div key={`${r.producto?.id}|${r.opcion}|${r.nota}`} className="flex items-center gap-3 px-4 py-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-lg font-extrabold text-brand-600">{r.cantidad}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">
+                          {r.producto?.nombre}
+                          {r.opcion && <span className="font-normal text-ink-500"> · talla {r.opcion}</span>}
+                        </span>
+                        {r.nota && <span className="block text-sm text-ink-700">{r.nota}</span>}
+                        <span className="block truncate text-xs text-ink-500">{r.pedidos.map((p) => alumnos.get(p.alumnoId)?.nombre.split(' ')[0]).join(', ')}</span>
+                      </span>
+                    </div>
+                  ))}
+                </Tarjeta>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Boton
+                    variante="secundario"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(texto);
+                        avisar('Lista copiada');
+                      } catch {
+                        avisar('No se pudo copiar', 'error');
+                      }
+                    }}
+                  >
+                    <ClipboardCopy size={18} /> Copiar lista
+                  </Boton>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer">
+                    <Boton bloque variante="secundario">
+                      <MessageCircle size={18} className="text-ok-600" /> Mandar
+                    </Boton>
+                  </a>
+                </div>
+                <Boton
+                  grande
+                  bloque
+                  className="mt-2"
+                  onClick={async () => {
+                    const ids = lista.flatMap((r) => r.pedidos.map((p) => p.id));
+                    await cambiarEstado(ids, 'pedido');
+                    avisar(`${ids.length} ${ids.length === 1 ? 'encargo marcado' : 'encargos marcados'} como pedidos al proveedor`);
+                  }}
+                >
+                  <Truck size={20} /> Ya se los pedí al proveedor
                 </Boton>
-              </a>
-            </div>
-            <Boton
-              grande
-              bloque
-              className="mt-2"
-              onClick={async () => {
-                const ids = lista.flatMap((r) => r.pedidos.map((p) => p.id));
-                await cambiarEstado(ids, 'pedido');
-                avisar(`${ids.length} ${ids.length === 1 ? 'encargo marcado' : 'encargos marcados'} como pedidos al proveedor`);
-              }}
-            >
-              <Truck size={20} /> Ya se los pedí al proveedor
-            </Boton>
-          </>
-        )}
-      </Seccion>
+              </>
+            )}
+          </Seccion>
 
-      <Seccion titulo={`En camino · ${enCamino.length}`}>
-        {enCamino.length === 0 ? (
-          <Tarjeta className="p-4 text-sm text-ink-500">Nada en camino.</Tarjeta>
-        ) : (
-          <Tarjeta className="divide-y divide-ink-100">
-            {enCamino.map((p) => {
-              const al = alumnos.get(p.alumnoId);
-              return (
-                <Fila
-                  key={p.id}
-                  p={p}
-                  accion={
+          <Seccion titulo={`En camino · ${enCamino.length}`}>
+            {enCamino.length === 0 ? (
+              <Tarjeta className="p-4 text-sm text-ink-500">Nada en camino.</Tarjeta>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {enCamino.map((p) => {
+                  const al = alumnos.get(p.alumnoId);
+                  return fila(p, (
                     <Boton
                       variante="secundario"
                       onClick={async () => {
@@ -167,28 +194,26 @@ export function PantallaEncargos() {
                     >
                       Llegó
                     </Boton>
-                  }
-                />
-              );
-            })}
-          </Tarjeta>
-        )}
-      </Seccion>
+                  ));
+                })}
+              </Tarjeta>
+            )}
+          </Seccion>
 
-      <Seccion titulo={`Listos para entregar · ${listos.length}`}>
-        {listos.length === 0 ? (
-          <Tarjeta>
-            <Vacio icono={<PackageCheck size={32} />} titulo="Nada por entregar" />
-          </Tarjeta>
-        ) : (
-          <Tarjeta className="divide-y divide-ink-100">
-            {listos.map((p) => (
-              <Fila key={p.id} p={p} accion={<span className="text-sm font-bold">{dinero(restaPorPagar(p))}</span>} />
-            ))}
-          </Tarjeta>
-        )}
-        <p className="mt-1.5 px-1 text-xs text-ink-500">Tócalo para cobrar y entregar. También aparecen en Entrada → Tienda.</p>
-      </Seccion>
+          <Seccion titulo={`Listos para entregar · ${listos.length}`}>
+            {listos.length === 0 ? (
+              <Tarjeta>
+                <Vacio icono={<PackageCheck size={32} />} titulo="Nada por entregar" />
+              </Tarjeta>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {listos.map((p) => fila(p, <span className="text-sm font-bold">{dinero(restaPorPagar(p))}</span>))}
+              </Tarjeta>
+            )}
+            <p className="mt-1.5 px-1 text-xs text-ink-500">Tócalo para cobrar y entregar. También aparecen en Entrada → Tienda.</p>
+          </Seccion>
+        </>
+      )}
 
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Nuevo encargo">
         {nuevo && <FormEncargo sedeId={sedeActual} onHecho={() => setNuevo(false)} />}

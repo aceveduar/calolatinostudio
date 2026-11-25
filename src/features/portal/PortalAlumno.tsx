@@ -179,7 +179,7 @@ function HojaApartar({ producto, token, actualizacion, onCerrar, onListo }: { pr
       }
       onListo(
         encargo
-          ? `¡Listo! Encargaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. Te avisamos cuando llegue${producto.dias_entrega ? ` (unos ${producto.dias_entrega} días)` : ''}.`
+          ? `¡Listo! Encargaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. ${producto.dias_entrega ? `Entrega estimada en unos ${producto.dias_entrega} días. ` : ''}Consulta cuándo recogerlo en Tus apartados y encargos.`
           : `¡Listo! Apartaste ${producto.nombre}${opcion ? ` (${opcion})` : ''}${cantidad > 1 ? ` ×${cantidad}` : ''}. Recógelo y págalo en recepción.`,
       );
     } catch (err) {
@@ -457,7 +457,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
                     </span>
                     {p.nota && <span className="block truncate text-xs text-ink-700">{p.nota}</span>}
                     {estado.detalle && <span className="block text-xs text-ink-500">
-                      {estado.detalle}{estado.listo && ` · ${dinero(saldo)}`}
+                      {estado.detalle}{estado.listo ? ` · ${dinero(saldo)}` : ` · Total ${dinero(p.precio * p.cantidad)}`}
                     </span>}
                   </span>
                   <span

@@ -710,7 +710,9 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
           <div className="space-y-3">
             <ImagenProducto foto={seleccionado.foto} tam={seleccionado.foto ? 224 : 64} ajustar className="mx-auto max-w-full" />
             <p className="text-lg font-extrabold text-brand-600">{dinero(seleccionado.precio)}</p>
-            {seleccionado.sobre_pedido && <p className="text-sm font-semibold text-ink-700">Sobre pedido</p>}
+            <p className="text-sm text-ink-700">
+              {seleccionado.sobre_pedido ? 'Sobre pedido. Pregunta por el plazo de entrega.' : 'Consulta disponibilidad antes de pasar por el producto.'}
+            </p>
             {seleccionado.descripcion && <p className="whitespace-pre-line break-words text-sm text-ink-700">{seleccionado.descripcion}</p>}
             {seleccionado.opciones.length > 0 && (
               <div role="group" aria-label="Talla o color">

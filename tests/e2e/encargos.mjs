@@ -55,6 +55,17 @@ const avisarle = await page.getByRole('button', { name: 'Avisarle' }).count();
 await page.waitForTimeout(300);
 t = await txt();
 console.log('4) llegó: pasa a listos y ofrece avisarle:', ok(/En camino · 3/i.test(t) && /Listos para entregar · 4/i.test(t)), 'avisarle:', avisarle);
+const buscarPedidos = page.getByRole('textbox', { name: 'Buscar pedidos por alumno, producto o talla' });
+const quienRecoge = await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const pedido = (await db.pedidos.where('estado').equals('llego').toArray()).find((p) => p.opcion === '26');
+  return (await db.alumnos.get(pedido.alumnoId)).nombre;
+});
+await buscarPedidos.fill(quienRecoge);
+await page.getByText('Listo para entregar', { exact: true }).first().waitFor();
+console.log('4b) búsqueda por alumno muestra el saldo del encargo listo:', ok(await page.getByText('Por cobrar $600', { exact: true }).isVisible()
+  && !(await page.getByRole('button', { name: /Ya se los pedí/ }).count())));
+await page.getByRole('button', { name: 'Ver todos los pedidos' }).click();
 
 // 5) nuevo encargo en recepción con anticipo
 await page.getByRole('button', { name: /Nuevo/ }).click();
