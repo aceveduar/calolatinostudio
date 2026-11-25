@@ -666,7 +666,7 @@ export function PantallaEntrada() {
                     setVerTodas(false);
                   }}
                   aria-current={activa || undefined}
-                  className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie px-4 py-3 text-left ring-1', activa ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+                  className={cx('flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-inset focus-visible:outline-2 focus-visible:-outline-offset-3 focus-visible:outline-brand-600', activa ? 'bg-brand-50 ring-brand-500' : 'bg-superficie ring-ink-100')}
                 >
                   <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(c, disciplinas) }} aria-hidden="true" />
                   <span className="min-w-0 flex-1">
@@ -727,7 +727,7 @@ export function PantallaEntrada() {
                   aria-current={actual || undefined}
                   disabled={sedeOcupada}
                   onClick={() => void cambiarSedeEntrada(id)}
-                  className={cx('flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 active:brightness-95', actual ? 'bg-brand-50 ring-brand-300' : 'bg-superficie ring-ink-100')}
+                  className={cx('flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-inset active:brightness-95 focus-visible:outline-2 focus-visible:-outline-offset-3 focus-visible:outline-brand-600', actual ? 'bg-brand-50 ring-brand-200' : 'bg-superficie ring-ink-100')}
                 >
                   <MapPin size={20} className="shrink-0" style={{ color: x?.color ?? 'var(--marca)' }} aria-hidden="true" />
                   <span className="flex-1">
