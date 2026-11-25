@@ -87,6 +87,7 @@ function Reintentar() {
 
 function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const p = d.pagina ?? {};
+  const testimonios = (p.testimonios ?? []).filter((t) => !/^ejemplo\s*:/i.test(t.nombre.trim()));
   const sedes = useMemo(() => [{ id: null as string | null, nombre: d.academia.sede_principal, color: d.academia.color ?? '#d6304a' }, ...d.sedes], [d]);
   const conSedes = d.sedes.length > 0;
   const [sede, setSede] = useState<string | null>(null);
@@ -490,9 +491,9 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         )}
 
         {/* ---------- comunidad: fotos y lo que dicen los alumnos ---------- */}
-        {((p.galeria?.length ?? 0) > 0 || (p.testimonios?.length ?? 0) > 0) && (
+        {((p.galeria?.length ?? 0) > 0 || testimonios.length > 0) && (
           <Seccion id="comunidad" eyebrow="Comunidad" titulo="Así se vive la clase" fondo="superficie">
-            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} creditos={p.creditos} />
+            <Comunidad galeria={p.galeria ?? []} testimonios={testimonios} creditos={p.creditos} />
           </Seccion>
         )}
 

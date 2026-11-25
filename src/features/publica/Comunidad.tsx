@@ -16,9 +16,9 @@ export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[
       {galeria.length > 0 && (
         <Carrusel etiqueta="Fotos">
           {galeria.map((f, k) => (
-            <li key={k} className="shrink-0 snap-start">
-              <button onClick={() => abrir(k)} className="block h-56 overflow-hidden rounded-3xl ring-1 ring-ink-100 sm:h-64" aria-label={`Ver foto ${k + 1} de ${galeria.length}`}>
-                <img src={f} alt="" loading="lazy" className="h-full w-auto max-w-[80vw] object-cover transition duration-300 hover:scale-105" />
+            <li key={k} className="w-full shrink-0 snap-start sm:w-80">
+              <button onClick={() => abrir(k)} className="block aspect-[4/3] w-full overflow-hidden rounded-3xl ring-1 ring-ink-100" aria-label={`Ver foto ${k + 1} de ${galeria.length}`}>
+                <img src={f} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 hover:scale-105" />
               </button>
             </li>
           ))}
@@ -28,7 +28,7 @@ export function Comunidad({ galeria, testimonios, creditos }: { galeria: string[
       {testimonios.length > 0 && (
         <Carrusel etiqueta="Lo que dicen nuestros alumnos">
           {testimonios.map((t, k) => (
-            <li key={k} className="pp-revela flex w-[82vw] max-w-sm shrink-0 snap-start flex-col rounded-3xl bg-ink-50 p-5 ring-1 ring-ink-100">
+            <li key={k} className="flex w-full shrink-0 snap-start flex-col rounded-3xl bg-ink-50 p-5 ring-1 ring-ink-100 sm:w-80">
               <Quote size={26} className="text-brand-500" aria-hidden="true" />
               <p className="mt-2 flex-1 text-lg leading-snug font-semibold text-pretty">{t.texto}</p>
               <p className="mt-4 font-extrabold">{t.nombre}</p>

@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 const FOTO = 'data:image/jpeg;base64,' + readFileSync(new URL('./archivos/grupo.jpg', import.meta.url)).toString('base64');
 const D = {
   academia: { nombre: 'Calo Latino Studio', color: '#0b6aa2', logo: null, whatsapp: '5648141057', sede_principal: 'Estudio' },
-  pagina: { frase: 'Ven a bailar', preguntas: [], galeria: [FOTO, FOTO, FOTO], testimonios: [{ texto: 'Llegué sin saber nada y ahora no me pierdo un social.', nombre: 'Ejemplo: Ana', detalle: 'Alumna de salsa' }, { texto: 'El ambiente es increíble.', nombre: 'Ejemplo: Luis' }] },
+  pagina: { frase: 'Ven a bailar', preguntas: [], galeria: [FOTO, FOTO, FOTO], testimonios: [{ texto: 'Llegué sin saber nada y ahora no me pierdo un social.', nombre: 'Ana L.', detalle: 'Alumna de salsa' }, { texto: 'El ambiente es increíble.', nombre: 'Ejemplo: Luis' }] },
   eventos0: null,
   sedes: [],
   clases: [
@@ -65,7 +65,15 @@ console.log('5) tocar la clase: queda elegida y el cursor en el nombre:', ok((aw
 const waClase = decodeURIComponent((await page.getByRole('link', { name: 'Preguntar por WhatsApp por Salsa 0' }).first().getAttribute('href')) ?? '');
 console.log('   WhatsApp por clase con el texto:', ok(/wa\.me\/525648141057\?text=Hola, quiero información de la clase de Salsa 0 \(viernes 19:00\)/.test(waClase)));
 // 6) galería con visor y testimonios
-await page.getByRole('button', { name: 'Ver foto 2 de 3' }).click();
+const fotos = page.getByRole('list', { name: 'Fotos', exact: true });
+const fotoDos = page.getByRole('button', { name: 'Ver foto 2 de 3' });
+await fotos.scrollIntoViewIfNeeded();
+const marco = await fotos.boundingBox();
+const sinRecorte = (await fotoDos.boundingBox()).x >= marco.x + marco.width;
+await page.getByRole('button', { name: 'Fotos: ver más' }).click();
+await page.waitForFunction(() => document.querySelector('[aria-label="Fotos"]').scrollLeft > 200);
+console.log('   galería móvil: una foto completa y avance con flechas:', ok(sinRecorte));
+await fotoDos.click();
 const abierto = await page.locator('dialog[open]').count();
 await page.keyboard.press('ArrowRight');
 const pos = await page.locator('dialog[open] [aria-live]').innerText();
@@ -73,7 +81,10 @@ await page.screenshot({ path: `${OUT}int-visor.png` });
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 console.log('6) galería: abre en grande, flechas y Esc:', ok(abierto === 1 && pos.trim() === '3 / 3' && (await page.locator('dialog[open]').count()) === 0));
-console.log('   testimonios visibles:', ok(await page.getByText('Llegué sin saber nada').isVisible()));
+console.log('   testimonios visibles y ejemplos fuera de la página:', ok(
+  await page.getByText('Llegué sin saber nada', { exact: false }).isVisible()
+  && (await page.getByText('Ejemplo: Luis', { exact: true }).count()) === 0,
+));
 await page.locator('#comunidad').scrollIntoViewIfNeeded();
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}int-comunidad.png` });
