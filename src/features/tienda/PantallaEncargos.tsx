@@ -6,7 +6,7 @@ import { useAlumnos, useProductos } from '../../app/datos';
 import { useSedeActual } from '../../app/sedes';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
+import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Selector, Tarjeta, cx, Cargando } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';
 import { db } from '../../db/db';
 import type { Alumno, ID, MetodoPago, Pedido, Producto } from '../../db/types';
@@ -132,11 +132,47 @@ export function PantallaEncargos() {
         </Seccion>
       ) : (
         <>
+          <Seccion titulo={`Listos para entregar · ${listos.length}`}>
+            {listos.length === 0 ? (
+              <p className="px-1 text-sm text-ink-500">Aún no hay pedidos listos.</p>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {listos.map((p) => {
+                  const saldo = restaPorPagar(p);
+                  return fila(p, <span className="shrink-0 text-right text-xs font-semibold text-ink-500">{saldo ? <>Saldo <b className="text-ink-900">{dinero(saldo)}</b></> : 'Sin saldo'}</span>);
+                })}
+              </Tarjeta>
+            )}
+          </Seccion>
+
+          <Seccion titulo={`En camino · ${enCamino.length}`}>
+            {enCamino.length === 0 ? (
+              <p className="px-1 text-sm text-ink-500">Aún no hay pedidos en camino.</p>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {enCamino.map((p) => {
+                  const al = alumnos.get(p.alumnoId);
+                  return fila(p, (
+                    <Boton
+                      variante="secundario"
+                      onClick={async () => {
+                        await cambiarEstado([p.id], 'llego');
+                        const prod = productos.get(p.productoId);
+                        const wa = avisoLlegada(p, prod, al, academia.nombre);
+                        avisar('Marcado como llegó', 'ok', wa ? { texto: 'Avisarle', fn: () => void window.open(wa, '_blank', 'noopener') } : undefined);
+                      }}
+                    >
+                      Llegó
+                    </Boton>
+                  ));
+                })}
+              </Tarjeta>
+            )}
+          </Seccion>
+
           <Seccion titulo={`Por pedir al proveedor · ${lista.reduce((s, r) => s + r.cantidad, 0)}`}>
             {lista.length === 0 ? (
-              <Tarjeta>
-                <Vacio icono={<Truck size={32} />} titulo="Nada por pedir" texto="Aquí se juntan los encargos de productos sobre pedido para mandárselos al proveedor." />
-              </Tarjeta>
+              <p className="px-1 text-sm text-ink-500">Aún no hay encargos para el proveedor.</p>
             ) : (
               <>
                 <Tarjeta className="divide-y divide-ink-100">
@@ -168,10 +204,8 @@ export function PantallaEncargos() {
                   >
                     <ClipboardCopy size={18} /> Copiar lista
                   </Boton>
-                  <a href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer">
-                    <Boton bloque variante="secundario">
-                      <MessageCircle size={18} className="text-ok-600" /> Mandar
-                    </Boton>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-superficie px-2 text-sm font-semibold ring-1 ring-inset ring-ink-100 active:bg-ink-50">
+                    <MessageCircle size={18} className="text-ok-600" aria-hidden="true" /> WhatsApp
                   </a>
                 </div>
                 <Boton
@@ -190,43 +224,6 @@ export function PantallaEncargos() {
             )}
           </Seccion>
 
-          <Seccion titulo={`En camino · ${enCamino.length}`}>
-            {enCamino.length === 0 ? (
-              <Tarjeta className="p-4 text-sm text-ink-500">Nada en camino.</Tarjeta>
-            ) : (
-              <Tarjeta className="divide-y divide-ink-100">
-                {enCamino.map((p) => {
-                  const al = alumnos.get(p.alumnoId);
-                  return fila(p, (
-                    <Boton
-                      variante="secundario"
-                      onClick={async () => {
-                        await cambiarEstado([p.id], 'llego');
-                        const prod = productos.get(p.productoId);
-                        const wa = avisoLlegada(p, prod, al, academia.nombre);
-                        avisar('Marcado como llegó', 'ok', wa ? { texto: 'Avisarle', fn: () => void window.open(wa, '_blank', 'noopener') } : undefined);
-                      }}
-                    >
-                      Llegó
-                    </Boton>
-                  ));
-                })}
-              </Tarjeta>
-            )}
-          </Seccion>
-
-          <Seccion titulo={`Listos para entregar · ${listos.length}`}>
-            {listos.length === 0 ? (
-              <Tarjeta>
-                <Vacio icono={<PackageCheck size={32} />} titulo="Nada por entregar" />
-              </Tarjeta>
-            ) : (
-              <Tarjeta className="divide-y divide-ink-100">
-                {listos.map((p) => fila(p, <span className="text-sm font-bold">{dinero(restaPorPagar(p))}</span>))}
-              </Tarjeta>
-            )}
-            <p className="mt-1.5 px-1 text-xs text-ink-500">Tócalo para cobrar y entregar. También aparecen en Entrada → Tienda.</p>
-          </Seccion>
         </>
       )}
 

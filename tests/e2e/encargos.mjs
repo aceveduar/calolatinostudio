@@ -38,7 +38,11 @@ await page.waitForTimeout(300);
 // 2) lista para el proveedor: agrupa por talla y detalle
 t = await txt();
 console.log('2) lista agrupada (2 × talla 24 negras, 1 × 25):', ok(/Por pedir al proveedor · 3/i.test(t) && /2 Zapatillas de baile · talla 24 Negras, tacón 5 cm/.test(t) && /1 Zapatillas de baile · talla 25 Nude, tacón 7 cm/.test(t)));
-const href = decodeURIComponent(await page.getByRole('link', { name: /Mandar/ }).getAttribute('href'));
+const href = decodeURIComponent(await page.getByRole('link', { name: 'WhatsApp', exact: true }).getAttribute('href'));
+const orden = t.toLowerCase();
+console.log('   los pedidos listos aparecen antes de la lista del proveedor:', ok(
+  orden.includes('listos para entregar') && orden.indexOf('listos para entregar') < orden.indexOf('por pedir al proveedor'),
+));
 console.log('   texto para el proveedor:', ok(/• 2 × Zapatillas de baile talla 24 — Negras, tacón 5 cm/.test(href) && /Total: 3 piezas/.test(href)));
 await page.screenshot({ path: `${OUT}encargos-1.png`, fullPage: true });
 
