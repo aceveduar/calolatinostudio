@@ -17,10 +17,10 @@ const PAUSA_MS = 2000; // tiempo que se ve la confirmación antes de leer el sig
 const ESPERA_MISMO_CODIGO_MS = 6000; // el mismo QR frente a la cámara no se vuelve a procesar
 
 const ESTILO = {
-  ok: { color: 'bg-ok-50 text-ok-600', icono: Check },
-  aviso: { color: 'bg-warn-50 text-warn-600', icono: AlertTriangle },
-  error: { color: 'bg-bad-50 text-bad-600', icono: XCircle },
-  leyendo: { color: 'bg-ink-100 text-ink-700', icono: Loader2 },
+  ok: { color: 'bg-[#075c30]/90', icono: Check },
+  aviso: { color: 'bg-[#7b4b0b]/90', icono: AlertTriangle },
+  error: { color: 'bg-[#8f2424]/90', icono: XCircle },
+  leyendo: { color: 'bg-black/75', icono: Loader2 },
 } as const;
 
 /**
@@ -104,10 +104,10 @@ export function Escaner({ clase, onCodigo, movs, onListo }: { clase?: string; on
             <p className="text-sm text-white/80">También puedes buscar al alumno por su nombre o código en Entrada.</p>
           </div>
         ) : lectura ? (
-          <div className={cx('absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto p-3 text-center', ESTILO[lectura.tono].color)}>
+          <div className={cx('absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto p-3 text-center text-white', ESTILO[lectura.tono].color)}>
             <div role="status" className="max-w-full">
               <Icono size={32} strokeWidth={2.5} aria-hidden="true" className={cx('mx-auto mb-1', lectura.tono === 'leyendo' && 'animate-spin')} />
-              <p className="break-words text-lg leading-tight font-extrabold text-ink-900">{lectura.titulo}</p>
+              <p className="break-words text-lg leading-tight font-extrabold">{lectura.titulo}</p>
               <p className="mt-1 text-sm font-semibold">{lectura.detalle}</p>
             </div>
             {lectura.tono !== 'leyendo' && (
