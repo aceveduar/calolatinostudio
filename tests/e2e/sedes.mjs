@@ -31,7 +31,11 @@ console.log('   con una cuenta abierta no se cambia de sede:', ok(await selector
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 // cambiar a Casa de Cultura
 await selectorSede.click();
-await page.screenshot({ path: `${OUT}sede-2-elegir.png` });
+const hojaSede = page.getByRole('dialog', { name: 'Cambiar sede' });
+console.log('   la hoja indica la sede actual y su tarifa base:', ok(
+  await hojaSede.getByRole('button', { name: /Estudio Calo.*tarifa base/ }).getAttribute('aria-current') === 'true',
+));
+await page.screenshot({ path: `${OUT}sede-2-elegir.png`, animations: 'disabled' });
 await page.getByRole('dialog').getByRole('button', { name: /Casa de Cultura/ }).click();
 await page.waitForTimeout(600);
 t = await main();
@@ -158,6 +162,18 @@ const cambioGuardado = await page.evaluate(async (id) => {
 }, puntual);
 console.log('11) Agenda cancela o traslada una fecha y cobra en la nueva sede:', ok(cambioGuardado.horaSemanal === '18:00'
   && cambioGuardado.sedeSemanal === null && cambioGuardado.sedeCobro === clasesDePrueba.casa));
+
+await page.setViewportSize({ width: 360, height: 780 });
+await page.emulateMedia({ colorScheme: 'dark' });
+const hero = page.getByRole('button', { name: /^Clase:/ });
+console.log('12) la sede sigue visible en el encabezado y no se repite en la tarjeta:', ok(
+  (await selectorSede.innerText()).includes('Casa de Cultura') && !(await hero.innerText()).includes('Casa de Cultura'),
+));
+await page.getByText('Cambio guardado para esa fecha', { exact: true }).waitFor({ state: 'hidden' });
+await page.screenshot({ path: `${OUT}sede-4-entrada-oscura.png`, animations: 'disabled' });
+await hero.click();
+await page.getByRole('dialog', { name: 'Clases de hoy' }).getByRole('button', { name: /Cambiar sede/ }).waitFor();
+await page.screenshot({ path: `${OUT}sede-5-clases-oscura.png`, animations: 'disabled' });
 
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

@@ -341,7 +341,7 @@ export function PantallaEntrada() {
               onClick={() => setElegirSede(true)}
               aria-label={`Cambiar sede: ${nombreSede(sedeActual, sedes, academia)}`}
               aria-haspopup="dialog"
-              className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-left font-semibold text-brand-600 ring-1 ring-inset ring-brand-100 active:bg-brand-50 disabled:text-ink-500"
+              className="flex min-h-11 items-center gap-1 rounded-lg px-1 text-left font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-500"
             >
               {nombreSede(sedeActual, sedes, academia)} <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </button>
@@ -388,7 +388,6 @@ export function PantallaEntrada() {
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorClase(clase, disciplinas) }} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">
               <b>{nombreClase(clase, disciplinas)}</b> · {clase.horaInicio}
-              {sedes.length > 0 && ` · ${nombreSede(sedeActual, sedes, academia)}`}
             </span>
             <span className="flex items-center font-semibold text-brand-600">
               Cambiar <ChevronDown size={14} aria-hidden="true" />
@@ -401,7 +400,8 @@ export function PantallaEntrada() {
           <HeroClase
             titulo={nombreClase(clase, disciplinas)}
             color={colorClase(clase, disciplinas)}
-            detalle={[clase.horaInicio, sedes.length > 0 && nombreSede(sedeActual, sedes, academia), nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
+            detalle={[clase.horaInicio, nombreMaestro(clase, maestros) && `con ${nombreMaestro(clase, maestros)}`].filter(Boolean).join(' · ')}
+            sede={sedes.length > 0 ? nombreSede(sedeActual, sedes, academia) : undefined}
             adentro={conteo.get(clase.id) ?? 0}
             cobrado={cobradoClase}
             onCambiar={() => setElegirClase(true)}
@@ -442,7 +442,7 @@ export function PantallaEntrada() {
             }}
             aria-label="Buscar alumno por nombre, celular o código del pase"
             placeholder={esc && conTeclado ? '¿Quién llegó? (escribe para buscar)' : angosta ? 'Buscar…' : '¿Quién llegó?'}
-            className="h-14 w-full rounded-2xl bg-superficie pr-10 pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500"
+            className={cx('h-14 w-full rounded-2xl bg-superficie pl-11 text-lg shadow-sm ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500', q ? 'pr-10' : 'pr-2')}
             autoComplete="off"
             enterKeyHint="go"
           />
@@ -694,15 +694,17 @@ export function PantallaEntrada() {
             {sedes.length > 0 && (
               <button
                 type="button"
+                disabled={sedeOcupada}
+                aria-haspopup="dialog"
                 onClick={() => {
                   setElegirClase(false);
                   setElegirSede(true);
                 }}
-                className="flex w-full items-center gap-3 rounded-2xl bg-ink-50 px-4 py-3 text-left text-sm"
+                className="flex min-h-11 w-full items-center gap-2 border-t border-ink-100 px-2 py-2 text-left text-sm disabled:opacity-50"
               >
                 <MapPin size={18} style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} aria-hidden="true" />
                 <span className="flex-1">
-                  Estás en <b>{nombreSede(sedeActual, sedes, academia)}</b>
+                  {nombreSede(sedeActual, sedes, academia)}
                 </span>
                 <span className="font-semibold text-brand-600">Cambiar sede</span>
               </button>
@@ -711,31 +713,34 @@ export function PantallaEntrada() {
         )}
       </Hoja>
 
-      <Hoja abierta={elegirSede} onCerrar={() => setElegirSede(false)} titulo="¿Dónde estás hoy?">
+      <Hoja abierta={elegirSede} onCerrar={() => setElegirSede(false)} titulo="Cambiar sede">
         {elegirSede && (
           <div className="space-y-2">
             {[null, ...sedes.map((x) => x.id)].map((id) => {
               const x = sedes.find((y) => y.id === id);
-              const n = todasLasClases.filter((c) => mismaSede(c.sedeId, id) && c.activo).length;
+              const actual = mismaSede(id, sedeActual);
+              const planSuelta = sueltaPara(planes, id);
               return (
                 <button
                   key={id ?? 'principal'}
+                  type="button"
+                  aria-current={actual || undefined}
                   disabled={sedeOcupada}
                   onClick={() => void cambiarSedeEntrada(id)}
-                  className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie p-4 text-left ring-1', mismaSede(id, sedeActual) ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
+                  className={cx('flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 active:brightness-95', actual ? 'bg-brand-50 ring-brand-300' : 'bg-superficie ring-ink-100')}
                 >
-                  <MapPin size={22} style={{ color: x?.color ?? 'var(--marca)' }} />
+                  <MapPin size={20} className="shrink-0" style={{ color: x?.color ?? 'var(--marca)' }} aria-hidden="true" />
                   <span className="flex-1">
                     <span className="block font-semibold">{nombreSede(id, sedes, academia)}</span>
                     <span className="block text-sm text-ink-500">
-                      {n} clases · clase suelta {sueltaPara(planes, id) ? dinero(sueltaPara(planes, id)!.precio) : 'sin precio'}
+                      {planSuelta ? `Clase suelta · tarifa base ${dinero(planSuelta.precio)}` : 'Sin tarifa general de clase suelta'}
                     </span>
                   </span>
-                  {mismaSede(id, sedeActual) && <Check size={20} className="text-brand-600" />}
+                  {actual && <Check size={18} className="shrink-0 text-brand-600" aria-hidden="true" />}
                 </button>
               );
             })}
-            <p className="px-1 pt-1 text-xs text-ink-500">Este equipo recuerda la sede. Los cobros y el corte de caja quedan en la sede elegida.</p>
+            <p className="px-1 pt-1 text-xs text-ink-500">Los cobros y el corte de caja quedan en la sede elegida.</p>
           </div>
         )}
       </Hoja>
@@ -801,13 +806,14 @@ function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupa
 }
 
 /** Tarjeta en vivo de la clase: da sensación de "ambiente" y responde a cada cobro. */
-function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { titulo: string; color: string; detalle: string; adentro: number; cobrado: number; onCambiar: () => void }) {
+function HeroClase({ titulo, color, detalle, sede, adentro, cobrado, onCambiar }: { titulo: string; color: string; detalle: string; sede?: string; adentro: number; cobrado: number; onCambiar: () => void }) {
   return (
     <div className="px-4 pt-3">
       <button
         type="button"
         onClick={onCambiar}
-        aria-label={`Clase: ${titulo}, ${detalle}. ${adentro} adentro. Tocar para cambiar de clase`}
+        aria-label={`Clase: ${titulo}, ${detalle}${sede ? ` · ${sede}` : ''}. ${adentro} adentro. Tocar para cambiar de clase`}
+        aria-haspopup="dialog"
         className="relative block w-full overflow-hidden rounded-3xl px-5 py-3.5 text-left text-white shadow-lg transition active:scale-[0.99]"
         style={{
           background: `linear-gradient(135deg in oklab, ${color}, color-mix(in oklab, ${color} 55%, #1c1a24))`,
@@ -815,19 +821,17 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { ti
         }}
       >
         {/* Anillos decorativos: el "compás" del logo */}
-        <svg className="pointer-events-none absolute -top-10 -right-8 h-44 w-44 opacity-20" viewBox="0 0 64 64" aria-hidden="true">
+        <svg className="pointer-events-none absolute -top-10 -right-8 h-44 w-44 opacity-15" viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="32" cy="32" r="17" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="70 37" strokeLinecap="round" transform="rotate(-30 32 32)" />
           <circle cx="32" cy="32" r="27" fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="4 6" />
         </svg>
         <span className="relative flex items-end justify-between gap-4">
           <span className="block min-w-0">
-            <span className="line-clamp-2 text-xs font-semibold tracking-wider text-white/75 uppercase">{detalle}</span>
-            <span className="mt-0.5 flex items-center gap-1.5 text-xl leading-tight font-extrabold tracking-tight sm:text-2xl">
-              <span className="line-clamp-2 min-w-0 break-words">{titulo}</span>
-              <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2 text-[11px] font-bold tracking-normal max-[359px]:px-1">
-                <span className="sr-only sm:not-sr-only">Cambiar</span> <ChevronDown size={13} aria-hidden="true" />
-              </span>
+            <span className="flex items-center gap-1 text-xs font-semibold text-white/90">
+              <span className="line-clamp-2">{detalle}</span>
+              <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </span>
+            <span className="mt-0.5 block break-words text-xl leading-tight font-extrabold tracking-tight sm:text-2xl">{titulo}</span>
             <span className="block mt-0.5 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</span>
           </span>
           <span className="block text-right">
