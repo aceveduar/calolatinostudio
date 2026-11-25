@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DetalleEvento } from '../../components/DetalleEvento';
 import { Link, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, MessageCircle, Pencil, Search, Ticket, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, MessageCircle, Pencil, Search, Ticket, Wallet } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
@@ -29,6 +29,7 @@ export function PantallaEvento() {
   const [gasto, setGasto] = useState(false);
   const [q, setQ] = useState('');
   const [venta, setVenta] = useState<Boleto | null>(null);
+  const [confirmarCancelacion, setConfirmarCancelacion] = useState(false);
   const datos = useLiveQuery(async () => {
     const evento = await db.eventos.get(id);
     if (!evento) return null;
@@ -68,19 +69,9 @@ export function PantallaEvento() {
         {fechaLarga(e.fecha)} · {rangoHora(e.horaInicio, e.duracionMin)} · boleto {dinero(e.precio)}
         {!e.activo && ' · CANCELADO'}
       </p>
-      {e.foto && <img src={e.foto} alt={`Flyer de ${e.nombre}`} className="mb-3 max-h-80 w-full rounded-2xl bg-ink-50 object-contain ring-1 ring-ink-100" />}
-      {(e.descripcion || e.vestimenta || e.lugar) && (
-        <div className="mb-3 rounded-xl bg-superficie px-4 py-2.5 ring-1 ring-ink-100">
-          {/* lo mismo que ve la gente en la página y el portal */}
-          <DetalleEvento e={{ descripcion: e.descripcion, vestimenta: e.vestimenta ?? '', lugar: e.lugar ?? '', direccion: e.direccion ?? '', otro_lugar: !!e.lugar }} />
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2">
         <Cifra titulo="Boletos" valor={`${r.vendidos}${e.cupo !== null ? ` / ${e.cupo}` : ''}`} pie={r.quedan === null ? 'sin límite' : lleno ? 'cupo lleno' : `quedan ${r.quedan}`} alerta={lleno} />
         <Cifra titulo="Entraron" valor={`${r.entraron}`} pie={r.vendidos ? `de ${r.vendidos}` : '—'} />
-        <Cifra titulo="Ingresos" valor={dinero(r.ingresos)} pie="por boletos" />
-        <Cifra titulo="Utilidad" valor={dinero(r.utilidad)} pie={`gastos ${dinero(r.gastos)}`} alerta={r.utilidad < 0} />
       </div>
       {e.cupo !== null && (
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink-100">
@@ -94,7 +85,7 @@ export function PantallaEvento() {
         </Boton>
       )}
 
-      <Seccion titulo={esHoy ? 'Entrada · toca a quien llega' : `Boletos · ${r.vendidos}`}>
+      <Seccion titulo={esHoy ? 'Entrada al evento' : 'Lista de boletos'}>
         {r.vendidos === 0 ? (
           <Tarjeta>
             <Vacio icono={<Ticket size={32} />} titulo="Aún no hay boletos vendidos" />
@@ -107,46 +98,63 @@ export function PantallaEvento() {
                 value={q}
                 onChange={(ev) => setQ(ev.target.value)}
                 placeholder="Buscar por nombre o código"
+                aria-label="Buscar boleto por nombre o código"
                 className="h-11 w-full rounded-xl bg-superficie pr-3 pl-10 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
-            <p className="mb-2 px-1 text-xs text-ink-500">En la puerta: toca el círculo de quien va entrando. Puedes buscarlo por nombre o por el código de su boleto.</p>
-            <Tarjeta className="divide-y divide-ink-100">
-              {lista.map((b) => (
-                <div key={b.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <button
-                    onClick={async () => {
-                      await marcarEntrada(b.id, !b.usadoAt);
-                      if (!b.usadoAt) avisar(`${b.nombre} entró`);
-                    }}
-                    className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-2', b.usadoAt ? 'bg-ok-600 text-white ring-ok-600' : 'text-transparent ring-ink-100')}
-                    aria-label={b.usadoAt ? `${b.nombre} ya entró (toca para quitar)` : `Marcar que ${b.nombre} entró`}
-                    aria-pressed={!!b.usadoAt}
-                  >
-                    <Check size={18} />
-                  </button>
-                  <button className="min-w-0 flex-1 text-left" onClick={() => setVenta(b)}>
-                    <span className={cx('block truncate font-semibold', !!b.usadoAt && 'text-ink-500')}>{b.nombre}</span>
-                    <span className="block font-mono text-xs tracking-wider text-ink-500">{b.codigo}</span>
-                  </button>
-                  {b.telefono && (
-                    <a
-                      href={waLink(b.telefono, mensajeBoleto(e, b, academia.nombre)) ?? undefined}
-                      target="_blank"
-                      rel="noreferrer"
-                      // discreto: con 60 boletos, 60 círculos verdes eran mucho ruido; el área de toque sigue de 40 px
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ok-50 active:text-ok-600"
-                      aria-label={`Mandar boleto a ${b.nombre}`}
+            {lista.length === 0 ? (
+              <Tarjeta className="p-4 text-sm text-ink-500">Ningún boleto coincide con la búsqueda.</Tarjeta>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {lista.map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 px-3 py-2.5">
+                    <button
+                      onClick={async () => {
+                        await marcarEntrada(b.id, !b.usadoAt);
+                        if (!b.usadoAt) avisar(`${b.nombre} entró`);
+                      }}
+                      className={cx('flex min-h-11 min-w-22 shrink-0 items-center justify-center gap-1 rounded-xl px-2 text-xs font-semibold', b.usadoAt ? 'bg-ok-50 text-ok-600' : 'bg-ink-50 text-brand-600')}
+                      aria-label={b.usadoAt ? `Entró · quitar entrada de ${b.nombre}` : `Dar entrada a ${b.nombre}`}
                     >
-                      <MessageCircle size={18} />
-                    </a>
-                  )}
-                </div>
-              ))}
-            </Tarjeta>
+                      {b.usadoAt && <Check size={14} aria-hidden="true" />}
+                      {b.usadoAt ? 'Entró' : 'Dar entrada'}
+                    </button>
+                    <button className="min-w-0 flex-1 text-left" onClick={() => setVenta(b)}>
+                      <span className={cx('block break-words font-semibold', !!b.usadoAt && 'text-ink-500')}>{b.nombre}</span>
+                      <span className="block font-mono text-xs tracking-wider text-ink-500">{b.codigo}</span>
+                    </button>
+                    {b.telefono && (
+                      <a
+                        href={waLink(b.telefono, mensajeBoleto(e, b, academia.nombre)) ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        // discreto: con 60 boletos, 60 círculos verdes eran mucho ruido; el área de toque sigue de 40 px
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-500 active:bg-ok-50 active:text-ok-600"
+                        aria-label={`Mandar boleto a ${b.nombre}`}
+                      >
+                        <MessageCircle size={18} />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </Tarjeta>
+            )}
           </>
         )}
       </Seccion>
+
+      {(e.foto || e.descripcion || e.vestimenta || e.lugar) && (
+        <details className="group mt-5 rounded-xl bg-superficie ring-1 ring-ink-100">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 font-semibold [&::-webkit-details-marker]:hidden">
+            Detalles del evento
+            <ChevronDown size={16} className="text-ink-500 group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="px-4 pb-4">
+            {e.foto && <img src={e.foto} alt={`Flyer de ${e.nombre}`} loading="lazy" className="mb-3 max-h-80 w-full rounded-xl bg-ink-50 object-contain" />}
+            <DetalleEvento e={{ descripcion: e.descripcion, vestimenta: e.vestimenta ?? '', lugar: e.lugar ?? '', direccion: e.direccion ?? '', otro_lugar: !!e.lugar }} />
+          </div>
+        </details>
+      )}
 
       <Seccion
         titulo={`Gastos del evento · ${dinero(r.gastos)}`}
@@ -158,6 +166,10 @@ export function PantallaEvento() {
           )
         }
       >
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <Cifra titulo="Ingresos" valor={dinero(r.ingresos)} pie="por boletos" />
+          <Cifra titulo="Utilidad" valor={dinero(r.utilidad)} pie={`gastos ${dinero(r.gastos)}`} alerta={r.utilidad < 0} />
+        </div>
         {gastos.filter((g) => !g.deletedAt).length === 0 ? (
           <Tarjeta className="p-4 text-sm text-ink-500">Sin gastos registrados (decoración, DJ, premios…).</Tarjeta>
         ) : (
@@ -199,7 +211,7 @@ export function PantallaEvento() {
       <Hoja abierta={gasto} onCerrar={() => setGasto(false)} titulo="Gasto del evento">
         {gasto && <FormGastoEvento evento={e} onHecho={() => setGasto(false)} />}
       </Hoja>
-      <Hoja abierta={!!venta} onCerrar={() => setVenta(null)} titulo={venta?.nombre}>
+      <Hoja abierta={!!venta} onCerrar={() => { setVenta(null); setConfirmarCancelacion(false); }} titulo={venta?.nombre}>
         {venta && (
           <div className="space-y-3">
             <p className="text-sm text-ink-500">
@@ -207,17 +219,27 @@ export function PantallaEvento() {
               {venta.usadoAt ? ' · ya entró' : ''}
             </p>
             {venta.pagoId && (
-              <Boton
-                bloque
-                variante="secundario"
-                onClick={async () => {
-                  await cancelarVenta(venta.pagoId!, 'Cancelación de boleto', usuario.id);
-                  avisar('Venta cancelada: se anuló el cobro y se liberaron los lugares');
-                  setVenta(null);
-                }}
-              >
-                <span className="text-bad-600">Cancelar esta venta (devolver dinero)</span>
-              </Boton>
+              confirmarCancelacion ? (
+                <>
+                  <p className="text-sm text-ink-500">Se anulará el cobro y se liberarán todos los lugares de esta compra. Haz la devolución por el medio de pago correspondiente.</p>
+                  <Boton
+                    bloque
+                    variante="secundario"
+                    onClick={async () => {
+                      await cancelarVenta(venta.pagoId!, 'Cancelación de boleto', usuario.id);
+                      avisar('Venta cancelada: se anuló el cobro y se liberaron los lugares');
+                      setVenta(null);
+                      setConfirmarCancelacion(false);
+                    }}
+                  >
+                    <span className="text-bad-600">Confirmar cancelación de venta</span>
+                  </Boton>
+                </>
+              ) : (
+                <Boton bloque variante="secundario" onClick={() => setConfirmarCancelacion(true)}>
+                  <span className="text-bad-600">Cancelar esta venta</span>
+                </Boton>
+              )
             )}
           </div>
         )}

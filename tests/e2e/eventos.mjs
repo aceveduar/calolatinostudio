@@ -48,7 +48,6 @@ await dlg.getByPlaceholder('$').fill('100');
 await page.waitForTimeout(200);
 const bloqueado = (await dlg.getByText(/El salón ya está ocupado/).count()) === 1 && (await dlg.getByRole('button', { name: 'Crear evento' }).isDisabled());
 await dlg.locator('input[type="time"]').fill('14:00');
-await dlg.getByPlaceholder(/Duración|^$/).first().fill('120').catch(() => {});
 await page.waitForTimeout(200);
 const enPagina0 = await dlg.getByRole('switch', { name: /página pública/ }).getAttribute('aria-checked');
 await dlg.getByRole('switch', { name: /portal de los alumnos/ }).click();
@@ -74,7 +73,13 @@ t = await txt();
 console.log('4) cupo: no deja pasar de 3 y se llena:', ok(maxUno && /Boletos 3 \/ 3 cupo lleno/.test(t) && (await page.getByRole('button', { name: 'Cupo lleno' }).isDisabled())));
 
 // 5) entrada y gasto
-await page.getByRole('button', { name: /Marcar que Pedro Prueba entró/ }).click();
+const buscarBoleto = page.getByRole('textbox', { name: 'Buscar boleto por nombre o código' });
+await buscarBoleto.fill('Sin coincidencias');
+await page.getByText('Ningún boleto coincide con la búsqueda.').waitFor();
+await buscarBoleto.fill('Pedro');
+await page.getByRole('button', { name: 'Dar entrada a Pedro Prueba' }).click();
+await page.getByRole('button', { name: 'Entró · quitar entrada de Pedro Prueba' }).waitFor();
+await buscarBoleto.clear();
 await page.getByRole('button', { name: '+ Gasto' }).click();
 await dlg.getByPlaceholder(/Decoración/).fill('Botanas');
 await dlg.getByPlaceholder('$').fill('50');
@@ -87,6 +92,7 @@ await page.screenshot({ path: `${OUT}eventos-${P}-3-nuevo.png`, fullPage: true }
 // 6) cancelar una venta libera lugares
 await page.getByRole('button', { name: /^Lucía Prueba \(1\/2\)/ }).click();
 await dlg.getByRole('button', { name: /Cancelar esta venta/ }).click();
+await dlg.getByRole('button', { name: 'Confirmar cancelación de venta' }).click();
 await page.waitForTimeout(400);
 t = await txt();
 console.log('6) cancelar venta libera 2 lugares:', ok(/Boletos 1 \/ 3 quedan 2/.test(t) && /Ingresos \$100/.test(t)));
@@ -102,7 +108,7 @@ await ir('/agenda');
 await page.getByRole('button', { name: 'Semana siguiente' }).click();
 await page.waitForTimeout(300);
 t = await txt();
-console.log('8) agenda muestra el evento propio:', ok(/Taller de verano Evento propio/.test(t)));
+console.log('8) agenda muestra el evento propio:', ok(/Taller de verano Evento\b/.test(t)));
 await page.getByRole('button', { name: /Taller de verano/ }).first().click();
 await page.getByText(/Gastos del evento/i).waitFor();
 console.log('   tocarlo abre el evento: OK');
@@ -110,10 +116,7 @@ console.log('   tocarlo abre el evento: OK');
 // 9) recepción vende pero no crea
 await page.getByRole('button', { name: /cambiar usuario/i }).first().click();
 await entrar('Monse', '1111');
-await page.goto('http://localhost:4173/agenda/eventos').catch(() => {});
-await page.getByText('Monse', { exact: true }).click().catch(() => {});
-for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click().catch(() => {});
-await page.evaluate(() => { history.pushState(null, '', '/agenda/eventos'); dispatchEvent(new PopStateEvent('popstate')); });
+await ir('/agenda/eventos');
 await page.getByText('Próximos').first().waitFor();
 const sinNuevo = (await page.getByRole('button', { name: /Nuevo/ }).count()) === 0;
 await page.getByRole('button', { name: /Baile de Navidad/ }).click();
