@@ -124,7 +124,7 @@ await page.evaluate(() => window.compasDev.db.meta.put({ key: 'nubeVinculada', v
 const id = new URL(page.url()).pathname.split('/').at(-1);
 const confirmarRespaldo = () => page.evaluate((alumnoId) => window.compasDev.db.outbox.where('id').equals(alumnoId).delete(), id);
 await confirmarRespaldo();
-await page.getByRole('button', { name: 'Compartir Mi pase' }).click();
+await page.getByRole('button', { name: 'Compartir pase', exact: true }).click();
 const dlg = page.getByRole('dialog', { name: 'Compartir Mi pase' });
 const crearEnlace = dlg.getByRole('button', { name: 'Crear enlace del pase' });
 const enlace = dlg.getByRole('link', { name: 'Enviar pase por WhatsApp' });
@@ -141,7 +141,7 @@ console.log('6) mensaje con enlace personal de 26 caracteres:', ok(!!m), m?.[1])
 await page.screenshot({ path: `${OUT}portal-2-whats.png` });
 // el mismo enlace al volver a abrir (no se regenera)
 await page.keyboard.press('Escape');
-await page.getByRole('button', { name: 'Compartir Mi pase' }).click();
+await page.getByRole('button', { name: 'Compartir pase', exact: true }).click();
 const href2 = decodeURIComponent(await enlace.getAttribute('href'));
 console.log('   el enlace se conserva:', ok(href2.includes(m?.[1])));
 const abrir = dlg.getByRole('link', { name: 'Abrir pase' });

@@ -160,31 +160,9 @@ export function FichaAlumno() {
 
       <TarjetaAdeudos alumno={alumno} />
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        <Boton grande onClick={() => setVender(true)} className="col-span-2">
-          <CalendarPlus size={20} /> Vender plan
-        </Boton>
-        <Boton variante="secundario" onClick={() => setQr(true)} className="col-span-2">
-          <QrCode size={18} /> Credencial con QR
-        </Boton>
-        {alumno.activo && (
-          <Boton variante="secundario" onClick={() => setPasePersonal(true)} className="col-span-2">
-            <Link2 size={18} aria-hidden="true" /> Compartir Mi pase
-          </Boton>
-        )}
-        {alumno.telefono && (
-          <>
-            <Boton bloque variante="secundario" onClick={() => setWhats(true)}>
-              <MessageCircle size={18} className="text-ok-600" /> WhatsApp
-            </Boton>
-            <a href={`tel:${alumno.telefono}`}>
-              <Boton bloque variante="secundario">
-                <Phone size={18} /> Llamar
-              </Boton>
-            </a>
-          </>
-        )}
-      </div>
+      <Boton bloque onClick={() => setVender(true)} className="mt-5">
+        <CalendarPlus size={18} aria-hidden="true" /> Vender plan
+      </Boton>
 
       <Seccion titulo="Planes">
         {vigentes.length === 0 ? (
@@ -218,6 +196,27 @@ export function FichaAlumno() {
           </div>
         )}
       </Seccion>
+
+      <div className="mt-3 grid grid-cols-2 gap-x-2 sm:flex sm:flex-wrap">
+        <Boton variante="fantasma" aria-label="Ver QR de la credencial" onClick={() => setQr(true)} className="min-h-11 justify-start px-2 text-left text-sm">
+          <QrCode size={16} aria-hidden="true" /> Ver QR
+        </Boton>
+        {alumno.activo && (
+          <Boton variante="fantasma" onClick={() => setPasePersonal(true)} className="min-h-11 justify-start px-2 text-left text-sm">
+            <Link2 size={16} aria-hidden="true" /> Compartir pase
+          </Boton>
+        )}
+        {alumno.telefono && (
+          <>
+            <Boton variante="fantasma" onClick={() => setWhats(true)} className="min-h-11 justify-start px-2 text-left text-sm">
+              <MessageCircle size={16} className="text-ok-600" aria-hidden="true" /> WhatsApp
+            </Boton>
+            <a href={`tel:${alumno.telefono}`} className="inline-flex min-h-11 items-center gap-2 rounded-2xl px-2 text-sm font-semibold text-ink-700 active:bg-ink-100">
+              <Phone size={16} aria-hidden="true" /> Llamar
+            </a>
+          </>
+        )}
+      </div>
 
       {historial?.perfil && <Resumen perfil={historial.perfil} clase={nombreClase(clases.find((c) => c.id === historial.perfil?.clase?.id), disciplinas)} />}
 
@@ -355,7 +354,7 @@ function Resumen({ perfil, clase }: { perfil: PerfilAlumno; clase: string }) {
         {datos.map((d) => (
           <div key={d.titulo} className="min-w-0 bg-superficie px-4 py-3">
             <p className="text-xs text-ink-500">{d.titulo}</p>
-            <p className={cx('truncate font-bold first-letter:uppercase', d.alerta && 'text-warn-600')}>{d.valor}</p>
+            <p className={cx('break-words font-bold first-letter:uppercase', d.alerta && 'text-warn-600')}>{d.valor}</p>
             {'pie' in d && d.pie && <p className="truncate text-xs text-ink-500">{d.pie}</p>}
           </div>
         ))}

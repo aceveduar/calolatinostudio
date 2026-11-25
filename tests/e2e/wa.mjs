@@ -14,7 +14,7 @@ for (const d of '1111') await page.getByRole('button', { name: d, exact: true })
 await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.getByPlaceholder('Buscar por nombre o teléfono').fill('Carlos Ruiz');
 await page.getByText('Carlos Ruiz').click();
-await page.getByRole('button', { name: /Credencial con QR/ }).click();
+await page.getByRole('button', { name: 'Ver QR de la credencial' }).click();
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}wa-credencial.png` });
 const descarga = page.waitForEvent('download');
