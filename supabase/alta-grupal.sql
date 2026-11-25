@@ -10,14 +10,28 @@ create table if not exists public.campanas_alta (
 );
 create unique index if not exists campanas_alta_abierta_idx
   on public.campanas_alta (academia_id) where not cerrada;
+alter table public.campanas_alta
+  add column if not exists minuto_altas timestamptz,
+  add column if not exists intentos_minuto integer not null default 0;
 
 create table if not exists public.registros_alta (
   campana uuid not null references public.campanas_alta(token) on delete cascade,
   solicitud uuid not null,
   alumno_id uuid not null references public.alumnos(id) on delete cascade,
-  portal_emitido text not null,
+  huella_portal text not null,
   primary key (campana, solicitud)
 );
+
+-- Conserva los reintentos ya emitidos sin guardar una segunda copia del enlace.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'registros_alta' and column_name = 'portal_emitido') then
+    alter table public.registros_alta rename column portal_emitido to huella_portal;
+    update public.registros_alta set huella_portal = encode(sha256(convert_to(huella_portal, 'UTF8')), 'hex');
+  end if;
+end;
+$$;
 
 alter table public.campanas_alta enable row level security;
 alter table public.registros_alta enable row level security;
@@ -33,6 +47,9 @@ begin
   if not exists (select 1 from public.miembros m where m.academia_id = p_academia
                  and m.user_id = auth.uid() and m.rol in ('dueno', 'recepcion')) then
     raise exception 'Sin acceso a la academia' using errcode = '42501';
+  end if;
+  if p_accion is null or p_accion not in ('estado', 'conteo', 'abrir', 'cerrar') then
+    raise exception 'Acción desconocida' using errcode = '22023';
   end if;
 
   if p_accion in ('estado', 'conteo') then
@@ -96,14 +113,16 @@ declare
   alumno_nuevo uuid := gen_random_uuid();
   alfabeto constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   ahora bigint;
+  minuto timestamptz;
 begin
   if p_solicitud is null or p_nombre is null or p_telefono is null
     or length(p_nombre) > 120 or length(p_telefono) > 32 then
     return jsonb_build_object('estado', 'datos');
   end if;
-  nombre_limpio := trim(regexp_replace(p_nombre, '[[:space:]]+', ' ', 'g'));
+  nombre_limpio := normalize(trim(regexp_replace(p_nombre, '[[:space:]]+', ' ', 'g')));
   telefono_limpio := public.normalizar_telefono_alta(p_telefono);
-  if nombre_limpio !~ '[[:alpha:]]' or length(nombre_limpio) < 3
+  if nombre_limpio !~ '^[[:alpha:]À-ÖØ-öø-ÿĀ-ž .''’-]+$'
+    or nombre_limpio !~ '[[:alpha:]À-ÖØ-öø-ÿĀ-ž]' or length(nombre_limpio) < 3
     or telefono_limpio !~ '^[0-9]{10}$' or p_telefono !~ '^[+0-9 ().-]+$' then
     return jsonb_build_object('estado', 'datos');
   end if;
@@ -117,13 +136,21 @@ begin
   select a.* into ficha
     from public.registros_alta r join public.alumnos a on a.id = r.alumno_id
     where r.campana = p_token and r.solicitud = p_solicitud and a.academia_id = c.academia_id
-      and a.portal = r.portal_emitido and a.activo and a.deleted_at is null;
-  if found and ficha.nombre = nombre_limpio and ficha.telefono = telefono_limpio then
+      and encode(sha256(convert_to(a.portal, 'UTF8')), 'hex') = r.huella_portal
+      and a.activo and a.deleted_at is null;
+  if found and normalize(ficha.nombre) = nombre_limpio and ficha.telefono = telefono_limpio then
     return jsonb_build_object('estado', 'lista', 'portal', ficha.portal);
   end if;
   if c.cerrada or c.vence <= clock_timestamp() or c.altas >= 1000 then
     return jsonb_build_object('estado', 'cerrada');
   end if;
+  minuto := date_trunc('minute', clock_timestamp());
+  if c.minuto_altas = minuto and c.intentos_minuto >= 80 then
+    return jsonb_build_object('estado', 'espera');
+  end if;
+  update public.campanas_alta set minuto_altas = minuto,
+    intentos_minuto = case when c.minuto_altas = minuto then c.intentos_minuto + 1 else 1 end
+    where token = c.token;
   if exists (select 1 from public.registros_alta where campana = p_token and solicitud = p_solicitud)
     or exists (select 1 from public.alumnos a where a.academia_id = c.academia_id and a.deleted_at is null
                and public.normalizar_telefono_alta(a.telefono) = telefono_limpio) then
@@ -139,8 +166,8 @@ begin
   ahora := floor(extract(epoch from clock_timestamp()) * 1000)::bigint;
   insert into public.alumnos (id, academia_id, nombre, telefono, codigo, portal, created_at, updated_at)
     values (alumno_nuevo, c.academia_id, nombre_limpio, telefono_limpio, codigo_pase, portal_nuevo, ahora, ahora);
-  insert into public.registros_alta (campana, solicitud, alumno_id, portal_emitido)
-    values (c.token, p_solicitud, alumno_nuevo, portal_nuevo);
+  insert into public.registros_alta (campana, solicitud, alumno_id, huella_portal)
+    values (c.token, p_solicitud, alumno_nuevo, encode(sha256(convert_to(portal_nuevo, 'UTF8')), 'hex'));
   update public.campanas_alta set altas = altas + 1 where token = c.token;
   return jsonb_build_object('estado', 'lista', 'portal', portal_nuevo);
 end;

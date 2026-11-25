@@ -3,7 +3,7 @@ import { nubePublica } from '../../app/rpcPublica';
 import { Boton, Tarjeta } from '../../components/ui';
 
 interface Campana { nombre: string; abierta: boolean }
-type Registro = { estado: 'lista'; portal: string } | { estado: 'cerrada' | 'recepcion' | 'datos' };
+type Registro = { estado: 'lista'; portal: string } | { estado: 'cerrada' | 'recepcion' | 'datos' | 'espera' };
 const campo = 'mt-1 block min-h-12 w-full rounded-xl bg-superficie px-3 text-base font-normal ring-1 ring-ink-100 focus:ring-2 focus:ring-brand-500';
 
 function claveSolicitud(token: string) {
@@ -58,6 +58,8 @@ export function AltaGrupal({ token }: { token: string }) {
       setPortal(respuesta.data.portal);
     } else if (respuesta.data.estado === 'cerrada') {
       setEstado('cerrada');
+    } else if (respuesta.data.estado === 'espera') {
+      setMensaje('Hay muchos registros en este momento. Espera un minuto y vuelve a tocar «Crear mi pase».');
     } else if (respuesta.data.estado === 'recepcion') {
       setMensaje('Recepción puede ayudarte a recuperar tu pase o registrarte si compartes celular. Si escribiste otro número por error, puedes corregirlo aquí.');
     } else {

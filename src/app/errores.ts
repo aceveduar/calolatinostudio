@@ -5,6 +5,7 @@
  */
 const CLAVE = 'compas:errores';
 const MAX = 15;
+const ocultarEnlaces = (texto: string) => texto.replace(/(\/(?:p|alta)\/)[A-Za-z0-9-]{20,64}(?![A-Za-z0-9-])/g, '$1[privado]');
 
 export interface ErrorAnotado {
   at: string;
@@ -17,7 +18,12 @@ export interface ErrorAnotado {
 export function erroresRecientes(): ErrorAnotado[] {
   try {
     const v = JSON.parse(localStorage.getItem(CLAVE) ?? '[]');
-    return Array.isArray(v) ? v : [];
+    return Array.isArray(v) ? v.map((e: ErrorAnotado) => ({
+      ...e,
+      donde: ocultarEnlaces(e.donde),
+      mensaje: ocultarEnlaces(e.mensaje),
+      pila: e.pila ? ocultarEnlaces(e.pila) : undefined,
+    })) : [];
   } catch {
     return [];
   }
@@ -25,7 +31,8 @@ export function erroresRecientes(): ErrorAnotado[] {
 
 export function anotarError(e: unknown, donde: string) {
   try {
-    const mensaje = (e instanceof Error ? e.message : String(e)).slice(0, 300);
+    const mensaje = ocultarEnlaces(e instanceof Error ? e.message : String(e)).slice(0, 300);
+    donde = ocultarEnlaces(donde);
     if (/ResizeObserver loop/.test(mensaje)) return; // aviso inofensivo del navegador, no es un error de la app
     const previos = erroresRecientes();
     const ultimo = previos[0];
@@ -34,7 +41,8 @@ export function anotarError(e: unknown, donde: string) {
       localStorage.setItem(CLAVE, JSON.stringify(previos));
       return;
     }
-    const nuevo: ErrorAnotado = { at: new Date().toISOString(), donde: donde.slice(0, 200), mensaje, pila: e instanceof Error ? e.stack?.split('\n').slice(0, 6).join('\n') : undefined };
+    const pila = e instanceof Error && e.stack ? ocultarEnlaces(e.stack.split('\n').slice(0, 6).join('\n')) : undefined;
+    const nuevo: ErrorAnotado = { at: new Date().toISOString(), donde: donde.slice(0, 200), mensaje, pila };
     localStorage.setItem(CLAVE, JSON.stringify([nuevo, ...previos].slice(0, MAX)));
   } catch {
     /* sin almacenamiento: no importa */
@@ -51,6 +59,6 @@ export function borrarErrores() {
 
 /** El texto para soporte: versión, equipo y los errores (sin datos de alumnos ni dinero). */
 export function reporteErrores(errores: ErrorAnotado[], info: { version: string; academia: string; nube: string; equipo: string }): string {
-  const lineas = errores.map((e) => `• ${e.at.slice(0, 16).replace('T', ' ')}${e.veces && e.veces > 1 ? ` (×${e.veces})` : ''} — ${e.donde}: ${e.mensaje}`);
+  const lineas = errores.map((e) => `• ${e.at.slice(0, 16).replace('T', ' ')}${e.veces && e.veces > 1 ? ` (×${e.veces})` : ''} — ${ocultarEnlaces(e.donde)}: ${ocultarEnlaces(e.mensaje)}`);
   return [`Compás v${info.version} · ${info.academia}`, `Nube: ${info.nube} · ${info.equipo}`, '', errores.length ? `Errores recientes (${errores.length}):` : 'Sin errores anotados.', ...lineas].join('\n');
 }

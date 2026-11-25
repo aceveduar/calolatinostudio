@@ -28,4 +28,21 @@ describe('errores recientes de este equipo', () => {
     expect(t).toMatch(/^Compás v1\.2\.3 · Calo\nNube: al día · Android · Chrome · instalada/);
     expect(t).toMatch(/\/entrada: falló/);
   });
+  it('oculta los enlaces personales y de campaña al anotar o exportar errores', () => {
+    const pase = '/p/0123456789abcdef0123456789abcdef';
+    const alta = '/alta/11111111-1111-4111-8111-111111111111';
+    const info = { version: '1', academia: 'Calo', nube: 'al día', equipo: 'Chrome' };
+    anotarError(new Error(`Falló ${pase}`), `${alta} (error)`);
+    const [guardado] = erroresRecientes();
+    expect(guardado.donde).toBe('/alta/[privado] (error)');
+    expect(guardado.mensaje).toBe('Falló /p/[privado]');
+    expect(guardado.pila).not.toContain(pase);
+    const anterior = { ...guardado, donde: pase, mensaje: alta };
+    localStorage.setItem('compas:errores', JSON.stringify([anterior]));
+    expect(erroresRecientes()[0].donde).toBe('/p/[privado]');
+    const reporte = reporteErrores([anterior], info);
+    expect(reporte).not.toContain(pase);
+    expect(reporte).not.toContain(alta);
+    expect(reporte).toContain('/p/[privado]: /alta/[privado]');
+  });
 });

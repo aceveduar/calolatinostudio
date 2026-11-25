@@ -17,6 +17,7 @@ import { db } from '../../db/db';
 import type { Alumno, Clase, ID, MetodoPago } from '../../db/types';
 import { claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
+import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
 import { membresiaQueCubre } from '../../domain/membresias';
 import { cobrarClaseSuelta } from '../../domain/operaciones';
@@ -123,12 +124,12 @@ export function PantallaEntrada() {
   const resultados = useMemo(() => {
     const t = normalizar(q.trim()).replace(/\s+/g, ' ');
     if (!t) return [];
-    const dig = /^[+\d ().-]+$/.test(t) ? t.replace(/\D/g, '').replace(/^521?(?=\d{10}$)/, '') : '';
+    const dig = consultaTelefono(t);
     const candidatos = alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO);
     const porCodigo = candidatos.filter((a) => a.codigo.toLowerCase() === t);
     if (porCodigo.length) return porCodigo;
     return candidatos
-      .filter((a) => normalizar(a.nombre).includes(t) || (dig.length >= 3 && a.telefono.replace(/\D/g, '').includes(dig)))
+      .filter((a) => normalizar(a.nombre).includes(t) || (dig.length >= 3 && digitosTelefono(a.telefono).includes(dig)))
       .slice(0, 8);
   }, [q, alumnos]);
 
@@ -749,7 +750,7 @@ function HeroClase({ titulo, color, detalle, adentro, cobrado, onCambiar }: { ti
 }
 
 function DatosResultado({ alumno, archivado }: { alumno: Alumno; archivado: boolean }) {
-  const final = alumno.telefono.replace(/\D/g, '').slice(-4);
+  const final = digitosTelefono(alumno.telefono).slice(-4);
   const estado = !alumno.activo ? 'De baja' : archivado ? 'Archivado' : '';
   const detalles = [final.length === 4 ? `Cel. •••• ${final}` : `Pase ${alumno.codigo}`, estado].filter(Boolean).join(' · ');
   return (
