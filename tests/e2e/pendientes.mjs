@@ -1,7 +1,7 @@
 // Pendientes (Monse), bienvenida al registrar y lo que deja cada clase (dirección). Todo local, sin nube.
 import { chromium } from 'playwright-core';
 const OUT = new URL('./salida/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-const ancho = process.argv[2] === 'pc' ? { width: 1366, height: 900 } : { width: 390, height: 844 };
+const ancho = process.argv[2] === 'pc' ? { width: 1366, height: 900 } : { width: 360, height: 780 };
 const browser = await chromium.launch({ channel: 'msedge' });
 const ctx = await browser.newContext({ viewport: ancho, deviceScaleFactor: 2, isMobile: ancho.width < 500, hasTouch: true, locale: 'es-MX' });
 const page = await ctx.newPage();
@@ -37,18 +37,23 @@ await page.getByRole('heading', { name: 'Pendientes' }).waitFor();
 await page.waitForTimeout(500);
 let t = await txt();
 console.log('1) Entrada → Pendientes con secciones:', ok(nPill > 0 && /Avisar que vence su plan · \d+/i.test(t) && /Deben clases · \d+/i.test(t)), nPill, (t.match(/(Avisar que vence su plan|Deben clases|Rentas por cobrar|Dejaron de venir) · \d+/gi) || []).join(' | '), (t.match(/\d+ interesados? nuevos?|\d+ pedidos? listos?|\d+ encargos? por pedir/g) || []).join(' | '));
-await page.screenshot({ path: `${OUT}pend-${P}-2-lista.png`, fullPage: true });
+const renovaciones = page.locator('section').filter({ has: page.getByRole('heading', { name: /^Avisar que vence su plan/ }) });
+console.log('   los adeudos se muestran antes que las renovaciones:', ok(
+  (await page.getByRole('region', { name: 'Deben clases' }).boundingBox()).y < (await renovaciones.boundingBox()).y,
+));
+await page.screenshot({ path: `${OUT}pend-${P}-2-lista.png`, fullPage: true, animations: 'disabled' });
 
 // 2) WhatsApp con el texto de "vence" listo
-const wa = page.getByRole('link', { name: /^Mandar WhatsApp a/ }).first();
+const wa = renovaciones.getByRole('link', { name: /^Mandar WhatsApp a/ }).first();
 const href = decodeURIComponent((await wa.getAttribute('href')) ?? '');
 console.log('2) WhatsApp con el mensaje listo:', ok(/^https:\/\/wa\.me\/52\d{10}\?text=Hola .+ (vence|venció) el /.test(href)), href.slice(0, 110));
 
 // 3) "ya le avisé" lo saca de la lista (y queda guardado en el alumno); deshacer lo regresa
 const cuenta = async () => Number(((await txt()).match(/Avisar que vence su plan · (\d+)/i) || [0, 0])[1]);
 const antes = await cuenta();
-const nombre = (await page.getByRole('button', { name: /^Ya le avisé a/ }).first().getAttribute('aria-label')).replace('Ya le avisé a ', '');
-await page.getByRole('button', { name: /^Ya le avisé a/ }).first().click();
+const confirmarAviso = renovaciones.getByRole('button', { name: /^Ya le avisé a/ }).first();
+const nombre = (await confirmarAviso.getAttribute('aria-label')).replace('Ya le avisé a ', '');
+await confirmarAviso.click();
 await page.waitForTimeout(500);
 const despues = await cuenta();
 const guardado = await page.evaluate(async (n) => (await window.compasDev.db.alumnos.toArray()).find((a) => a.nombre === n)?.avisos, nombre);
@@ -60,7 +65,7 @@ console.log('   deshacer:', nDeshacer, JSON.stringify(tras));
 console.log('3) ya le avisé → sale, se guarda; deshacer lo regresa:', ok(despues === antes - 1 && guardado && Object.keys(guardado).some((k) => k.startsWith('vence:')) && (await cuenta()) === antes), antes, despues);
 
 // 4) abrir WhatsApp no confirma que se envió el mensaje
-const enlaceWa = page.getByRole('link', { name: /^Mandar WhatsApp a/ }).first();
+const enlaceWa = wa;
 await enlaceWa.evaluate((a) => a.addEventListener('click', (e) => e.preventDefault())); // no salir a WhatsApp
 await enlaceWa.click();
 await page.waitForTimeout(800);

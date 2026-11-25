@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Megaphone, MessageCircle, PartyPopper, Truck, WalletCards } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Megaphone, MessageCircle, PartyPopper, Truck, WalletCards } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Encabezado, Seccion, Tarjeta, Vacio, VerMas, Cargando } from '../../components/ui';
@@ -30,7 +30,7 @@ export function PantallaPendientes() {
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
       <div className="-mx-4">
-        <Encabezado titulo="Pendientes" sub={total ? 'Lo que hay que hacer hoy' : fechaLarga(hoy())} />
+        <Encabezado titulo="Pendientes" sub={fechaLarga(hoy())} />
       </div>
 
       {total === 0 && deben.length === 0 && (
@@ -39,11 +39,22 @@ export function PantallaPendientes() {
         </Tarjeta>
       )}
 
-      {(interesados > 0 || porPedir > 0) && (
-        <Tarjeta className="divide-y divide-ink-100">
-          {interesados > 0 && <Atajo a="/alumnos/interesados" icono={<Megaphone size={20} />} texto={`${interesados} ${interesados === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar`} />}
-          {porPedir > 0 && <Atajo a="/encargos" icono={<Truck size={20} />} texto={`${porPedir} ${porPedir === 1 ? 'encargo' : 'encargos'} por pedir al proveedor`} />}
-        </Tarjeta>
+      {deben.length > 0 && (
+        <section aria-label="Deben clases">
+          <h2 className="mb-2 px-1 text-xs font-bold text-ink-500 uppercase">Deben clases · {deben.length}</h2>
+          <Lista items={deben} fila={({ alumno, clases, total: monto, avisoReciente }) => (
+              <FilaAviso
+                key={alumno.id}
+                alumno={alumno}
+                clave="adeudo"
+                mensaje="adeudo"
+                datos={{ monto: dinero(monto) }}
+                detalle={`${clases} ${clases === 1 ? 'clase' : 'clases'} · ${dinero(monto)}`}
+                avisoReciente={avisoReciente}
+                urgente
+              />
+          )} />
+        </section>
       )}
 
       {porEntregar.length > 0 && (
@@ -69,6 +80,27 @@ export function PantallaPendientes() {
         </Seccion>
       )}
 
+      {rentas.length > 0 && (
+        <Seccion titulo={`Rentas por cobrar · ${rentas.length}`}>
+          <Lista items={rentas} fila={(c) => (
+              <Link key={c.renta.id + c.mes} to="/agenda" className="flex items-center gap-3 px-4 py-3 active:bg-ink-50">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+                  <WalletCards size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words font-semibold">{c.renta.nombre}</span>
+                  <span className={c.atrasada ? 'block text-xs font-semibold text-bad-600' : 'block text-xs text-ink-500'}>
+                    {c.renta.tipo === 'evento' ? `Evento del ${fechaCorta(c.renta.desde)}` : `${nombreMes(c.mes)} · ${c.detalle}`}
+                    {c.atrasada && ' · atrasada'}
+                  </span>
+                </span>
+                <span className="shrink-0 font-bold">{dinero(c.monto)}</span>
+                <ChevronRight size={18} className="shrink-0 text-ink-300" />
+              </Link>
+          )} />
+        </Seccion>
+      )}
+
       {renovar.length > 0 && (
         <Seccion titulo={`Avisar que vence su plan · ${renovar.length}`}>
           <Lista items={renovar} fila={({ alumno, membresia, plan, enDias }) => (
@@ -85,54 +117,25 @@ export function PantallaPendientes() {
         </Seccion>
       )}
 
-      {deben.length > 0 && (
-        <Seccion titulo={`Deben clases · ${deben.length}`}>
-          <Lista items={deben} fila={({ alumno, clases, total: monto, avisoReciente }) => (
-              <FilaAviso
-                key={alumno.id}
-                alumno={alumno}
-                clave="adeudo"
-                mensaje="adeudo"
-                datos={{ monto: dinero(monto) }}
-                detalle={`${clases} ${clases === 1 ? 'clase' : 'clases'} · ${dinero(monto)}`}
-                avisoReciente={avisoReciente}
-                urgente
-              />
-          )} />
-          <p className="mt-2 px-1 text-xs text-ink-500">El saldo sigue visible hasta que se cobre. Puedes volver a enviar un recordatorio después de {DIAS_ENTRE_COBROS} días.</p>
-        </Seccion>
-      )}
-
-      {rentas.length > 0 && (
-        <Seccion titulo={`Rentas por cobrar · ${rentas.length}`}>
-          <Lista items={rentas} fila={(c) => (
-              <Link key={c.renta.id + c.mes} to="/agenda" className="flex items-center gap-3 px-4 py-3 active:bg-ink-50">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-                  <WalletCards size={20} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{c.renta.nombre}</span>
-                  <span className={c.atrasada ? 'block truncate text-xs font-semibold text-bad-600' : 'block truncate text-xs text-ink-500'}>
-                    {c.renta.tipo === 'evento' ? `Evento del ${fechaCorta(c.renta.desde)}` : `${nombreMes(c.mes)} · ${c.detalle}`}
-                    {c.atrasada && ' · atrasada'}
-                  </span>
-                </span>
-                <span className="font-bold">{dinero(c.monto)}</span>
-                <ChevronRight size={18} className="shrink-0 text-ink-300" />
-              </Link>
-          )} />
-        </Seccion>
+      {(interesados > 0 || porPedir > 0) && (
+        <Tarjeta className="mt-5 divide-y divide-ink-100">
+          {interesados > 0 && <Atajo a="/alumnos/interesados" icono={<Megaphone size={20} />} texto={`${interesados} ${interesados === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar`} />}
+          {porPedir > 0 && <Atajo a="/encargos" icono={<Truck size={20} />} texto={`${porPedir} ${porPedir === 1 ? 'encargo' : 'encargos'} por pedir al proveedor`} />}
+        </Tarjeta>
       )}
 
       {extranar.length > 0 && (
-        <Seccion titulo={`Dejaron de venir · ${extranar.length}`}>
+        <details className="group mt-5">
+          <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 text-sm font-semibold text-ink-700 ring-1 ring-inset ring-ink-100 [&::-webkit-details-marker]:hidden">
+            Dejaron de venir · {extranar.length} <ChevronDown size={16} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
+          </summary>
           <Lista items={extranar} fila={({ alumno, ultima, veces }) => (
               <FilaAviso key={alumno.id} alumno={alumno} clave="extrañamos" mensaje="extrañamos" datos={{}} detalle={`Venía seguido (${veces}) · última vez ${fechaCorta(ultima)}`} />
           )} />
-        </Seccion>
+        </details>
       )}
 
-      {total > 0 && (
+      {(renovar.length > 0 || deben.length > 0 || extranar.length > 0) && (
         <p className="mt-4 px-1 text-center text-xs leading-relaxed text-ink-500">
           Después de avisar por WhatsApp o en persona, toca <Check size={12} className="inline" aria-hidden="true" /> para marcar el aviso.
         </p>
@@ -180,7 +183,7 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
       <Link to={`/alumnos/${p.alumno.id}${esAdeudo ? '#adeudos' : ''}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left active:bg-ink-50">
         <Avatar nombre={p.alumno.nombre} foto={p.alumno.foto} tam={40} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{p.alumno.nombre}</span>
+          <span className="block break-words font-semibold">{p.alumno.nombre}</span>
           {/* hasta 2 renglones: con los dos botones al lado se cortaba justo "venció hace 7 días" */}
           <span className={p.urgente ? 'line-clamp-2 text-xs font-semibold text-bad-600' : 'line-clamp-2 text-xs text-ink-500'}>{p.detalle}</span>
           {esAdeudo && <span className="block text-xs font-semibold text-brand-600">Ver adeudo</span>}
@@ -188,7 +191,7 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
         </span>
       </Link>
       {p.avisoReciente ? (
-        <span className="shrink-0 rounded-xl bg-ok-50 px-2 py-1 text-xs font-semibold text-ok-600">Avisado</span>
+        <span title={`Puedes volver a avisar después de ${DIAS_ENTRE_COBROS} días`} className="shrink-0 rounded-xl bg-ok-50 px-2 py-1 text-xs font-semibold text-ok-600">Avisado</span>
       ) : (
         <>
           {link && (
@@ -196,13 +199,13 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
               href={link}
               target="_blank"
               rel="noreferrer"
-              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-600 px-3 text-sm font-bold text-white active:brightness-95"
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-50 px-3 text-sm font-semibold text-ok-600 active:brightness-95"
               aria-label={`Mandar WhatsApp a ${p.alumno.nombre}`}
             >
               <MessageCircle size={18} /> <span className="hidden sm:inline">WhatsApp</span>
             </a>
           )}
-          <button onClick={() => void hecho()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-500 ring-1 ring-ink-100 active:bg-ink-50" aria-label={`Ya le avisé a ${p.alumno.nombre}`}>
+          <button type="button" title="Ya le avisé" onClick={() => void hecho()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-500 ring-1 ring-inset ring-ink-100 active:bg-ink-50" aria-label={`Ya le avisé a ${p.alumno.nombre}`}>
             <Check size={20} />
           </button>
         </>
