@@ -22,8 +22,19 @@ await p.waitForTimeout(400);
 await p.keyboard.type('482915', { delay: 50 });
 await p.waitForTimeout(700);
 await p.keyboard.type('482915', { delay: 50 });
-await p.getByText('Deja lista tu academia').waitFor({ timeout: 8000 }).catch(() => {});
-console.log('1) crear la academia escribiendo el PIN con el teclado:', ok((await p.getByText('Deja lista tu academia').count()) === 1));
+await p.getByRole('heading', { name: 'Entrada', exact: true }).waitFor();
+const guia = p.getByRole('region', { name: 'Primeros pasos' });
+console.log('1) el PIN abre Entrada y los horarios y precios iniciales bastan:', ok((await guia.count()) === 0));
+const planesActivos = await p.evaluate(async () => {
+  const { planes } = window.compasDev.db;
+  const activos = await planes.filter((plan) => plan.activo && !plan.deletedAt && plan.precio > 0).primaryKeys();
+  await planes.where(':id').anyOf(activos).modify({ activo: false });
+  return activos;
+});
+await guia.getByText('1 de 2 pasos').waitFor();
+console.log('1b) si faltan precios, la guía lleva a Planes y precios:', ok(await guia.getByRole('link', { name: /Planes y precios/ }).isVisible()));
+await p.evaluate((ids) => window.compasDev.db.planes.where(':id').anyOf(ids).modify({ activo: true }), planesActivos);
+await guia.waitFor({ state: 'hidden' });
 
 // 2) maestro: se eligen sus clases ahí mismo
 await ir('/ajustes/maestros');

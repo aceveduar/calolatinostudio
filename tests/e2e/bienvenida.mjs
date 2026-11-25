@@ -34,6 +34,7 @@ console.log('2) con "Entendido" ya no vuelve a salir:', ok((await p.getByRole('r
 await p.getByRole('button', { name: /cambiar usuario/i }).first().click().catch(() => {});
 await p.waitForTimeout(500);
 await entrar('Dirección Calo', '1234');
-console.log('3) al dueño no le sale (tiene "Deja lista tu academia"):', ok((await p.getByRole('region', { name: 'Bienvenida' }).count()) === 0));
+console.log('3) Dirección de una academia operativa ve Entrada sin tarjetas de inicio:',
+  ok((await p.getByRole('region', { name: /Bienvenida|Primeros pasos/ }).count()) === 0));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await b.close();

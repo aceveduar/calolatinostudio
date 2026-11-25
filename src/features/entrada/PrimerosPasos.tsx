@@ -10,33 +10,21 @@ import { primerosPasos } from '../../domain/primerosPasos';
 const OCULTO = 'primerosPasosOculto';
 
 /**
- * Tarjeta para el dueño mientras la academia no está lista: cuántos pasos lleva, cuál sigue (un toque lo lleva
+ * Tarjeta para Dirección mientras falta la configuración básica de Entrada: cuántos pasos lleva, cuál sigue (un toque lo lleva
  * ahí) y la lista completa al abrirla. Se va sola al terminar; también se puede ocultar.
  */
 export function PrimerosPasos() {
-  const { academia, esDueno } = useSesion();
+  const { esDueno } = useSesion();
   const [abierta, setAbierta] = useState(false);
   const datos = useLiveQuery(async () => {
     if (!esDueno || (await getMeta<boolean>(OCULTO))) return null;
     const vivo = <T extends { deletedAt?: number | null }>(x: T) => !x.deletedAt;
-    const [clases, planes, usuarios, alumnos, nube] = await Promise.all([
-      db.clases.filter((c) => vivo(c) && c.activo).toArray(),
+    const [clases, planesConPrecio] = await Promise.all([
+      db.clases.filter((c) => vivo(c) && c.activo).count(),
       db.planes.filter((p) => vivo(p) && p.activo && p.precio > 0).count(),
-      db.usuarios.filter((u) => vivo(u) && u.activo && u.rol === 'recepcion').count(),
-      db.alumnos.count(),
-      getMeta<boolean>('nubeVinculada'),
     ]);
-    return primerosPasos({
-      logo: !!academia.logo,
-      clases: clases.length,
-      clasesSinMaestro: clases.filter((c) => !c.maestroId).length,
-      planesConPrecio: planes,
-      recepcion: usuarios,
-      alumnos,
-      nube: !!nube,
-      pagina: !!academia.slug,
-    });
-  }, [esDueno, academia.logo, academia.slug]);
+    return primerosPasos({ clases, planesConPrecio });
+  }, [esDueno]);
 
   if (!datos) return null;
   const hechos = datos.filter((p) => p.hecho).length;
@@ -50,7 +38,7 @@ export function PrimerosPasos() {
           <Rocket size={20} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-bold">Deja lista tu academia</p>
+          <p className="font-bold">Configura Entrada</p>
           <p className="text-sm text-ink-500">
             {hechos} de {datos.length} pasos
           </p>

@@ -215,13 +215,13 @@ export const MANUAL: Capitulo[] = [
     temas: [
       {
         id: 'primeros-pasos',
-        titulo: 'Dejar lista la academia',
-        resumen: 'La tarjeta "Deja lista tu academia" en Entrada.',
+        titulo: 'Configurar Entrada',
+        resumen: 'La tarjeta "Configura Entrada" para una academia nueva.',
         para: DUENO,
         claves: 'primeros pasos empezar configurar nueva academia',
         pasos: [
           'En Entrada verás cuántos pasos llevas y cuál sigue: tócalo y te lleva ahí.',
-          'Cada paso se palomea solo cuando lo terminas (logo, clases, precios, recepción, nube…).',
+          'La tarjeta revisa si ya hay clases activas y un plan activo con precio.',
           'Al terminar todo, la tarjeta desaparece. Si quieres quitarla antes, toca la ✕.',
         ],
       },

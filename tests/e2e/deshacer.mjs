@@ -18,7 +18,7 @@ await p.waitForTimeout(400);
 await p.keyboard.type('482915', { delay: 50 });
 await p.waitForTimeout(700);
 await p.keyboard.type('482915', { delay: 50 });
-await p.getByText('Deja lista tu academia').waitFor({ timeout: 8000 });
+await p.getByRole('heading', { name: 'Entrada', exact: true }).waitFor();
 
 await ir('/ajustes/disciplinas');
 await p.getByRole('button', { name: /Nueva disciplina/ }).first().click();
