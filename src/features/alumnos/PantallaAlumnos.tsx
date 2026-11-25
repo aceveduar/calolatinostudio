@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
-import { ChevronRight, ClipboardList, FileSpreadsheet, Megaphone, Plus, Search, Users } from 'lucide-react';
+import { ClipboardList, FileSpreadsheet, Megaphone, Plus, Search, Users } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAlumnos, useAlumnosArchivados, useEstadosPorAlumno, usePlanes } from '../../app/datos';
 import { esBeca } from '../../domain/becas';
@@ -84,10 +84,8 @@ export function PantallaAlumnos() {
           sub={`${(alumnos.filter((a) => a.activo).length - archivados.size).toLocaleString('es-MX')} activos${archivados.size ? ` · ${archivados.size.toLocaleString('es-MX')} archivados` : ''}`}
           accion={
             <div className="flex gap-2">
-              <Link to="/alumnos/listas">
-                <Boton variante="secundario">
-                  <ClipboardList size={18} aria-hidden="true" /> <span className="max-[359px]:sr-only">Listas</span>
-                </Boton>
+              <Link to="/alumnos/listas" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-superficie px-4 text-[15px] font-semibold ring-1 ring-inset ring-ink-100 active:bg-ink-50">
+                <ClipboardList size={18} aria-hidden="true" /> <span className="max-[359px]:sr-only">Listas</span>
               </Link>
               <Boton onClick={() => setNuevo(true)}>
                 <Plus size={18} /> Nuevo
@@ -102,28 +100,32 @@ export function PantallaAlumnos() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          aria-label="Buscar por nombre o teléfono"
           placeholder="Buscar por nombre o teléfono"
           className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
-      <Link to="/alumnos/registro" className="mb-3 flex min-h-12 items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600">
-        <Users size={18} aria-hidden="true" />
-        <span className="flex-1">Registro por enlace</span>
-        {altasNuevas > 0 && (
-          <span className="rounded-full bg-brand-600 px-2.5 py-1 text-xs text-white">
-            {altasNuevas.toLocaleString('es-MX')} {altasNuevas === 1 ? 'alta nueva' : 'altas nuevas'}
-          </span>
-        )}
-        <ChevronRight size={18} aria-hidden="true" />
-      </Link>
-      {interesadosNuevos > 0 && (
-        <Link to="/alumnos/interesados" className="mb-3 flex items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-600 ring-1 ring-brand-500/30">
-          <Megaphone size={18} className="shrink-0" />
-          <span className="flex-1">
-            {interesadosNuevos} {interesadosNuevos === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar
-          </span>
-          <ChevronRight size={18} />
-        </Link>
+      {!q.trim() && (
+        <div className="mb-2 flex flex-wrap items-center gap-x-1 text-[13px] sm:text-sm">
+          <Link to="/alumnos/registro" className="flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-semibold text-brand-600 active:bg-brand-50">
+            <Users size={16} aria-hidden="true" />
+            Registro por enlace
+            {altasNuevas > 0 && (
+              <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-xs tabular-nums">
+                {altasNuevas.toLocaleString('es-MX')}<span className="sr-only"> {altasNuevas === 1 ? 'alta nueva' : 'altas nuevas'}</span>
+              </span>
+            )}
+          </Link>
+          {interesadosNuevos > 0 && (
+            <Link to="/alumnos/interesados" className="flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-semibold text-brand-600 active:bg-brand-50">
+              <Megaphone size={16} aria-hidden="true" />
+              Interesados
+              <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-xs tabular-nums">
+                {interesadosNuevos.toLocaleString('es-MX')}<span className="sr-only"> por contactar</span>
+              </span>
+            </Link>
+          )}
+        </div>
       )}
       <Chips<Filtro>
         etiqueta="Filtrar alumnos"

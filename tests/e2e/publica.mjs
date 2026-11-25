@@ -31,8 +31,22 @@ const abrir = await page.getByRole('link', { name: /Abrir/ }).getAttribute('href
 console.log('1) página pública configurada:', ok(slug === 'calo-latino' && abrir.endsWith('/a/calo-latino')), abrir);
 
 // 2) Alumnos avisa de interesados nuevos
+await ctx.route('**/rest/v1/rpc/gestionar_alta_grupal', (r) => r.fulfill({ json: { token: 'prueba', altas: 3, abierta: true } }));
 await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
-await page.getByText(/9 interesados nuevos por contactar/).click();
+await page.setViewportSize({ width: 360, height: 780 });
+const interesados = page.getByRole('link', { name: 'Interesados 9 por contactar' });
+const registro = page.getByRole('link', { name: 'Registro por enlace 3 altas nuevas' });
+await interesados.waitFor();
+await registro.waitFor();
+console.log('   los avisos caben en una fila a 360 píxeles:', ok(
+  Math.abs((await interesados.boundingBox()).y - (await registro.boundingBox()).y) < 2,
+));
+await page.screenshot({ path: `${OUT}alumnos-listado-movil.png`, animations: 'disabled' });
+const buscar = page.getByRole('textbox', { name: 'Buscar por nombre o teléfono' });
+await buscar.fill('Mariana');
+console.log('   la búsqueda deja el espacio para los resultados:', ok(!await interesados.isVisible() && !await registro.isVisible()));
+await buscar.clear();
+await interesados.click();
 await page.getByText(/Ya se les escribió \(2\)/).waitFor();
 let t = await txt();
 console.log('2) interesados juntos por clase:', ok(/Salsa 0 · .{0,20}· 3/i.test(t) && /Bachata 0 · .{0,20}· 3/i.test(t) && /Cualquier clase · 2/i.test(t)), (t.match(/SALSA 0[^·]*·[^·]*· \d/) || [])[0]);
