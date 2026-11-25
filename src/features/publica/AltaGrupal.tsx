@@ -74,7 +74,7 @@ export function AltaGrupal({ token }: { token: string }) {
         </header>
         {portal ? (
           <div className="space-y-4" aria-live="polite">
-            <p className="text-ink-600">Abre Mi pase para ver tu QR, agregar una foto y guardar tu acceso en el celular. Tu enlace es personal.</p>
+            <p className="text-ink-600">Abre tu pase para ver el QR. En tu celular, toca <strong>Guardar mi pase</strong> para tenerlo a mano cuando llegues a clase. Tu enlace es personal.</p>
             <a href={`/p/${portal}`} className="flex min-h-12 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 font-bold text-white">Abrir Mi pase</a>
           </div>
         ) : estado === 'abierta' ? (

@@ -70,18 +70,21 @@ const abrir = async (ua, d = datos) => {
   // 3) guardar en la pantalla de inicio (Android)
   const manifiesto = await page.evaluate(() => document.querySelector('link[rel=manifest]')?.getAttribute('href'));
   console.log('3a) su propio manifiesto (abre SU portal, no la app de la academia):', ok(manifiesto === `/p/${TOKEN}/manifiesto?a=Calo%20Latino%20Studio` && (await page.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-title"]')?.getAttribute('content'))) === 'Mi Calo'), manifiesto);
-  const tarjeta = page.getByText('Ten tu pase a un toque');
-  console.log('3b) Android: "Ten tu pase a un toque" con cómo hacerlo:', ok((await tarjeta.count()) === 1 && (await page.getByText(/Agregar a la pantalla principal|Agregar a mi pantalla/).count()) >= 1));
-  await page.getByRole('button', { name: 'Ahora no' }).click();
+  const guardar = page.getByRole('button', { name: 'Guardar mi pase' });
+  await guardar.click();
+  const pasos = page.getByText(/Agregar a la pantalla principal|Agregar a mi pantalla/).first();
+  console.log('3b) Android muestra cómo guardar el pase:', ok(await pasos.isVisible()));
+  await guardar.click();
   await page.reload();
   await page.getByText('Tu pase de entrada').waitFor();
-  console.log('3c) "Ahora no" se respeta al volver a entrar:', ok((await page.getByText('Ten tu pase a un toque').count()) === 0));
+  console.log('3c) al volver se puede guardar y la ayuda empieza cerrada:', ok(await guardar.isVisible() && await guardar.getAttribute('aria-expanded') === 'false'));
   await ctx.close();
 }
 
 // 4) iPhone: se explica con Compartir → Agregar a inicio
 {
   const { ctx, page } = await abrir(IPHONE, { ...datos, eventos: [] });
+  await page.getByRole('button', { name: 'Guardar mi pase' }).click();
   await page.screenshot({ path: `${OUT}portal3-iphone.png` });
   console.log('4a) iPhone: explica Compartir → "Agregar a inicio":', ok((await page.getByText(/Agregar a inicio/).count()) === 1));
   console.log('4b) sin eventos no aparece la sección:', ok((await page.getByText('Próximos eventos').count()) === 0));
@@ -99,7 +102,7 @@ const abrir = async (ua, d = datos) => {
   await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
   await page.goto(`http://localhost:4173/p/${TOKEN}`);
   await page.getByText('Tu pase de entrada').waitFor();
-  console.log('5) ya instalada: no vuelve a ofrecerlo:', ok((await page.getByText('Ten tu pase a un toque').count()) === 0));
+  console.log('5) ya instalada: no vuelve a ofrecerlo:', ok((await page.getByRole('button', { name: 'Guardar mi pase' }).count()) === 0));
   await ctx.close();
 }
 console.log('errores:', errores.length ? errores : 'ninguno');

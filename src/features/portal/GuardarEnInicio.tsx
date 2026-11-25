@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Share, Smartphone, X } from 'lucide-react';
+import { Bookmark, ChevronDown, Share } from 'lucide-react';
 
 /**
- * "Ten tu pase a un toque": guardar el portal en la pantalla de inicio, como una app.
+ * Guardar el portal en la pantalla de inicio.
  * Android/Chrome: botón que abre la ventana de instalar (el aviso del navegador lo guarda main.tsx en
  * window.__avisoInstalar, porque puede llegar antes de que esta tarjeta exista). iPhone: no hay botón posible; se explica cómo.
- * No sale si ya está instalada, en computadora, o si el alumno dijo "Ahora no".
+ * La ayuda se abre bajo el QR y se oculta cuando el pase ya está instalado.
  */
 
 interface AvisoInstalar extends Event {
@@ -22,21 +22,14 @@ const yaInstalada = () => matchMedia('(display-mode: standalone)').matches || (n
 const esIphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const esAndroid = () => /Android/.test(navigator.userAgent);
 
-function leerCerrado(clave: string) {
-  try {
-    return localStorage.getItem(clave) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function GuardarEnInicio({ token }: { token: string }) {
-  const clave = `compas:inicio-cerrado:${token.slice(0, 8)}`;
+export function GuardarEnInicio() {
   const [aviso, setAviso] = useState<AvisoInstalar | null>(() => window.__avisoInstalar ?? null);
-  const [cerrado, setCerrado] = useState(() => leerCerrado(clave) || yaInstalada());
+  const [instalada, setInstalada] = useState(yaInstalada);
+  const [abierta, setAbierta] = useState(false);
+  const [instalando, setInstalando] = useState(false);
   useEffect(() => {
     const llego = () => setAviso(window.__avisoInstalar ?? null);
-    const instalada = () => setCerrado(true);
+    const instalada = () => setInstalada(true);
     window.addEventListener('compas:instalable', llego);
     window.addEventListener('appinstalled', instalada);
     return () => {
@@ -46,54 +39,54 @@ export function GuardarEnInicio({ token }: { token: string }) {
   }, []);
 
   const iphone = esIphone();
-  if (cerrado || (!aviso && !iphone && !esAndroid())) return null;
+  if (instalada || (!aviso && !iphone && !esAndroid())) return null;
 
-  const cerrar = () => {
+  async function instalar() {
+    if (!aviso || instalando) return;
+    setInstalando(true);
     try {
-      localStorage.setItem(clave, '1');
+      await aviso.prompt();
+      const { outcome } = await aviso.userChoice;
+      if (outcome === 'accepted') setInstalada(true);
     } catch {
-      /* sin almacenamiento: solo se oculta esta vez */
+      // Si el navegador bloquea el diálogo, quedan disponibles los pasos manuales.
+    } finally {
+      window.__avisoInstalar = null;
+      setAviso(null);
+      setInstalando(false);
     }
-    setCerrado(true);
-  };
+  }
 
   return (
-    <div className="relative flex items-start gap-3 rounded-3xl bg-superficie p-4 pr-12 ring-1 ring-ink-100">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600" aria-hidden="true">
-        <Smartphone size={22} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">Ten tu pase a un toque</p>
+    <div className="mt-2">
+      <button type="button" aria-expanded={abierta} aria-controls="guardar-pase" onClick={() => setAbierta(!abierta)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-brand-600 active:bg-brand-50">
+        <Bookmark size={17} aria-hidden="true" /> Guardar mi pase
+        <ChevronDown size={15} className={abierta ? 'rotate-180' : undefined} aria-hidden="true" />
+      </button>
+      <div id="guardar-pase" hidden={!abierta} className="rounded-2xl bg-brand-50 p-3 text-sm text-ink-700">
         {aviso ? (
-          <>
-            <p className="text-sm text-ink-500">Guárdalo en tu pantalla de inicio, como una app.</p>
+          <div className="space-y-2">
+            <p>Agrega el pase a tu pantalla de inicio para abrirlo cuando llegues a clase.</p>
             <button
               type="button"
-              onClick={async () => {
-                await aviso.prompt();
-                const { outcome } = await aviso.userChoice;
-                window.__avisoInstalar = null;
-                setAviso(null);
-                if (outcome === 'accepted') setCerrado(true);
-              }}
-              className="mt-2 h-10 rounded-xl bg-brand-50 px-4 text-sm font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-[0.98]"
+              onClick={() => void instalar()}
+              disabled={instalando}
+              className="min-h-11 rounded-xl bg-superficie px-4 font-bold text-brand-600 ring-1 ring-brand-500/20 active:scale-[0.98]"
             >
               Agregar a mi pantalla
             </button>
-          </>
+          </div>
         ) : iphone ? (
-          <p className="text-sm text-ink-700">
-            En Safari toca <Share size={15} className="inline align-[-2px]" aria-label="Compartir" /> <b>Compartir</b> y luego <b>“Agregar a inicio”</b>.
+          <p>
+            Si abriste el pase desde WhatsApp, ábrelo en Safari. Toca <Share size={15} className="inline align-[-2px]" aria-hidden="true" /> <b>Compartir</b> y luego <b>Agregar a inicio</b>.
           </p>
         ) : (
-          <p className="text-sm text-ink-700">
-            En el menú <b>⋮</b> del navegador elige <b>“Agregar a la pantalla principal”</b>.
+          <p>
+            Si abriste el pase desde WhatsApp, ábrelo en Chrome. En el menú <b>⋮</b>, elige <b>Agregar a la pantalla principal</b> o <b>Instalar aplicación</b>.
           </p>
         )}
+        <p className="mt-2 text-xs text-ink-600">Si pierdes el enlace, pide tu pase en recepción.</p>
       </div>
-      <button type="button" onClick={cerrar} className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-500 active:bg-ink-100" aria-label="Ahora no">
-        <X size={18} />
-      </button>
     </div>
   );
 }

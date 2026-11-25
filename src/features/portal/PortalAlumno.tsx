@@ -369,6 +369,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
           >
             <QrCode size={22} aria-hidden="true" /> Mostrar mi pase
           </button>
+          <GuardarEnInicio />
         </div>
 
         {!datos.alumno.foto && !datosPendientes && <SubirFoto variante="tarjeta" token={token} foto={null} nombre={datos.alumno.nombre} sinConexion={false} onListo={recargar} />}
@@ -418,8 +419,6 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
         </div>
 
         <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
-
-        <GuardarEnInicio token={token} />
 
         {!!datos.eventos?.length && <ProximosEventos eventos={datos.eventos} hoy={hoy} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} whatsapp={wa} />}
 

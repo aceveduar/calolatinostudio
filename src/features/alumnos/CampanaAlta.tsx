@@ -14,6 +14,7 @@ export function CampanaAlta() {
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [nuevas, setNuevas] = useState(0);
+  const [actualizado, setActualizado] = useState<number | null>(null);
 
   const gestionar = useCallback(async (accion: 'estado' | 'abrir' | 'cerrar') => {
     setCargando(true);
@@ -24,7 +25,8 @@ export function CampanaAlta() {
         setError('Vincula este equipo a la nube de la academia para habilitar el registro por enlace.');
         return;
       }
-      const { data, error } = await supabase.rpc('gestionar_alta_grupal', { p_academia: academia.id, p_accion: accion });
+      const { data, error } = await supabase.rpc('gestionar_alta_grupal', { p_academia: academia.id, p_accion: accion })
+        .abortSignal(AbortSignal.timeout(12_000));
       if (error) {
         setError(error.code === 'PGRST202' ? 'El registro por enlace aún no está habilitado en la base de datos.'
           : ['42501', 'PGRST301'].includes(error.code) ? 'Abre la sesión de la academia en un equipo vinculado para gestionar el enlace.'
@@ -35,6 +37,7 @@ export function CampanaAlta() {
       setCampana((anterior) => actual && anterior?.token === actual.token && !actual.recientes
         ? { ...actual, recientes: anterior.recientes } : actual);
       setNuevas(actual ? altasNuevas(actual, academia.id, usuario.id) : 0);
+      setActualizado(Date.now());
       setConfirmar(false);
       if (accion === 'cerrar') setAviso('Registro cerrado. Los pases que ya se crearon siguen funcionando.');
       if (accion === 'estado') void sincronizar();
@@ -76,7 +79,7 @@ export function CampanaAlta() {
       <div className="-mx-4"><Encabezado titulo="Registro por enlace" /></div>
       <Tarjeta className="space-y-4 p-5">
         <p className="text-sm text-ink-600">Comparte un solo enlace en el grupo de WhatsApp. Cada alumno se registra y recibe su pase al momento.</p>
-        {error && <p role="alert" className="text-sm text-brand-600">{error}</p>}
+        {error && !campana && <p role="alert" className="text-sm text-brand-600">{error}</p>}
         {cargando && <p role="status" className="text-sm text-ink-600">Consultando el registro…</p>}
         {!error && campana?.abierta && (
           <>
@@ -112,7 +115,7 @@ export function CampanaAlta() {
         {!error && !cargando && !campana?.abierta && (
           <Boton onClick={() => void gestionar('abrir')}>Abrir registro por 7 días</Boton>
         )}
-        {error && <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Reintentar</Boton>}
+        {error && !campana && <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Reintentar</Boton>}
         {aviso && <p role="status" className="text-sm font-semibold">{aviso}</p>}
       </Tarjeta>
       {campana && (
@@ -123,6 +126,15 @@ export function CampanaAlta() {
               {campana.altas.toLocaleString('es-MX')} {campana.altas === 1 ? 'alta' : 'altas'} en esta campaña
               {nuevas > 0 && ` · ${nuevas.toLocaleString('es-MX')} sin revisar`}
             </p>
+            {actualizado !== null && (
+              <p className="mt-1 text-xs text-ink-600">
+                Última consulta{' '}
+                <time dateTime={new Date(actualizado).toISOString()}>
+                  {new Date(actualizado).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                </time>
+              </p>
+            )}
+            {error && <p role="alert" className="mt-2 text-sm text-warn-600">{error} Mostramos el último conteo disponible.</p>}
           </div>
           {campana.recientes?.length ? (
             <ul className="divide-y divide-ink-100">
@@ -141,8 +153,8 @@ export function CampanaAlta() {
             <p className="text-sm text-ink-600">{campana.altas ? 'Actualiza para consultar las altas recientes.' : 'Aquí aparecerán los alumnos que se registren.'}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Actualizar altas</Boton>
-            {nuevas > 0 && campana.recientes && (
+            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>{error ? 'Reintentar' : 'Actualizar altas'}</Boton>
+            {!error && nuevas > 0 && campana.recientes && (
               <Boton variante="secundario" disabled={cargando} onClick={marcarRevisadas}>Marcar todas como revisadas</Boton>
             )}
           </div>
