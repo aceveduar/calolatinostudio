@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowDownRight, ArrowUpRight, CalendarClock, ChevronRight, GraduationCap, HeartCrack, MessageCircle, Wallet } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, CalendarClock, ChevronDown, ChevronRight, GraduationCap, HeartCrack, MessageCircle, Wallet } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, sirveEn } from '../../domain/sedes';
-import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Tarjeta, Vacio, VerMas, cx, Cargando } from '../../components/ui';
+import { Avatar, Encabezado, Etiqueta, Seccion, Segmentos, Selector, Tarjeta, Vacio, VerMas, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { historialCompleto } from '../../sync/engine';
 import { dinero } from '../../domain/dinero';
@@ -113,12 +113,12 @@ export function PantallaReportes() {
   }, [datos, actual, anterior, clases, maestros, disciplinas, dia, verSede, sedes, planes]);
 
   if (!r) return <Cargando texto="Calculando reportes…" />;
-  const etiquetaAntes = rango === 7 ? 'vs 7 días previos' : 'vs 30 días previos';
+  const etiquetaAntes = `Comparación con los ${rango} días previos`;
   const maxProm = Math.max(1, ...r.clases.map((f) => f.promedio));
 
   return (
     <div className="px-4 pb-8">
-      <div className="-mx-4 flex flex-wrap items-end justify-between gap-3 lg:mx-0">
+      <div className="-mx-4 flex flex-wrap items-end justify-between gap-x-3 lg:mx-0">
         <Encabezado titulo="Reportes" sub={`${fechaCorta(actual.desde)} – ${fechaCorta(actual.hasta)}`} />
         <div className="w-full px-4 pb-3 sm:w-64 lg:px-0">
           <Segmentos<string>
@@ -138,74 +138,24 @@ export function PantallaReportes() {
       )}
 
       {sedes.length > 0 && (
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          {['todas', PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => (
-            <button
-              key={id}
-              onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
-            >
-              {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
-            </button>
-          ))}
+        <div className="relative mb-3 inline-block max-w-full">
+          <Selector aria-label="Sede de Reportes" value={verSede} onChange={(e) => setVerSede(e.target.value)} className="h-11 pr-9 pl-3 text-sm font-semibold text-brand-600">
+            <option value="todas">Todas las sedes</option>
+            <option value={PRINCIPAL}>{nombreSede(null, sedes, academia)}</option>
+            {sedes.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+          </Selector>
+          <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-brand-600" aria-hidden="true" />
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
         <Cifra titulo="Ingresos" valor={dinero(r.ahora.ingresos)} cambio={variacion(r.ahora.ingresos, r.antes.ingresos)} pie={etiquetaAntes} destacada />
         <Cifra titulo="Asistencias" valor={r.ahora.asistencias.toLocaleString('es-MX')} cambio={variacion(r.ahora.asistencias, r.antes.asistencias)} pie={etiquetaAntes} />
         <Cifra titulo="Alumnos que vinieron" valor={r.ahora.activos.toLocaleString('es-MX')} cambio={variacion(r.ahora.activos, r.antes.activos)} pie={etiquetaAntes} />
-        <Cifra titulo="Alumnos nuevos" valor={r.ahora.nuevos.toLocaleString('es-MX')} cambio={variacion(r.ahora.nuevos, r.antes.nuevos)} pie={etiquetaAntes} />
+        <Cifra titulo={verSede === 'todas' ? 'Alumnos nuevos' : 'Altas de la academia'} valor={r.ahora.nuevos.toLocaleString('es-MX')} cambio={variacion(r.ahora.nuevos, r.antes.nuevos)} pie={etiquetaAntes} />
       </div>
+      <p className="mt-2 px-1 text-xs text-ink-500">{etiquetaAntes}</p>
 
       <TarjetaUtilidad verSede={verSede} />
-
-      {/* lo que hay que atender (dinero por renovar, alumnos por recuperar): antes estaba hasta el final */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-        <Seccion titulo={`Vencen esta semana · ${r.vencen.length}`}>
-          {r.vencen.length === 0 ? (
-            <Tarjeta>
-              <Vacio icono={<CalendarClock size={32} />} titulo="Nadie vence en los próximos 7 días" />
-            </Tarjeta>
-          ) : (
-            <Tarjeta className="divide-y divide-ink-100">
-              {(todosVencen ? r.vencen : r.vencen.slice(0, 5)).map(({ alumno, membresia, enDias }) => (
-                <FilaContacto
-                  key={membresia.id}
-                  alumnoId={alumno.id}
-                  nombre={alumno.nombre}
-                  detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Plan'} · ${fechaCorta(membresia.fin)}`}
-                  etiqueta={<Etiqueta tono="pronto">{textoDias(enDias)}</Etiqueta>}
-                  wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'vence'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre, plan: (planes.find((p) => p.id === membresia.planId)?.nombre ?? 'plan').toLowerCase(), vence: fechaLarga(membresia.fin) }))}
-                />
-              ))}
-              {r.vencen.length > 5 && <VerMas abierto={todosVencen} total={r.vencen.length} onClick={() => setTodosVencen(!todosVencen)} />}
-            </Tarjeta>
-          )}
-        </Seccion>
-
-        <Seccion titulo={`Dejaron de venir${perdidos ? ` · ${perdidos.length}` : ''}`}>
-          {!perdidos ? (
-            <Tarjeta className="p-4 text-sm text-ink-500">Revisando quién dejó de venir…</Tarjeta>
-          ) : perdidos.length === 0 ? (
-            <Tarjeta>
-              <Vacio icono={<HeartCrack size={32} />} titulo="Nadie ha dejado de venir" texto="Aquí aparecen quienes venían seguido y llevan 2 semanas sin venir." />
-            </Tarjeta>
-          ) : (
-            <Tarjeta className="divide-y divide-ink-100">
-              {(todosPerdidos ? perdidos : perdidos.slice(0, 5)).map(({ alumno, ultima, veces }) => (
-                <FilaContacto
-                  key={alumno.id}
-                  alumnoId={alumno.id}
-                  nombre={alumno.nombre}
-                  detalle={`Última vez ${fechaCorta(ultima)} · venía ${veces} veces`}
-                  wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'extrañamos'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre }))}
-                />
-              ))}
-              {perdidos.length > 5 && <VerMas abierto={todosPerdidos} total={perdidos.length} onClick={() => setTodosPerdidos(!todosPerdidos)} />}
-            </Tarjeta>
-          )}
-        </Seccion>
-      </div>
 
       <Seccion titulo="Ingresos por día">
         <Tarjeta className="p-4">
@@ -241,13 +191,63 @@ export function PantallaReportes() {
         </Seccion>
       )}
 
+      <details className="group mt-5">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 text-sm font-semibold text-ink-700 ring-1 ring-inset ring-ink-100 [&::-webkit-details-marker]:hidden">
+          <span>Seguimiento de alumnos</span>
+          <ChevronDown size={16} className="shrink-0 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+          <Seccion titulo={`Vencen esta semana · ${r.vencen.length}`}>
+            {verSede !== 'todas' && <p className="mb-2 px-1 text-xs text-ink-500">Vencimientos de toda la academia.</p>}
+            {r.vencen.length === 0 ? (
+              <Tarjeta>
+                <Vacio icono={<CalendarClock size={32} />} titulo="Nadie vence en los próximos 7 días" />
+              </Tarjeta>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {(todosVencen ? r.vencen : r.vencen.slice(0, 5)).map(({ alumno, membresia, enDias }) => (
+                  <FilaContacto
+                    key={membresia.id}
+                    alumnoId={alumno.id}
+                    nombre={alumno.nombre}
+                    detalle={`${planes.find((p) => p.id === membresia.planId)?.nombre ?? 'Plan'} · ${fechaCorta(membresia.fin)}`}
+                    etiqueta={<Etiqueta tono="pronto">{textoDias(enDias)}</Etiqueta>}
+                    wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'vence'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre, plan: (planes.find((p) => p.id === membresia.planId)?.nombre ?? 'plan').toLowerCase(), vence: fechaLarga(membresia.fin) }))}
+                  />
+                ))}
+                {r.vencen.length > 5 && <VerMas abierto={todosVencen} total={r.vencen.length} onClick={() => setTodosVencen(!todosVencen)} />}
+              </Tarjeta>
+            )}
+          </Seccion>
 
-
-
+          <Seccion titulo={`Dejaron de venir${perdidos ? ` · ${perdidos.length}` : ''}`}>
+            {!perdidos ? (
+              <Tarjeta className="p-4 text-sm text-ink-500">Revisando quién dejó de venir…</Tarjeta>
+            ) : perdidos.length === 0 ? (
+              <Tarjeta>
+                <Vacio icono={<HeartCrack size={32} />} titulo="Nadie ha dejado de venir" texto="Aquí aparecen quienes venían seguido y llevan 2 semanas sin venir." />
+              </Tarjeta>
+            ) : (
+              <Tarjeta className="divide-y divide-ink-100">
+                {(todosPerdidos ? perdidos : perdidos.slice(0, 5)).map(({ alumno, ultima, veces }) => (
+                  <FilaContacto
+                    key={alumno.id}
+                    alumnoId={alumno.id}
+                    nombre={alumno.nombre}
+                    detalle={`Última vez ${fechaCorta(ultima)} · venía ${veces} veces`}
+                    wa={waLink(alumno.telefono, armarMensaje(plantilla(academia, 'extrañamos'), { nombre: alumno.nombre.split(' ')[0], academia: academia.nombre }))}
+                  />
+                ))}
+                {perdidos.length > 5 && <VerMas abierto={todosPerdidos} total={perdidos.length} onClick={() => setTodosPerdidos(!todosPerdidos)} />}
+              </Tarjeta>
+            )}
+          </Seccion>
+        </div>
+      </details>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-6">
         <Seccion
-          titulo="Por clase · alumnos por sesión"
+          titulo="Asistencia por clase"
           accion={
             <Link to="/reportes/gastos" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
               ¿Cuánto deja cada una?
@@ -264,7 +264,7 @@ export function PantallaReportes() {
                     <span className="font-semibold">
                       {nombreClase(f.clase, disciplinas)} <span className="text-xs font-normal text-ink-500">{f.clase.horaInicio}</span>
                     </span>
-                    <span className="text-sm">
+                    <span className="shrink-0 text-right text-sm">
                       <b className="text-base">{f.promedio.toFixed(0)}</b> <span className="text-ink-500">prom · máx {f.maximo}</span>
                     </span>
                   </div>
@@ -304,7 +304,6 @@ export function PantallaReportes() {
           )}
         </Seccion>
       </div>
-
 
       <ResumenTienda pagos={r.pagosPeriodo} />
 
@@ -369,9 +368,10 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
       db.gastos.where('fecha').between(desde, hasta, true, true).toArray(),
       db.gastosFijos.toArray(),
     ]);
-    return resumenMes({ mes, pagos: pagos.filter((p) => enSede(p.sedeId)), gastos: gastos.filter((g) => enSede(g.sedeId)), fijos: fijos.filter((f) => enSede(f.sedeId)) });
+    return { sede: verSede, resumen: resumenMes({ mes, pagos: pagos.filter((p) => enSede(p.sedeId)), gastos: gastos.filter((g) => enSede(g.sedeId)), fijos: fijos.filter((f) => enSede(f.sedeId)) }) };
   }, [mes, verSede]);
-  if (!r) return null;
+  if (!r || r.sede !== verSede) return null;
+  const { resumen } = r;
   return (
     <Link to="/reportes/gastos" className="mt-2 flex items-center gap-3 rounded-2xl bg-superficie p-4 ring-1 ring-ink-100 active:bg-ink-50 lg:mt-3">
       <span className="rounded-xl bg-brand-50 p-2 text-brand-600">
@@ -379,9 +379,9 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-semibold text-ink-500">Utilidad de {nombreMes(mes).split(' ')[0].toLowerCase()}</span>
-        <span className={cx('block text-xl font-extrabold', r.utilidad < 0 && 'text-bad-600')}>{dinero(r.utilidad)}</span>
+        <span className={cx('block text-xl font-extrabold', resumen.utilidad < 0 && 'text-bad-600')}>{dinero(resumen.utilidad)}</span>
         <span className="block text-xs text-ink-500">
-          {r.gastos || r.pendiente ? `Ingresos ${dinero(r.ingresos)} − gastos ${dinero(r.gastos)}${r.pendiente ? ` · faltan fijos ~${dinero(r.pendiente)}` : ''}` : 'Registra renta, luz e internet para ver la utilidad real'}
+          {resumen.gastos || resumen.pendiente ? `Ingresos ${dinero(resumen.ingresos)} − gastos ${dinero(resumen.gastos)}${resumen.pendiente ? ` · faltan fijos ~${dinero(resumen.pendiente)}` : ''}` : 'Registra renta, luz e internet para ver la utilidad real'}
         </span>
       </span>
       <span className="flex items-center text-sm font-semibold text-brand-600">
@@ -403,8 +403,9 @@ function Cifra({ titulo, valor, cambio, pie, destacada }: { titulo: string; valo
           'Sin periodo previo'
         ) : (
           <>
-            <Flecha size={14} className={sube ? (destacada ? 'text-[#7ee2a8]' : 'text-ok-600') : destacada ? 'text-[#ff9b9b]' : 'text-bad-600'} />
-            <b className={destacada ? 'text-white' : 'text-ink-700'}>{Math.abs(cambio * 100).toFixed(0)}%</b>&nbsp;{pie}
+            {cambio !== 0 && <Flecha size={14} aria-hidden="true" className={sube ? (destacada ? 'text-[#7ee2a8]' : 'text-ok-600') : destacada ? 'text-[#ff9b9b]' : 'text-bad-600'} />}
+            <b className={destacada ? 'text-white' : 'text-ink-700'}>{cambio === 0 ? '0' : `${sube ? '+' : '−'}${Math.abs(cambio * 100).toFixed(0)}`}%</b>
+            <span className="sr-only">{pie}</span>
           </>
         )}
       </p>

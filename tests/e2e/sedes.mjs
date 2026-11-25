@@ -93,6 +93,19 @@ await page.getByText('Por sede').waitFor();
 await page.screenshot({ path: `${OUT}sede-4-reportes.png`, fullPage: true });
 t = await main();
 console.log('8) reportes por sede:', ok(/Estudio Calo \$[\d,]+/.test(t) && /Casa de Cultura \$[\d,]+/.test(t)));
+const filtroReportes = page.getByRole('combobox', { name: 'Sede de Reportes' });
+await filtroReportes.selectOption({ label: 'Casa de Cultura' });
+const seguimiento = page.getByText('Seguimiento de alumnos', { exact: true });
+console.log('   el informe distingue la sede y deja el seguimiento plegado:', ok(
+  await filtroReportes.locator('option:checked').textContent() === 'Casa de Cultura'
+  && await page.getByRole('heading', { name: 'Ingresos por día' }).isVisible()
+  && !(await page.getByRole('heading', { name: /^Vencen esta semana/ }).isVisible()),
+));
+await seguimiento.click();
+await page.getByRole('heading', { name: /^Vencen esta semana/ }).waitFor();
+await seguimiento.click();
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.screenshot({ path: `${OUT}reportes-movil.png`, animations: 'disabled' });
 await page.evaluate(() => { history.pushState(null, '', '/ajustes/sedes'); dispatchEvent(new PopStateEvent('popstate')); });
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}sede-5-ajustes.png`, fullPage: true });

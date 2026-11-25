@@ -61,6 +61,7 @@ console.log('4) caja muestra "Beca deportiva · sin costo":', ok(/Beca deportiva
 // 5) reportes
 await page.getByRole('link', { name: 'Reportes' }).click();
 await page.getByText(/Becas · \d+ activas/).waitFor();
+await page.getByText('Seguimiento de alumnos', { exact: true }).click();
 const rep = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
 const sec = await page.getByText(/Becas · \d+ activas/).locator('..');
 await sec.scrollIntoViewIfNeeded();
@@ -76,12 +77,17 @@ if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.getByRole('dialog').getByRole('button').filter({ hasText: /\d{2}:\d{2}/ }).first().click();
 }
 await page.getByPlaceholder(/Quién llegó|Buscar…/).fill(nombre.split(' ').slice(0, 2).join(' '));
-await page.waitForTimeout(400);
-// nombre + inicial del apellido: evita tocar a otro alumno con el mismo nombre
-await page.locator('main button').filter({ hasText: (() => { const [n, ap] = nombre.trim().split(/\s+/); return new RegExp(ap ? `${n} ${ap[0]}` : n); })() }).first().click();
-await page.waitForTimeout(400);
-const hoja = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
-console.log('6) becado: entrada sin cobro:', ok(hoja.includes(nombre) && /Entra con su beca/.test(hoja) && !/se cierra solo/.test(hoja) && hoja.includes(nombre + " Beca") && !/\$\d+ Listo/.test(hoja)));
+await page.locator('main button').filter({ has: page.getByText(nombre, { exact: true }) }).first().click();
+await page.getByText('Entra con su beca', { exact: true }).waitFor();
+const asistencia = await page.evaluate(async (nombreAlumno) => {
+  const { db } = window.compasDev;
+  const alumno = await db.alumnos.where('nombre').equals(nombreAlumno).first();
+  const entradas = await db.asistencias.where('alumnoId').equals(alumno.id).sortBy('createdAt');
+  const entrada = entradas.at(-1);
+  const membresia = entrada?.membresiaId ? await db.membresias.get(entrada.membresiaId) : null;
+  return { cobrada: Boolean(entrada?.pagoId), plan: membresia ? (await db.planes.get(membresia.planId))?.nombre : null };
+}, nombre);
+console.log('6) becado: entrada sin cobro:', ok(asistencia.plan === 'Beca deportiva' && !asistencia.cobrada));
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 await page.screenshot({ path: `${OUT}beca-4-entrada.png` });
 await page.keyboard.press('Escape');
