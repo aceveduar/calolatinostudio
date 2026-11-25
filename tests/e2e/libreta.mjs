@@ -64,11 +64,18 @@ await page.screenshot({ path: `${OUT}libreta-${P}-1.png`, fullPage: true });
 // 3) cobrar lo que debe desde su ficha
 await page.getByRole('link', { name: deudor }).first().click();
 await page.getByText(/Debe 1 clase/).waitFor();
+const vender = page.getByRole('button', { name: 'Vender plan', exact: true });
+console.log('   con adeudo, cobrar es la acción principal:', ok(
+  !(await vender.getAttribute('class')).includes('bg-brand-500'),
+));
 await page.screenshot({ path: `${OUT}libreta-${P}-2-ficha.png` });
 await page.getByRole('button', { name: /Cobrar lo que debe/ }).click();
 await page.getByText(/Adeudo cobrado/).waitFor();
 await page.waitForTimeout(300);
 console.log('3) adeudo cobrado y desaparece:', ok(!(await page.getByText(/Debe 1 clase/).count())));
+console.log('   al liquidarlo, vender plan recupera la prioridad:', ok(
+  (await vender.getAttribute('class')).includes('bg-brand-500'),
+));
 await page.getByRole('link', { name: 'Caja' }).first().click();
 await page.waitForTimeout(400);
 t = await body();

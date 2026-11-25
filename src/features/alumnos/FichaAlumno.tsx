@@ -11,6 +11,7 @@ import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio,
 import { actualizar } from '../../db/repo';
 import { db } from '../../db/db';
 import type { Alumno, Pago } from '../../db/types';
+import { adeudosDe, esAdeudo } from '../../domain/adeudos';
 import { NOMBRE_ANONIMO, anonimizarAlumno, fusionarAlumnos, resumenAlumno } from '../../domain/correcciones';
 import { dinero } from '../../domain/dinero';
 import { deFecha, fechaCorta, hoy, textoFechaHora } from '../../domain/fechas';
@@ -62,7 +63,7 @@ export function FichaAlumno() {
   };
 
   const historial = useLiveQuery(async () => {
-    if (!id) return { pagos: [], totalPagos: 0, asistencias: [], totalAsistencias: 0, repetidas: [] as { claseId: string; fecha: string }[], perfil: null };
+    if (!id) return { pagos: [], totalPagos: 0, asistencias: [], fiadas: [], totalAsistencias: 0, repetidas: [] as { claseId: string; fecha: string }[], perfil: null };
     const pagos = await db.pagos.where('alumnoId').equals(id).reverse().sortBy('createdAt');
     const asistencias = await db.asistencias.where('alumnoId').equals(id).filter((a) => !a.anuladaAt && !a.deletedAt).reverse().sortBy('createdAt');
     const vistos = new Set<string>();
@@ -75,7 +76,7 @@ export function FichaAlumno() {
     const a = await db.alumnos.get(id);
     const perfil = a ? perfilAlumno({ asistencias, pagos, altaEn: a.createdAt, hoy: hoy() }) : null;
     // hasta 60 de cada uno en la ficha (se ven 8 y "Ver…"); antes 20, y "Ver los 20" no cuadraba con "29 clases tomadas"
-    return { pagos: pagos.slice(0, 60), totalPagos: pagos.length, asistencias: asistencias.slice(0, 60), totalAsistencias: asistencias.length, repetidas, perfil };
+    return { pagos: pagos.slice(0, 60), totalPagos: pagos.length, asistencias: asistencias.slice(0, 60), fiadas: asistencias.filter(esAdeudo), totalAsistencias: asistencias.length, repetidas, perfil };
   }, [id]);
 
   if (alumno === undefined) return null;
@@ -83,6 +84,7 @@ export function FichaAlumno() {
 
   const sem = semaforoAlumno(estados);
   const vigentes = estados.filter((e) => e.vigente || e.membresia.inicio > hoy());
+  const adeudos = adeudosDe(historial?.fiadas ?? [], clases, planes);
   const nombre1 = alumno.nombre.split(' ')[0];
   const abrirPagoDePlan = async (pagoId: string) => {
     const p = await db.pagos.get(pagoId);
@@ -158,9 +160,9 @@ export function FichaAlumno() {
       ))}
       {alumno.notas && <p className="mt-3 rounded-xl bg-superficie px-4 py-2 text-sm text-ink-700 ring-1 ring-ink-100">{alumno.notas}</p>}
 
-      <TarjetaAdeudos alumno={alumno} />
+      <TarjetaAdeudos alumno={alumno} adeudos={adeudos} planes={planes} />
 
-      <Boton bloque onClick={() => setVender(true)} className="mt-5">
+      <Boton bloque variante={adeudos.length ? 'secundario' : 'primario'} onClick={() => setVender(true)} className="mt-4">
         <CalendarPlus size={18} aria-hidden="true" /> Vender plan
       </Boton>
 
