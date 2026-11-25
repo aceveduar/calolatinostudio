@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, ClipboardCopy, MessageCircle, PackageCheck, Plus, Search, Truck } from 'lucide-react';
 import { useAlumnos, useProductos } from '../../app/datos';
@@ -34,7 +34,7 @@ export function PantallaEncargos() {
   const avisar = useAvisos();
   const [sedeActual] = useSedeActual();
   const [nuevo, setNuevo] = useState(false);
-  const [sel, setSel] = useState<Pedido | null>(null);
+  const [params, setParams] = useSearchParams();
   const [buscar, setBuscar] = useState('');
   const datos = useLiveQuery(async () => {
     const [pedidos, productos, alumnos] = await Promise.all([
@@ -46,6 +46,14 @@ export function PantallaEncargos() {
   }, []);
   if (!datos) return <Cargando />;
   const { pedidos, productos, alumnos } = datos;
+  const pedidoId = params.get('pedido');
+  const sel = pedidos.find((p) => p.id === pedidoId);
+  const seleccionar = (id?: ID) => {
+    const siguientes = new URLSearchParams(params);
+    if (id) siguientes.set('pedido', id);
+    else siguientes.delete('pedido');
+    setParams(siguientes, { replace: true, preventScrollReset: true });
+  };
   const lista = listaProveedor(pedidos, productos);
   const enCamino = pedidos.filter((p) => p.estado === 'pedido');
   const listos = pedidos.filter((p) => listoParaEntregar(p, productos.get(p.productoId)));
@@ -62,7 +70,7 @@ export function PantallaEncargos() {
     const al = alumnos.get(p.alumnoId);
     return (
       <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
-        <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setSel(p)}>
+        <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => seleccionar(p.id)}>
           <ImagenProducto foto={prod?.foto} tam={40} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">
@@ -92,6 +100,13 @@ export function PantallaEncargos() {
           <Plus size={18} /> Nuevo
         </Boton>
       </div>
+
+      {pedidoId && !sel && (
+        <Tarjeta className="mb-3 flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+          <p>Este pedido ya no aparece entre los encargos abiertos.</p>
+          <Boton variante="secundario" onClick={() => seleccionar()}>Cerrar aviso</Boton>
+        </Tarjeta>
+      )}
 
       <label className="relative block">
         <Search size={18} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-400" aria-hidden="true" />
@@ -218,8 +233,8 @@ export function PantallaEncargos() {
       <Hoja abierta={nuevo} onCerrar={() => setNuevo(false)} titulo="Nuevo encargo">
         {nuevo && <FormEncargo sedeId={sedeActual} onHecho={() => setNuevo(false)} />}
       </Hoja>
-      <Hoja abierta={!!sel} onCerrar={() => setSel(null)} titulo={sel ? nombrePedido(sel, productos.get(sel.productoId)) : ''}>
-        {sel && <DetalleEncargo pedido={sel} producto={productos.get(sel.productoId)} alumno={alumnos.get(sel.alumnoId)} usuarioId={usuario.id} sedeId={sedeActual} onHecho={() => setSel(null)} />}
+      <Hoja abierta={!!sel} onCerrar={() => seleccionar()} titulo={sel ? nombrePedido(sel, productos.get(sel.productoId)) : ''}>
+        {sel && <DetalleEncargo key={sel.id} pedido={sel} producto={productos.get(sel.productoId)} alumno={alumnos.get(sel.alumnoId)} usuarioId={usuario.id} sedeId={sedeActual} onHecho={() => seleccionar()} />}
       </Hoja>
     </div>
   );

@@ -86,8 +86,13 @@ await page.waitForTimeout(300);
 t = await txt();
 console.log('5) encargo nuevo con anticipo queda por pedir:', ok(/Por pedir al proveedor · 1/i.test(t) && /talla 25 Doradas/.test(t)));
 
-// 6) entregar el que llegó (cobra solo el resto)
-await page.getByRole('button', { name: /Zapatillas de baile \(26\)/ }).click();
+// 6) abrir el encargo listo desde Pendientes y cobrar solo el resto.
+await ir('/pendientes');
+const directo = page.getByRole('link', { name: /Zapatillas de baile \(26\).*Por cobrar \$600/ });
+await directo.waitFor();
+console.log('6a) Pendientes identifica al alumno y el saldo:', ok((await directo.innerText()).includes(quienRecoge)));
+await directo.click();
+await page.waitForURL(/\/encargos\?pedido=/);
 const enlaceLlegada = dlg.getByRole('link', { name: 'Avisar por WhatsApp' });
 const mensajeLlegada = new URL(await enlaceLlegada.getAttribute('href')).searchParams.get('text');
 console.log('   el detalle del encargo listo conserva el aviso con el saldo:', ok(mensajeLlegada.includes('$600') && mensajeLlegada.includes('zapatillas')));

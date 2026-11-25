@@ -44,7 +44,7 @@ export function usePendientes(vivo = true) {
   const dia = hoy();
   const clases = useClases();
   const planes = usePlanes();
-  const porEntregar = usePedidosPendientes().length;
+  const porEntregar = usePedidosPendientes();
   const { interesados, encargos: porPedir } = useContadores();
   const enVivo = useLiveQuery(() => (vivo ? cargar(dia) : undefined), [dia, vivo]);
   const [foto, setFoto] = useState<Awaited<ReturnType<typeof cargar>>>();
@@ -71,7 +71,7 @@ export function usePendientes(vivo = true) {
     const deben = deudores({ asistencias: datos.fiados, alumnos: porId, clases, planes, incluirAvisados: vivo });
     const extranar = porExtranar({ asistencias: datos.asistencias, alumnos: porId, hoy: dia });
     const rentas = rentasPorCobrar({ rentas: datos.rentas, pagos: datos.pagosRenta, asistencias: datos.asistencias, clases, hoy: dia });
-    const total = renovar.length + deben.filter((d) => !d.avisoReciente).length + extranar.length + rentas.length + interesados + porEntregar + porPedir;
+    const total = renovar.length + deben.filter((d) => !d.avisoReciente).length + extranar.length + rentas.length + interesados + porEntregar.length + porPedir;
     return { renovar, deben, extranar, rentas, interesados, porEntregar, porPedir, total };
   }, [datos, planes, clases, dia, interesados, porEntregar, porPedir, vivo]);
 }

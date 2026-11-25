@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Megaphone, MessageCircle, PackageCheck, PartyPopper, Truck, WalletCards } from 'lucide-react';
+import { Check, ChevronRight, Megaphone, MessageCircle, PartyPopper, Truck, WalletCards } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Encabezado, Seccion, Tarjeta, Vacio, VerMas, Cargando } from '../../components/ui';
+import { ImagenProducto } from '../../components/ImagenProducto';
 import type { Alumno } from '../../db/types';
 import { dinero } from '../../domain/dinero';
 import { fechaCorta, fechaLarga, hoy } from '../../domain/fechas';
 import { nombreMes } from '../../domain/gastos';
 import { armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
 import { DIAS_ENTRE_COBROS, marcarAvisado, quitarAviso, type ClaveAviso } from '../../domain/pendientes';
+import { nombrePedido, restaPorPagar } from '../../domain/pedidos';
 import { waLink } from '../../domain/reportes';
 import { usePendientes } from '../../app/pendientes';
 
@@ -37,12 +39,34 @@ export function PantallaPendientes() {
         </Tarjeta>
       )}
 
-      {(interesados > 0 || porEntregar > 0 || porPedir > 0) && (
+      {(interesados > 0 || porPedir > 0) && (
         <Tarjeta className="divide-y divide-ink-100">
           {interesados > 0 && <Atajo a="/alumnos/interesados" icono={<Megaphone size={20} />} texto={`${interesados} ${interesados === 1 ? 'interesado nuevo' : 'interesados nuevos'} por contactar`} />}
-          {porEntregar > 0 && <Atajo a="/encargos" icono={<PackageCheck size={20} />} texto={`${porEntregar} ${porEntregar === 1 ? 'pedido listo' : 'pedidos listos'} para entregar`} />}
           {porPedir > 0 && <Atajo a="/encargos" icono={<Truck size={20} />} texto={`${porPedir} ${porPedir === 1 ? 'encargo' : 'encargos'} por pedir al proveedor`} />}
         </Tarjeta>
+      )}
+
+      {porEntregar.length > 0 && (
+        <Seccion titulo={`Pedidos listos para entregar · ${porEntregar.length}`}>
+          <Lista items={porEntregar} fila={({ pedido, producto, alumno }) => {
+            const saldo = restaPorPagar(pedido);
+            return (
+              <Link key={pedido.id} to={`/encargos?pedido=${encodeURIComponent(pedido.id)}`} className="flex min-h-14 items-center gap-3 px-3 py-2.5 active:bg-ink-50">
+                <ImagenProducto foto={producto?.foto} tam={40} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{alumno?.nombre ?? 'Alumno'}</span>
+                  <span className="block text-xs text-ink-600">
+                    {nombrePedido(pedido, producto)}{pedido.cantidad > 1 && ` ×${pedido.cantidad}`}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right text-xs font-semibold text-brand-600">
+                  {saldo ? `Por cobrar ${dinero(saldo)}` : 'Sin saldo'}
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-ink-300" aria-hidden="true" />
+              </Link>
+            );
+          }} />
+        </Seccion>
       )}
 
       {renovar.length > 0 && (
