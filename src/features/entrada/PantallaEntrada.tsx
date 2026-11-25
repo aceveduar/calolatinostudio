@@ -57,7 +57,7 @@ export function PantallaEntrada() {
   const sedes = useSedes();
   const [sedeActual, cambiarSede] = useSedeActual();
   // Solo las clases de la sede donde está este equipo
-  const clases = useMemo(() => todasLasClases.filter((c) => mismaSede(c.sedeId, sedeActual)), [todasLasClases, sedeActual]);
+  const clases = useMemo(() => todasLasClases.filter((c) => c.activo && mismaSede(c.sedeId, sedeActual)), [todasLasClases, sedeActual]);
   const [elegirSede, setElegirSede] = useState(false);
   const [elegirClase, setElegirClase] = useState(false);
   const disciplinas = useDisciplinas();
@@ -634,7 +634,7 @@ export function PantallaEntrada() {
       >
         {elegirClase && (
           <div className="space-y-2">
-            {(verTodas || !deHoy.length ? clases.filter((c) => c.activo) : deHoy).map((c) => {
+            {(verTodas || !deHoy.length ? clases : deHoy).map((c) => {
               const activa = clase?.id === c.id;
               const n = conteo.get(c.id) ?? 0;
               return (

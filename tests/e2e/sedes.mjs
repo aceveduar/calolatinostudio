@@ -112,5 +112,13 @@ const registro = await page.evaluate(async (clase) => {
 }, clasesDePrueba.cultura);
 console.log('9b) el cambio sugerido abre esa clase y cobra en su sede:', ok(registro?.clase === clasesDePrueba.cultura && registro.sede === clasesDePrueba.casa));
 
+// La sugerencia deja seleccionada la clase. Un cambio de horario debe reflejarse
+// y una clase desactivada debe salir de Entrada aunque estuviera seleccionada.
+await page.evaluate((id) => window.compasDev.db.clases.update(id, { horaInicio: '11:20' }), clasesDePrueba.cultura);
+await page.getByRole('button', { name: /Clase: .*11:20.*Casa de Cultura/ }).waitFor();
+await page.evaluate((id) => window.compasDev.db.clases.update(id, { activo: false }), clasesDePrueba.cultura);
+await page.getByRole('button', { name: /Hoy no hay clases.*Elegir clase/ }).waitFor();
+console.log('10) Entrada refleja la hora nueva y descarta la clase desactivada:', ok((await page.getByRole('button', { name: /^Clase:/ }).count()) === 0));
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
