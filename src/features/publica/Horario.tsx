@@ -3,7 +3,8 @@ import { sinPartirNivel } from '../../domain/nombres';
 import { ChevronRight, MessageCircle } from 'lucide-react';
 import { cx } from '../../components/ui';
 import { dinero } from '../../domain/dinero';
-import { DIAS_CORTOS } from '../../domain/fechas';
+import { aFecha, DIAS_CORTOS, sumarDias } from '../../domain/fechas';
+import { horarioEnFecha } from '../../domain/miPortal';
 import { type DatosPublica } from '../../domain/publica';
 import { DIAS_LARGOS, SEMANA, horaFin, type Estados, minutos, enCuanto } from './comun';
 
@@ -11,7 +12,7 @@ import { DIAS_LARGOS, SEMANA, horaFin, type Estados, minutos, enCuanto } from '.
  * Horario por día: abre en hoy (o el siguiente día con clases), con "Ahora" y "Siguiente" en vivo.
  * "Toda la semana" muestra todo junto, para quien quiere planear.
  */
-export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPublica['clases']; estados: Estados; onApartar?: (id: string) => void; wa: (c: DatosPublica['clases'][number], dia: number) => string | null }) {
+export function Horario({ clases, sede, estados, onApartar, wa }: { clases: DatosPublica['clases']; sede?: string | null; estados: Estados; onApartar?: (id: string) => void; wa: (c: DatosPublica['clases'][number], dia: number) => string | null }) {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setAhora(new Date()), 60_000);
@@ -19,16 +20,25 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
   }, []);
   const hoyDia = ahora.getDay();
   const min = ahora.getHours() * 60 + ahora.getMinutes();
-  const conClase = SEMANA.filter((x) => clases.some((c) => c.dias.includes(x)));
+  const calcularDia = (x: number) => {
+    const fecha = sumarDias(aFecha(ahora), (x - hoyDia + 7) % 7);
+    return clases.filter((c) => c.dias.includes(x)).map((c) => horarioEnFecha(c, fecha))
+      .filter((c) => c !== null)
+      .filter((c) => sede === undefined || (c.sedeCambioId === undefined ? c.sede_id : c.sedeCambioId) === sede)
+      .sort((a, b) => a.hora.localeCompare(b.hora));
+  };
+  const porDia = new Map(SEMANA.map((x) => [x, calcularDia(x)]));
+  const delDia = (x: number) => porDia.get(x) ?? [];
+  const conClase = SEMANA.filter((x) => porDia.get(x)?.length);
   // hoy, o el siguiente día que tenga clases
   const porDefecto = [0, 1, 2, 3, 4, 5, 6].map((k) => (hoyDia + k) % 7).find((x) => conClase.includes(x)) ?? 'semana';
   const [elegido, setElegido] = useState<number | 'semana' | null>(null);
   const dia = elegido !== null && (elegido === 'semana' || conClase.includes(elegido)) ? elegido : porDefecto;
-  const delDia = (x: number) => clases.filter((c) => c.dias.includes(x)).sort((a, b) => a.hora.localeCompare(b.hora));
   // en vivo (solo hoy): la que está pasando y la siguiente
   const deHoy = delDia(hoyDia);
   const enCurso = new Set(deHoy.filter((c) => minutos(c.hora) <= min && min < minutos(c.hora) + c.duracion).map((c) => c.id));
   const siguiente = deHoy.find((c) => minutos(c.hora) > min);
+  if (!conClase.length) return <p className="mt-6 text-ink-500">Sin clases programadas en los próximos días.</p>;
 
   // sin onApartar (alumno que viene de su portal) la clase solo se ve: no es botón
   const Fila = onApartar ? 'button' : 'div';
@@ -55,6 +65,7 @@ export function Horario({ clases, estados, onApartar, wa }: { clases: DatosPubli
             )}
             {esSiguiente && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-extrabold whitespace-nowrap text-brand-600">{enCuanto(minutos(c.hora) - min)}</span>}
           </span>
+          {c.sedeCambio && <span className="block text-xs font-semibold text-brand-600">Cambio de esta fecha · {c.sedeCambio}</span>}
           {e?.texto && <span className={cx('block text-xs font-semibold', e.aceptaNuevos ? 'text-ok-600' : 'text-ink-500')}>{e.texto}</span>}
         </span>
         <span className="text-right">

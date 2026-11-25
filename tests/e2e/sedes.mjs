@@ -120,5 +120,43 @@ await page.evaluate((id) => window.compasDev.db.clases.update(id, { activo: fals
 await page.getByRole('button', { name: /Hoy no hay clases.*Elegir clase/ }).waitFor();
 console.log('10) Entrada refleja la hora nueva y descarta la clase desactivada:', ok((await page.getByRole('button', { name: /^Clase:/ }).count()) === 0));
 
+const puntual = await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const base = await db.clases.toCollection().first();
+  const id = crypto.randomUUID();
+  await db.clases.put({ ...base, id, nivel: 'Prueba puntual', dias: [6], horaInicio: '18:00', activo: true, sedeId: null, curso: null, excepciones: null, precioSuelta: null });
+  return id;
+});
+await page.evaluate(() => {
+  history.pushState(null, '', '/agenda');
+  dispatchEvent(new PopStateEvent('popstate'));
+});
+await page.getByRole('button', { name: 'Cambiar solo esta fecha', exact: true }).click();
+const cambioPuntual = page.getByRole('dialog', { name: 'Cambiar solo esta fecha' });
+const elegirClasePuntual = cambioPuntual.locator(`select:has(option[value="${puntual}"])`);
+await elegirClasePuntual.selectOption(puntual);
+await cambioPuntual.getByRole('button', { name: 'Guardar solo esta fecha' }).click();
+await page.getByText(/Prueba puntual · Cancelada/).waitFor();
+await page.getByRole('button', { name: 'Cambiar solo esta fecha', exact: true }).click();
+await elegirClasePuntual.selectOption(puntual);
+await cambioPuntual.locator('select:has(option[value="mover"])').selectOption('mover');
+await cambioPuntual.getByLabel('Hora nueva').fill('19:00');
+await cambioPuntual.locator(`select:has(option[value="${clasesDePrueba.casa}"])`).selectOption(clasesDePrueba.casa);
+await cambioPuntual.getByRole('button', { name: 'Guardar solo esta fecha' }).click();
+await page.getByText(/Prueba puntual · 19:00 · Casa de Cultura/).waitFor();
+await page.getByRole('link', { name: 'Entrada', exact: true }).click();
+await page.getByRole('button', { name: /Clase: .*Prueba puntual.*19:00.*Casa de Cultura/ }).waitFor();
+await page.getByRole('button', { name: /Cobrar \$40 sin nombre/ }).click();
+await page.getByRole('button', { name: 'Listo', exact: true }).click();
+const cambioGuardado = await page.evaluate(async (id) => {
+  const { db } = window.compasDev;
+  const base = await db.clases.get(id);
+  const asistencia = await db.asistencias.where('[claseId+fecha]').equals([id, '2026-11-14']).first();
+  const pago = asistencia?.pagoId ? await db.pagos.get(asistencia.pagoId) : null;
+  return { horaSemanal: base.horaInicio, sedeSemanal: base.sedeId, sedeCobro: pago?.sedeId };
+}, puntual);
+console.log('11) Agenda cancela o traslada una fecha y cobra en la nueva sede:', ok(cambioGuardado.horaSemanal === '18:00'
+  && cambioGuardado.sedeSemanal === null && cambioGuardado.sedeCobro === clasesDePrueba.casa));
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

@@ -133,7 +133,7 @@ const consulta = detalle.getByRole('link', { name: 'Consultar por WhatsApp' });
 await detalle.getByRole('button', { name: 'M', exact: true }).click();
 const mensaje = new URL(await consulta.getAttribute('href')).searchParams.get('text');
 console.log('10) tienda: detalle con foto ampliada, descripción y variante en WhatsApp:', ok(
-  ctx.pages().length === 1 && await detalle.getByText('Sobre pedido', { exact: true }).isVisible() &&
+  ctx.pages().length === 1 && await detalle.getByText('Sobre pedido. Pregunta por el plazo de entrega.', { exact: true }).isVisible() &&
   await detalle.locator('img').getAttribute('width') === '224' && mensaje.includes('Playera Calo (M)'),
 ));
 await page.keyboard.press('Escape');

@@ -16,6 +16,7 @@ import { DIAS_CORTOS, deFecha, fechaCorta, hoy, sumarDias } from '../../domain/f
 import { mesDe, nombreMes, rangoMes, type Mes } from '../../domain/gastos';
 import { waLink } from '../../domain/reportes';
 import { METODOS } from '../../domain/planes';
+import { CambiarFechaClase } from './CambiarFechaClase';
 
 const COLOR_RENTA = '#7c4ddb';
 const lunesDe = (f: Fecha) => sumarDias(f, -((diaSemana(f) + 6) % 7));
@@ -54,8 +55,14 @@ export function PantallaAgenda() {
   // salón que se ve (null = principal); con un solo salón se ve todo
   const [salon, setSalon] = useState<ID | null>(null);
   const [gestionSalones, setGestionSalones] = useState(false);
+  const [cambiarFecha, setCambiarFecha] = useState<{ fecha: Fecha; clase?: Clase } | null>(null);
+  const avisar = useAvisos();
   const nombreSalon = (id: ID | null | undefined) => (id ? (salones.find((x) => x.id === id)?.nombre ?? 'Salón') : 'Salón principal');
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i)), [lunes]);
+  const cambios = dias.flatMap((fecha) => clases.flatMap((clase) => {
+    const cambio = clase.excepciones?.[fecha];
+    return cambio && clase.activo ? [{ fecha, clase, cambio }] : [];
+  }));
   const estaSemana = lunes === lunesDe(hoy());
   // El mes de los cobros: el de la semana que se ve (el jueves decide si la semana cruza de mes)
   const mes: Mes = mesDe(sumarDias(lunes, 3));
@@ -115,6 +122,16 @@ export function PantallaAgenda() {
 
       {vista === 'semana' && (
         <>
+        {esDueno && <Boton variante="secundario" className="mb-3" onClick={() => setCambiarFecha({ fecha: lunes > hoy() ? lunes : hoy() })}>Cambiar solo esta fecha</Boton>}
+        {cambios.length > 0 && (
+          <Tarjeta className="mb-3 space-y-1 p-3 text-sm">
+            <h2 className="font-bold">Cambios de esta semana</h2>
+            {cambios.map(({ fecha, clase, cambio }) => (
+              <p key={fecha + clase.id}>{fechaCorta(fecha)} · {nombreClase(clase, disciplinas)} · {'cancelada' in cambio
+                ? 'Cancelada' : `${cambio.hora} · ${nombreSede(cambio.sede, sedes, academia)}`}</p>
+            ))}
+          </Tarjeta>
+        )}
         {pendiente > 0 && (
           <button onClick={() => setVista('rentas')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-left text-sm text-warn-600 active:brightness-95">
             <span className="flex-1">
@@ -148,7 +165,8 @@ export function PantallaAgenda() {
       </p>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {dias.map((f) => (
-          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined} onRenta={abrirBloque} />
+          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined}
+            onRenta={abrirBloque} onClase={esDueno && f >= hoy() ? (clase) => setCambiarFecha({ fecha: f, clase }) : undefined} />
         ))}
       </div>
         </>
@@ -231,6 +249,12 @@ export function PantallaAgenda() {
         </Seccion>
       )}
 
+      <Hoja abierta={Boolean(cambiarFecha)} onCerrar={() => setCambiarFecha(null)} titulo="Cambiar solo esta fecha">
+        {cambiarFecha && <CambiarFechaClase clases={clases} fechaInicial={cambiarFecha.fecha} claseInicial={cambiarFecha.clase} onListo={() => {
+          setCambiarFecha(null);
+          avisar('Cambio guardado para esa fecha');
+        }} />}
+      </Hoja>
       <Hoja abierta={!!editar} onCerrar={() => setEditar(null)} titulo={editar === 'nueva' ? 'Apartar el salón' : editar && 'extraDe' in editar ? `Hora extra · ${editar.extraDe.nombre}` : 'Renta del salón'}>
         {editar && (
           <FormRenta
@@ -259,7 +283,7 @@ export function PantallaAgenda() {
   );
 }
 
-function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: Fecha; clases: Clase[]; rentas: Renta[]; disciplinas: Disciplina[]; salonId?: ID | null; onRenta?: (r: Renta) => void }) {
+function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta, onClase }: { fecha: Fecha; clases: Clase[]; rentas: Renta[]; disciplinas: Disciplina[]; salonId?: ID | null; onRenta?: (r: Renta) => void; onClase?: (clase: Clase) => void }) {
   const bloques = bloquesDelDia(fecha, clases, rentas, salonId);
   const libres = huecos(bloques);
   const esHoy = fecha === hoy();
@@ -292,6 +316,10 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta }: { fecha: 
           );
           return r && onRenta ? (
             <button key={i} onClick={() => onRenta(r)} className="flex min-h-10 w-full items-center gap-2 rounded-lg bg-[#7c4ddb]/8 px-1.5 py-2 text-left active:bg-[#7c4ddb]/15">
+              {contenido}
+            </button>
+          ) : b.clase && onClase ? (
+            <button key={i} type="button" onClick={() => onClase(b.clase!)} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left active:bg-ink-50">
               {contenido}
             </button>
           ) : (

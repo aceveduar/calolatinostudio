@@ -360,6 +360,7 @@ alter table academias add column if not exists slug text;
 alter table academias add column if not exists whatsapp text;
 alter table academias add column if not exists pagina jsonb;
 alter table clases add column if not exists curso jsonb;
+alter table clases add column if not exists excepciones jsonb;
 alter table productos add column if not exists costo int;
 alter table pagos add column if not exists costo int;
 alter table alumnos add column if not exists foto text;
@@ -495,6 +496,23 @@ $$;
 revoke execute on function disponibles_producto(productos) from public, anon, authenticated;
 
 -- ---------- portal del alumno (enlace personal, sin cuenta) ----------
+
+create or replace function public.excepciones_horario(p_cambios jsonb, p_academia uuid)
+returns jsonb language sql stable set search_path = ''
+as $$
+  select coalesce(jsonb_object_agg(e.key, case when e.value->'cancelada' = 'true'::jsonb
+    then jsonb_build_object('cancelada', true)
+    else jsonb_build_object('hora', e.value->>'hora', 'sede_id', s.id, 'nombre_sede', coalesce(
+      s.nombre, nullif(a.sede_principal, ''), 'Sede principal')) end), '{}'::jsonb)
+  from public.academias a
+  cross join lateral jsonb_each(case when jsonb_typeof(p_cambios) = 'object' then p_cambios else '{}'::jsonb end) e
+  left join public.sedes s on s.academia_id = a.id and s.id::text = e.value->>'sede' and s.deleted_at is null
+  where a.id = p_academia
+    and e.key between ((now() at time zone 'America/Mexico_City')::date - 1)::text
+                  and ((now() at time zone 'America/Mexico_City')::date + 7)::text
+    and (e.value->'cancelada' = 'true'::jsonb or e.value->>'hora' ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')
+$$;
+revoke all on function public.excepciones_horario(jsonb, uuid) from public, anon, authenticated;
 -- Lo único que puede llamar alguien sin sesión. Recibe el token secreto del enlace (≥ 128 bits, no adivinable)
 -- y devuelve SOLO los datos de ese alumno: nombre, código de su QR, planes recientes, últimas clases
 -- y los productos que la academia marcó "en línea". Nunca teléfono, notas, pagos ni datos de otros.
@@ -519,7 +537,8 @@ begin
     -- su horario: las clases a las que ha ido en las últimas semanas y las de su plan (para "tu próxima clase")
     'horario', coalesce((
       select jsonb_agg(jsonb_build_object('clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
-                                          'hora', k.hora_inicio, 'duracion', k.duracion_min) order by k.hora_inicio)
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min,
+                                          'excepciones', public.excepciones_horario(k.excepciones, a.academia_id)) order by k.hora_inicio)
       from clases k left join disciplinas d on d.id = k.disciplina_id
       where k.academia_id = a.academia_id and k.activo and k.deleted_at is null and (
         k.id in (select s.clase_id from asistencias s where s.alumno_id = a.id and s.anulada_at is null and s.deleted_at is null and s.fecha >= hoy - 45)
@@ -667,7 +686,8 @@ begin
                        from sedes s where s.academia_id = ac.id and s.activo and s.deleted_at is null), '[]'::jsonb),
     'clases', coalesce((
       select jsonb_agg(jsonb_build_object('id', k.id, 'clase', trim(coalesce(d.nombre, 'Clase') || ' ' || k.nivel), 'color', d.color, 'dias', k.dias,
-                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta, 'curso', k.curso, 'disciplina', d.nombre) order by k.hora_inicio)
+                                          'hora', k.hora_inicio, 'duracion', k.duracion_min, 'sede_id', k.sede_id, 'precio', k.precio_suelta, 'curso', k.curso, 'disciplina', d.nombre,
+                                          'excepciones', public.excepciones_horario(k.excepciones, ac.id)) order by k.hora_inicio)
       from clases k left join disciplinas d on d.id = k.disciplina_id
       where k.academia_id = ac.id and k.activo and k.deleted_at is null
     ), '[]'::jsonb),

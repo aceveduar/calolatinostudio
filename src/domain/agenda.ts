@@ -7,6 +7,7 @@ import type { Asistencia, Clase, Fecha, ID, MetodoPago, Pago, Renta } from '../d
 import { deFecha, diasEntre, hoy, minutosDelDia, sumarDias } from './fechas';
 import { claveSede } from './sedes';
 import { rangoMes, type Mes } from './gastos';
+import { clasesDelDia } from './clases';
 
 /** Horario en que se muestran los huecos libres. */
 export const ABRE = 7 * 60;
@@ -40,10 +41,8 @@ export interface Bloque {
 }
 
 export function bloquesDelDia(f: Fecha, clases: Clase[], rentas: Renta[], salonId?: ID | null): Bloque[] {
-  const d = diaSemana(f);
   return [
-    ...clasesDelSalon(clases, salonId)
-      .filter((c) => c.dias.includes(d))
+    ...clasesDelSalon(clasesDelDia(clases, deFecha(f)), salonId)
       .map((c) => ({ inicio: minutosDelDia(c.horaInicio), fin: finMin(c.horaInicio, c.duracionMin), clase: c })),
     ...rentasVigentes(rentas, salonId)
       .filter((r) => rentaOcupa(r, f))

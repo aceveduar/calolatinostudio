@@ -1,5 +1,12 @@
-import type { Clase } from '../db/types';
+import type { Clase, Fecha } from '../db/types';
 import { aFecha, minutosDelDia } from './fechas';
+
+export function claseEnFecha(clase: Clase, fecha: Fecha): Clase | null {
+  const cambio = clase.excepciones?.[fecha];
+  if (!cambio) return clase;
+  if ('cancelada' in cambio) return null;
+  return { ...clase, horaInicio: cambio.hora, sedeId: cambio.sede, salonId: cambio.salon };
+}
 
 function enVentanaDeEntrada(clase: Clase, minuto: number): boolean {
   const inicio = minutosDelDia(clase.horaInicio);
@@ -22,8 +29,13 @@ export function claseEnOtraSede(clases: Clase[], sedeActual: string | null, ahor
 
 export function clasesDelDia(clases: Clase[], fecha: Date = new Date()): Clase[] {
   const dia = fecha.getDay();
+  const fechaLocal = aFecha(fecha);
   return clases
-    .filter((c) => c.activo && !c.deletedAt && c.dias.includes(dia))
+    .flatMap((c) => {
+      if (!c.activo || c.deletedAt || !c.dias.includes(dia)) return [];
+      const efectiva = claseEnFecha(c, fechaLocal);
+      return efectiva ? [efectiva] : [];
+    })
     .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
 }
 

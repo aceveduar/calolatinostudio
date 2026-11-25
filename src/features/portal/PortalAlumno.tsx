@@ -774,6 +774,7 @@ function ProximaClaseTarjeta({ horario, slug }: { horario: ClaseHorario[]; slug:
           </p>
           <p className="text-sm text-ink-500">
             {prox.clase.hora} – {horaFin(prox.clase.hora, prox.clase.duracion)}
+            {prox.clase.sedeCambio && ` · ${prox.clase.sedeCambio}`}
           </p>
         </div>
       </div>

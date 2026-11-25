@@ -7,6 +7,14 @@ import { actualizar, crear, enTransaccion } from '../db/repo';
 import type { Asistencia, Fecha, ID, Membresia, MetodoPago, Pago, Plan } from '../db/types';
 import { hoy, sumarDias, sumarMeses } from './fechas';
 import { conSede } from './sedes';
+import { claseEnFecha } from './clases';
+
+export async function claseParaRegistrar(id: ID, fecha: Fecha) {
+  const base = await db.clases.get(id);
+  const clase = base ? claseEnFecha(base, fecha) : undefined;
+  if (clase === null || clase?.activo === false || clase?.deletedAt) throw new Error('Esta clase no está disponible hoy.');
+  return clase;
+}
 
 export function calcularFin(plan: Plan, inicio: Fecha): Fecha {
   if (plan.tipo === 'mensual') return sumarDias(sumarMeses(inicio, 1), -1);
@@ -29,15 +37,19 @@ export async function entrarConMembresia(p: {
   membresiaId: ID;
   usuarioId: ID;
 }): Promise<Asistencia> {
-  return crear('asistencias', {
-    alumnoId: p.alumnoId,
-    nombreVisitante: null,
-    claseId: p.claseId,
-    fecha: hoy(),
-    membresiaId: p.membresiaId,
-    pagoId: null,
-    usuarioId: p.usuarioId,
-    anuladaAt: null,
+  return enTransaccion(async () => {
+    const fecha = hoy();
+    await claseParaRegistrar(p.claseId, fecha);
+    return crear('asistencias', {
+      alumnoId: p.alumnoId,
+      nombreVisitante: null,
+      claseId: p.claseId,
+      fecha,
+      membresiaId: p.membresiaId,
+      pagoId: null,
+      usuarioId: p.usuarioId,
+      anuladaAt: null,
+    });
   });
 }
 
@@ -52,7 +64,8 @@ export async function cobrarClaseSuelta(p: {
   usuarioId: ID;
 }): Promise<{ pago: Pago; asistencia: Asistencia }> {
   return enTransaccion(async () => {
-    const clase = await db.clases.get(p.claseId);
+    const fecha = hoy();
+    const clase = await claseParaRegistrar(p.claseId, fecha);
     const pago = await crear('pagos', {
       ...conSede(clase?.sedeId),
       alumnoId: p.alumnoId,
@@ -61,7 +74,7 @@ export async function cobrarClaseSuelta(p: {
       monto: p.monto ?? p.plan.precio,
       metodo: p.metodo,
       usuarioId: p.usuarioId,
-      fecha: hoy(),
+      fecha,
       anuladoAt: null,
       anuladoMotivo: null,
       anuladoPor: null,
@@ -70,7 +83,7 @@ export async function cobrarClaseSuelta(p: {
       alumnoId: p.alumnoId,
       nombreVisitante: p.alumnoId ? null : p.nombreVisitante?.trim() || 'Visitante',
       claseId: p.claseId,
-      fecha: hoy(),
+      fecha,
       membresiaId: null,
       pagoId: pago.id,
       usuarioId: p.usuarioId,
@@ -100,7 +113,7 @@ export async function venderPlan(p: {
 }): Promise<{ pago: Pago; membresia: Membresia }> {
   if (p.plan.grupos && (p.claseIds?.length ?? 0) !== p.plan.grupos) throw new Error(`Elige ${p.plan.grupos === 1 ? 'la clase' : `las ${p.plan.grupos} clases`} que cubre`);
   return enTransaccion(async () => {
-    const clase = p.entrarAClaseId ? await db.clases.get(p.entrarAClaseId) : undefined;
+    const clase = p.entrarAClaseId ? await claseParaRegistrar(p.entrarAClaseId, hoy()) : undefined;
     const pago = await crear('pagos', {
       ...conSede(clase ? clase.sedeId : p.sedeId),
       alumnoId: p.alumnoId,

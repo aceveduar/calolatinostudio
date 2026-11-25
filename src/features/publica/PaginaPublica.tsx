@@ -6,7 +6,7 @@ import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx, Hoja } from '../../components/ui';
 import { ImagenProducto } from '../../components/ImagenProducto';
 import { dinero } from '../../domain/dinero';
-import { hoy } from '../../domain/fechas';
+import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { estadoCurso } from '../../domain/cursos';
 import { PRINCIPAL } from '../../domain/sedes';
 import { comoLlegar, urlRed, type DatosPublica, REDES, NOMBRE_RED } from '../../domain/publica';
@@ -101,7 +101,12 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     if (!de || !supabase) return;
     void supabase.rpc('invitado_por', { p_slug: slug, p_de: de }).then(({ data }) => typeof data === 'string' && setInvita(data));
   }, [de, slug]);
-  const clasesVista = clasesSede.filter((c) => !disciplina || disciplinaDe(c) === disciplina);
+  const clasesVista = d.clases.filter((c) => !disciplina || disciplinaDe(c) === disciplina);
+  const fechaActual = hoy();
+  const cambiosHorario = d.clases.flatMap((c) => Object.entries(c.excepciones ?? {})
+    .filter(([fecha]) => fecha >= fechaActual && fecha <= sumarDias(fechaActual, 6))
+    .map(([fecha, cambio]) => ({ id: c.id, nombre: c.clase, fecha, cambio })))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
   // los planes "solo de la sede principal" llevan un id fijo (no hay registro de la sede principal)
   const planesSede = d.planes.filter((x) => !x.sede_id || x.sede_id === (sede ?? PRINCIPAL));
   const suelta = planesSede.find((x) => x.tipo === 'suelta' && x.sede_id) ?? planesSede.find((x) => x.tipo === 'suelta');
@@ -419,10 +424,18 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               </div>
             )}
           </div>
+          {cambiosHorario.length > 0 && (
+            <div className="mt-4 space-y-1 rounded-2xl bg-warn-50 p-3 text-sm text-ink-800">
+              <h3 className="font-bold">Cambios de horario</h3>
+              {cambiosHorario.map(({ id, nombre, fecha, cambio }) => (
+                <p key={id + fecha}>{fechaCorta(fecha)} · {nombre} · {'cancelada' in cambio ? 'Cancelada' : `${cambio.hora}${cambio.nombre_sede ? ` · ${cambio.nombre_sede}` : ''}`}</p>
+              ))}
+            </div>
+          )}
           {clasesVista.length === 0 ? (
             <p className="mt-6 text-ink-500">Pronto publicaremos horarios aquí.</p>
           ) : (
-            <Horario clases={clasesVista} estados={estados} onApartar={yo ? undefined : apartar} wa={(c, dd) => waCon(`Hola, quiero información de la clase de ${c.clase} (${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}) en ${d.academia.nombre}.`)} />
+            <Horario clases={clasesVista} sede={sede} estados={estados} onApartar={yo ? undefined : apartar} wa={(c, dd) => waCon(`Hola, quiero información de la clase de ${c.clase} (${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}) en ${d.academia.nombre}.`)} />
           )}
         </Seccion>
 

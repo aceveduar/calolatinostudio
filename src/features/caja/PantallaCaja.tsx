@@ -18,6 +18,7 @@ import { aCentavos, dinero } from '../../domain/dinero';
 import { fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';
 import { anularPago } from '../../domain/operaciones';
 import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
+import { claseEnFecha } from '../../domain/clases';
 
 export function PantallaCaja() {
   const [fecha, setFecha] = useState(hoy());
@@ -35,7 +36,7 @@ export function PantallaCaja() {
   const [verSede, setVerSede] = useState<string | null>(null);
   const k = verSede ?? claveSede(sedeActual);
   const enSede = (sedeId: string | null | undefined) => k === 'todas' || claveSede(sedeId) === k;
-  const sedeDeClase = new Map(clases.map((c) => [c.id, c.sedeId]));
+  const sedeDeClase = new Map(clases.map((c) => [c.id, (claseEnFecha(c, fecha) ?? c).sedeId]));
 
   const datos = useLiveQuery(async () => {
     const movimientos = await db.pagos.where('fecha').equals(fecha).filter((p) => enSede(p.sedeId)).toArray();

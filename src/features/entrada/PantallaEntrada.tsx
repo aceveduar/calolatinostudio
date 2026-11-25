@@ -15,7 +15,7 @@ import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Alumno, Clase, ID, MetodoPago } from '../../db/types';
-import { claseEnOtraSede, claseSugerida, clasesDelDia } from '../../domain/clases';
+import { claseEnFecha, claseEnOtraSede, claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
@@ -57,7 +57,12 @@ export function PantallaEntrada() {
   const sedes = useSedes();
   const [sedeActual, cambiarSede] = useSedeActual();
   // Solo las clases de la sede donde está este equipo
-  const clases = useMemo(() => todasLasClases.filter((c) => c.activo && mismaSede(c.sedeId, sedeActual)), [todasLasClases, sedeActual]);
+  const fechaEntrada = hoy();
+  const clases = useMemo(() => todasLasClases
+    .flatMap((c) => {
+      const efectiva = c.activo ? claseEnFecha(c, fechaEntrada) : null;
+      return efectiva && mismaSede(efectiva.sedeId, sedeActual) ? [efectiva] : [];
+    }), [todasLasClases, sedeActual, fechaEntrada]);
   const [elegirSede, setElegirSede] = useState(false);
   const [elegirClase, setElegirClase] = useState(false);
   const disciplinas = useDisciplinas();

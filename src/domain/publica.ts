@@ -19,7 +19,7 @@ export interface DatosPublica {
   /** puede faltar si la base aún no tiene la columna */
   pagina?: ContenidoPagina;
   sedes: { id: ID; nombre: string; color: string }[];
-  clases: { id: ID; clase: string; color: string | null; dias: number[]; hora: string; duracion: number; sede_id: ID | null; precio: number | null; curso?: { inicio: string; fin?: string | null; semanas?: number } | null; disciplina?: string | null }[];
+  clases: (import('./miPortal').ClaseHorario & { id: ID; sede_id: ID | null; precio: number | null; curso?: { inicio: string; fin?: string | null; semanas?: number } | null; disciplina?: string | null })[];
   planes: { nombre: string; tipo: 'suelta' | 'mensual' | 'paquete'; precio: number; clases: number | null; vigencia: number | null; grupos: number | null; sede_id: ID | null }[];
   eventos: ({ nombre: string; fecha: string; hora: string; precio: number; descripcion: string; quedan: number | null } & DetalleDeEvento)[];
   tienda: { nombre: string; precio: number; emoji: string; foto: string | null; descripcion: string; opciones: string[]; sobre_pedido: boolean }[];

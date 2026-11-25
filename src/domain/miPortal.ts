@@ -2,7 +2,9 @@
  * Lo que el alumno ve en su portal, calculado de sus datos: su próxima clase, su racha,
  * sus insignias y el mensaje para renovar. Funciones puras (sin base ni pantalla).
  */
-import { DIAS_CORTOS, diasEntre, minutosDelDia, sumarDias } from './fechas';
+import { aFecha, DIAS_CORTOS, diasEntre, minutosDelDia, sumarDias } from './fechas';
+
+export type CambioHorario = { cancelada: true } | { hora: string; nombre_sede?: string | null; sede_id?: string | null };
 
 export interface ClaseHorario {
   clase: string;
@@ -11,6 +13,15 @@ export interface ClaseHorario {
   dias: number[];
   hora: string;
   duracion: number;
+  excepciones?: Record<string, CambioHorario>;
+  sedeCambio?: string | null;
+  sedeCambioId?: string | null;
+}
+
+export function horarioEnFecha<T extends ClaseHorario>(clase: T, fecha: string): T | null {
+  const cambio = clase.excepciones?.[fecha];
+  if (!cambio) return clase;
+  return 'cancelada' in cambio ? null : { ...clase, hora: cambio.hora, sedeCambio: cambio.nombre_sede, sedeCambioId: cambio.sede_id };
 }
 
 export interface ProximaClase {
@@ -29,8 +40,11 @@ export function proximaClase(horario: ClaseHorario[], ahora: Date): ProximaClase
   const min = ahora.getHours() * 60 + ahora.getMinutes();
   for (let d = 0; d < 8; d++) {
     const dia = (ahora.getDay() + d) % 7;
+    const fecha = sumarDias(aFecha(ahora), d);
     const candidatas = horario
       .filter((c) => c.dias.includes(dia))
+      .map((c) => horarioEnFecha(c, fecha))
+      .filter((c) => c !== null)
       .filter((c) => d > 0 || minutosDelDia(c.hora) + c.duracion > min)
       .sort((a, b) => a.hora.localeCompare(b.hora));
     const c = candidatas[0];

@@ -3,7 +3,23 @@ import { rentabilidadPorClase } from '../../src/domain/rentabilidad';
 import { deudores, porRenovar } from '../../src/domain/pendientes';
 import { alumno, asistencia, clase, fijo, gasto, membresia, pago, plan } from './fabricas';
 import { clasesQueChocan } from '../../src/domain/agenda';
-import { claseEnOtraSede } from '../../src/domain/clases';
+import { claseEnOtraSede, clasesDelDia } from '../../src/domain/clases';
+import { proximaClase } from '../../src/domain/miPortal';
+
+it('aplica la excepción de una fecha y conserva el horario semanal', () => {
+  const claseBase = clase('salsa', { dias: [2], horaInicio: '18:00', excepciones: {
+    '2026-11-24': { cancelada: true },
+    '2026-12-01': { hora: '19:00', sede: 'cultura', salon: null },
+  } });
+  expect(clasesDelDia([claseBase], new Date(2026, 10, 24))).toEqual([]);
+  expect(clasesDelDia([claseBase], new Date(2026, 11, 1))[0]).toMatchObject({ id: 'salsa', horaInicio: '19:00', sedeId: 'cultura' });
+  expect(clasesDelDia([claseBase], new Date(2026, 11, 8))[0].horaInicio).toBe('18:00');
+  const horario = [{ clase: 'Salsa', color: null, dias: [2], hora: '18:00', duracion: 60, excepciones: {
+    '2026-11-24': { cancelada: true as const },
+    '2026-12-01': { hora: '19:00', nombre_sede: 'Casa de Cultura' },
+  } }];
+  expect(proximaClase(horario, new Date(2026, 10, 24, 17))?.clase).toMatchObject({ hora: '19:00', sedeCambio: 'Casa de Cultura' });
+});
 
 it('sugiere otra sede solo cuando es la única con clase próxima o en curso', () => {
   const ahora = new Date(2026, 10, 24, 17, 48);

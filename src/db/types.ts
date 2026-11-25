@@ -127,7 +127,10 @@ export interface Clase extends Base {
   salonId?: ID | null;
   /** clase por curso: desde cuándo y hasta cuándo, y cuántas semanas después de iniciar aún entran nuevos. Vacío = se entra cuando sea */
   curso?: { inicio: Fecha; fin?: Fecha | null; semanas?: number } | null;
+  excepciones?: Record<Fecha, ExcepcionClase> | null;
 }
+
+export type ExcepcionClase = { cancelada: true } | { hora: string; sede: ID | null; salon: ID | null };
 
 export type TipoPlan = 'suelta' | 'mensual' | 'paquete';
 

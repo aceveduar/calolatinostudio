@@ -7,21 +7,27 @@ import { actualizar, crear, enTransaccion } from '../db/repo';
 import type { Asistencia, Clase, Fecha, ID, Membresia, MetodoPago, Plan } from '../db/types';
 import { deFecha, diasEntre, hoy, sumarDias } from './fechas';
 import { conSede, sueltaDeClase } from './sedes';
+import { claseEnFecha } from './clases';
+import { claseParaRegistrar } from './operaciones';
 
 const vivo = <T extends { deletedAt: number | null }>(x: T) => !x.deletedAt;
 
 /** Entra a la clase sin pagar; queda anotado que debe la clase. */
 export function entrarFiado(p: { alumnoId: ID; claseId: ID; usuarioId: ID }): Promise<Asistencia> {
-  return crear('asistencias', {
-    alumnoId: p.alumnoId,
-    nombreVisitante: null,
-    claseId: p.claseId,
-    fecha: hoy(),
-    membresiaId: null,
-    pagoId: null,
-    usuarioId: p.usuarioId,
-    anuladaAt: null,
-    debe: true,
+  return enTransaccion(async () => {
+    const fecha = hoy();
+    await claseParaRegistrar(p.claseId, fecha);
+    return crear('asistencias', {
+      alumnoId: p.alumnoId,
+      nombreVisitante: null,
+      claseId: p.claseId,
+      fecha,
+      membresiaId: null,
+      pagoId: null,
+      usuarioId: p.usuarioId,
+      anuladaAt: null,
+      debe: true,
+    });
   });
 }
 
@@ -39,7 +45,8 @@ export function adeudosDe(asistencias: Asistencia[], clases: Clase[], planes: Pl
     .filter(esAdeudo)
     .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
     .map((asistencia) => {
-      const clase = clases.find((c) => c.id === asistencia.claseId);
+      const base = clases.find((c) => c.id === asistencia.claseId);
+      const clase = base ? claseEnFecha(base, asistencia.fecha) ?? base : undefined;
       return { asistencia, clase, monto: sueltaDeClase(planes, clase)?.precio ?? 0 };
     });
 }
