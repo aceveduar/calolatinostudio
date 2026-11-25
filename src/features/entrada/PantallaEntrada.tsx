@@ -211,9 +211,9 @@ export function PantallaEntrada() {
     if (!clase) return { tono: 'error', titulo: 'Elige la clase primero', detalle: 'Cierra el escáner y elige la clase' };
     const r = await entrarAlumno(a, true);
     if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo guardar la entrada' };
-    if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está adentro de esta clase' };
+    if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está en esta clase. Sin nuevo cobro.' };
     if (r.tipo === 'sin-precio') return { tono: 'error', titulo: 'Falta el precio', detalle: 'Configura la clase suelta en Ajustes' };
-    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Cobrar ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Becado · entra sin pagar' : 'Entró con su plan' };
+    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Por cobrar ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Entró con su beca' : 'Entró con su plan' };
   };
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);
@@ -760,6 +760,7 @@ export function PantallaEntrada() {
       <Hoja abierta={escanear} onCerrar={() => setEscanear(false)} titulo="Escanear credencial">
         {escanear && (
           <Escaner
+            clase={clase ? nombreClase(clase, disciplinas) : undefined}
             movs={movs}
             onListo={() => setEscanear(false)}
             onCodigo={alEscanear}

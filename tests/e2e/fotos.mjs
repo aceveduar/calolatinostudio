@@ -60,7 +60,8 @@ await ctx.route('**/rest/v1/rpc/portal_alumno', (r) => r.fulfill({ status: 200, 
 await ctx.route('**/rest/v1/rpc/portal_foto', (r) => { foto = JSON.parse(r.request().postData() || '{}').p_foto; return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
 await page.goto('http://localhost:4173/p/AbCdEfGhJkLmNpQrStUvWxYz23');
 await page.getByText('Tu pase de entrada').waitFor();
-const pide = (await page.getByText('Pon tu foto', { exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'Tomar foto' }).count()) === 1 && (await page.getByRole('button', { name: 'Elegir foto' }).count()) === 1;
+const pide = (await page.getByText('Pon tu foto', { exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'Tomar foto' }).count()) === 1 && (await page.getByRole('button', { name: 'Elegir foto' }).count()) === 1
+  && (await page.getByRole('button', { name: /Poner mi foto|Cambiar mi foto/ }).count()) === 0;
 // dos caminos: la cámara de frente directa (en algunos teléfonos el selector no abría la cámara) y sus fotos
 const sinCamaraForzada = (await page.locator('input[type=file][capture=user]').count()) >= 1 && (await page.locator('input[type=file]:not([capture])').count()) >= 1;
 // al intentar con la cámara, dice qué hacer si no se abre (el selector de archivos se cancela solo)
@@ -69,7 +70,7 @@ await page.getByRole('button', { name: 'Tomar foto' }).click();
 const ayuda = (await page.getByText(/¿No se abrió la cámara\?/).count()) === 1;
 await page.screenshot({ path: `${OUT}portal-pide-foto.png` });
 await page.locator('input[type=file]:not([capture])').last().setInputFiles(DIR + 'archivos/ean_agua.png');
-await page.getByRole('img', { name: 'Ana López' }).waitFor({ timeout: 8000 });
+await page.getByRole('button', { name: 'Cambiar mi foto' }).locator('img').waitFor({ timeout: 8000 });
 const seFue = (await page.getByText('Pon tu foto', { exact: true }).count()) === 0;
 console.log('5) portal: tarjeta "Pon tu foto" con "Tomar foto" y "Elegir foto", la sube pequeña, la muestra y la tarjeta se va:', ok(pide && sinCamaraForzada && ayuda && seFue && foto?.startsWith('data:image/jpeg') && foto.length < 60000));
 await page.screenshot({ path: `${OUT}portal-foto.png` });

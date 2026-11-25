@@ -5,7 +5,7 @@ import { RetoAlta } from './RetoAlta';
 
 interface Campana { nombre: string; abierta: boolean; antibots?: boolean }
 type Registro = { estado: 'lista'; portal: string } | { estado: 'cerrada' | 'recepcion' | 'datos' | 'espera' | 'verificacion' | 'servicio' };
-const campo = 'mt-1 block min-h-12 w-full rounded-xl bg-superficie px-3 text-base font-normal ring-1 ring-ink-100 focus:ring-2 focus:ring-brand-500';
+const campo = 'mt-1 block min-h-12 w-full rounded-xl bg-superficie px-3 text-base font-normal ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500';
 
 function claveSolicitud(token: string) {
   const clave = `compas:solicitud-alta:${token}`;
@@ -102,8 +102,9 @@ export function AltaGrupal({ token }: { token: string }) {
         </header>
         {portal ? (
           <div className="space-y-4" aria-live="polite">
-            <p className="text-ink-600">Abre tu pase para ver el QR. En tu celular, toca <strong>Guardar mi pase</strong> para tenerlo a mano cuando llegues a clase. Tu enlace es personal.</p>
+            <p className="text-sm text-ink-600">Muestra el QR en recepción al llegar a clase. Usa <strong>Guardar mi pase</strong> para tenerlo a mano.</p>
             <a href={`/p/${portal}`} className="flex min-h-12 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 font-bold text-white">Abrir Mi pase</a>
+            <p className="text-xs text-ink-500">Tu enlace es personal.</p>
           </div>
         ) : estado === 'abierta' ? (
           <form className="space-y-4" onSubmit={(e) => void registrar(e)}>
@@ -112,7 +113,7 @@ export function AltaGrupal({ token }: { token: string }) {
               <input required minLength={3} maxLength={120} autoComplete="name" value={nombre} onChange={(e) => setNombre(e.target.value)} disabled={enviando} className={campo} />
             </label>
             <label className="block text-sm font-semibold">Celular
-              <input required type="tel" minLength={10} maxLength={32} autoComplete="tel-national" aria-describedby="formato-celular" value={telefono} onChange={(e) => setTelefono(e.target.value)} disabled={enviando} className={campo} />
+              <input required type="tel" inputMode="numeric" enterKeyHint="done" minLength={10} maxLength={32} autoComplete="tel-national" aria-describedby="formato-celular" value={telefono} onChange={(e) => setTelefono(e.target.value)} disabled={enviando} className={campo} />
               <span id="formato-celular" className="mt-1 block font-normal text-ink-600">10 dígitos de México</span>
             </label>
             {campana?.antibots && <RetoAlta key={versionReto} campana={token} onToken={setReto} />}

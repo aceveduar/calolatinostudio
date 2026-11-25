@@ -17,17 +17,17 @@ const PAUSA_MS = 2000; // tiempo que se ve la confirmación antes de leer el sig
 const ESPERA_MISMO_CODIGO_MS = 6000; // el mismo QR frente a la cámara no se vuelve a procesar
 
 const ESTILO = {
-  ok: { fondo: 'bg-[#15924b]/95', icono: Check },
-  aviso: { fondo: 'bg-[#b7791f]/95', icono: AlertTriangle },
-  error: { fondo: 'bg-[#c53030]/95', icono: XCircle },
-  leyendo: { fondo: 'bg-black/70', icono: Loader2 },
+  ok: { color: 'bg-ok-50 text-ok-600', icono: Check },
+  aviso: { color: 'bg-warn-50 text-warn-600', icono: AlertTriangle },
+  error: { color: 'bg-bad-50 text-bad-600', icono: XCircle },
+  leyendo: { color: 'bg-ink-100 text-ink-700', icono: Loader2 },
 } as const;
 
 /**
  * Escaneo para la fila: cada QR leído muestra una confirmación grande (nombre + qué pasó),
- * pausa 2 s y queda listo para el siguiente. "Terminar" cierra la cámara y deja la cuenta para el cambio.
+ * pausa 2 s y queda listo para el siguiente. La cuenta se atiende después, fuera del escáner.
  */
-export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string) => Promise<LecturaQR>; movs: Movimiento[]; onListo: () => void }) {
+export function Escaner({ clase, onCodigo, movs, onListo }: { clase?: string; onCodigo: (codigo: string) => Promise<LecturaQR>; movs: Movimiento[]; onListo: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const escaner = useRef<QrScanner | null>(null);
   const ultimo = useRef<{ codigo: string; t: number }>({ codigo: '', t: 0 });
@@ -49,10 +49,11 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
 
   useEffect(() => {
     if (!video.current) return;
+    let activo = true;
     const s = new QrScanner(
       video.current,
       async (r) => {
-        if (ocupado.current) return;
+        if (!activo || ocupado.current) return;
         const codigo = leerQR(r.data);
         const ahora = Date.now();
         const clave = codigo ?? r.data;
@@ -63,6 +64,7 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
         const res: LecturaQR = codigo
           ? await alCodigo.current(codigo).catch(() => ({ tono: 'error' as const, titulo: 'No se pudo registrar', detalle: 'Intenta de nuevo' }))
           : { tono: 'error', titulo: 'QR no reconocido', detalle: 'No es una credencial de la academia' };
+        if (!activo) return;
         if (res.tono === 'ok') setLeidos((n) => n + 1);
         avisarConSentidos(res.tono);
         setLectura(res);
@@ -72,12 +74,14 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
     );
     escaner.current = s;
     s.start()
-      .then(() => QrScanner.listCameras().then((c) => setVariasCamaras(c.length > 1)))
+      .then(() => QrScanner.listCameras().then((c) => { if (activo) setVariasCamaras(c.length > 1); }))
       .catch((e: unknown) => {
+        if (!activo) return;
         const m = String(e);
         setError(/denied|NotAllowed|permission/i.test(m) ? 'Permite el uso de la cámara para escanear (en la barra del navegador).' : 'No se encontró una cámara en este equipo.');
       });
     return () => {
+      activo = false;
       clearTimeout(temporizador.current);
       s.stop();
       s.destroy();
@@ -90,36 +94,32 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-black">
+      {clase && <p className="text-sm font-semibold text-ink-700">{clase}</p>}
+      <div className="relative aspect-[4/3] max-h-[42dvh] w-full overflow-hidden rounded-2xl bg-black">
         <video ref={video} className="h-full w-full object-cover" muted playsInline />
         {error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-white">
             <CameraOff size={36} />
             <p className="font-semibold">{error}</p>
+            <p className="text-sm text-white/80">También puedes buscar al alumno por su nombre o código en Entrada.</p>
           </div>
         ) : lectura ? (
-          // Confirmación grande: imposible de no ver
-          <button
-            type="button"
-            onClick={siguiente}
-            className={cx('absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-white animate-aparece', ESTILO[lectura.tono].fondo)}
-            role="status"
-            aria-live="assertive"
-          >
-            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 animate-pop">
-              <Icono size={48} strokeWidth={3} className={lectura?.tono === 'leyendo' ? 'animate-spin' : undefined} />
-            </span>
-            <span className="mt-2 text-2xl leading-tight font-extrabold">{lectura.titulo}</span>
-            <span className="text-xl font-semibold text-white/90">{lectura.detalle}</span>
-            <span className="absolute inset-x-0 bottom-0 h-1.5 bg-white/30">
-              <span className="block h-full origin-left bg-white" style={{ animation: `vaciar ${PAUSA_MS}ms linear forwards` }} />
-            </span>
-            <span className="absolute bottom-4 text-sm font-medium text-white/80">Toca para escanear el siguiente</span>
-          </button>
+          <div className={cx('absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto p-3 text-center', ESTILO[lectura.tono].color)}>
+            <div role="status" className="max-w-full">
+              <Icono size={32} strokeWidth={2.5} aria-hidden="true" className={cx('mx-auto mb-1', lectura.tono === 'leyendo' && 'animate-spin')} />
+              <p className="break-words text-lg leading-tight font-extrabold text-ink-900">{lectura.titulo}</p>
+              <p className="mt-1 text-sm font-semibold">{lectura.detalle}</p>
+            </div>
+            {lectura.tono !== 'leyendo' && (
+              <button type="button" onClick={siguiente} className="min-h-11 rounded-lg px-3 text-sm font-semibold underline underline-offset-4 active:brightness-75">
+                Escanear otro pase
+              </button>
+            )}
+          </div>
         ) : (
           <>
-            <div className="pointer-events-none absolute inset-[18%] rounded-3xl border-4 border-white/80" />
-            <p className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-2 text-center text-base font-semibold text-white drop-shadow">
+            <div className="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[64%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-white/80" />
+            <p className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/65 px-2 py-2 text-center text-sm font-semibold text-white">
               <ScanLine size={18} /> {leidos ? 'Listo para el siguiente' : 'Apunta al QR de la credencial'}
             </p>
             {variasCamaras && (
@@ -142,17 +142,18 @@ export function Escaner({ onCodigo, movs, onListo }: { onCodigo: (codigo: string
       {movs.length > 0 && (
         <div className="rounded-2xl bg-superficie ring-1 ring-ink-100">
           <p className="border-b border-ink-100 px-4 py-2 text-xs font-bold tracking-wider text-ink-500 uppercase">En la cuenta · {movs.length}</p>
-          {movs.slice(0, 4).map((m) => (
+          {movs.slice(0, 2).map((m) => (
             <div key={m.key} className="flex items-center gap-2 border-b border-ink-100 px-4 py-2 last:border-0">
               <Check size={16} className="text-ok-600" />
               <span className="min-w-0 flex-1 truncate font-semibold">{m.nombre}</span>
               <span className={cx('text-sm font-bold', !m.monto && 'text-ok-600')}>{m.monto ? dinero(m.monto) : m.beca ? 'Beca' : 'Plan'}</span>
             </div>
           ))}
+          {movs.length > 2 && <p className="px-4 py-2 text-xs text-ink-500">+{movs.length - 2} en la cuenta completa</p>}
         </div>
       )}
-      <Boton grande bloque onClick={onListo}>
-        {total ? `Terminar · cobrar ${dinero(total)}` : 'Terminar'}
+      <Boton bloque onClick={onListo} disabled={lectura?.tono === 'leyendo'}>
+        {total ? `Ver cuenta · ${dinero(total)}` : movs.length ? 'Ver cuenta' : 'Cerrar escáner'}
       </Boton>
     </div>
   );

@@ -360,7 +360,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
               <p className="truncate text-lg leading-tight font-extrabold">{datos.alumno.nombre}</p>
               <p className="font-mono text-sm tracking-[0.25em] text-[#6b6778]">{datos.alumno.codigo}</p>
             </div>
-            <SubirFoto token={token} foto={datos.alumno.foto ?? null} nombre={datos.alumno.nombre} sinConexion={datosPendientes} onListo={recargar} />
+            {datos.alumno.foto && <SubirFoto token={token} foto={datos.alumno.foto} nombre={datos.alumno.nombre} sinConexion={datosPendientes} onListo={recargar} />}
           </div>
           <button
             type="button"
@@ -382,7 +382,7 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
           {vigentes.length === 0 ? (
             <div className="mt-2">
               <p className="text-lg font-bold">{vencido ? `Tu ${vencido.plan.toLowerCase()} terminó` : 'Pagas por clase'}</p>
-              <p className="text-sm text-ink-500">{vencido ? 'Renuévalo para seguir bailando.' : 'Con una mensualidad o paquete te sale más barato.'}</p>
+              {vencido && <p className="text-sm text-ink-500">Renuévalo para seguir bailando.</p>}
               <BotonWhats href={renovar(vencido?.plan ?? null)} texto={vencido ? 'Renovar por WhatsApp' : 'Preguntar por planes'} fuerte={!!vencido} />
             </div>
           ) : (
@@ -634,17 +634,10 @@ function SubirFoto({ token, foto, nombre, sinConexion, onListo, variante = 'circ
         disabled={sinConexion || estado === 'subiendo'}
         onClick={() => setMenu(!menu)}
         className="relative rounded-full"
-        aria-label={foto ? 'Cambiar mi foto' : 'Poner mi foto'}
+        aria-label="Cambiar mi foto"
         aria-expanded={menu}
       >
-        {foto ? (
-          <img src={foto} alt={nombre} className="h-14 w-14 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--marca)_12%,white)] text-[color-mix(in_oklab,var(--marca)_80%,black)] ring-2 ring-[color-mix(in_oklab,var(--marca)_40%,white)]">
-            <Camera size={20} />
-            <span className="text-[9px] font-bold">FOTO</span>
-          </span>
-        )}
+        <img src={foto ?? undefined} alt="" className="h-14 w-14 rounded-full object-cover" />
         {estado === 'subiendo' && <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-[10px] font-bold text-white">…</span>}
       </button>
       {menu && (
@@ -864,7 +857,7 @@ function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | nul
   }, []);
   return (
     <dialog ref={ref} onClose={onCerrar} aria-label="Mi pase de entrada" className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-[#16141c] backdrop:bg-white">
-      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-6 py-4 text-center">
         <div className="flex items-center gap-3">
           {foto && <img src={foto} alt="" className="h-14 w-14 rounded-full object-cover" />}
           <div className="text-left">
@@ -872,7 +865,7 @@ function PaseCompleto({ qr, nombre, codigo, foto, onCerrar }: { qr: string | nul
             <p className="font-mono tracking-[0.3em] text-[#6b6778]">{codigo}</p>
           </div>
         </div>
-        {qr && <img src={qr} alt="Tu código QR" className="aspect-square w-full max-w-[min(85vw,26rem)]" />}
+        {qr && <img src={qr} alt="Tu código QR" className="aspect-square w-full max-w-[min(85vw,55dvh,26rem)]" />}
         <p className="flex items-center gap-1.5 text-sm text-[#6b6778]">
           <Sun size={16} aria-hidden="true" /> Sube el brillo y muéstralo en recepción
         </p>
