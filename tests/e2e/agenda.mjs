@@ -31,10 +31,17 @@ await page.getByRole('heading', { name: 'Agenda', exact: true }).waitFor();
 await page.waitForTimeout(400);
 let t = await txt();
 console.log('1) semana con clases, rentas y huecos libres:', ok(/Jackson \(Salsa\)/.test(t) && /Yoga con Laura/.test(t) && /Libre: /.test(t)));
-await page.screenshot({ path: `${OUT}agenda-${P}-1.png`, fullPage: true });
+const diasAnteriores = page.getByText('Días anteriores de esta semana', { exact: true });
+console.log('   la semana abre en hoy y deja los días anteriores plegados:', ok(
+  await page.getByText('Miércoles 18', { exact: false }).first().isVisible()
+  && !(await page.getByText('Lunes 16', { exact: true }).isVisible()),
+));
+await page.screenshot({ path: `${OUT}agenda-${P}-1.png`, animations: 'disabled' });
+await diasAnteriores.click();
+await page.getByText('Lunes 16', { exact: true }).waitFor();
+await diasAnteriores.click();
 
-// 2) cobros del mes: en su pestaña; en la semana, un aviso de lo que falta cobrar que lleva ahí
-console.log('   aviso de rentas por cobrar en la semana:', ok(/Rentas por cobrar en \w+: \$[\d,]+/.test(t)));
+// 2) cobros del mes en Rentas y meta
 await verRentas();
 t = await txt();
 console.log('2) Laura pagada, Jackson por cobrar:', ok(/Yoga con Laura .{0,60}\$3,000/.test(t) && /Cobrar \$3,200/.test(t)));

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, PartyPopper, Plus } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, PartyPopper, Plus } from 'lucide-react';
 import { colorClase, nombreClase, useClases, useDisciplinas, useMaestros, useRentas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedes } from '../../app/sedes';
@@ -64,6 +64,8 @@ export function PantallaAgenda() {
     return cambio && clase.activo ? [{ fecha, clase, cambio }] : [];
   }));
   const estaSemana = lunes === lunesDe(hoy());
+  const diasPasados = estaSemana ? dias.slice(0, dias.indexOf(hoy())) : [];
+  const diasVisibles = dias.slice(diasPasados.length);
   // El mes de los cobros: el de la semana que se ve (el jueves decide si la semana cruza de mes)
   const mes: Mes = mesDe(sumarDias(lunes, 3));
   const { desde, hasta } = rangoMes(mes);
@@ -79,6 +81,10 @@ export function PantallaAgenda() {
   const nav = useNavigate();
   // tocar un bloque: evento de la academia → su pantalla; renta → editarla (dirección)
   const abrirBloque = (r: Renta) => (r.eventoId ? nav(`/agenda/eventos/${r.eventoId}`) : esDueno ? setEditar(r) : undefined);
+  const renderDia = (fecha: Fecha) => (
+    <Dia key={fecha} fecha={fecha} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined}
+      onRenta={abrirBloque} onClase={esDueno && fecha >= hoy() ? (clase) => setCambiarFecha({ fecha, clase }) : undefined} />
+  );
 
   return (
     <div className="px-4 pb-8">
@@ -122,7 +128,16 @@ export function PantallaAgenda() {
 
       {vista === 'semana' && (
         <>
-        {esDueno && <Boton variante="secundario" className="mb-3" onClick={() => setCambiarFecha({ fecha: lunes > hoy() ? lunes : hoy() })}>Cambiar solo esta fecha</Boton>}
+        <div className="mb-2 flex flex-wrap items-center gap-x-1 text-sm">
+          {esDueno && (
+            <button type="button" onClick={() => setCambiarFecha({ fecha: lunes > hoy() ? lunes : hoy() })} className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 font-semibold text-brand-600 active:bg-brand-50">
+              <CalendarDays size={16} aria-hidden="true" /> Cambiar solo esta fecha
+            </button>
+          )}
+          <Link to="/agenda/eventos" className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 font-semibold text-brand-600 active:bg-brand-50">
+            <PartyPopper size={16} aria-hidden="true" /> Eventos
+          </Link>
+        </div>
         {cambios.length > 0 && (
           <Tarjeta className="mb-3 space-y-1 p-3 text-sm">
             <h2 className="font-bold">Cambios de esta semana</h2>
@@ -132,43 +147,35 @@ export function PantallaAgenda() {
             ))}
           </Tarjeta>
         )}
-        {pendiente > 0 && (
-          <button onClick={() => setVista('rentas')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-warn-50 px-4 py-3 text-left text-sm text-warn-600 active:brightness-95">
-            <span className="flex-1">
-              Rentas por cobrar en {nombreMes(mes).split(' ')[0].toLowerCase()}: <b>{dinero(pendiente)}</b>
-            </span>
-            <ChevronRight size={18} className="shrink-0" aria-hidden="true" />
-          </button>
-        )}
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          <Link to="/agenda/eventos" className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-superficie px-4 py-2 text-sm font-semibold ring-1 ring-ink-100">
-            <PartyPopper size={16} className="text-brand-600" /> Eventos
-          </Link>
-          {salones.length > 0 &&
-            [null, ...salones.map((x) => x.id)].map((id) => (
+        {salones.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {[null, ...salones.map((x) => x.id)].map((id) => (
               <button
                 key={id ?? 'principal'}
+                type="button"
                 onClick={() => setSalon(id)}
-                className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', salon === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
+                aria-pressed={salon === id}
+                className={cx('rounded-full px-4 py-2.5 text-sm font-semibold ring-1 ring-inset', salon === id ? 'bg-brand-50 text-brand-600 ring-brand-200' : 'bg-superficie ring-ink-100')}
               >
                 {nombreSalon(id)}
               </button>
             ))}
-          {esDueno && (
-            <button onClick={() => setGestionSalones(true)} className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold text-brand-600 ring-1 ring-ink-100">
-              {salones.length ? 'Salones…' : '+ Otro salón'}
-            </button>
-          )}
-        </div>
-      <p className="mb-2 flex items-center gap-1.5 px-1 text-xs text-ink-500">
-        <span className="h-3 w-3 rounded bg-[#7c4ddb]/20 ring-1 ring-[#7c4ddb]/40" /> Renta del salón
-      </p>
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-        {dias.map((f) => (
-          <Dia key={f} fecha={f} clases={clases} rentas={rentas} disciplinas={disciplinas} salonId={salones.length ? salon : undefined}
-            onRenta={abrirBloque} onClase={esDueno && f >= hoy() ? (clase) => setCambiarFecha({ fecha: f, clase }) : undefined} />
-        ))}
-      </div>
+          </div>
+        )}
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">{diasVisibles.map(renderDia)}</div>
+        {diasPasados.length > 0 && (
+          <details className="group mt-3">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl px-3 text-sm font-semibold text-ink-700 ring-1 ring-inset ring-ink-100 [&::-webkit-details-marker]:hidden">
+              Días anteriores de esta semana <ChevronDown size={16} className="shrink-0 group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-4">{diasPasados.map(renderDia)}</div>
+          </details>
+        )}
+        {esDueno && (
+          <button type="button" onClick={() => setGestionSalones(true)} className="mt-2 min-h-11 rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
+            {salones.length ? 'Salones…' : '+ Otro salón'}
+          </button>
+        )}
         </>
       )}
 
@@ -287,16 +294,8 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta, onClase }: 
   const bloques = bloquesDelDia(fecha, clases, rentas, salonId);
   const libres = huecos(bloques);
   const esHoy = fecha === hoy();
-  // al abrir la Agenda, baja sola hasta hoy (la semana empieza el lunes y "hoy" quedaba abajo)
-  const marca = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (esHoy && diaSemana(fecha) !== 1) marca.current?.scrollIntoView({ block: 'start' });
-    // solo al montar: no volver a mover la pantalla mientras la persona la recorre
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
-    <Tarjeta className={cx('p-3', esHoy && 'ring-2 ring-brand-500')}>
-      <div ref={marca} className="scroll-mt-20" aria-hidden="true" />
+    <Tarjeta className={cx('p-3', esHoy && 'ring-inset ring-brand-200')}>
       <p className="mb-1.5 flex items-center gap-2 px-1 font-bold">
         {DIAS_LARGOS[diaSemana(fecha)]} {deFecha(fecha).getDate()}
         {esHoy && <Etiqueta tono="marca">Hoy</Etiqueta>}
@@ -311,7 +310,7 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta, onClase }: 
               <span className="w-[5.6rem] shrink-0 text-xs font-semibold text-ink-500 tabular-nums">{r && r.duracionMin >= TODO_EL_DIA.duracionMin ? 'Todo el día' : `${horaTexto(b.inicio)}–${horaTexto(b.fin)}`}</span>
               <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: color }} />
               <span className="line-clamp-2 min-w-0 flex-1 text-sm leading-tight font-semibold break-words">{r ? r.nombre : nombreClase(b.clase, disciplinas)}</span>
-              {r?.tipo === 'evento' && <span className="shrink-0 text-[11px] font-bold text-[#7c4ddb] dark:text-[#b49cf2]">{r.eventoId ? 'Evento propio' : 'Evento'}</span>}
+              {r && <span className="shrink-0 text-[11px] font-semibold text-[#7c4ddb] dark:text-[#b49cf2]">{r.tipo === 'evento' ? 'Evento' : 'Renta'}</span>}
             </>
           );
           return r && onRenta ? (
@@ -331,7 +330,7 @@ function Dia({ fecha, clases, rentas, disciplinas, salonId, onRenta, onClase }: 
       </div>
       {libres.length > 0 && (
         <p className="mt-1.5 px-1 text-xs text-ok-600">
-          Libre: {libres.map(([a, b]) => `${horaTexto(a)}–${horaTexto(b)}`).join(' · ')}
+          Libre: {libres.map(([a, b], i) => <span key={a} className="inline-block">{i > 0 && '·\u00a0'}{horaTexto(a)}–{horaTexto(b)}{'\u00a0'}</span>)}
         </p>
       )}
     </Tarjeta>
