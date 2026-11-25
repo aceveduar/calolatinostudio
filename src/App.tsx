@@ -57,12 +57,16 @@ export default function App() {
     else document.documentElement.style.removeProperty('--marca');
   }, [color]);
 
-  // Entrada viene en el archivo principal; las demás pantallas se cargan aparte y se precargan
-  // al poco de abrir, para que cambiar de pantalla sea instantáneo (y quedan guardadas sin internet).
+  // Entrada ya está disponible. Precargar las demás pantallas solo si hay sesión y conexión adecuada.
   useEffect(() => {
-    const t = setTimeout(() => PRECARGAR.forEach((f) => void f()), 2500);
+    if (estado.fase !== 'abierta') return;
+    const t = setTimeout(() => {
+      const { connection } = navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } };
+      if (!navigator.onLine || connection?.saveData || /^(slow-2g|2g|3g)$/.test(connection?.effectiveType ?? '')) return;
+      for (const cargar of PRECARGAR) void cargar().catch(() => {});
+    }, 2500);
     return () => clearTimeout(t);
-  }, []);
+  }, [estado.fase]);
 
   useEffect(() => {
     iniciarSync();
