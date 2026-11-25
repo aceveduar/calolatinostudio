@@ -15,7 +15,7 @@ import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Segmentos, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Alumno, Clase, ID, MetodoPago } from '../../db/types';
-import { claseSugerida, clasesDelDia } from '../../domain/clases';
+import { claseEnOtraSede, claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
 import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
@@ -95,6 +95,15 @@ export function PantallaEntrada() {
   // con una cuenta abierta la app no se actualiza sola (se perdería el total que se está cobrando)
   useNoActualizarMientras(movs.length > 0);
   const enCurso = useRef(new Set<string>());
+  const cambioSede = useRef<{ id: ID | null } | null>(null);
+  const [cambiandoA, setCambiandoA] = useState<{ id: ID | null } | null>(null);
+  const sedeOcupada = movs.length > 0 || Boolean(cambiandoA);
+  useEffect(() => {
+    if (cambiandoA && (sedeActual === cambiandoA.id || (cambiandoA.id && !sedes.some((s) => s.id === cambiandoA.id)))) {
+      cambioSede.current = null;
+      setCambiandoA(null);
+    }
+  }, [cambiandoA, sedeActual, sedes]);
   const busca = useRef<HTMLInputElement>(null);
 
   const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).toArray().then((xs) => xs.filter((a) => !a.anuladaAt && !a.deletedAt)), [], []);
@@ -136,6 +145,10 @@ export function PantallaEntrada() {
   /** Ejecuta una acción rápida y la suma a la cuenta abierta. */
   /** Devuelve el resultado (null si no se pudo). `silencioso`: sin avisos, quien llama muestra el resultado (escáner). */
   const rapido = async (llave: string, nombre: string, fn: (c: Clase) => Promise<Resultado>, silencioso = false): Promise<Resultado | null> => {
+    if (cambioSede.current) {
+      if (!silencioso) avisar('Espera a que cambie la sede.', 'error');
+      return null;
+    }
     if (!clase) {
       if (!silencioso) avisar('Primero elige la clase', 'error');
       return null;
@@ -203,26 +216,30 @@ export function PantallaEntrada() {
   // Lector de códigos USB/Bluetooth (PC): un producto se suma a la cuenta; el QR de un alumno le da entrada.
   // Si hay una hoja abierta (p. ej. la Tienda), esa hoja lo atiende.
   useLectorUSB(async (codigo) => {
-    if (document.querySelector('[role=dialog]')) return;
-    setQ('');
-    const p = await productoPorCodigo(codigo);
-    if (p) {
-      try {
+    const llave = `lector:${codigo}`;
+    if (document.querySelector('[role=dialog]') || cambioSede.current || enCurso.current.has(llave)) return;
+    enCurso.current.add(llave);
+    try {
+      setQ('');
+      const p = await productoPorCodigo(codigo);
+      if (p) {
         const mov = await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
         setMovs((x) => [mov, ...x]);
         avisar(`${p.nombre} · ${dinero(p.precio)}`);
-      } catch (e) {
-        avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
+        return;
       }
-      return;
+      const alumno = leerQR(codigo);
+      if (alumno) {
+        const r = await alEscanear(alumno);
+        avisar(`${r.titulo} · ${r.detalle}`, r.tono === 'error' ? 'error' : 'ok');
+        return;
+      }
+      avisar(`El código ${codigo} no es de ningún producto ni alumno`, 'error');
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : 'No se pudo registrar la lectura', 'error');
+    } finally {
+      enCurso.current.delete(llave);
     }
-    const alumno = leerQR(codigo);
-    if (alumno) {
-      const r = await alEscanear(alumno);
-      avisar(`${r.titulo} · ${r.detalle}`, r.tono === 'error' ? 'error' : 'ok');
-      return;
-    }
-    avisar(`El código ${codigo} no es de ningún producto ni alumno`, 'error');
   }, true, true);
 
   // Teclado (laptop/PC): escribir en cualquier momento busca; Esc limpia
@@ -285,6 +302,25 @@ export function PantallaEntrada() {
   const sugerida = claseSugerida(deHoy);
   const claseRara = clase && sugerida && clase.id !== sugerida.id ? sugerida : null;
   const claseNoEsHoy = clase && !deHoy.some((c) => c.id === clase.id);
+  const cambiarSedeEntrada = async (id: ID | null, claseSugeridaId?: ID) => {
+    if (movs.length || enCurso.current.size || cambioSede.current) return;
+    if (id === sedeActual) {
+      setElegirSede(false);
+      return;
+    }
+    const destino = { id };
+    cambioSede.current = destino;
+    try {
+      await cambiarSede(id);
+      setClaseId(claseSugeridaId ?? null);
+      setElegirSede(false);
+      setCambiandoA(destino);
+      avisar(`Ahora en ${nombreSede(id, sedes, academia)}`);
+    } catch {
+      cambioSede.current = null;
+      avisar('No se pudo cambiar de sede. Inténtalo de nuevo.', 'error');
+    }
+  };
 
   return (
     <div className={cx(movs.length > 0 && !esc && 'pb-72', 'lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6')}>
@@ -308,6 +344,18 @@ export function PantallaEntrada() {
           ) : undefined
         }
       />
+      {sedes.length > 0 && (
+        <SugerenciaSede
+          clases={todasLasClases.filter((c) => !c.sedeId || sedes.some((s) => s.id === c.sedeId))}
+          sedeActual={sedeActual}
+          nombreDeSede={(id) => nombreSede(id, sedes, academia)}
+          nombreDeClase={(c) => nombreClase(c, disciplinas)}
+          ocupado={sedeOcupada}
+          cuentaAbierta={movs.length > 0}
+          cambiar={cambiarSedeEntrada}
+          elegir={() => setElegirSede(true)}
+        />
+      )}
 
       {/* academia nueva: lo que falta configurar (solo el dueño; se va sola al terminar) */}
       <PrimerosPasos />
@@ -393,7 +441,7 @@ export function PantallaEntrada() {
           )}
         </div>
         <button
-          onClick={() => setTienda(true)}
+          onClick={() => { if (!cambioSede.current) setTienda(true); }}
           aria-label={porRecoger ? `Tienda, ${porRecoger} ${porRecoger === 1 ? 'apartado' : 'apartados'} por recoger` : 'Tienda'}
           className="relative flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
         >
@@ -403,7 +451,7 @@ export function PantallaEntrada() {
           )}
         </button>
         <button
-          onClick={() => setEscanear(true)}
+          onClick={() => { if (!cambioSede.current) setEscanear(true); }}
           className="flex h-14 w-12 shrink-0 items-center justify-center rounded-2xl bg-superficie text-ink-700 shadow-sm ring-1 ring-ink-100 active:scale-95 sm:w-14"
           aria-label="Escanear QR"
         >
@@ -653,12 +701,8 @@ export function PantallaEntrada() {
               return (
                 <button
                   key={id ?? 'principal'}
-                  onClick={async () => {
-                    await cambiarSede(id);
-                    setClaseId(null);
-                    setElegirSede(false);
-                    avisar(`Ahora en ${nombreSede(id, sedes, academia)}`);
-                  }}
+                  disabled={sedeOcupada}
+                  onClick={() => void cambiarSedeEntrada(id)}
                   className={cx('flex w-full items-center gap-3 rounded-2xl bg-superficie p-4 text-left ring-1', mismaSede(id, sedeActual) ? 'ring-2 ring-brand-500' : 'ring-ink-100')}
                 >
                   <MapPin size={22} style={{ color: x?.color ?? 'var(--marca)' }} />
@@ -702,6 +746,46 @@ export function PantallaEntrada() {
       <Hoja abierta={visitante} onCerrar={() => setVisitante(false)} titulo="Visitante sin registro">
         {visitante && <FormVisitante clase={clase} onHecho={() => setVisitante(false)} />}
       </Hoja>
+    </div>
+  );
+}
+
+function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupado, cuentaAbierta, cambiar, elegir }: {
+  clases: Clase[];
+  sedeActual: ID | null;
+  nombreDeSede: (id: ID | null) => string;
+  nombreDeClase: (clase: Clase) => string;
+  ocupado: boolean;
+  cuentaAbierta: boolean;
+  cambiar: (id: ID | null, claseId: ID) => Promise<void>;
+  elegir: () => void;
+}) {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const actualizarHora = () => setAhora(new Date());
+    const intervalo = window.setInterval(actualizarHora, 30_000);
+    document.addEventListener('visibilitychange', actualizarHora);
+    return () => {
+      window.clearInterval(intervalo);
+      document.removeEventListener('visibilitychange', actualizarHora);
+    };
+  }, []);
+  const sugerida = claseEnOtraSede(clases, sedeActual, ahora);
+  const destino = sugerida?.sedeId ?? null;
+  return (
+    <div className="mx-4 mb-2 flex flex-wrap items-center gap-x-3 text-sm">
+      {sugerida && !ocupado && (
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2">
+          <p><strong>{nombreDeSede(destino)}</strong> · {nombreDeClase(sugerida)} · {sugerida.horaInicio}</p>
+          <button type="button" onClick={() => void cambiar(destino, sugerida.id)} className="min-h-11 font-bold text-brand-600">
+            Cambiar a {nombreDeSede(destino)}
+          </button>
+        </div>
+      )}
+      <button type="button" disabled={ocupado} onClick={elegir} className="flex min-h-11 items-center gap-1.5 font-semibold text-brand-600 disabled:opacity-50">
+        <MapPin size={16} aria-hidden="true" /> Cambiar sede
+      </button>
+      {cuentaAbierta && <span className="text-ink-500">Termina la cuenta para cambiar de sede.</span>}
     </div>
   );
 }

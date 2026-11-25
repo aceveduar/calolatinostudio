@@ -3,6 +3,20 @@ import { rentabilidadPorClase } from '../../src/domain/rentabilidad';
 import { deudores, porRenovar } from '../../src/domain/pendientes';
 import { alumno, asistencia, clase, fijo, gasto, membresia, pago, plan } from './fabricas';
 import { clasesQueChocan } from '../../src/domain/agenda';
+import { claseEnOtraSede } from '../../src/domain/clases';
+
+it('sugiere otra sede solo cuando es la única con clase próxima o en curso', () => {
+  const ahora = new Date(2026, 10, 24, 17, 48);
+  const casa = clase('casa', { dias: [2], horaInicio: '18:00', sedeId: 'cultura' });
+  const estudio = clase('estudio', { dias: [2], horaInicio: '18:00' });
+  expect(claseEnOtraSede([casa], null, ahora)?.id).toBe('casa');
+  expect(claseEnOtraSede([casa, estudio], null, ahora)).toBeNull();
+  expect(claseEnOtraSede([casa, estudio], 'tercera', ahora)).toBeNull();
+  expect(claseEnOtraSede([casa], 'cultura', ahora)).toBeNull();
+  expect(claseEnOtraSede([casa], null, new Date(2026, 10, 24, 17, 20))).toBeNull();
+  const terminado = clase('terminado', { dias: [2], horaInicio: '18:00', sedeId: 'cultura', curso: { inicio: '2026-11-03', fin: '2026-11-17' } });
+  expect(claseEnOtraSede([terminado], null, ahora)).toBeNull();
+});
 
 it('detecta clases simultáneas solo si comparten salón o maestro y coinciden en fechas', () => {
   const base = clase('base', { salonId: 'salon1', maestroId: 'maestro', curso: { inicio: '2026-11-02', fin: '2026-11-30' } });

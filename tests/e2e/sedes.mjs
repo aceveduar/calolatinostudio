@@ -13,10 +13,11 @@ await page.reload();
 await page.getByText('Monse', { exact: true }).click();
 for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
 await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
-await page.waitForTimeout(600);
+await page.getByRole('button', { name: 'Cobrar $60 sin nombre', exact: true }).waitFor();
 let t = await main();
 console.log('1) arranca en Estudio Calo con precio $60:', ok(t.includes('Estudio Calo') && t.includes('+$60')));
-console.log('   clases del Estudio (no las de Casa de Cultura):', ok(!/Lady Style/.test(t)));
+const claseActiva = page.getByRole('button', { name: /^Clase:/ }).first();
+console.log('   clase activa del Estudio:', ok(!(await claseActiva.count()) || /Estudio Calo/.test(await claseActiva.getAttribute('aria-label'))));
 await page.screenshot({ path: `${OUT}sede-1-estudio.png` });
 if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.getByRole('button', { name: /Elegir clase/ }).click();
@@ -24,6 +25,8 @@ if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.waitForTimeout(300);
 }
 await page.getByRole('button', { name: /sin nombre/ }).click();
+await page.getByText('Termina la cuenta para cambiar de sede.').waitFor();
+console.log('   con una cuenta abierta no se cambia de sede:', ok(await page.getByRole('button', { name: 'Cambiar sede', exact: true }).isDisabled()));
 await page.getByRole('button', { name: 'Listo', exact: true }).click();
 // cambiar a Casa de Cultura
 await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first().click();
@@ -77,5 +80,37 @@ console.log('8) reportes por sede:', ok(/Estudio Calo \$[\d,]+/.test(t) && /Casa
 await page.evaluate(() => { history.pushState(null, '', '/ajustes/sedes'); dispatchEvent(new PopStateEvent('popstate')); });
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}sede-5-ajustes.png`, fullPage: true });
+
+// 9) dos clases simultáneas y traslado cuando solo queda una sede con clase.
+const clasesDePrueba = await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const casa = await db.sedes.toCollection().first();
+  const clases = await db.clases.toArray();
+  const estudio = clases.find((c) => !c.sedeId && c.activo);
+  const cultura = clases.find((c) => c.sedeId === casa.id && c.activo);
+  await db.meta.put({ key: 'sedeActual', value: null });
+  await db.clases.bulkPut(clases.map((c) => c.id === estudio.id || c.id === cultura.id
+    ? { ...c, dias: [6], horaInicio: '10:40', duracionMin: 60, curso: null }
+    : { ...c, activo: false }));
+  return { estudio: estudio.id, cultura: cultura.id, casa: casa.id };
+});
+await page.getByRole('link', { name: 'Entrada', exact: true }).click();
+await page.getByRole('button', { name: /Clase: .*Estudio Calo/ }).waitFor();
+const sugerencia = page.getByRole('button', { name: 'Cambiar a Casa de Cultura', exact: true });
+console.log('9a) las clases simultáneas conservan la sede y permiten cambiar a mano:', ok((await sugerencia.count()) === 0
+  && await page.getByRole('button', { name: 'Cambiar sede', exact: true }).isEnabled()));
+await page.evaluate((id) => window.compasDev.db.clases.update(id, { activo: false }), clasesDePrueba.estudio);
+await sugerencia.click();
+await page.getByRole('button', { name: /Clase: .*Casa de Cultura/ }).waitFor();
+await page.getByRole('button', { name: /Cobrar \$40 sin nombre/ }).click();
+await page.getByRole('button', { name: 'Listo', exact: true }).click();
+const registro = await page.evaluate(async (clase) => {
+  const { db } = window.compasDev;
+  const asistencias = await db.asistencias.where('[claseId+fecha]').equals([clase, '2026-11-14']).filter((a) => !!a.pagoId && !a.alumnoId).sortBy('createdAt');
+  const asistencia = asistencias.at(-1);
+  return asistencia && { clase: asistencia.claseId, sede: (await db.pagos.get(asistencia.pagoId))?.sedeId };
+}, clasesDePrueba.cultura);
+console.log('9b) el cambio sugerido abre esa clase y cobra en su sede:', ok(registro?.clase === clasesDePrueba.cultura && registro.sede === clasesDePrueba.casa));
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
