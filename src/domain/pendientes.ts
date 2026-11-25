@@ -75,10 +75,11 @@ export interface Deudor {
   alumno: Alumno;
   clases: number;
   total: number;
+  avisoReciente: boolean;
 }
 
-/** Quien entró "fiado" y no ha pagado; se oculta unos días después de recordarle. */
-export function deudores(p: { asistencias: Asistencia[]; alumnos: Map<ID, Alumno>; clases: Clase[]; planes: Plan[]; ahora?: number }): Deudor[] {
+/** Quien entró fiado y no ha pagado. El contador de recordatorios omite los avisos recientes. */
+export function deudores(p: { asistencias: Asistencia[]; alumnos: Map<ID, Alumno>; clases: Clase[]; planes: Plan[]; ahora?: number; incluirAvisados?: boolean }): Deudor[] {
   const ahora = p.ahora ?? Date.now();
   const porAlumno = new Map<ID, Asistencia[]>();
   for (const a of p.asistencias) if (a.alumnoId && esAdeudo(a)) porAlumno.set(a.alumnoId, [...(porAlumno.get(a.alumnoId) ?? []), a]);
@@ -87,9 +88,10 @@ export function deudores(p: { asistencias: Asistencia[]; alumnos: Map<ID, Alumno
       const alumno = p.alumnos.get(id);
       if (!alumno || alumno.deletedAt) return [];
       const aviso = avisadoEl(alumno, 'adeudo');
-      if (aviso && ahora - aviso < DIAS_ENTRE_COBROS * 86_400_000) return [];
+      const avisoReciente = aviso !== null && ahora - aviso < DIAS_ENTRE_COBROS * 86_400_000;
+      if (avisoReciente && !p.incluirAvisados) return [];
       const ads = adeudosDe(asis, p.clases, p.planes);
-      return [{ alumno, clases: ads.length, total: ads.reduce((s, x) => s + x.monto, 0) }];
+      return [{ alumno, clases: ads.length, total: ads.reduce((s, x) => s + x.monto, 0), avisoReciente }];
     })
     .sort((a, b) => b.total - a.total);
 }

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Check, ChevronRight, Megaphone, MessageCircle, PackageCheck, PartyPopper, Truck, WalletCards } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -31,7 +31,7 @@ export function PantallaPendientes() {
         <Encabezado titulo="Pendientes" sub={total ? 'Lo que hay que hacer hoy' : fechaLarga(hoy())} />
       </div>
 
-      {total === 0 && (
+      {total === 0 && deben.length === 0 && (
         <Tarjeta>
           <Vacio icono={<PartyPopper size={36} />} titulo="Todo al día" texto="No hay a quién escribirle ni nada por cobrar. Aquí aparece en cuanto haya algo." />
         </Tarjeta>
@@ -63,7 +63,7 @@ export function PantallaPendientes() {
 
       {deben.length > 0 && (
         <Seccion titulo={`Deben clases · ${deben.length}`}>
-          <Lista items={deben} fila={({ alumno, clases, total: monto }) => (
+          <Lista items={deben} fila={({ alumno, clases, total: monto, avisoReciente }) => (
               <FilaAviso
                 key={alumno.id}
                 alumno={alumno}
@@ -71,10 +71,11 @@ export function PantallaPendientes() {
                 mensaje="adeudo"
                 datos={{ monto: dinero(monto) }}
                 detalle={`${clases} ${clases === 1 ? 'clase' : 'clases'} · ${dinero(monto)}`}
+                avisoReciente={avisoReciente}
                 urgente
               />
           )} />
-          <p className="mt-2 px-1 text-xs text-ink-500">Se cobra en su ficha o cuando vuelva a entrar. Si ya le escribiste, vuelve a salir en {DIAS_ENTRE_COBROS} días.</p>
+          <p className="mt-2 px-1 text-xs text-ink-500">El saldo sigue visible hasta que se cobre. Puedes volver a enviar un recordatorio después de {DIAS_ENTRE_COBROS} días.</p>
         </Seccion>
       )}
 
@@ -109,7 +110,7 @@ export function PantallaPendientes() {
 
       {total > 0 && (
         <p className="mt-4 px-1 text-center text-xs leading-relaxed text-ink-500">
-          Después de avisar por WhatsApp o en persona, toca <Check size={12} className="inline" aria-hidden="true" /> para quitar el pendiente de la lista.
+          Después de avisar por WhatsApp o en persona, toca <Check size={12} className="inline" aria-hidden="true" /> para marcar el aviso.
         </p>
       )}
     </div>
@@ -139,10 +140,10 @@ function Atajo({ a, icono, texto }: { a: string; icono: ReactNode; texto: string
 }
 
 /** Un alumno a quien escribirle: WhatsApp con el texto listo, o "ya le avisé". */
-function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje; datos: Record<string, string>; detalle: string; urgente?: boolean }) {
+function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje; datos: Record<string, string>; detalle: string; urgente?: boolean; avisoReciente?: boolean }) {
   const { academia } = useSesion();
-  const nav = useNavigate();
   const avisar = useAvisos();
+  const esAdeudo = p.clave === 'adeudo';
   const nombre1 = p.alumno.nombre.split(' ')[0];
   const texto = armarMensaje(plantilla(academia, p.mensaje), { nombre: nombre1, academia: academia.nombre, codigo: p.alumno.codigo, ...p.datos });
   const link = waLink(p.alumno.telefono, texto);
@@ -152,29 +153,36 @@ function FilaAviso(p: { alumno: Alumno; clave: ClaveAviso; mensaje: ClaveMensaje
   };
   return (
     <div className="flex items-center gap-2 py-2 pr-2 pl-3">
-      <button onClick={() => nav(`/alumnos/${p.alumno.id}`)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left active:bg-ink-50">
+      <Link to={`/alumnos/${p.alumno.id}${esAdeudo ? '#adeudos' : ''}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left active:bg-ink-50">
         <Avatar nombre={p.alumno.nombre} foto={p.alumno.foto} tam={40} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{p.alumno.nombre}</span>
           {/* hasta 2 renglones: con los dos botones al lado se cortaba justo "venció hace 7 días" */}
           <span className={p.urgente ? 'line-clamp-2 text-xs font-semibold text-bad-600' : 'line-clamp-2 text-xs text-ink-500'}>{p.detalle}</span>
-          {!link && <span className="block text-[11px] text-ink-500">Sin teléfono: avísale en persona</span>}
+          {esAdeudo && <span className="block text-xs font-semibold text-brand-600">Ver adeudo</span>}
+          {!link && !p.avisoReciente && <span className="block text-[11px] text-ink-500">Sin teléfono: avísale en persona</span>}
         </span>
-      </button>
-      {link ? (
-        <a
-          href={link}
-          target="_blank"
-          rel="noreferrer"
-          className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-600 px-3 text-sm font-bold text-white active:brightness-95"
-          aria-label={`Mandar WhatsApp a ${p.alumno.nombre}`}
-        >
-          <MessageCircle size={18} /> <span className="hidden sm:inline">WhatsApp</span>
-        </a>
-      ) : null}
-      <button onClick={() => void hecho()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-500 ring-1 ring-ink-100 active:bg-ink-50" aria-label={`Ya le avisé a ${p.alumno.nombre}`}>
-        <Check size={20} />
-      </button>
+      </Link>
+      {p.avisoReciente ? (
+        <span className="shrink-0 rounded-xl bg-ok-50 px-2 py-1 text-xs font-semibold text-ok-600">Avisado</span>
+      ) : (
+        <>
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-600 px-3 text-sm font-bold text-white active:brightness-95"
+              aria-label={`Mandar WhatsApp a ${p.alumno.nombre}`}
+            >
+              <MessageCircle size={18} /> <span className="hidden sm:inline">WhatsApp</span>
+            </a>
+          )}
+          <button onClick={() => void hecho()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-500 ring-1 ring-ink-100 active:bg-ink-50" aria-label={`Ya le avisé a ${p.alumno.nombre}`}>
+            <Check size={20} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ export function TarjetaAdeudos({ alumno }: { alumno: Alumno }) {
   if (!adeudos.length) return null;
   return (
     <div id="adeudos" ref={tarjeta} tabIndex={-1} className="mt-4 space-y-3 rounded-2xl bg-bad-50 p-4">
+      {hash === '#adeudos' && <p className="text-sm font-semibold text-ink-900">{alumno.nombre}</p>}
       <p className="flex items-center gap-2 font-bold text-bad-600">
         <Clock size={18} /> Debe {adeudos.length} {adeudos.length === 1 ? 'clase' : 'clases'} · {dinero(total)}
       </p>
@@ -52,6 +53,8 @@ export function TarjetaAdeudos({ alumno }: { alumno: Alumno }) {
           try {
             const cobrado = await cobrarAdeudos({ adeudos, metodo, usuarioId: usuario.id, planes });
             avisar(`Adeudo cobrado · ${dinero(cobrado)}`);
+          } catch {
+            avisar('No se pudo guardar el cobro del adeudo. Inténtalo de nuevo.', 'error');
           } finally {
             setOcupado(false);
           }

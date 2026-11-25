@@ -68,10 +68,10 @@ export function usePendientes(vivo = true) {
     if (!datos) return null;
     const porId = new Map(datos.alumnos.map((a) => [a.id, a]));
     const renovar = porRenovar({ mems: datos.mems, alumnos: porId, planes, hoy: dia });
-    const deben = deudores({ asistencias: datos.fiados, alumnos: porId, clases, planes });
+    const deben = deudores({ asistencias: datos.fiados, alumnos: porId, clases, planes, incluirAvisados: vivo });
     const extranar = porExtranar({ asistencias: datos.asistencias, alumnos: porId, hoy: dia });
     const rentas = rentasPorCobrar({ rentas: datos.rentas, pagos: datos.pagosRenta, asistencias: datos.asistencias, clases, hoy: dia });
-    const total = renovar.length + deben.length + extranar.length + rentas.length + interesados + porEntregar + porPedir;
+    const total = renovar.length + deben.filter((d) => !d.avisoReciente).length + extranar.length + rentas.length + interesados + porEntregar + porPedir;
     return { renovar, deben, extranar, rentas, interesados, porEntregar, porPedir, total };
-  }, [datos, planes, clases, dia, interesados, porEntregar, porPedir]);
+  }, [datos, planes, clases, dia, interesados, porEntregar, porPedir, vivo]);
 }

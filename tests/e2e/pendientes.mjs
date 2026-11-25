@@ -127,5 +127,33 @@ const g = await page.evaluate(async () => (await window.compasDev.db.gastos.toAr
 const karla = await page.evaluate(async () => (await window.compasDev.db.maestros.toArray()).find((m) => /Karla/.test(m.nombre))?.id);
 t = await txt();
 console.log('9) pago a Karla guardado con su maestro y restado de sus clases:', ok(g?.maestroId === karla && /Karla Méndez .{0,140}maestro ~?\$[\d,]+/.test(t.split(/Lo que deja cada clase/i)[1])));
+
+// 10) Avisar conserva el adeudo y el acceso directo al cobro.
+await ir('/pendientes');
+const primerAdeudo = page.getByRole('link', { name: /Ver adeudo/ }).first();
+await primerAdeudo.waitFor();
+const fichaAdeudo = await primerAdeudo.getAttribute('href');
+const enlaceAdeudo = page.locator(`a[href="${fichaAdeudo}"]`);
+const filaAdeudo = enlaceAdeudo.locator('..');
+const idAdeudo = fichaAdeudo.split('/').at(-1).split('#')[0];
+const nombreAdeudo = await page.evaluate(async (id) => (await window.compasDev.db.alumnos.get(id)).nombre, idAdeudo);
+await filaAdeudo.getByRole('button', { name: /^Ya le avisé a/ }).click();
+await filaAdeudo.getByText('Avisado', { exact: true }).waitFor();
+await enlaceAdeudo.click();
+const tarjetaAdeudo = page.locator('#adeudos');
+const cobrar = tarjetaAdeudo.getByRole('button', { name: /Cobrar lo que debe/ });
+await tarjetaAdeudo.getByText(nombreAdeudo, { exact: true }).waitFor();
+await cobrar.click();
+await page.getByText(/Adeudo cobrado/).waitFor();
+await ir('/pendientes');
+await page.getByRole('heading', { name: 'Pendientes', exact: true }).waitFor();
+console.log('10a) cobrar desde el adeudo directo lo retira de Pendientes:', ok((await enlaceAdeudo.count()) === 0));
+await ir('/caja');
+const todasSedes = page.getByRole('button', { name: 'Todas las sedes', exact: true });
+await page.getByText('Total cobrado').waitFor();
+if (await todasSedes.count()) await todasSedes.click();
+await page.getByRole('button').filter({ hasText: nombreAdeudo }).filter({ hasText: /fiada/ }).first().waitFor();
+console.log('10b) el cobro queda en Caja con la persona y la clase fiada:', 'OK');
+
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
