@@ -61,7 +61,7 @@ for (const [n, url, esperado] of [
   const banner = await page.getByText('Vienes de parte de Ana L.').count();
   if (esperado) await page.screenshot({ path: `${OUT}invitar-pagina.png` });
   await page.locator('#inscribete input').first().fill('Rosa Amiga');
-  await page.locator('#inscribete input[inputmode=tel]').fill('5511112222');
+  await page.locator('#inscribete input[inputmode=numeric]').fill('5511112222');
   await page.locator('#inscribete button[type=submit]').click();
   await page.waitForTimeout(800);
   const bien = esperado ? banner === 1 && inscrito?.p_de === esperado : banner === 0 && !('p_de' in (inscrito ?? {})) && preguntoQuien === 0;
@@ -94,7 +94,7 @@ for (const h of ['#horarios', '#horario']) {
   const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   const y = await page.evaluate(() => document.getElementById('horarios').getBoundingClientRect().top);
   await page.screenshot({ path: `${OUT}modo-alumno.png` });
-  console.log('2c) desde su portal: ve el horario, sin "primera clase" ni inscripción:', ok(Math.abs(y) < 120 && !/primera clase|Inscríbete|Apartar mi lugar|Toca una clase para apartar/i.test(t) && (await page.locator('#inscribete').count()) === 0 && (await page.getByRole('button', { name: /Apartar lugar en/ }).count()) === 0), Math.round(y));
+  console.log('2c) desde su portal: ve el horario, sin "primera clase" ni inscripción:', ok(Math.abs(y) < 120 && !/primera clase|Inscríbete|Elige una clase para solicitar/i.test(t) && (await page.locator('#inscribete').count()) === 0 && (await page.getByRole('button', { name: /Solicitar lugar en/ }).count()) === 0), Math.round(y));
   await page.getByRole('button', { name: 'Volver a mi portal' }).first().click();
   await page.getByText('Tu pase de entrada').waitFor({ timeout: 5000 }).catch(() => {});
   console.log('2d) "Volver a mi portal" regresa a su portal:', ok(/\/p\/AbCdEf/.test(page.url())), page.url());

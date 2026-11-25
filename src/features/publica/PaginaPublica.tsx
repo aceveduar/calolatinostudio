@@ -172,7 +172,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   useEffect(() => {
     const vistos = new Map<Element, boolean>();
     const actualizar = (es: IntersectionObserverEntry[]) => {
-      for (const e of es) vistos.set(e.target, e.isIntersecting);
+      for (const e of es) vistos.set(e.target, e.isIntersecting || (e.target === form.current && e.boundingClientRect.top < 0));
       setVerBarra(![...vistos.values()].some(Boolean));
     };
     // El botón de la portada cuenta en cuanto se ve, aunque sea abajo de la pantalla (en celulares chicos
@@ -207,6 +207,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
 
   // tocar una clase del horario: queda elegida en el formulario
   const [claseSel, setClaseSel] = useState('');
+  const opcionesClase = clasesSede.length ? d.clases.filter((c) => (c.sede_id ?? null) === sede || c.id === claseSel) : d.clases;
   const apartar = (id: string) => {
     setClaseSel(id);
     document.getElementById('inscribete')?.scrollIntoView({ block: 'start' });
@@ -266,7 +267,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           <div className="relative order-first md:order-last">
             {p.portada ? (
               <div className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/40 ring-1 ring-white/15 md:rotate-1">
-                <img src={p.portada} alt={`Clase en ${d.academia.nombre}`} className="aspect-[4/3] w-full object-cover md:aspect-[4/5]" fetchPriority="high" />
+                <img src={p.portada} alt={`Clase en ${d.academia.nombre}`} className="aspect-[16/10] w-full object-cover md:aspect-[4/5]" fetchPriority="high" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
               </div>
             ) : (
@@ -300,17 +301,9 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                 <span aria-hidden="true">💃</span> Vienes de parte de {invita}
               </p>
             )}
-            {disciplinas.length > 0 && (
-              <p className="mb-3 text-xs font-extrabold tracking-[0.2em] text-white/60 uppercase">
-                {disciplinas
-                  .map((x) => x.nombre)
-                  .slice(0, 4)
-                  .join(' · ')}
-              </p>
-            )}
             <h1 className="text-[2.6rem] leading-[1.03] font-extrabold tracking-tight text-balance sm:text-6xl">{p.frase || 'Clases de baile'}</h1>
-            {p.intro && <p className="mt-4 line-clamp-3 max-w-xl text-lg text-pretty text-white/75">{p.intro}</p>}
-            <div ref={hero} className="mt-7 flex gap-3">
+            {p.intro && <p className="mt-3 max-w-xl text-base text-pretty text-white/80 sm:text-lg">{p.intro}</p>}
+            <div ref={hero} className="mt-5 flex gap-2">
               {yo ? (
                 <button type="button" onClick={volverAlPortal} className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-6 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98] sm:flex-none">
                   <ArrowLeft size={20} aria-hidden="true" /> Volver a mi portal
@@ -326,31 +319,16 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                 </a>
               )}
             </div>
+            {!yo && <a href="#horarios" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-white underline underline-offset-4">Ver horarios</a>}
             {/* datos que dan confianza, calculados de la app */}
-            <dl className="mt-9 grid max-w-md grid-cols-3 gap-3">
+            <dl className="mt-4 grid max-w-md grid-cols-3 gap-3">
               <Dato valor={clasesPorSemana} texto="clases por semana" />
               <Dato valor={disciplinas.length} texto={disciplinas.length === 1 ? 'disciplina' : 'disciplinas'} />
-              {desdeCero ? <Dato valor={0} texto="experiencia necesaria" /> : <Dato valor={sedes.length} texto={sedes.length === 1 ? 'sede' : 'sedes'} />}
+              <Dato valor={sedes.length} texto={sedes.length === 1 ? 'sede' : 'sedes'} />
             </dl>
           </div>
         </div>
       </header>
-
-      {/* cinta de disciplinas: avanza con el scroll */}
-      {disciplinas.length > 1 && (
-        <div className="overflow-hidden bg-panel py-4 text-white select-none" aria-hidden="true">
-          <div className="pp-cinta flex w-max gap-8 pl-5 text-2xl font-extrabold tracking-tight whitespace-nowrap uppercase sm:text-3xl">
-            {Array.from({ length: 4 }, () => disciplinas.map((x) => x.nombre))
-              .flat()
-              .map((n, i) => (
-                <span key={i} className="flex items-center gap-8">
-                  <span className={i % 2 ? 'text-transparent [-webkit-text-stroke:1.5px_white]' : ''}>{n}</span>
-                  <Sparkle size={22} className="text-brand-500" />
-                </span>
-              ))}
-          </div>
-        </div>
-      )}
 
       <main>
         {/* ---------- disciplinas ---------- */}
@@ -381,38 +359,27 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
 
         {/* ---------- horarios ---------- */}
         <Seccion id="horarios" eyebrow={disciplinas.length > 1 ? undefined : 'Nuestras clases'} titulo="Horarios" fondo={disciplinas.length > 1 ? 'superficie' : undefined} idAlterno={disciplinas.length > 1 ? undefined : 'clases'}>
-          <div className="space-y-3">
+          <div className="flex flex-wrap gap-3">
             {conSedes && (
-              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Sede">
-                {sedes.map((s) => (
-                  <button
-                    key={s.id ?? 'principal'}
-                    role="tab"
-                    aria-selected={sede === s.id}
-                    onClick={() => setSede(s.id)}
-                    className={cx('flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1', sede === s.id ? 'bg-ink-900 text-ink-50 ring-ink-900' : 'bg-superficie ring-ink-100')}
-                  >
-                    <MapPin size={14} /> {s.nombre}
-                  </button>
-                ))}
-              </div>
+              <label className="min-w-32 flex-1 text-xs font-semibold text-ink-700 sm:flex-none">
+                Sede
+                <select value={sede ?? ''} onChange={(e) => setSede(e.target.value || null)} className="mt-1 block h-11 w-full rounded-xl border border-ink-100 bg-superficie px-2 text-sm font-semibold">
+                  {sedes.map((s) => <option key={s.id ?? 'principal'} value={s.id ?? ''}>{s.nombre}</option>)}
+                </select>
+              </label>
             )}
             {disciplinas.length > 1 && (
-              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Disciplina">
-                {[null, ...disciplinas.map((x) => x.nombre)].map((n) => (
-                  <button
-                    key={n ?? 'todas'}
-                    aria-pressed={disciplina === n}
-                    onClick={() => setDisciplina(n)}
-                    className={cx('min-h-11 shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', disciplina === n ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie text-ink-700 ring-ink-100')}
-                  >
-                    {n ?? 'Todas'}
-                  </button>
-                ))}
-              </div>
+              <label className="min-w-32 flex-1 text-xs font-semibold text-ink-700 sm:flex-none">
+                Disciplina
+                <select value={disciplina ?? ''} onChange={(e) => setDisciplina(e.target.value || null)} className="mt-1 block h-11 w-full rounded-xl border border-ink-100 bg-superficie px-2 text-sm font-semibold">
+                  <option value="">Todas</option>
+                  {disciplinas.map(({ nombre }) => <option key={nombre}>{nombre}</option>)}
+                </select>
+              </label>
             )}
+          </div>
             {nuevos.length > 0 && (
-              <div className="space-y-1 rounded-2xl bg-ok-50 p-3 ring-1 ring-ok-600/20">
+              <div className="mt-3 space-y-1 rounded-2xl bg-ok-50 p-3 ring-1 ring-ok-600/20">
                 {nuevos.map(({ c, e }) => (
                   <p key={c.id} className="flex items-start gap-2 text-sm font-semibold text-ok-600">
                     <Sparkle size={16} className="mt-0.5 shrink-0" />
@@ -423,7 +390,6 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                 ))}
               </div>
             )}
-          </div>
           {cambiosHorario.length > 0 && (
             <div className="mt-4 space-y-1 rounded-2xl bg-warn-50 p-3 text-sm text-ink-800">
               <h3 className="font-bold">Cambios de horario</h3>
@@ -466,36 +432,12 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           </Seccion>
         )}
 
-        {/* ---------- comunidad: fotos y lo que dicen los alumnos ---------- */}
-        {((p.galeria?.length ?? 0) > 0 || (p.testimonios?.length ?? 0) > 0) && (
-          <Seccion id="comunidad" eyebrow="Comunidad" titulo="Así se vive la clase" fondo="superficie">
-            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} creditos={p.creditos} />
-          </Seccion>
-        )}
-
-        {/* ---------- franja de la primera clase (no para quien ya es alumno) ---------- */}
-        {!yo && (
-        <section className="pp-revela relative overflow-hidden bg-brand-500 text-white">
-          <div className="mx-auto flex max-w-5xl flex-col gap-5 px-5 py-12 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">{primera ?? '¿Listo para tu primera clase?'}</p>
-              {/* blanco completo: al 85 % sobre un color de marca rojo quedaba en 3.8:1 (mínimo 4.5) */}
-              <p className="mt-1 font-medium text-white">{desdeCero ? 'No necesitas experiencia ni pareja. Te acompañamos desde el primer paso.' : 'Ven a conocer al grupo y bailar con nosotros.'}</p>
-            </div>
-            <a href="#inscribete" className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-6 text-lg font-bold text-[var(--marca)] shadow-xl active:scale-[0.98]">
-              Apartar mi lugar <ArrowRight size={20} aria-hidden="true" />
-            </a>
-          </div>
-        </section>
-        )}
-
         {/* ---------- dónde estamos ---------- */}
         {lugares.length > 0 && (
-          <Seccion id="ubicacion" eyebrow="Ubicación" titulo="Dónde estamos">
+          <Seccion id="ubicacion" titulo="Dónde estamos">
             <div className="space-y-6">
               {lugares.map((l) => (
-                <div key={l.nombre} className="pp-revela grid overflow-hidden rounded-3xl bg-superficie shadow-sm ring-1 ring-ink-100 md:grid-cols-[1.4fr_1fr]">
-                  <MapaLigero nombre={l.nombre} direccion={l.direccion} />
+                <div key={l.nombre} className="pp-revela grid overflow-hidden rounded-3xl bg-superficie shadow-sm ring-1 ring-ink-100 md:grid-cols-[1fr_1fr]">
                   <div className="flex flex-col gap-3 p-5">
                     {lugares.length > 1 && <p className="text-xs font-extrabold tracking-widest text-brand-600 uppercase">{l.nombre}</p>}
                     <p className="flex gap-2 text-lg font-bold">
@@ -507,9 +449,50 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
                       <Navigation size={18} /> Cómo llegar
                     </a>
                   </div>
+                  <MapaLigero nombre={l.nombre} direccion={l.direccion} />
                 </div>
               ))}
             </div>
+          </Seccion>
+        )}
+
+        {/* ---------- preguntas ---------- */}
+        {(p.preguntas?.length ?? 0) > 0 && (
+          <Seccion id="preguntas" titulo="Preguntas frecuentes" fondo="superficie">
+            <div className="pp-faq divide-y divide-ink-100 rounded-3xl bg-ink-50 px-5 ring-1 ring-ink-100">
+              {p.preguntas!.map((x, i) => (
+                <details key={i}>
+                  <summary className="py-4 text-lg font-bold">{x.p}</summary>
+                  <p className="pb-4 pl-8 text-ink-700">{x.r}</p>
+                </details>
+              ))}
+            </div>
+          </Seccion>
+        )}
+
+        {/* ---------- inscripción (no para quien ya es alumno) ---------- */}
+        {!yo && (
+        <section className="bg-panel text-white">
+          <div className="mx-auto grid max-w-5xl gap-4 px-5 py-10 md:grid-cols-[1fr_1.1fr] md:items-start md:gap-8 md:py-14">
+            <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900 md:order-2">
+              <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
+            </div>
+            <div className="md:sticky md:top-24 md:order-1">
+              {desdeCero && <ul className="hidden text-white/85 md:block"><Punto>Grupos desde cero, sin necesidad de pareja</Punto></ul>}
+              {wa && (
+                <a href={wa} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-white underline underline-offset-4 md:mt-3">
+                  <MessageCircle size={18} aria-hidden="true" /> Preguntar por WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+        )}
+
+        {/* ---------- comunidad: fotos y lo que dicen los alumnos ---------- */}
+        {((p.galeria?.length ?? 0) > 0 || (p.testimonios?.length ?? 0) > 0) && (
+          <Seccion id="comunidad" eyebrow="Comunidad" titulo="Así se vive la clase" fondo="superficie">
+            <Comunidad galeria={p.galeria ?? []} testimonios={p.testimonios ?? []} creditos={p.creditos} />
           </Seccion>
         )}
 
@@ -572,44 +555,6 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
             "Ver toda la tienda"; cada producto abre su detalle. Apartar es desde el portal del alumno. */}
         {d.tienda.length > 0 && <TiendaPublica productos={d.tienda} wa={waCon} />}
 
-        {/* ---------- preguntas ---------- */}
-        {(p.preguntas?.length ?? 0) > 0 && (
-          <Seccion id="preguntas" eyebrow="Dudas" titulo="Preguntas frecuentes" fondo="superficie">
-            <div className="pp-faq divide-y divide-ink-100 rounded-3xl bg-ink-50 px-5 ring-1 ring-ink-100">
-              {p.preguntas!.map((x, i) => (
-                <details key={i}>
-                  <summary className="py-4 text-lg font-bold">{x.p}</summary>
-                  <p className="pb-4 pl-8 text-ink-700">{x.r}</p>
-                </details>
-              ))}
-            </div>
-          </Seccion>
-        )}
-
-        {/* ---------- inscripción (no para quien ya es alumno) ---------- */}
-        {!yo && (
-        <section className="bg-panel text-white">
-          <div className="mx-auto grid max-w-5xl gap-8 px-5 py-14 md:grid-cols-[1fr_1.1fr] md:items-start">
-            <div className="md:sticky md:top-24">
-              <p className="text-xs font-extrabold tracking-widest text-white/60 uppercase">Inscríbete</p>
-              <p className="mt-2 text-4xl font-extrabold tracking-tight text-balance">Tu primer paso empieza aquí</p>
-              <ul className="mt-5 space-y-3 text-white/85">
-                <Punto>Te escribimos por WhatsApp para apartarte lugar</Punto>
-                {desdeCero && <Punto>Grupos desde cero, sin necesidad de pareja</Punto>}
-                <Punto>Sin compromiso: conoce al grupo y después decides tu plan</Punto>
-              </ul>
-              {wa && (
-                <a href={wa} target="_blank" rel="noreferrer" className="mt-6 inline-flex h-12 items-center gap-2 rounded-2xl bg-[#15803d] px-5 font-bold text-white active:scale-[0.98]">
-                  <MessageCircle size={20} /> Escríbenos por WhatsApp
-                </a>
-              )}
-            </div>
-            <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
-              <Inscripcion d={d} slug={slug} clases={clasesSede.length ? clasesSede : d.clases} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
-            </div>
-          </div>
-        </section>
-        )}
       </main>
 
       {/* ---------- pie ---------- */}
@@ -653,12 +598,12 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
               <ArrowLeft size={20} aria-hidden="true" /> Volver a mi portal
             </button>
           ) : (
-            <a href="#inscribete" tabIndex={verBarra ? 0 : -1} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98]">
+            <a href="#inscribete" tabIndex={verBarra ? 0 : -1} className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-brand-500 text-base font-bold text-white shadow-xl shadow-brand-500/30 active:scale-[0.98]">
               Quiero mi primera clase
             </a>
           )}
           {wa && (
-            <a href={wa} target="_blank" rel="noreferrer" tabIndex={verBarra ? 0 : -1} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#15803d] text-white shadow-xl" aria-label="Escríbenos por WhatsApp">
+            <a href={wa} target="_blank" rel="noreferrer" tabIndex={verBarra ? 0 : -1} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15803d] text-white shadow-xl" aria-label="Escríbenos por WhatsApp">
               <MessageCircle size={24} />
             </a>
           )}
@@ -677,7 +622,7 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
   const orden = [...productos].sort((a, b) => Number(!a.foto) - Number(!b.foto));
   const enlace = seleccionado && wa(`Hola, me interesa ${seleccionado.nombre}${opcion ? ` (${opcion})` : ''} que vi en su página. ¿Me comparten la disponibilidad?`);
   return (
-    <Seccion eyebrow="Tienda" titulo="Lleva tu estilo">
+    <Seccion titulo="Tienda">
       {/* 4 columnas fijas en pantallas grandes: los 8 a la vista son 2 renglones completos (con 5 quedaba 5 + 3) */}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {orden.map((x, i) => {
@@ -693,7 +638,7 @@ function TiendaPublica({ productos, wa }: { productos: DatosPublica['tienda']; w
             <li key={i} className={cx(!todos && i >= 8 && 'hidden', !todos && i >= 4 && 'max-sm:hidden')}>
               <button
                 type="button"
-                className="block h-full w-full rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100 active:scale-[0.98]"
+                className="flex h-full w-full flex-col items-stretch rounded-3xl bg-superficie p-3 text-center shadow-sm ring-1 ring-ink-100 active:scale-[0.98]"
                 aria-label={`Ver ${x.nombre}, ${dinero(x.precio)}`}
                 onClick={() => {
                   setOpcion(null);

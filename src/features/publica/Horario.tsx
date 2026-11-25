@@ -50,7 +50,7 @@ export function Horario({ clases, sede, estados, onApartar, wa }: { clases: Dato
       <li key={c.id} className={cx('flex items-stretch overflow-hidden rounded-2xl bg-superficie shadow-sm ring-1 transition', esAhora ? 'ring-2 ring-ok-600' : 'ring-ink-100')}>
         <Fila
           {...(onApartar
-            ? { type: 'button' as const, onClick: () => onApartar(c.id), 'aria-label': `Apartar lugar en ${c.clase}, ${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}` }
+            ? { type: 'button' as const, onClick: () => onApartar(c.id), 'aria-label': `Solicitar lugar en ${c.clase}, ${DIAS_LARGOS[dd].toLowerCase()} ${c.hora}` }
             : {})}
           className={cx('group flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left', onApartar ? 'hover:bg-ink-50 active:bg-ink-50' : 'pr-3')}
         >
@@ -118,7 +118,7 @@ export function Horario({ clases, sede, estados, onApartar, wa }: { clases: Dato
           Toda la semana
         </button>
       </div>
-      {onApartar && <p className="mt-3 text-xs text-ink-500">Toca una clase para apartar tu lugar.</p>}
+      {onApartar && <p className="mt-3 text-xs text-ink-500">Elige una clase para solicitar un lugar.</p>}
       {dia === 'semana' ? (
         <div className="mt-5 grid gap-x-6 gap-y-5 lg:grid-cols-2">
           {conClase.map((x) => (

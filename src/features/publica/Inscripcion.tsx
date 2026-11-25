@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { Check, Sparkle, Users } from 'lucide-react';
+import { Check, Sparkle } from 'lucide-react';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { cx } from '../../components/ui';
 import { AvisoPrivacidad } from './AvisoPrivacidad';
 import { DIAS_CORTOS } from '../../domain/fechas';
+import { consultaTelefono } from '../../domain/telefono';
 import { ERRORES_INSCRIPCION, type DatosPublica } from '../../domain/publica';
 import { type Estados } from './comun';
 
 /** `de`: huella de quien lo invitó (enlace de invitación de un alumno); se manda solo si existe. */
-export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClase, de = null, origen = null, privacidad }: { d: DatosPublica; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null; origen?: string | null; privacidad: string }) {
+export function Inscripcion({ academia, slug, clases, primera, estados, claseId, onClase, de = null, origen = null, privacidad }: { academia: string; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null; origen?: string | null; privacidad: string }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviado'>('listo');
   const [error, setError] = useState<string | null>(null);
-  const tel = telefono.replace(/\D/g, '');
+  const tel = consultaTelefono(telefono.trim());
   // errores junto a cada campo (no un botón apagado sin explicación)
   const errNombre = nombre.trim().length < 2 ? 'Escribe tu nombre' : null;
-  const errTel = tel.length === 0 ? 'Escribe tu WhatsApp' : tel.length < 10 ? `Falta${10 - tel.length === 1 ? '' : 'n'} ${10 - tel.length} dígito${10 - tel.length === 1 ? '' : 's'}` : tel.length > 10 ? 'Son 10 dígitos, sin lada' : null;
+  const errTel = tel.length === 10 ? null : telefono.trim() ? 'Escribe un número mexicano de 10 dígitos' : 'Escribe tu WhatsApp';
   const valido = !errNombre && !errTel;
   const [intento, setIntento] = useState(false);
   const [tocado, setTocado] = useState({ nombre: false, tel: false });
@@ -34,11 +35,11 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
         <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-ok-600 text-white">
           <Check size={30} />
         </span>
-        <p className="text-2xl font-extrabold">¡Listo, {nombre.trim().split(' ')[0]}!</p>
+        <h2 className="text-2xl font-extrabold">Solicitud recibida</h2>
         <p className="mt-1 text-ink-700">
           {esperaEnviada
             ? `Ese grupo ya va avanzado: te escribimos por WhatsApp en cuanto abra el siguiente grupo de ${esperaEnviada}. 💃🕺`
-            : `Te escribimos por WhatsApp para darte los detalles. ¡Te esperamos en ${d.academia.nombre}! 💃🕺`}
+            : 'Te escribiremos por WhatsApp para confirmar la clase y tu lugar.'}
         </p>
       </section>
     );
@@ -51,7 +52,7 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
           <Sparkle size={14} /> {primera}
         </p>
       )}
-      <p className="mt-2 text-sm text-ink-500">Déjanos tus datos y te escribimos por WhatsApp para apartarte lugar.</p>
+      <p className="mt-2 text-sm text-ink-500">Te confirmaremos tu lugar por WhatsApp.</p>
       <form
         className="mt-5 space-y-3"
         onSubmit={async (e) => {
@@ -96,10 +97,11 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
           <span className="mb-1 block text-sm font-semibold text-ink-700">WhatsApp (10 dígitos)</span>
           <input
             id="pp-tel"
+            type="tel"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
             onBlur={() => setTocado((t) => ({ ...t, tel: true }))}
-            inputMode="tel"
+            inputMode="numeric"
             autoComplete="tel"
             aria-invalid={!!verTel}
             aria-describedby={verTel ? 'pp-tel-error' : undefined}
@@ -114,7 +116,7 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink-700">¿Qué clase te interesa?</span>
           <select value={claseId} onChange={(e) => onClase(e.target.value)} className={cx(campo, 'px-3', claseId && 'ring-2 ring-brand-500')}>
-            <option value="">Todavía no sé / cualquiera</option>
+            <option value="">Todavía no sé</option>
             {clases.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.clase} · {c.dias.map((x) => DIAS_CORTOS[x]).join(' ')} {c.hora}
@@ -128,13 +130,13 @@ export function Inscripcion({ d, slug, clases, primera, estados, claseId, onClas
           <span className="mb-1 block text-sm font-semibold text-ink-700">Algo que quieras decirnos (opcional)</span>
           <input value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={300} placeholder="Ej. nunca he bailado, voy en pareja…" className={campo} />
         </label>
-        {error && <p className="rounded-xl bg-bad-50 px-3 py-2 text-sm font-medium text-bad-600">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-bad-50 px-3 py-2 text-sm font-medium text-bad-600">{error}</p>}
         <button type="submit" disabled={estado === 'enviando'} className="h-14 w-full rounded-2xl bg-brand-500 text-lg font-bold text-white shadow-lg shadow-brand-500/30 active:scale-[0.98] disabled:opacity-60">
-          {estado === 'enviando' ? 'Enviando…' : espera ? 'Avísenme del siguiente grupo' : 'Quiero inscribirme'}
+          {estado === 'enviando' ? 'Enviando…' : espera ? 'Avísenme del siguiente grupo' : 'Solicitar lugar'}
         </button>
         <p className="flex flex-wrap items-center justify-center gap-x-1.5 text-center text-xs text-ink-500">
-          <Users size={13} aria-hidden="true" /> Solo usamos tu número para escribirte sobre las clases.{' '}
-          <AvisoPrivacidad texto={privacidad} academia={d.academia.nombre} className="font-semibold text-ink-700 underline underline-offset-2" />
+          Solo usamos tu número para contactarte sobre las clases.{' '}
+          <AvisoPrivacidad texto={privacidad} academia={academia} className="font-semibold text-ink-700 underline underline-offset-2" />
         </p>
       </form>
     </section>

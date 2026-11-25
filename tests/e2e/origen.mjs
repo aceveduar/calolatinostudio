@@ -22,7 +22,7 @@ await page.getByRole('heading', { level: 1 }).waitFor();
 // navegar dentro de la página no pierde el origen
 await page.evaluate(() => history.replaceState(null, '', '/a/calo-latino#inscribete'));
 await page.locator('#inscribete input').first().fill('Rosa Anuncio');
-await page.locator('#inscribete input[inputmode=tel]').fill('5511113333');
+await page.locator('#inscribete input[inputmode=numeric]').fill('5511113333');
 await page.locator('#inscribete button[type=submit]').click();
 await page.waitForTimeout(800);
 console.log('1) quien llega de un anuncio queda anotado con su origen:', ok(inscrito?.p_origen === 'facebook · navidad'), JSON.stringify(inscrito?.p_origen));

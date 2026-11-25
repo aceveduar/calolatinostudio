@@ -24,15 +24,15 @@ for (const [n, vp, movil, esperados] of [['cel', { width: 390, height: 844 }, tr
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errores.push(e.message));
   await p.goto('http://localhost:4173/a/calo-latino');
-  const titulo = p.getByRole('heading', { name: 'Lleva tu estilo' });
+  const titulo = p.getByRole('heading', { name: 'Tienda', exact: true });
   await titulo.waitFor({ timeout: 8000 });
   await titulo.scrollIntoViewIfNeeded();
   await p.waitForTimeout(600);
-  const visibles = () => p.locator('section:has(h2:text("Lleva tu estilo")) li:visible').count();
+  const visibles = () => p.locator('section:has(h2:text-is("Tienda")) li:visible').count();
   const antes = await visibles();
   const tarjeta = p.getByRole('button', { name: /^Ver Playera 3,/ });
   await p.screenshot({ path: `${OUT}tiendapublica-${n}.png` });
-  const primera = p.locator('section:has(h2:text("Lleva tu estilo")) li:visible button').first();
+  const primera = p.locator('section:has(h2:text-is("Tienda")) li:visible button').first();
   console.log(`1) ${n}: se ven ${esperados} productos, primero los que tienen foto:`, ok(antes === esperados && /^Ver Playera/.test((await primera.getAttribute('aria-label')) ?? '')), antes);
   await tarjeta.click();
   const detalle = p.getByRole('dialog', { name: 'Playera 3' });

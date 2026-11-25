@@ -236,20 +236,6 @@ textarea {
       animation-range: 20svh 80svh;
     }
 
-    /* Cinta de disciplinas: avanza con el scroll (no se mueve sola, así no hace falta botón de pausa) */
-    @keyframes pp-cinta {
-      from {
-        translate: 0 0;
-      }
-      to {
-        translate: -35% 0;
-      }
-    }
-    .pp-cinta {
-      animation: pp-cinta linear both;
-      animation-timeline: view();
-    }
-
     /* Carrusel de disciplinas (celular): la tarjeta del centro se agranda */
     @keyframes pp-carrusel {
       0%,

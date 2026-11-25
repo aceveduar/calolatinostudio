@@ -65,11 +65,13 @@ console.log('1b) clase por curso guardada:', ok(curso?.inicio === '2026-11-02' &
 const datos = {
   academia: { nombre: 'Calo Latino Studio', color: '#d6304a', logo: null, whatsapp: '5512345678', sede_principal: 'Estudio Calo' },
   pagina: pag,
-  sedes: [],
+  sedes: [{ id: 'casa', nombre: 'Casa de Cultura', color: '#0f766e' }],
   clases: [
     { id: 'c1', clase: 'Salsa 0', color: '#e8445a', dias: [1, 3], hora: '19:00', duracion: 60, sede_id: null, precio: 6000, curso: { inicio: '2026-10-05', fin: '2026-12-21', semanas: 2 } },
     { id: 'c2', clase: 'Bachata 1', color: '#7c4ddb', dias: [2, 4], hora: '20:00', duracion: 60, sede_id: null, precio: null, curso: { inicio: '2026-11-23', fin: null, semanas: 2 } },
-    { id: 'c3', clase: 'Lady Style', color: '#d6334a', dias: [6], hora: '11:00', duracion: 90, sede_id: null, precio: null },
+    { id: 'c3', clase: 'Lady Style', color: '#d6334a', dias: [6], hora: '11:00', duracion: 90, sede_id: null, precio: null,
+      excepciones: { '2026-11-14': { hora: '12:30', sede_id: 'casa', nombre_sede: 'Casa de Cultura' } } },
+    { id: 'c4', clase: 'Cumbia 1', color: '#0f766e', dias: [6], hora: '14:30', duracion: 60, sede_id: 'casa', precio: null },
   ],
   planes: [{ nombre: 'Clase suelta', tipo: 'suelta', precio: 6000, clases: 1, vigencia: 1, grupos: null, sede_id: null }, { nombre: 'Mensualidad', tipo: 'mensual', precio: 65000, clases: null, vigencia: 30, grupos: null, sede_id: null }],
   eventos: [],
@@ -115,10 +117,19 @@ await page.getByRole('button', { name: 'Toda la semana' }).click();
 await page.waitForTimeout(300);
 const t2 = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
 console.log('8) estados de los grupos:', ok(/Bachata 1: inicia el/.test(t2) && /Grupo en curso hasta el/.test(t2) && !/Lady Style\s*(Grupo|Empezó|Nuevo)/.test(t2)));
+const sedeHorario = page.getByRole('combobox', { name: 'Sede', exact: true });
+await sedeHorario.selectOption({ label: 'Casa de Cultura' });
+const trasladada = page.getByRole('button', { name: /Solicitar lugar en Lady Style, sábado 12:30/ });
+await trasladada.click();
+console.log('8b) la clase trasladada se puede elegir desde su nueva sede:', ok(
+  await page.getByText(/Lady Style · 12:30 · Casa de Cultura/).isVisible()
+  && await page.locator('#inscribete select').inputValue() === 'c3',
+));
+await sedeHorario.selectOption({ label: 'Estudio Calo' });
 let inscrito = null;
 await ctx.route('**/rest/v1/rpc/inscribir_interesado', (r) => { inscrito = JSON.parse(r.request().postData()); return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
 await page.locator('#inscribete input').first().fill('Rosa Prueba');
-await page.locator('#inscribete input[inputmode=tel]').fill('5511112222');
+await page.locator('#inscribete input[inputmode=numeric]').fill('5511112222');
 await page.locator('#inscribete select').selectOption('c1');
 const aviso = await page.getByText(/ya va a medio curso/).isVisible();
 await page.getByRole('button', { name: 'Avísenme del siguiente grupo' }).click();

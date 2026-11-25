@@ -118,35 +118,35 @@ await page.getByText('Horarios').first().waitFor();
 await page.getByRole('button', { name: 'Toda la semana' }).click();
 t = await body();
 for (const [k, re] of Object.entries({ lunes: /Lunes Salsa 0 19:00–20:00/i, contemp: /Contemporáneo 11:00–13:00 \$80/, suelta: /Clase suelta .{0,40}\$60/, bloque: /Bloque completo 8 clases · vigencia 30 días \$400/, navidad: /Baile de Navidad/, playera: /Playera Calo/ })) if (!re.test(t)) console.log('   falta', k, (t.match(new RegExp(k === 'lunes' ? 'LUNES.{0,80}' : k === 'contemp' ? 'Contempor.{0,60}' : k === 'bloque' ? 'Bloque.{0,80}' : 'zzz', 'i')) || [''])[0]);
-console.log('   wa', await page.getByRole('link', { name: /Escríbenos por WhatsApp/ }).count());
-console.log('8) página: horario del estudio, precios, evento (sin anunciar cupo de sobra), tienda, WhatsApp:', ok(/Lunes Salsa 0 19:00–20:00/i.test(t) && /Contemporáneo 11:00–13:00 \$80/.test(t) && /Clase suelta .{0,40}\$60/.test(t) && /Bloque completo 8 clases · vigencia 30 días \$400/.test(t) && /Baile de Navidad/.test(t) && !/Quedan 37 lugares/.test(t) && /Playera Calo/.test(t) && (await page.getByRole('link', { name: /Escríbenos por WhatsApp/ }).count()) >= 1));
+const consultaWhats = page.getByRole('link', { name: 'Preguntar por WhatsApp', exact: true });
+console.log('8) página: horario del estudio, precios, evento (sin anunciar cupo de sobra), tienda, WhatsApp:', ok(/Lunes Salsa 0 19:00–20:00/i.test(t) && /Contemporáneo 11:00–13:00 \$80/.test(t) && /Clase suelta .{0,40}\$60/.test(t) && /Bloque completo 8 clases · vigencia 30 días \$400/.test(t) && /Baile de Navidad/.test(t) && !/Quedan 37 lugares/.test(t) && /Playera Calo/.test(t) && await consultaWhats.isVisible()));
 console.log('   sin maestros ni teléfonos:', ok(!/Profe|Profa|55\d{8}/.test(t.replace('5512345678', ''))));
 await page.screenshot({ path: `${OUT}publica-2-pagina.png`, fullPage: true });
-await page.getByRole('tab', { name: /Casa de Cultura/ }).click();
+await page.getByRole('combobox', { name: 'Sede', exact: true }).selectOption({ label: 'Casa de Cultura' });
 t = await body();
 console.log('9) por sede: Casa de Cultura con sus clases y precios:', ok(/Sábado Salsa Lady Style/i.test(t) && /Clase suelta .{0,40}\$40/.test(t) && /Mensual 2 clases 2 grupos a elegir, todas sus clases del mes \$450/.test(t) && !/Contemporáneo/.test((await page.locator('#horarios ul').allInnerTexts()).join(' '))));
 
 // inscripción
-const boton = page.getByRole('button', { name: 'Quiero inscribirme' });
+const boton = page.getByRole('button', { name: 'Solicitar lugar', exact: true });
 await page.getByLabel('Nombre').fill('Laura Nueva');
 await page.getByLabel('WhatsApp (10 dígitos)').fill('55 1234 567');
 let llamadas = 0; page.on('request', (r) => { if (r.url().includes('inscribir_interesado')) llamadas++; });
 await boton.click();
-const bloqueado = (await page.getByText('Falta 1 dígito').isVisible()) && llamadas === 0 && (await page.getByLabel('WhatsApp (10 dígitos)').getAttribute('aria-invalid')) === 'true';
-await page.getByLabel('WhatsApp (10 dígitos)').fill('55 1234 5678');
+const bloqueado = (await page.getByText('Escribe un número mexicano de 10 dígitos').isVisible()) && llamadas === 0 && (await page.getByLabel('WhatsApp (10 dígitos)').getAttribute('aria-invalid')) === 'true';
+await page.getByLabel('WhatsApp (10 dígitos)').fill('+52 55 1234 5678');
 await page.getByLabel('¿Qué clase te interesa?').selectOption('c3');
 respuesta = { error: 'muchos' };
 await boton.click();
 await page.getByText(/Ya recibimos tu registro/).waitFor();
 respuesta = { ok: true };
 await boton.click();
-await page.getByText(/¡Listo, Laura!/).waitFor();
+await page.getByRole('heading', { name: 'Solicitud recibida' }).waitFor();
 console.log('10) inscripción: valida teléfono, avisa errores y confirma:', ok(bloqueado && inscripcion.p_slug === 'calo-latino' && inscripcion.p_telefono === '5512345678' && inscripcion.p_clase === 'c3'));
 await page.screenshot({ path: `${OUT}publica-3-listo.png` });
 
 // enlace corto no es página pública
 await page.goto('http://localhost:4173/a/xy');
 await page.waitForTimeout(800);
-console.log('11) /a/xy no es página pública:', ok(!(await page.getByText('Quiero inscribirme').count())));
+console.log('11) /a/xy no es página pública:', ok(!(await page.getByText('Solicitar lugar').count())));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

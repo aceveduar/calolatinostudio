@@ -59,7 +59,7 @@ await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}int-calc.png` });
 // 5) tocar una clase la elige en el formulario
 await page.locator('#horarios').scrollIntoViewIfNeeded();
-await page.getByRole('button', { name: /^Apartar lugar en Bachata 1/ }).click();
+await page.getByRole('button', { name: /^Solicitar lugar en Bachata 1/ }).click();
 await page.waitForTimeout(900);
 console.log('5) tocar la clase: queda elegida y el cursor en el nombre:', ok((await page.locator('#inscribete select').inputValue()) === 'b' && (await page.evaluate(() => document.activeElement?.id)) === 'pp-nombre'));
 const waClase = decodeURIComponent((await page.getByRole('link', { name: 'Preguntar por WhatsApp por Salsa 0' }).first().getAttribute('href')) ?? '');
