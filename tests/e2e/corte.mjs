@@ -16,8 +16,8 @@ for (const d of '1111') await page.getByRole('button', { name: d, exact: true })
 await page.waitForTimeout(600);
 await page.evaluate(() => { history.pushState(null, '', '/caja'); dispatchEvent(new PopStateEvent('popstate')); });
 await page.getByText('Total cobrado').waitFor();
-const sedes = page.getByRole('button', { name: 'Estudio Calo' });
-if (await sedes.count()) await sedes.click();
+const sedes = page.getByRole('combobox', { name: 'Sede de Caja' });
+if (await sedes.count()) await sedes.selectOption({ label: 'Estudio Calo' });
 const { efectivo, transferencia, fecha, sede } = await page.evaluate(async () => {
   const { db } = window.compasDev;
   const hoy = new Date().toLocaleDateString('en-CA');

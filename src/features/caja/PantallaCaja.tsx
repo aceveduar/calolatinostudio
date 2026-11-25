@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowUpFromLine, Calculator, ChevronLeft, ChevronRight, Lock, Receipt, RotateCcw, Scale } from 'lucide-react';
+import { ArrowUpFromLine, Calculator, ChevronDown, ChevronLeft, ChevronRight, Lock, Receipt, RotateCcw, Scale } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas, useMaestros, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { nombreSede, useSedeActual, useSedes } from '../../app/sedes';
 import { PRINCIPAL, claveSede, conSede } from '../../domain/sedes';
 import { useAvisos } from '../../components/avisos';
-import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
+import { Avatar, Boton, Campo, Encabezado, Entrada, Etiqueta, Hoja, Seccion, Segmentos, Selector, Tarjeta, Vacio, cx, Cargando } from '../../components/ui';
 import { db } from '../../db/db';
 import { crear } from '../../db/repo';
 import type { CategoriaGasto, Gasto, MetodoPago, Pago } from '../../db/types';
@@ -15,7 +15,7 @@ import { METODOS } from '../../domain/planes';
 import { DENOMINACIONES, asistenciasValidas, esperadoEnCaja, resumenCaja, sumaConteo } from '../../domain/caja';
 import { registrarGasto } from '../../domain/gastos';
 import { aCentavos, dinero } from '../../domain/dinero';
-import { fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';
+import { fechaCorta, fechaLarga, horaDe, hoy, sumarDias } from '../../domain/fechas';
 import { anularPago } from '../../domain/operaciones';
 import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
 import { claseEnFecha } from '../../domain/clases';
@@ -91,21 +91,17 @@ export function PantallaCaja() {
   return (
     <div className="px-4 pb-8">
       <div className="-mx-4">
-        <Encabezado titulo="Caja" sub={esHoy ? `Hoy, ${fechaLarga(fecha)}` : fechaLarga(fecha)} />
+        <Encabezado titulo="Caja" sub={sedes.length > 0 ? (
+          <span className="relative mt-1 inline-block max-w-full">
+            <Selector aria-label="Sede de Caja" value={k} onChange={(e) => setVerSede(e.target.value)} className="h-11 pr-9 pl-3 font-semibold text-brand-600">
+              {esDueno && <option value="todas">Todas las sedes</option>}
+              <option value={PRINCIPAL}>{nombreSede(null, sedes, academia)}</option>
+              {sedes.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+            </Selector>
+            <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-brand-600" aria-hidden="true" />
+          </span>
+        ) : undefined} />
       </div>
-      {sedes.length > 0 && (
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          {[...(esDueno ? ['todas'] : []), PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => (
-            <button
-              key={id}
-              onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', k === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
-            >
-              {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
-            </button>
-          ))}
-        </div>
-      )}
       {/* Laptop/PC: resumen a la izquierda, movimientos a la derecha */}
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
       <div className="min-w-0">
@@ -114,10 +110,10 @@ export function PantallaCaja() {
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
           <ChevronLeft />
         </button>
-        {/* hoy: dice "Hoy" (antes un "Ir a hoy" gris, como botón apagado); otro día: el atajo para volver */}
-        <button className="rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-900" disabled={esHoy} onClick={() => setFecha(hoy())}>
-          {esHoy ? 'Hoy' : 'Ir a hoy'}
-        </button>
+        <div className="min-w-0 py-1 text-center text-sm">
+          <p className="font-semibold first-letter:uppercase">{esHoy ? `Hoy · ${fechaCorta(fecha)}` : fechaLarga(fecha)}</p>
+          {!esHoy && <button type="button" className="min-h-8 rounded-lg px-2 font-semibold text-brand-600 active:bg-brand-50" onClick={() => setFecha(hoy())}>Ir a hoy</button>}
+        </div>
         <button className="rounded-xl p-2.5 active:bg-ink-100 disabled:opacity-30" disabled={esHoy} onClick={() => setFecha(sumarDias(fecha, 1))} aria-label="Día siguiente">
           <ChevronRight />
         </button>
@@ -169,8 +165,12 @@ export function PantallaCaja() {
               Rehacer
             </button>
           </Tarjeta>
+        ) : k === 'todas' || (!r.cobros && !totalSalidas) ? (
+          <p className="px-2 py-2 text-center text-sm text-ink-500">
+            {k === 'todas' ? 'Elige una sede para hacer el corte.' : 'Aún no hay movimientos para hacer el corte.'}
+          </p>
         ) : (
-          <Boton bloque grande variante="secundario" onClick={() => setCorte(true)} disabled={(!r.cobros && !totalSalidas) || k === 'todas'} title={k === 'todas' ? 'El corte se hace por sede' : undefined}>
+          <Boton bloque grande variante="secundario" onClick={() => setCorte(true)}>
             <Scale size={20} /> Hacer corte de caja
           </Boton>
         )}
@@ -181,58 +181,65 @@ export function PantallaCaja() {
         )}
       </div>
 
-      {porClase.length > 0 && (
-        <Seccion titulo="Por clase">
-          <Tarjeta className="divide-y divide-ink-100">
-            {porClase.map(({ c, n }) => (
-              <div key={c.id} className="flex items-center justify-between px-4 py-2.5">
-                <span className="font-medium">
-                  {nombreClase(c, disciplinas)} <span className="text-sm text-ink-500">{c.horaInicio}</span>
-                </span>
-                <span className="font-bold">
-                  {n} <span className="text-sm font-normal text-ink-500">{n === 1 ? 'alumno' : 'alumnos'}</span>
-                </span>
-              </div>
-            ))}
-          </Tarjeta>
-        </Seccion>
-      )}
+      {(porClase.length > 0 || r.porConcepto.length > 0) && (
+        <details className="group mt-3">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 text-sm font-semibold text-ink-700 ring-1 ring-inset ring-ink-100 active:bg-ink-100 [&::-webkit-details-marker]:hidden">
+            Desglose del día <ChevronDown size={16} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          {porClase.length > 0 && (
+            <Seccion titulo="Por clase">
+              <Tarjeta className="divide-y divide-ink-100">
+                {porClase.map(({ c, n }) => (
+                  <div key={c.id} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="font-medium">
+                      {nombreClase(c, disciplinas)} <span className="text-sm text-ink-500">{c.horaInicio}</span>
+                    </span>
+                    <span className="font-bold">
+                      {n} <span className="text-sm font-normal text-ink-500">{n === 1 ? 'alumno' : 'alumnos'}</span>
+                    </span>
+                  </div>
+                ))}
+              </Tarjeta>
+            </Seccion>
+          )}
 
-      {porMaestro.length > 0 && maestros.length > 0 && (
-        <Seccion titulo="Por maestro">
-          <Tarjeta className="divide-y divide-ink-100">
-            {porMaestro.map((m) => (
-              <div key={m.nombre} className="flex items-center gap-3 px-4 py-3">
-                <Avatar nombre={m.nombre} tam={36} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{m.nombre}</span>
-                  <span className="block truncate text-xs text-ink-500">
-                    {[...m.clases].join(', ')} · {m.alumnos} alumno{m.alumnos === 1 ? '' : 's'}
-                  </span>
-                </span>
-                <span className="text-right">
-                  <span className="block font-bold">{dinero(m.cobrado)}</span>
-                  <span className="block text-[11px] text-ink-500">por clase</span>
-                </span>
-              </div>
-            ))}
-          </Tarjeta>
-        </Seccion>
-      )}
+          {porMaestro.length > 0 && maestros.length > 0 && (
+            <Seccion titulo="Por maestro">
+              <Tarjeta className="divide-y divide-ink-100">
+                {porMaestro.map((m) => (
+                  <div key={m.nombre} className="flex items-center gap-3 px-4 py-3">
+                    <Avatar nombre={m.nombre} tam={36} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{m.nombre}</span>
+                      <span className="block truncate text-xs text-ink-500">
+                        {[...m.clases].join(', ')} · {m.alumnos} alumno{m.alumnos === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block font-bold">{dinero(m.cobrado)}</span>
+                      <span className="block text-[11px] text-ink-500">por clase</span>
+                    </span>
+                  </div>
+                ))}
+              </Tarjeta>
+            </Seccion>
+          )}
 
-      {r.porConcepto.length > 0 && (
-        <Seccion titulo="Por concepto">
-          <Tarjeta className="divide-y divide-ink-100">
-            {r.porConcepto.map((c) => (
-              <div key={c.concepto} className="flex items-center justify-between px-4 py-2.5">
-                <span className="font-medium">
-                  {c.concepto} <span className="text-sm text-ink-500">× {c.cantidad}</span>
-                </span>
-                <span className="font-bold">{dinero(c.monto)}</span>
-              </div>
-            ))}
-          </Tarjeta>
-        </Seccion>
+          {r.porConcepto.length > 0 && (
+            <Seccion titulo="Por concepto">
+              <Tarjeta className="divide-y divide-ink-100">
+                {r.porConcepto.map((c) => (
+                  <div key={c.concepto} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="font-medium">
+                      {c.concepto} <span className="text-sm text-ink-500">× {c.cantidad}</span>
+                    </span>
+                    <span className="font-bold">{dinero(c.monto)}</span>
+                  </div>
+                ))}
+              </Tarjeta>
+            </Seccion>
+          )}
+        </details>
       )}
 
       </div>

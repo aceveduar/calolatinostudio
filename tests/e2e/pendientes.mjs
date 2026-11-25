@@ -149,9 +149,9 @@ await ir('/pendientes');
 await page.getByRole('heading', { name: 'Pendientes', exact: true }).waitFor();
 console.log('10a) cobrar desde el adeudo directo lo retira de Pendientes:', ok((await enlaceAdeudo.count()) === 0));
 await ir('/caja');
-const todasSedes = page.getByRole('button', { name: 'Todas las sedes', exact: true });
+const sedeCaja = page.getByRole('combobox', { name: 'Sede de Caja' });
 await page.getByText('Total cobrado').waitFor();
-if (await todasSedes.count()) await todasSedes.click();
+if (await sedeCaja.locator('option[value="todas"]').count()) await sedeCaja.selectOption('todas');
 await page.getByRole('button').filter({ hasText: nombreAdeudo }).filter({ hasText: /fiada/ }).first().waitFor();
 console.log('10b) el cobro queda en Caja con la persona y la clase fiada:', 'OK');
 

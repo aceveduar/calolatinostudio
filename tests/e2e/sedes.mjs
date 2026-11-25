@@ -54,18 +54,19 @@ await page.getByRole('button', { name: 'Listo', exact: true }).click().catch(() 
 await page.getByRole('link', { name: 'Caja' }).click();
 let caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
 console.log('4) caja Casa de Cultura = $40:', caja, ok(caja.includes('Total cobrado $40')));
-console.log('   recepción no ve "Todas las sedes":', ok((await page.getByRole('button', { name: 'Todas las sedes' }).count()) === 0));
-await page.getByRole('button', { name: 'Estudio Calo' }).click();
+const sedeCaja = page.getByRole('combobox', { name: 'Sede de Caja' });
+console.log('   recepción no ve "Todas las sedes":', ok((await sedeCaja.locator('option[value="todas"]').count()) === 0));
+await sedeCaja.selectOption({ label: 'Estudio Calo' });
 await page.waitForTimeout(400);
 caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
 console.log('5) caja Estudio = $60:', caja, ok(caja.includes('Total cobrado $60')));
 // corte en Casa de Cultura
-await page.getByRole('button', { name: 'Casa de Cultura' }).click();
+await sedeCaja.selectOption({ label: 'Casa de Cultura' });
 await page.getByRole('button', { name: /Hacer corte/ }).click();
 await page.getByRole('dialog').getByPlaceholder('0').last().fill('40'); // el primero es la feria
 await page.getByRole('button', { name: 'Guardar corte' }).click();
 await page.getByText(/Corte hecho/).waitFor();
-await page.getByRole('button', { name: 'Estudio Calo' }).click();
+await sedeCaja.selectOption({ label: 'Estudio Calo' });
 await page.waitForTimeout(400);
 console.log('6) el corte es por sede (Estudio sigue sin corte):', ok((await page.getByText(/Corte hecho/).count()) === 0));
 // Dueño: todas y reportes por sede
@@ -73,10 +74,20 @@ await page.getByRole('button', { name: /cambiar usuario/i }).first().click();
 await page.getByText('Dirección Calo', { exact: true }).click();
 for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click();
 await page.getByRole('link', { name: 'Caja' }).click();
-await page.getByRole('button', { name: 'Todas las sedes' }).click();
+await sedeCaja.selectOption('todas');
 await page.waitForTimeout(400);
 caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
 console.log('7) dueño ve todas = $100:', ok(caja.includes('Total cobrado $100')));
+const desglose = page.getByText('Desglose del día', { exact: true });
+console.log('   el desglose empieza plegado y los movimientos están visibles:', ok(
+  await desglose.isVisible() && !(await page.getByText('Por concepto', { exact: true }).isVisible())
+  && await page.getByRole('heading', { name: /^Movimientos/ }).isVisible(),
+));
+await page.setViewportSize({ width: 360, height: 780 });
+await page.screenshot({ path: `${OUT}caja-movil.png`, animations: 'disabled' });
+await desglose.click();
+await page.getByText('Por concepto', { exact: true }).waitFor();
+await page.setViewportSize({ width: 390, height: 844 });
 await page.getByRole('link', { name: 'Reportes' }).click();
 await page.getByText('Por sede').waitFor();
 await page.screenshot({ path: `${OUT}sede-4-reportes.png`, fullPage: true });

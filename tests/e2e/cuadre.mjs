@@ -67,7 +67,8 @@ const totalVisible = page.locator('p', { hasText: 'Total cobrado' }).locator('xp
 const fechaHoy = '2026-11-18';
 await totalVisible.waitFor();
 const global = await suma(fechaHoy, fechaHoy);
-await page.getByRole('button', { name: 'Todas las sedes' }).click();
+const sedeCaja = page.getByRole('combobox', { name: 'Sede de Caja' });
+await sedeCaja.selectOption('todas');
 const textoAlCambiar = await totalVisible.textContent({ timeout: 100 }).catch(() => null);
 console.log('B0) cambiar de sede oculta el total anterior mientras recalcula:', ok(textoAlCambiar === null || pesos(textoAlCambiar) === global));
 const fallasCaja = [];
@@ -87,13 +88,14 @@ await ir('/caja');
 await page.waitForTimeout(500);
 await page.getByRole('button', { name: 'Ir a hoy' }).click().catch(() => {});
 await page.waitForTimeout(300);
-await page.getByRole('button', { name: 'Estudio Calo' }).click().catch(() => {});
+await sedeCaja.selectOption({ label: 'Estudio Calo' });
 await page.waitForTimeout(400);
 await page.getByRole('button', { name: /Hacer corte de caja/ }).click();
 const dlg = page.getByRole('dialog');
 await dlg.waitFor();
-const textoCorte = (await dlg.innerText()).replace(/\s+/g, ' ');
-const esperado = pesos(textoCorte.match(/Debe haber en el cajón\s*(\$[\d,.]+)/i)?.[1] ?? '0');
+const importeEsperado = dlg.getByText('Efectivo esperado en el cajón', { exact: true })
+  .locator('xpath=following-sibling::p[1]').filter({ hasText: /^\$/ });
+const esperado = pesos(await importeEsperado.innerText());
 const efectivoHoy = await page.evaluate(async () => (await window.compasDev.db.pagos.where('fecha').equals('2026-11-18').toArray()).filter((p) => !p.anuladoAt && !p.deletedAt && p.metodo === 'efectivo' && !p.sedeId).reduce((s, p) => s + p.monto, 0));
 console.log('B2) corte: efectivo esperado = efectivo cobrado hoy en la sede:', ok(esperado === efectivoHoy), dinero(esperado), 'vs', dinero(efectivoHoy));
 await page.keyboard.press('Escape');
