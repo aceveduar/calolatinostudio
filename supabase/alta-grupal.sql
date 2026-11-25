@@ -37,6 +37,20 @@ alter table public.campanas_alta enable row level security;
 alter table public.registros_alta enable row level security;
 revoke all on public.campanas_alta, public.registros_alta from public, anon, authenticated;
 
+create table if not exists public.config_antibots_alta (
+  unica boolean primary key default true check (unica),
+  huella_llave text not null check (huella_llave ~ '^[a-f0-9]{64}$')
+);
+alter table public.config_antibots_alta enable row level security;
+revoke all on public.config_antibots_alta from public, anon, authenticated;
+
+create table if not exists public.retos_alta_usados (
+  huella text primary key check (huella ~ '^[a-f0-9]{64}$'),
+  usado_at timestamptz not null default now()
+);
+alter table public.retos_alta_usados enable row level security;
+revoke all on public.retos_alta_usados from public, anon, authenticated;
+
 create or replace function public.gestionar_alta_grupal(p_academia uuid, p_accion text)
 returns jsonb language plpgsql security definer set search_path = ''
 as $$
@@ -88,7 +102,8 @@ $$;
 create or replace function public.estado_alta_grupal(p_token uuid)
 returns jsonb language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object('nombre', a.nombre, 'abierta', not c.cerrada and c.vence > now() and c.altas < 1000)
+  select jsonb_build_object('nombre', a.nombre, 'abierta', not c.cerrada and c.vence > now() and c.altas < 1000,
+                            'antibots', exists (select 1 from public.config_antibots_alta))
   from public.campanas_alta c join public.academias a on a.id = c.academia_id
   where c.token = p_token and a.deleted_at is null
 $$;
@@ -100,7 +115,7 @@ as $$
   from (select regexp_replace(coalesce(p_telefono, ''), '[^0-9]', '', 'g') d) n
 $$;
 
-create or replace function public.registrar_alta_grupal(p_token uuid, p_solicitud uuid, p_nombre text, p_telefono text)
+create or replace function public.registrar_alta_grupal_interna(p_token uuid, p_solicitud uuid, p_nombre text, p_telefono text)
 returns jsonb language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -173,11 +188,47 @@ begin
 end;
 $$;
 
+create or replace function public.registrar_alta_grupal(p_token uuid, p_solicitud uuid, p_nombre text, p_telefono text)
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+begin
+  lock table public.config_antibots_alta in share mode;
+  if exists (select 1 from public.config_antibots_alta) then
+    return jsonb_build_object('estado', 'verificacion');
+  end if;
+  return public.registrar_alta_grupal_interna(p_token, p_solicitud, p_nombre, p_telefono);
+end;
+$$;
+
+-- La función de Pages llama este punto solo después de verificar el reto.
+create or replace function public.registrar_alta_verificada(p_token uuid, p_solicitud uuid, p_nombre text, p_telefono text, p_llave text, p_huella_reto text)
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+begin
+  if p_llave is null or p_llave !~ '^[A-Za-z0-9_-]{43}$' or not exists (
+    select 1 from public.config_antibots_alta
+    where huella_llave = encode(sha256(convert_to(p_llave, 'UTF8')), 'hex')
+  ) then
+    raise exception 'Credencial de verificación no válida' using errcode = '42501';
+  end if;
+  if p_huella_reto is null or p_huella_reto !~ '^[a-f0-9]{64}$' then
+    return jsonb_build_object('estado', 'verificacion');
+  end if;
+  delete from public.retos_alta_usados where usado_at < now() - interval '10 minutes';
+  insert into public.retos_alta_usados(huella) values (p_huella_reto) on conflict do nothing;
+  if not found then return jsonb_build_object('estado', 'verificacion'); end if;
+  return public.registrar_alta_grupal_interna(p_token, p_solicitud, p_nombre, p_telefono);
+end;
+$$;
+
 revoke all on function public.normalizar_telefono_alta(text) from public, anon, authenticated;
 revoke all on function public.gestionar_alta_grupal(uuid, text) from public, anon, authenticated;
 revoke all on function public.estado_alta_grupal(uuid) from public, anon, authenticated;
 revoke all on function public.registrar_alta_grupal(uuid, uuid, text, text) from public, anon, authenticated;
+revoke all on function public.registrar_alta_grupal_interna(uuid, uuid, text, text) from public, anon, authenticated;
+revoke all on function public.registrar_alta_verificada(uuid, uuid, text, text, text, text) from public, anon, authenticated;
 grant execute on function public.gestionar_alta_grupal(uuid, text) to authenticated;
 grant execute on function public.estado_alta_grupal(uuid), public.registrar_alta_grupal(uuid, uuid, text, text) to anon, authenticated;
+grant execute on function public.registrar_alta_verificada(uuid, uuid, text, text, text, text) to anon;
 notify pgrst, 'reload schema';
 commit;

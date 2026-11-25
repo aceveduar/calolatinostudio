@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { nubePublica } from '../../app/rpcPublica';
 import { Boton, Tarjeta } from '../../components/ui';
+import { RetoAlta } from './RetoAlta';
 
-interface Campana { nombre: string; abierta: boolean }
-type Registro = { estado: 'lista'; portal: string } | { estado: 'cerrada' | 'recepcion' | 'datos' | 'espera' };
+interface Campana { nombre: string; abierta: boolean; antibots?: boolean }
+type Registro = { estado: 'lista'; portal: string } | { estado: 'cerrada' | 'recepcion' | 'datos' | 'espera' | 'verificacion' | 'servicio' };
 const campo = 'mt-1 block min-h-12 w-full rounded-xl bg-superficie px-3 text-base font-normal ring-1 ring-ink-100 focus:ring-2 focus:ring-brand-500';
 
 function claveSolicitud(token: string) {
@@ -29,6 +30,8 @@ export function AltaGrupal({ token }: { token: string }) {
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [portal, setPortal] = useState('');
+  const [reto, setReto] = useState('');
+  const [versionReto, setVersionReto] = useState(0);
 
   useEffect(() => {
     const control = new AbortController();
@@ -45,22 +48,45 @@ export function AltaGrupal({ token }: { token: string }) {
 
   async function registrar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (enviando) return;
+    if (enviando || (campana?.antibots && !reto)) return;
     setMensaje('');
     setEnviando(true);
-    const respuesta = await nubePublica?.rpc<Registro>('registrar_alta_grupal', {
-      p_token: token, p_solicitud: solicitud, p_nombre: nombre.trim(), p_telefono: telefono.trim(),
-    }, AbortSignal.timeout(15_000));
+    let data: Registro | null = null;
+    try {
+      if (campana?.antibots) {
+        const respuesta = await fetch('/api/registro-alumno', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campana: token, solicitud, nombre: nombre.trim(), telefono: telefono.trim(), reto }),
+          signal: AbortSignal.timeout(18_000),
+        });
+        data = await respuesta.json();
+      } else {
+        const respuesta = await nubePublica?.rpc<Registro>('registrar_alta_grupal', {
+          p_token: token, p_solicitud: solicitud, p_nombre: nombre.trim(), p_telefono: telefono.trim(),
+        }, AbortSignal.timeout(15_000));
+        data = respuesta?.data ?? null;
+      }
+    } catch {
+      // Una respuesta perdida se puede reintentar con la misma solicitud.
+    }
     setEnviando(false);
-    if (!respuesta?.data || respuesta.error) {
+    if (campana?.antibots && data?.estado !== 'lista') {
+      setReto('');
+      setVersionReto((n) => n + 1);
+    }
+    if (!data || data.estado === 'servicio') {
       setMensaje('No pudimos confirmar el registro. Revisa tu conexión y vuelve a tocar «Crear mi pase».');
-    } else if (respuesta.data.estado === 'lista') {
-      setPortal(respuesta.data.portal);
-    } else if (respuesta.data.estado === 'cerrada') {
+    } else if (data.estado === 'verificacion') {
+      setMensaje('Completa la verificación y vuelve a tocar «Crear mi pase».');
+      if (!campana?.antibots) setIntentos((n) => n + 1);
+    } else if (data.estado === 'lista') {
+      setPortal(data.portal);
+    } else if (data.estado === 'cerrada') {
       setEstado('cerrada');
-    } else if (respuesta.data.estado === 'espera') {
+    } else if (data.estado === 'espera') {
       setMensaje('Hay muchos registros en este momento. Espera un minuto y vuelve a tocar «Crear mi pase».');
-    } else if (respuesta.data.estado === 'recepcion') {
+    } else if (data.estado === 'recepcion') {
       setMensaje('Recepción puede ayudarte a recuperar tu pase o registrarte si compartes celular. Si escribiste otro número por error, puedes corregirlo aquí.');
     } else {
       setMensaje('Escribe tu nombre completo y un celular mexicano de 10 dígitos.');
@@ -89,8 +115,11 @@ export function AltaGrupal({ token }: { token: string }) {
               <input required type="tel" minLength={10} maxLength={32} autoComplete="tel-national" aria-describedby="formato-celular" value={telefono} onChange={(e) => setTelefono(e.target.value)} disabled={enviando} className={campo} />
               <span id="formato-celular" className="mt-1 block font-normal text-ink-600">10 dígitos de México</span>
             </label>
+            {campana?.antibots && <RetoAlta key={versionReto} campana={token} onToken={setReto} />}
             {mensaje && <p role="alert" className="rounded-xl bg-brand-50 p-3 text-sm">{mensaje}</p>}
-            <Boton type="submit" grande bloque disabled={enviando}>{enviando ? 'Creando tu pase…' : 'Crear mi pase'}</Boton>
+            <Boton type="submit" grande bloque disabled={enviando || (campana?.antibots && !reto)}>
+              {enviando ? 'Creando tu pase…' : campana?.antibots && !reto ? 'Verificando…' : 'Crear mi pase'}
+            </Boton>
           </form>
         ) : estado === 'cerrada' ? (
           <p className="text-ink-600">El registro por este enlace está cerrado. Si necesitas tu pase, pide ayuda en recepción.</p>
