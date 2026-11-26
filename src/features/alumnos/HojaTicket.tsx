@@ -54,32 +54,30 @@ export function HojaTicket() {
               if (r !== 'cancelada') cerrar();
             }}
           >
-            <Share2 size={20} /> {compartir ? 'Enviar ticket (WhatsApp…)' : wa ? 'Enviar ticket por WhatsApp' : 'Descargar ticket'}
+            {compartir || wa ? <Share2 size={20} /> : <Download size={20} />}
+            {compartir ? 'Compartir ticket' : wa ? 'Enviar ticket por WhatsApp' : 'Descargar ticket'}
           </Boton>
-          <div className="grid grid-cols-2 gap-2">
-            <Boton
-              variante="secundario"
-              disabled={!archivo}
-              onClick={() => {
-                if (!archivo) return;
-                descargarArchivo(archivo);
-                avisar('Ticket descargado');
-              }}
-            >
-              <Download size={18} /> Descargar
-            </Boton>
-            {wa ? (
-              <a href={wa} target="_blank" rel="noreferrer" onClick={cerrar}>
-                <Boton bloque variante="secundario">
-                  <MessageCircle size={18} className="text-ok-600" /> Solo mensaje
-                </Boton>
-              </a>
-            ) : (
-              <Boton variante="secundario" disabled title="Agrega su WhatsApp en la ficha">
-                <MessageCircle size={18} /> Sin WhatsApp
+          {(compartir || wa) && (
+            <div className={wa ? 'grid grid-cols-2 gap-2' : undefined}>
+              <Boton
+                bloque
+                variante="secundario"
+                disabled={!archivo}
+                onClick={() => {
+                  if (!archivo) return;
+                  descargarArchivo(archivo);
+                  avisar('Ticket descargado');
+                }}
+              >
+                <Download size={18} /> Descargar
               </Boton>
-            )}
-          </div>
+              {wa && (
+                <a href={wa} target="_blank" rel="noreferrer" onClick={cerrar} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-superficie px-3 text-center text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-100">
+                  <MessageCircle size={18} className="text-ok-600" aria-hidden="true" /> Solo mensaje
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Hoja>

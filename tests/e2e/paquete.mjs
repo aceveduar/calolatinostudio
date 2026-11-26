@@ -65,8 +65,16 @@ if (datos.men) {
   await sw.waitFor({ timeout: 3000 });
   const apagado = (await sw.getAttribute('aria-checked')) === 'false';
   const valor = pesos(await sw.innerText());
-  const precio = pesos(await cobrarBtn.innerText());
+  let precio = pesos(await cobrarBtn.innerText());
+  await dlg.getByText('Ajustar precio', { exact: true }).click();
+  const precioEditable = dlg.getByLabel('Precio del plan');
+  await precioEditable.fill(String(valor));
   await sw.click();
+  const sinCobro = await cobrarBtn.isDisabled();
+  const aviso = await dlg.getByText(/El abono cubre todo el precio/).isVisible();
+  console.log('4a) si el abono cubre todo, el editor explica por qué no hay cobro:', ok(sinCobro && aviso));
+  precio = Math.max(precio, valor + 10);
+  await precioEditable.fill(String(precio));
   await p.screenshot({ path: `${OUT}paquete-2-abono.png` });
   const boton = await cobrarBtn.innerText();
   console.log('4) cambio de plan: ofrece abonar (apagado) y descuenta al prenderlo:', ok(apagado && valor > 0 && pesos(boton) === precio - valor && /con abono/.test(boton)), valor, precio, boton);
@@ -79,6 +87,29 @@ if (datos.men) {
     return { anteriorFin: ms[1].fin, monto: pago.monto, concepto: pago.concepto, dia };
   }, [datos.men.alumnoId, datos.hoy]);
   console.log('5) la mensualidad anterior termina hoy y el cobro dice el abono:', ok(r.anteriorFin === r.dia && r.monto === (precio - valor) * 100 && /abono de su mensualidad/.test(r.concepto)), JSON.stringify(r));
+
+  for (let i = 0; i < 2; i++) {
+    await dlg.waitFor({ state: 'hidden' });
+    await p.getByRole('button', { name: /Vender plan/ }).click();
+    await dlg.getByRole('button', { name: new RegExp(datos.men.plan) }).first().click();
+    if (i === 1) {
+      await dlg.getByText('Empieza después de la última renovación programada.').waitFor();
+      await p.screenshot({ path: `${OUT}plan-renovacion-movil.png` });
+    }
+    await cobrarBtn.click();
+  }
+  await dlg.waitFor({ state: 'hidden' });
+  const fechas = await p.evaluate(async ({ alumnoId, plan }) => {
+    const { db } = window.compasDev;
+    const planes = await db.planes.toArray();
+    const id = planes.find((x) => x.nombre === plan)?.id;
+    return (await db.membresias.where('alumnoId').equals(alumnoId).toArray())
+      .filter((m) => m.planId === id && !m.anuladaAt && !m.deletedAt)
+      .sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(-2);
+  }, datos.men);
+  const siguiente = new Date(`${fechas[0].fin}T12:00:00Z`);
+  siguiente.setUTCDate(siguiente.getUTCDate() + 1);
+  console.log('6) dos renovaciones mensuales quedan consecutivas:', ok(fechas[1].inicio === siguiente.toISOString().slice(0, 10)));
 }
 console.log('errores:', errores.length ? errores : 'ninguno');
 await b.close();

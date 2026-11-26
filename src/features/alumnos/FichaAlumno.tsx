@@ -6,6 +6,7 @@ import { HistorialAnterior } from './HistorialAnterior';
 import { puedeVerAnterior } from '../../sync/engine';
 import { nombreClase, useAlumnos, useClases, useDisciplinas, useEstadosDeAlumno, usePlanes, useUsuarios } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { abrirTicketDePlan } from '../../app/ticketAbierto';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Campo, Entrada, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, VerMas, cx } from '../../components/ui';
 import { actualizar } from '../../db/repo';
@@ -83,7 +84,12 @@ export function FichaAlumno() {
   if (!alumno || alumno.deletedAt) return <Vacio titulo="Alumno no encontrado" texto="Puede que se haya fusionado con otro registro." />;
 
   const sem = semaforoAlumno(estados);
-  const vigentes = estados.filter((e) => e.vigente || e.membresia.inicio > hoy());
+  const vigentes = estados
+    .filter((e) => e.vigente || (e.membresia.inicio > hoy() && !e.membresia.anuladaAt && !e.membresia.deletedAt))
+    .sort((a, b) => Number(b.vigente) - Number(a.vigente) || a.membresia.inicio.localeCompare(b.membresia.inicio));
+  const membresiaDelPago = pagoSel && estados.find(({ membresia }) =>
+    membresia.pagoId === pagoSel.id && !membresia.anuladaAt && !membresia.deletedAt,
+  )?.membresia;
   const adeudos = adeudosDe(historial?.fiadas ?? [], clases, planes);
   const nombre1 = alumno.nombre.split(' ')[0];
   const abrirPagoDePlan = async (pagoId: string) => {
@@ -191,10 +197,6 @@ export function FichaAlumno() {
                 )}
               </Tarjeta>
             ))}
-            {/* solo justo después de vender (cuando se nota el error), no en cada visita a la ficha */}
-            {vigentes.some((e) => Date.now() - e.membresia.createdAt < 3 * 86400000) && (
-              <p className="px-1 text-xs text-ink-500">¿Se vendió el plan equivocado? Tócalo para anularlo y vende el correcto.</p>
-            )}
           </div>
         )}
       </Seccion>
@@ -303,6 +305,10 @@ export function FichaAlumno() {
             cobro={usuarios.find((u) => u.id === pagoSel.usuarioId)?.nombre}
             anulo={usuarios.find((u) => u.id === pagoSel.anuladoPor)?.nombre}
             onHecho={() => setPagoSel(null)}
+            onVerTicket={membresiaDelPago ? (pago) => {
+              setPagoSel(null);
+              abrirTicketDePlan(academia, alumno, pago, membresiaDelPago, usuarios.find((u) => u.id === pago.usuarioId)?.nombre ?? '—');
+            } : undefined}
           />
         )}
       </Hoja>

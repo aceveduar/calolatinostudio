@@ -48,7 +48,7 @@ export function Catalogo<T extends { id: ID }>({
           ))}
         </Tarjeta>
       )}
-      {botonNuevo('mt-3')}
+      {!arriba && botonNuevo('mt-3')}
       <Hoja abierta={sel !== null} onCerrar={cerrar} titulo={sel !== null ? titulo(actual) : ''}>
         {sel !== null && form(actual, cerrar)}
       </Hoja>

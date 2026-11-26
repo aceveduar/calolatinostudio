@@ -19,7 +19,6 @@ const alguien = await page.evaluate(async () => (await window.compasDev.db.alumn
 await page.evaluate((id) => { history.pushState(null, '', `/alumnos/${id}`); dispatchEvent(new PopStateEvent('popstate')); }, alguien.id);
 await page.getByRole('button', { name: /Vender plan/ }).click();
 const dlg = page.getByRole('dialog');
-await dlg.getByRole('button', { name: /Mensual/ }).first().click().catch(() => {});
 await dlg.getByRole('button', { name: /^Cobrar/ }).click();
 const accion = page.getByRole('button', { name: 'Enviar ticket' });
 await accion.waitFor({ timeout: 5000 });
@@ -43,5 +42,15 @@ const [descarga] = await Promise.all([page.waitForEvent('download', { timeout: 5
 console.log('3) se puede descargar como PNG:', ok(!!descarga && /^ticket-.*\.png$/.test(descarga.suggestedFilename())), descarga?.suggestedFilename());
 const wa = await page.getByRole('link', { name: /Solo mensaje/ }).getAttribute('href');
 console.log('4) "Solo mensaje" manda el recibo de texto a su WhatsApp:', ok(new RegExp(alguien.telefono).test(wa) && /recibimos tu pago/.test(decodeURIComponent(wa))));
+await page.keyboard.press('Escape');
+const venta = await page.evaluate(async (id) => {
+  const pagos = await window.compasDev.db.pagos.where('alumnoId').equals(id).toArray();
+  return pagos.filter((p) => p.planId).sort((a, b) => b.createdAt - a.createdAt)[0];
+}, alguien.id);
+await page.getByRole('button', { name: new RegExp(venta.concepto) }).first().click();
+await page.getByRole('button', { name: 'Ver ticket', exact: true }).click();
+await img.waitFor();
+const [otraDescarga] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /^Descargar$/ }).click()]);
+console.log('5) el ticket se vuelve a abrir desde el cobro con el mismo folio:', ok(otraDescarga.suggestedFilename() === descarga?.suggestedFilename()));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

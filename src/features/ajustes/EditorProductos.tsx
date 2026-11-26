@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Barcode, Camera, ImagePlus, Plus, Trash2, Truck } from 'lucide-react';
+import { Barcode, Camera, ChevronDown, ImagePlus, Plus, Trash2, Truck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLectorUSB } from '../../app/codigos';
 import { EscanerCodigo } from '../../components/EscanerCodigo';
@@ -11,6 +11,7 @@ import { Boton, Campo, Entrada, Etiqueta, Hoja, Interruptor, Segmentos, cx } fro
 import { actualizar, crear } from '../../db/repo';
 import { type CategoriaProducto, type ID, type Producto } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
+import { apartadas } from '../../domain/pedidos';
 import { estadoExistencia } from '../../domain/tienda';
 import { Catalogo } from './Catalogo';
 
@@ -32,10 +33,10 @@ export function EditorProductos() {
   };
   useLectorUSB(abrirCodigo, !porCodigo && !camara);
   const pendientes = usePedidosPendientes();
-  const reservadas = (id: ID) => pendientes.filter((x) => x.pedido.productoId === id).reduce((s, x) => s + x.pedido.cantidad, 0);
+  const porProducto = apartadas(pendientes.map(({ pedido }) => pedido));
+  const reservadas = (id: ID) => porProducto.get(id) ?? 0;
   return (
     <>
-      <p className="mb-3 text-sm text-ink-500">Lo que se vende en recepción: aguas, snacks, playeras… Se cobra desde Entrada con el botón Tienda, en la misma cuenta que la clase.</p>
       {camara && <EscanerCodigo titulo="Escanear producto" onCodigo={abrirCodigo} onCerrar={() => setCamara(false)} />}
       <Hoja
         abierta={!!porCodigo}
@@ -62,19 +63,19 @@ export function EditorProductos() {
       <Catalogo
         items={productos}
         textoNuevo="Nuevo producto"
+        vacio="Aún no hay productos."
         arriba={(nuevo) => (
-          // lo de todos los días arriba y lado a lado (antes 3 botones a lo ancho y "Nuevo" hasta abajo de la lista)
           <div className="mb-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Boton bloque onClick={nuevo}>
-                <Plus size={18} /> Nuevo
+                <Plus size={18} /> Nuevo producto
               </Boton>
               <Boton bloque variante="secundario" onClick={() => setCamara(true)}>
                 <Barcode size={18} /> Escanear
               </Boton>
             </div>
             <Link to="/encargos" className="flex min-h-11 items-center justify-center gap-1.5 text-sm font-semibold text-brand-600">
-              <Truck size={16} aria-hidden="true" /> Encargos y proveedor
+              <Truck size={16} aria-hidden="true" /> Ver encargos
             </Link>
           </div>
         )}
@@ -82,23 +83,20 @@ export function EditorProductos() {
         fila={(p) => {
           const d = stock.get(p.id) ?? null;
           const est = estadoExistencia(p, d);
+          const porEntregar = pendientes.filter(({ pedido }) => pedido.productoId === p.id).reduce((s, { pedido }) => s + pedido.cantidad, 0);
           return (
             <>
               <ImagenProducto foto={p.foto} tam={40} />
-              <span className={cx('min-w-0 flex-1', !p.activo && 'opacity-40')}>
-                <span className="block truncate font-semibold">{p.nombre}</span>
-                {/* una línea corta de texto y lo demás como etiquetas (antes 3 renglones apretados) */}
-                <span className="block truncate text-sm text-ink-500">
-                  {p.categoria === 'consumo' ? 'Snacks y bebidas' : 'Artículos'}
-                  {p.costo ? ` · te deja ${dinero(p.precio - p.costo)}` : ''}
+              <span className="min-w-0 flex-1">
+                <span className="block break-words font-semibold">{p.nombre}</span>
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-ink-500">
+                  {!p.activo && <Etiqueta tono="neutro">Inactivo</Etiqueta>}
+                  {p.activo && p.sobrePedido && <span>Sobre pedido</span>}
+                  {p.activo && !p.sobrePedido && (est === 'agotado' || est === 'pocas') && <Etiqueta tono={est === 'agotado' ? 'sin' : 'pronto'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
+                  {p.activo && !p.sobrePedido && est === 'ok' && <span>Quedan {d}</span>}
+                  {p.activo && p.enLinea && <span>En el portal</span>}
+                  {porEntregar > 0 && <span>{porEntregar} por entregar</span>}
                 </span>
-                {(est !== 'libre' || p.enLinea || reservadas(p.id) > 0) && (
-                  <span className="mt-1 flex flex-wrap gap-1">
-                    {est !== 'libre' && <Etiqueta tono={est === 'agotado' ? 'sin' : est === 'pocas' ? 'pronto' : 'neutro'}>{est === 'agotado' ? 'Agotado' : `Quedan ${d}`}</Etiqueta>}
-                    {p.enLinea && <Etiqueta tono="marca">En el portal</Etiqueta>}
-                    {reservadas(p.id) > 0 && <Etiqueta tono="pronto">{reservadas(p.id) === 1 ? '1 apartada' : `${reservadas(p.id)} apartadas`}</Etiqueta>}
-                  </span>
-                )}
               </span>
               <span className="shrink-0 text-right font-bold">{dinero(p.precio)}</span>
             </>
@@ -128,7 +126,7 @@ export function FotoDeProducto({ foto, onChange }: { foto: string | null; onChan
     }
   };
   return (
-    <Campo etiqueta="Foto del producto" ayuda="Toma una foto o elige una imagen de tu galería. Puedes agregarla después." grupo>
+    <Campo etiqueta="Foto del producto" grupo>
       <div className="flex items-center gap-3">
         <ImagenProducto foto={foto} tam={88} className="ring-1 ring-ink-100" />
         <div className="grid flex-1 gap-2">
@@ -165,6 +163,7 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
   const [categoria, setCategoria] = useState<CategoriaProducto>(producto?.categoria ?? 'consumo');
   const [controlar, setControlar] = useState(producto ? producto.inventario !== null : false);
   const [hay, setHay] = useState(disponibles !== null ? String(Math.max(0, disponibles)) : '');
+  const conteoInicial = useRef(hay);
   const [alerta, setAlerta] = useState(String(producto?.alerta ?? 5));
   const [activo, setActivo] = useState(producto?.activo ?? true);
   const [enLinea, setEnLinea] = useState(producto?.enLinea ?? false);
@@ -177,12 +176,14 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
   const productos = useProductos();
   const repetido = codigo.trim() ? productos.find((x) => x.codigo === codigo.trim() && x.id !== producto?.id) : undefined;
   const listaOpciones = [...new Set(opciones.split(',').map((x) => x.trim()).filter(Boolean))].slice(0, 12);
+  const esSobrePedido = categoria === 'articulo' && sobrePedido;
+  const llevaExistencias = controlar && !esSobrePedido;
+  const agotadoEnPortal = llevaExistencias && hay !== '' && Number(hay) <= reservadas;
 
   const guardar = async () => {
-    const conteo = controlar && !sobrePedido;
-    const nuevoConteo = conteo ? Number(hay) || 0 : null;
+    const nuevoConteo = llevaExistencias ? Number(hay) || 0 : null;
     // Solo se reinicia el conteo si cambió lo que hay (así no se pierden ventas de otros equipos)
-    const cambioConteo = conteo && (disponibles === null || nuevoConteo !== Math.max(0, disponibles));
+    const cambioConteo = llevaExistencias && (producto?.inventario == null || nuevoConteo !== Number(conteoInicial.current));
     const datos = {
       nombre: nombre.trim(),
       // foto real del producto (si se tomó o se quitó)
@@ -198,9 +199,9 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
       // solo se manda si hay opciones (o si había y se quitaron), para no depender de la columna nueva
       ...(listaOpciones.length || producto?.opciones?.length ? { opciones: listaOpciones } : {}),
       ...(codigo.trim() ? { codigo: codigo.trim() } : producto?.codigo ? { codigo: null } : {}),
-      ...(conteo ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
+      ...(llevaExistencias ? (cambioConteo ? { inventario: nuevoConteo, inventarioAt: Date.now() } : {}) : { inventario: null, inventarioAt: null }),
       // sobre pedido: se encarga al proveedor (solo se manda si aplica, para no depender de la columna nueva)
-      ...(sobrePedido ? { sobrePedido: true, diasEntrega: Number(diasEntrega) || null } : producto?.sobrePedido ? { sobrePedido: false } : {}),
+      ...(esSobrePedido ? { sobrePedido: true, diasEntrega: Number(diasEntrega) || null } : producto?.sobrePedido ? { sobrePedido: false, diasEntrega: null } : {}),
     };
     if (producto) await actualizar('productos', producto.id, datos);
     else await crear('productos', { emoji: '', foto: null, inventario: null, inventarioAt: null, ...datos });
@@ -219,35 +220,43 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
         </Campo>
       </div>
       <FotoDeProducto foto={foto} onChange={setFoto} />
-      <Campo etiqueta="¿Cuánto te cuesta? (opcional)" ayuda="Solo lo ve la dirección. Sirve para saber cuánto te deja cada venta.">
-        <Entrada inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="$ costo por pieza" />
-      </Campo>
-      {aCentavos(costo) > 0 && aCentavos(precio) > 0 && (
-        <p className={cx('-mt-2 rounded-xl px-3 py-2 text-sm font-semibold', ganancia > 0 ? 'bg-ok-50 text-ok-600' : 'bg-bad-50 text-bad-600')}>
-          {ganancia > 0
-            ? `Te deja ${dinero(ganancia)} por pieza (${Math.round((ganancia / aCentavos(precio)) * 100)}% del precio)`
-            : `Ojo: lo vendes ${ganancia === 0 ? 'al costo' : `${dinero(-ganancia)} abajo del costo`}`}
-        </p>
-      )}
-      <Campo etiqueta="Código de barras (opcional)" ayuda="Para cobrarlo escaneando, con la cámara o con un lector.">
-        <div className="flex gap-2">
-          <Entrada inputMode="numeric" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, ''))} placeholder="Escanéalo o escríbelo" />
-          <Boton variante="secundario" onClick={() => setCamara(true)} aria-label="Escanear código de barras">
-            <Barcode size={18} />
-          </Boton>
+      <details open={!!codigoInicial} className="group rounded-xl bg-superficie ring-1 ring-ink-100">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+          Costo y código de barras
+          <ChevronDown size={16} className="text-ink-500 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="space-y-4 px-3 pb-3">
+          <Campo etiqueta="¿Cuánto te cuesta? (opcional)" ayuda="Solo lo ve la dirección. Sirve para saber cuánto te deja cada venta.">
+            <Entrada inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="$ costo por pieza" />
+          </Campo>
+          {aCentavos(costo) > 0 && aCentavos(precio) > 0 && (
+            <p className={cx('-mt-2 rounded-xl px-3 py-2 text-sm font-semibold', ganancia > 0 ? 'bg-ok-50 text-ok-600' : 'bg-bad-50 text-bad-600')}>
+              {ganancia > 0
+                ? `Te deja ${dinero(ganancia)} por pieza (${Math.round((ganancia / aCentavos(precio)) * 100)}% del precio)`
+                : `Ojo: lo vendes ${ganancia === 0 ? 'al costo' : `${dinero(-ganancia)} abajo del costo`}`}
+            </p>
+          )}
+          <Campo etiqueta="Código de barras (opcional)" ayuda="Para cobrarlo escaneando, con la cámara o con un lector.">
+            <div className="flex gap-2">
+              <Entrada inputMode="numeric" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, ''))} placeholder="Escanéalo o escríbelo" />
+              <Boton variante="secundario" onClick={() => setCamara(true)} aria-label="Escanear código de barras">
+                <Barcode size={18} />
+              </Boton>
+            </div>
+          </Campo>
+          {repetido && <p className="-mt-2 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Ese código ya es de “{repetido.nombre}”.</p>}
+          {camara && (
+            <EscanerCodigo
+              titulo="Código del producto"
+              onCodigo={(c) => {
+                setCodigo(c);
+                setCamara(false);
+              }}
+              onCerrar={() => setCamara(false)}
+            />
+          )}
         </div>
-      </Campo>
-      {repetido && <p className="-mt-2 rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">Ese código ya es de “{repetido.nombre}”.</p>}
-      {camara && (
-        <EscanerCodigo
-          titulo="Código del producto"
-          onCodigo={(c) => {
-            setCodigo(c);
-            setCamara(false);
-          }}
-          onCerrar={() => setCamara(false)}
-        />
-      )}
+      </details>
       <Segmentos<CategoriaProducto>
         opciones={[
           { valor: 'consumo', texto: 'Snacks y bebidas' },
@@ -256,14 +265,14 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
         valor={categoria}
         onChange={setCategoria}
       />
-      {categoria === 'articulo' && <Interruptor valor={sobrePedido} onChange={setSobrePedido} texto="Sobre pedido (se encarga al proveedor)" />}
-      {sobrePedido && categoria === 'articulo' && (
-        <Campo etiqueta="¿Cuántos días tarda en llegar? (aprox.)" ayuda="Se le dice al alumno al encargar. Los encargos se juntan en Encargos para mandarlos al proveedor.">
+      {categoria === 'articulo' && <Interruptor valor={esSobrePedido} onChange={setSobrePedido} texto="Sobre pedido" />}
+      {esSobrePedido && (
+        <Campo etiqueta="Días estimados de entrega (opcional)" ayuda="La estimación se muestra al encargar en el portal.">
           <Entrada inputMode="numeric" value={diasEntrega} onChange={(e) => setDiasEntrega(e.target.value.replace(/\D/g, ''))} placeholder="Ej. 15" />
         </Campo>
       )}
-      {!(sobrePedido && categoria === 'articulo') && <Interruptor valor={controlar} onChange={setControlar} texto="Llevar existencias" />}
-      {controlar && !(sobrePedido && categoria === 'articulo') && (
+      {!esSobrePedido && <Interruptor valor={controlar} onChange={setControlar} texto="Llevar existencias" />}
+      {llevaExistencias && (
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="¿Cuántas hay ahora?" ayuda="Se descuentan solas al vender.">
             <Entrada inputMode="numeric" value={hay} onChange={(e) => setHay(e.target.value.replace(/\D/g, ''))} placeholder="0" />
@@ -273,24 +282,32 @@ export function FormProducto({ producto, codigoInicial, disponibles: libres, res
           </Campo>
         </div>
       )}
-      {controlar && reservadas > 0 && (
+      {llevaExistencias && reservadas > 0 && (
         <p className="-mt-2 px-1 text-xs text-ink-500">
           {reservadas} {reservadas === 1 ? 'pieza está apartada' : 'piezas están apartadas'} desde el portal: cuéntalas también, se descuentan al entregarlas.
         </p>
       )}
-      <Interruptor valor={enLinea} onChange={setEnLinea} texto="Mostrar en el portal de alumnos" />
-      {enLinea && (
-        <>
-          <Campo etiqueta="Tallas o colores (opcional)" ayuda="Sepáralos con comas. El alumno elige uno al apartar.">
-            <Entrada value={opciones} onChange={(e) => setOpciones(e.target.value)} placeholder="Ej. CH, M, G" />
-          </Campo>
-          <Campo etiqueta="Descripción (opcional)">
-            <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Algodón, logo bordado" />
-          </Campo>
-        </>
-      )}
       {producto && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
-      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (controlar && hay === '') || !!repetido}>
+      <section aria-label="Portal de alumnos" className="space-y-3">
+        <Interruptor valor={enLinea} onChange={setEnLinea} texto="Mostrar en el portal de alumnos" />
+        {enLinea && (
+          <>
+            <p className="px-1 text-sm text-ink-500" aria-live="polite">
+              {!activo ? 'El producto está inactivo y se oculta del portal.'
+                : esSobrePedido ? 'En el portal aparecerá «Encargar». El artículo se pide al proveedor.'
+                  : agotadoEnPortal ? 'En el portal aparecerá «Agotado» hasta que haya existencias libres.'
+                    : 'En el portal aparecerá «Apartar» para recoger en recepción.'}
+            </p>
+            <Campo etiqueta="Tallas o colores (opcional)" ayuda="Sepáralos con comas. El alumno elige una opción.">
+              <Entrada value={opciones} onChange={(e) => setOpciones(e.target.value)} placeholder="Ej. CH, M, G" />
+            </Campo>
+            <Campo etiqueta="Descripción (opcional)">
+              <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Algodón, logo bordado" />
+            </Campo>
+          </>
+        )}
+      </section>
+      <Boton grande bloque onClick={guardar} disabled={!nombre.trim() || aCentavos(precio) <= 0 || (llevaExistencias && hay === '') || !!repetido}>
         Guardar
       </Boton>
     </div>

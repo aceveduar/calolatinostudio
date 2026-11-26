@@ -64,6 +64,9 @@ for (const [v, tipo] of billetes) {
 const t3 = (await corte.innerText()).replace(/\s+/g, ' ');
 const guardar = corte.getByRole('button', { name: 'Guardar corte' });
 console.log('2b) al contar faltan $20 y pide explicar qué pasó antes de guardar:', ok(/Faltan \$20/.test(t3) && (await guardar.isDisabled())));
+await corte.getByRole('button', { name: 'Escribir el total' }).click();
+console.log('2e) al cambiar de modo se conserva el total contado:', ok(await corte.getByLabel('Efectivo contado').inputValue() === String((esperado - 2000) / 100)));
+await corte.getByRole('button', { name: 'Contar billete por billete' }).click();
 await corte.getByPlaceholder(/cambio de más/).fill('Se dio cambio de más');
 await page.screenshot({ path: `${OUT}corte-nuevo.png`, fullPage: true });
 const r = await revisarPagina(page);
@@ -73,11 +76,17 @@ await page.getByText(/Corte hecho a las/).waitFor({ timeout: 5000 });
 const c = await page.evaluate(async () => (await window.compasDev.db.cortes.toArray()).sort((a, b) => a.createdAt - b.createdAt).at(-1));
 console.log('2d) el corte guarda feria, salidas y la diferencia:', ok(c.fondo === 50000 && c.salidas === 4500 && c.diferencia === -2000 && c.notas === 'Se dio cambio de más'), JSON.stringify({ fondo: c.fondo, salidas: c.salidas, dif: c.diferencia, notas: c.notas }));
 
-// 3) el siguiente corte propone la misma feria
-await page.getByRole('button', { name: 'Rehacer' }).click();
+// 3) un movimiento posterior indica que el corte necesita actualizarse.
+await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const pago = await db.pagos.filter((p) => p.concepto === 'Transferencia de prueba').first();
+  await db.pagos.add({ ...pago, id: crypto.randomUUID(), concepto: 'Transferencia posterior', updatedAt: Date.now(), createdAt: Date.now() });
+});
+await page.getByText('Corte por actualizar').waitFor();
+await page.getByRole('button', { name: 'Actualizar corte' }).click();
 const campoFeria = page.getByRole('dialog', { name: 'Corte de caja' }).getByLabel('Feria con la que abrió');
 await page.waitForFunction(() => document.querySelector('input[aria-label="Feria con la que abrió"]')?.value === '500', null, { timeout: 5000 }).catch(() => {});
 const feria = await campoFeria.inputValue();
-console.log('3) el siguiente corte ya propone la feria de $500:', ok(feria === '500'), feria);
+console.log('3) se actualiza con la misma feria y se pide contar otra vez:', ok(feria === '500' && await corte.getByText(/Vuelve a contar/).isVisible() && await guardar.isDisabled()), feria);
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
