@@ -118,7 +118,7 @@ await page.getByText(/deja cada clase/).waitFor({ timeout: 20_000 });
 await page.waitForTimeout(500);
 const tG = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
 const ingresosG = pesos(tG.match(/Ingresos (\$[\d,.]+)/)?.[1] ?? '0');
-const gastosG = pesos(tG.match(/Gastos (\$[\d,.]+)/)?.[1] ?? '0');
+const gastosG = pesos(tG.match(/Gastos registrados (\$[\d,.]+)/)?.[1] ?? '0');
 const [ingMes, gasMes] = [await suma('2026-11-01', '2026-11-30'), await gastosMes()];
 console.log('B4) Gastos: ingresos del mes = suma directa:', ok(ingresosG === ingMes), dinero(ingresosG), 'vs', dinero(ingMes));
 console.log('B5) Gastos: gastos del mes = suma directa:', ok(gastosG === gasMes), dinero(gastosG), 'vs', dinero(gasMes));

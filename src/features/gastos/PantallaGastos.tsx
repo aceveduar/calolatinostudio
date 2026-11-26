@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Repeat, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Repeat, Wallet } from 'lucide-react';
 import { descargarArchivo } from '../../app/compartirImagen';
 import { VENTANA_DIAS } from '../../sync/engine';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros } from '../../app/datos';
@@ -37,6 +37,8 @@ export function PantallaGastos() {
   const esMesActual = mes === mesDe(hoy());
   const avisar = useAvisos();
   const [exportando, setExportando] = useState(false);
+  const { hash } = useLocation();
+  const abrirPorClase = hash === '#por-clase';
 
   /** El mes en Excel (Resumen, Cobros, Gastos, Cortes), de la sede que se está viendo. En el celular se comparte (WhatsApp, correo); en PC se descarga. */
   async function exportar(pagos: Pago[], gastos: Gasto[]) {
@@ -133,6 +135,10 @@ export function PantallaGastos() {
       rentas: baseRentabilidad.rentas,
     });
   }, [calculo, baseRentabilidad, clases, desde, mes]);
+  const listo = !!datos && !!calculo;
+  useEffect(() => {
+    if (listo && abrirPorClase) document.getElementById('por-clase')?.scrollIntoView({ block: 'start' });
+  }, [listo, abrirPorClase]);
   if (!datos || !calculo) return <Cargando texto="Calculando gastos y utilidad…" />;
 
   const { enSede, gastos, fijosS } = calculo;
@@ -167,16 +173,13 @@ export function PantallaGastos() {
       </div>
 
       {verSedes && (
-        <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-          {['todas', PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => (
-            <button
-              key={id}
-              onClick={() => setVerSede(id)}
-              className={cx('shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold ring-1', verSede === id ? 'bg-brand-500 text-white ring-brand-500' : 'bg-superficie ring-ink-100')}
-            >
-              {id === 'todas' ? 'Todas las sedes' : nombreSede(id === PRINCIPAL ? null : id, sedes, academia)}
-            </button>
-          ))}
+        <div className="relative mb-3 w-fit max-w-full">
+          <Selector aria-label="Sede de Gastos y utilidad" value={verSede} onChange={(e) => setVerSede(e.target.value)} className="h-11 pr-9 pl-3 font-semibold text-brand-600">
+            <option value="todas">Todas las sedes</option>
+            <option value={PRINCIPAL}>{nombreSede(null, sedes, academia)}</option>
+            {sedes.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+          </Selector>
+          <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-brand-600" aria-hidden="true" />
         </div>
       )}
 
@@ -193,11 +196,11 @@ export function PantallaGastos() {
                 {r.tienda > 0 && <p className="text-xs text-white/60">tienda {dinero(r.tienda)}</p>}
               </div>
               <div>
-                <p className="text-white/60">Gastos</p>
+                <p className="text-white/60">Gastos registrados</p>
                 <p className="text-lg font-bold">{dinero(r.gastos)}</p>
-                {r.pendiente > 0 && <p className="text-xs text-[#ffd48a]">faltan fijos por ~{dinero(r.pendiente)}</p>}
               </div>
             </div>
+            {r.pendiente > 0 && <p className="mt-3 border-t border-white/15 pt-3 text-xs text-[#ffd48a]">Fijos pendientes · aprox. {dinero(r.pendiente)}</p>}
           </div>
 
           <Boton grande bloque className="mt-3" onClick={() => setBorrador({ fecha: fechaNueva })}>
@@ -233,7 +236,7 @@ export function PantallaGastos() {
                       {/* hasta 2 renglones: con el botón al lado, "Pago Profa Daniela" se cortaba en "Pago Profa D…" */}
                       <span className="line-clamp-2 leading-snug font-semibold">{fijo.concepto}</span>
                       <span className="block truncate text-xs text-ink-500">
-                        {pagado ? `Pagado el ${fechaCorta(pagado.fecha)}` : `Se paga el día ${fijo.dia}`}
+                        {pagado ? `Pagado el ${fechaCorta(pagado.fecha)}` : `Pendiente · día ${fijo.dia}`}
                         {verSedes && verSede === 'todas' && ` · ${nombreSede(fijo.sedeId, sedes, academia)}`}
                       </span>
                     </span>
@@ -253,63 +256,9 @@ export function PantallaGastos() {
             )}
           </Seccion>
 
-          {r.porCategoria.length > 0 && (
-            <Seccion titulo="En qué se gasta">
-              <Tarjeta className="space-y-3 p-4">
-                {r.porCategoria.map((c) => (
-                  <div key={c.categoria}>
-                    <div className="flex items-baseline justify-between text-sm">
-                      <span className="font-semibold">
-                        {categoria(c.categoria).emoji} {categoria(c.categoria).texto}
-                      </span>
-                      <span className="font-bold">{dinero(c.monto)}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 rounded-full bg-ink-100">
-                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${(c.monto / r.gastos) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </Tarjeta>
-            </Seccion>
-          )}
         </div>
 
         <div className="min-w-0 lg:[&>section]:mt-0">
-          {!rent && <Cargando texto="Calculando el detalle por clase…" />}
-          {rent && rent.filas.length > 0 && (
-            <Seccion titulo="Lo que deja cada clase">
-              <Tarjeta className="divide-y divide-ink-100">
-                {rent.filas.map((f) => (
-                  <div key={f.clase.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(f.clase, disciplinas) }} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">
-                        {nombreClase(f.clase, disciplinas)}
-                        {nombreMaestro(f.clase, maestros) && <span className="font-normal text-ink-500"> · {nombreMaestro(f.clase, maestros)}</span>}
-                      </span>
-                      <span className="block truncate text-xs text-ink-500">
-                        {f.sesiones} {f.sesiones === 1 ? 'clase' : 'clases'} · {Math.round(f.asistencias / f.sesiones)} alumnos en promedio
-                      </span>
-                      <span className="block truncate text-xs text-ink-500">
-                        Entra {dinero(f.ingresos)}
-                        {f.renta > 0 && ` (renta ${dinero(f.renta)})`}
-                        {f.costo > 0 ? ` · maestro ${f.estimado ? '~' : ''}${dinero(f.costo)}${f.estimado ? ' por pagar' : ''}` : f.sinCosto ? ' · sin pago al maestro' : ''}
-                      </span>
-                    </span>
-                    <span className={cx('text-right font-extrabold', f.ganancia < 0 ? 'text-bad-600' : 'text-ink-900')}>
-                      {dinero(f.ganancia)}
-                      {f.ganancia < 0 && <span className="block text-[11px] font-semibold">pierde</span>}
-                    </span>
-                  </div>
-                ))}
-              </Tarjeta>
-              <p className="mt-2 px-1 text-xs leading-relaxed text-ink-500">
-                Lo que entra (clases sueltas y la parte de cada plan) menos lo pagado al maestro. Sin contar renta del local, luz, etc.
-                {(sinPagoMaestro || rent.sinAsignar > 0) && ' Para que se reste el pago del maestro, al registrarlo en Gastos (categoría Maestros) elige a qué maestro fue.'}
-                {rent.sinAsignar > 0 && ` Hay ${dinero(rent.sinAsignar)} pagados a maestros sin elegir maestro.`}
-              </p>
-            </Seccion>
-          )}
           <Seccion titulo={`Gastos registrados · ${gastos.length}`}>
             {gastos.length === 0 ? (
               <Tarjeta>
@@ -321,7 +270,7 @@ export function PantallaGastos() {
                   <button key={g.id} onClick={() => setBorrador({ gasto: g, fecha: g.fecha })} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-ink-50">
                     <span className="text-xl leading-none">{categoria(g.categoria).emoji}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{g.concepto}</span>
+                      <span className="block break-words font-medium">{g.concepto}</span>
                       <span className="block truncate text-xs text-ink-500">
                         {fechaCorta(g.fecha)} · {g.metodo}
                         {verSedes && verSede === 'todas' && ` · ${nombreSede(g.sedeId, sedes, academia)}`}
@@ -333,6 +282,75 @@ export function PantallaGastos() {
               </Tarjeta>
             )}
           </Seccion>
+          {r.porCategoria.length > 0 && (
+          <details className="group mt-3 rounded-xl ring-1 ring-ink-100">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              En qué se gasta
+              <ChevronDown size={16} className="text-ink-500 group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="px-3 pb-3">
+                  <Tarjeta className="space-y-3 p-4">
+                    {r.porCategoria.map((c) => (
+                      <div key={c.categoria}>
+                        <div className="flex items-baseline justify-between text-sm">
+                          <span className="font-semibold">
+                            {categoria(c.categoria).emoji} {categoria(c.categoria).texto}
+                          </span>
+                          <span className="font-bold">{dinero(c.monto)}</span>
+                        </div>
+                        <div className="mt-1 h-1.5 rounded-full bg-ink-100">
+                          <div className="h-full rounded-full bg-brand-500" style={{ width: `${(c.monto / r.gastos) * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </Tarjeta>
+            </div>
+          </details>
+          )}
+          <details id="por-clase" open={abrirPorClase} className="group mt-3 scroll-mt-20 rounded-xl ring-1 ring-ink-100">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              Lo que deja cada clase
+              <ChevronDown size={16} className="text-ink-500 group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="px-3 pb-3">
+              {!rent && <Cargando texto="Calculando el detalle por clase…" />}
+              {rent && rent.filas.length === 0 && <p className="text-sm text-ink-500">Sin clases con actividad en este periodo.</p>}
+              {rent && rent.filas.length > 0 && (
+                <>
+                  <Tarjeta className="divide-y divide-ink-100">
+                    {rent.filas.map((f) => (
+                      <div key={f.clase.id} className="flex items-center gap-3 px-4 py-3">
+                        <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(f.clase, disciplinas) }} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">
+                            {nombreClase(f.clase, disciplinas)}
+                            {nombreMaestro(f.clase, maestros) && <span className="font-normal text-ink-500"> · {nombreMaestro(f.clase, maestros)}</span>}
+                          </span>
+                          <span className="block truncate text-xs text-ink-500">
+                            {f.sesiones} {f.sesiones === 1 ? 'clase' : 'clases'} · {Math.round(f.asistencias / f.sesiones)} alumnos en promedio
+                          </span>
+                          <span className="block truncate text-xs text-ink-500">
+                            Entra {dinero(f.ingresos)}
+                            {f.renta > 0 && ` (renta ${dinero(f.renta)})`}
+                            {f.costo > 0 ? ` · maestro ${f.estimado ? '~' : ''}${dinero(f.costo)}${f.estimado ? ' por pagar' : ''}` : f.sinCosto ? ' · sin pago al maestro' : ''}
+                          </span>
+                        </span>
+                        <span className={cx('text-right font-extrabold', f.ganancia < 0 ? 'text-bad-600' : 'text-ink-900')}>
+                          {dinero(f.ganancia)}
+                          {f.ganancia < 0 && <span className="block text-[11px] font-semibold">pierde</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </Tarjeta>
+                  <p className="mt-2 px-1 text-xs leading-relaxed text-ink-500">
+                    Lo que entra (clases sueltas y la parte de cada plan) menos lo pagado al maestro. Sin contar renta del local, luz, etc.
+                    {(sinPagoMaestro || rent.sinAsignar > 0) && ' Para que se reste el pago del maestro, al registrarlo en Gastos (categoría Maestros) elige a qué maestro fue.'}
+                    {rent.sinAsignar > 0 && ` Hay ${dinero(rent.sinAsignar)} pagados a maestros sin elegir maestro.`}
+                  </p>
+                </>
+              )}
+            </div>
+          </details>
         </div>
       </div>
 
@@ -464,8 +482,9 @@ function FormGasto({ borrador, sedeInicial, sedes, onHecho }: { borrador: Borrad
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Folio, a quién se pagó…" />
       </Campo>
       <Boton grande bloque onClick={guardar} disabled={ocupado || centavos <= 0 || !conceptoFinal}>
-        {g ? 'Guardar cambios' : `Registrar ${centavos > 0 ? dinero(centavos) : 'gasto'}`}
+        {ocupado ? 'Guardando…' : g ? 'Guardar cambios' : `Registrar ${centavos > 0 ? dinero(centavos) : 'gasto'}`}
       </Boton>
+      {(!conceptoFinal || centavos <= 0) && <p className="-mt-2 text-center text-sm text-ink-500">{!conceptoFinal ? 'Escribe el concepto del gasto.' : 'Escribe el monto del gasto.'}</p>}
       {g && (
         <Boton
           bloque

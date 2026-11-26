@@ -29,6 +29,11 @@ await page.getByText('Gastos y utilidad').waitFor();
 await page.waitForTimeout(400);
 let t = await txt();
 console.log('1) pantalla de gastos con fijos del mes:', ok(/Gastos fijos del mes/i.test(t) && /Registrar \$850/.test(t)), (t.match(/Utilidad .{0,60}/) || [''])[0]);
+const porClase = page.locator('#por-clase');
+const registrados = page.getByRole('heading', { name: /^Gastos registrados/ });
+console.log('   gastos registrados preceden al desglose plegado:', ok(
+  (await registrados.boundingBox()).y < (await porClase.boundingBox()).y && await porClase.getAttribute('open') === null,
+));
 await page.screenshot({ path: `${OUT}gasto-${P}-2-mes.png`, fullPage: true });
 
 // 2) registrar la luz con otro monto
@@ -56,12 +61,13 @@ t = await txt();
 console.log('3) gasto suelto aparece en la lista:', ok(/Bocina .{0,40}efectivo · Casa de Cultura \$1,500/.test(t)));
 
 // 4) filtro por sede
-await page.getByRole('button', { name: 'Casa de Cultura', exact: true }).click();
+const sede = page.getByRole('combobox', { name: 'Sede de Gastos y utilidad' });
+await sede.selectOption({ label: 'Casa de Cultura' });
 await page.waitForTimeout(300);
 t = await txt();
-const lista = t.split(/Gastos registrados/i)[1] ?? '';
+const lista = t.split(/Gastos registrados · \d+/i)[1] ?? '';
 console.log('4) en Casa de Cultura solo sus gastos:', ok(/Bocina/.test(lista) && /Renta Casa de Cultura/.test(lista) && !/Internet/.test(lista)));
-await page.getByRole('button', { name: 'Todas las sedes' }).click();
+await sede.selectOption({ label: 'Todas las sedes' });
 
 // 5) eliminar y deshacer
 await page.getByRole('button', { name: /Bocina/ }).click();
@@ -84,7 +90,7 @@ await page.waitForTimeout(300);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 t = await txt();
-console.log('6) gasto fijo nuevo pendiente (día 30 → 28):', ok(/Pago a Profe Luis Se paga el día 28/.test(t) && /Registrar \$4,000/.test(t)));
+console.log('6) gasto fijo nuevo pendiente (día 30 → 28):', ok(/Pago a Profe Luis Pendiente · día 28/.test(t) && /Registrar \$4,000/.test(t)));
 
 // 7) mes anterior: todos los fijos pagados
 await page.getByRole('button', { name: 'Mes anterior' }).click();

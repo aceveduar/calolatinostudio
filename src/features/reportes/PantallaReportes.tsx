@@ -249,7 +249,7 @@ export function PantallaReportes() {
         <Seccion
           titulo="Asistencia por clase"
           accion={
-            <Link to="/reportes/gastos" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
+            <Link to="/reportes/gastos#por-clase" className="-mr-2 flex min-h-10 items-center rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50">
               ¿Cuánto deja cada una?
             </Link>
           }
