@@ -75,6 +75,7 @@ await page.screenshot({ path: `${OUT}m-2-maestro.png`, fullPage: true });
 console.log('3a) ve 5 en la lista:', ok(/\b5\b[\s\S]*alumnos/.test(texto)));
 console.log('3b) marca "Primera clase" a Pedro:', ok(/Pedro Nuevo[\s\S]{0,40}Primera clase/.test(texto)));
 console.log('3c) ningún $ en pantalla:', ok(!texto.includes('$')));
+console.log('   la lista muestra primeros ingresos sin etiquetas de cobro:', ok(!/Pagó clase|\bPlan\b/.test(texto)));
 const nav = await page.locator('nav a, aside nav a').allInnerTexts();
 console.log('3d) menú solo "Mis clases":', JSON.stringify(nav.filter(Boolean)), ok(!nav.join(' ').match(/Caja|Reportes|Ajustes|Alumnos/)));
 await page.goto('http://localhost:4173/caja');
@@ -85,5 +86,22 @@ console.log('3e) /caja lo regresa a Mis clases:', ok(page.url().endsWith('/')));
 await page.setViewportSize({ width: 1366, height: 820 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${OUT}m-3-maestro-escritorio.png` });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.getByRole('link', { name: 'Cómo se usa' }).click();
+await page.getByText(/Al entrar ves tu clase/).waitFor();
+console.log('4) la guía de maestro abre el tema sin buscador:', ok(!await page.getByRole('textbox', { name: 'Buscar en el manual' }).count()));
+await page.getByRole('button', { name: 'Volver', exact: true }).click();
+await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const maestro = await db.maestros.filter((m) => m.nombre === 'Profe Luis Herrera').first();
+  const clases = await db.clases.filter((c) => c.maestroId === maestro.id && c.activo).toArray();
+  await db.clases.bulkPut(clases.map((c, i) => ({
+    ...c, dias: i === 0 ? [3, 4] : [3],
+    excepciones: { '2026-11-18': { cancelada: true }, ...(i === 0 && { '2026-11-19': { hora: '16:35', sede: null, salon: null } }) },
+  })));
+});
+await page.getByText('Hoy no tienes clase', { exact: true }).waitFor();
+console.log('5) el resumen omite la sesión cancelada y muestra la próxima con su hora especial:', ok(await page.getByText(/jueves, 19 de noviembre · 16:35/i).isVisible()));
+await page.screenshot({ path: `${OUT}m-4-proxima-clase.png` });
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

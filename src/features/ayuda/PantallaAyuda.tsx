@@ -14,8 +14,9 @@ export function PantallaAyuda() {
   const { usuario } = useSesion();
   const nav = useNavigate();
   const [q, setQ] = useState('');
-  const [abierto, setAbierto] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<string | null | undefined>(undefined);
   const capitulos = manualPara(usuario.rol, q);
+  const guiaUnica = usuario.rol === 'maestro' && manualPara(usuario.rol, '').reduce((total, c) => total + c.temas.length, 0) === 1;
 
   return (
     <div className="px-4 pb-10 lg:mx-auto lg:max-w-3xl">
@@ -25,9 +26,9 @@ export function PantallaAyuda() {
         </button>
         <h1 className="flex-1 text-2xl font-extrabold tracking-tight">Cómo se usa</h1>
       </div>
-      <p className="mb-4 text-ink-500">Guía corta para {NOMBRE_ROL[usuario.rol].toLowerCase()}: toca un tema para ver los pasos.</p>
+      {!guiaUnica && <p className="mb-4 text-ink-500">Guía corta para {NOMBRE_ROL[usuario.rol].toLowerCase()}: toca un tema para ver los pasos.</p>}
 
-      <label className="relative mb-5 block">
+      {!guiaUnica && <label className="relative mb-5 block">
         <Search size={18} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-500" aria-hidden="true" />
         <input
           value={q}
@@ -41,7 +42,7 @@ export function PantallaAyuda() {
             <X size={18} />
           </button>
         )}
-      </label>
+      </label>}
 
       {capitulos.length === 0 && (
         <Tarjeta>
@@ -51,16 +52,17 @@ export function PantallaAyuda() {
 
       {capitulos.map((c) => (
         <section key={c.id} className="mb-6" aria-labelledby={`cap-${c.id}`}>
-          <h2 id={`cap-${c.id}`} className="mb-2 flex items-center gap-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">
+          <h2 id={`cap-${c.id}`} className={guiaUnica ? 'sr-only' : 'mb-2 flex items-center gap-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase'}>
             <span aria-hidden="true" className="text-base">
               {c.emoji}
             </span>
             {c.titulo}
           </h2>
           <Tarjeta className="divide-y divide-ink-100">
-            {c.temas.map((t) => (
-              <TemaManual key={t.id} tema={t} abierto={abierto === t.id || (!!q && c.temas.length === 1)} onToggle={() => setAbierto(abierto === t.id ? null : t.id)} />
-            ))}
+            {c.temas.map((t) => {
+              const expandido = abierto === t.id || (abierto === undefined && guiaUnica) || (!!q && c.temas.length === 1);
+              return <TemaManual key={t.id} tema={t} abierto={expandido} onToggle={() => setAbierto(expandido ? null : t.id)} />;
+            })}
           </Tarjeta>
         </section>
       ))}

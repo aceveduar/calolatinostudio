@@ -4,11 +4,13 @@ import { BookOpen, CalendarDays, ChevronDown, RefreshCw, Sparkles, Users } from 
 import { Link } from 'react-router-dom';
 import { colorClase, nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { useHoy } from '../../app/reloj';
+import { nombreSede, useSedes } from '../../app/sedes';
 import { Avatar, Encabezado, Etiqueta, Hoja, Seccion, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
 import type { Clase, ID } from '../../db/types';
 import { claseSugerida, clasesDelDia } from '../../domain/clases';
-import { DIAS_CORTOS, aFecha, fechaLarga, horaDe, hoy } from '../../domain/fechas';
+import { aFecha, deFecha, fechaLarga, horaDe, sumarDias } from '../../domain/fechas';
 import { sincronizar, useEstadoSync } from '../../sync/engine';
 import { TarjetaTestimonio } from '../testimonios/TarjetaTestimonio';
 
@@ -17,21 +19,23 @@ import { TarjetaTestimonio } from '../testimonios/TarjetaTestimonio';
  * notas del alumno y sus números. Nunca muestra dinero.
  */
 export function PantallaMaestro() {
-  const { usuario } = useSesion();
+  const { usuario, academia } = useSesion();
   const clases = useClases();
   const disciplinas = useDisciplinas();
   const sync = useEstadoSync();
   const mias = useMemo(() => clases.filter((c) => c.maestroId && c.maestroId === usuario.maestroId && c.activo), [clases, usuario.maestroId]);
-  const deHoy = useMemo(() => clasesDelDia(mias), [mias]);
-  const [claseId, setClaseId] = useState<ID | null>(null);
+  const dia = useHoy();
+  const sedes = useSedes();
+  const deHoy = useMemo(() => clasesDelDia(mias, deFecha(dia)), [mias, dia]);
+  const [seleccion, setSeleccion] = useState<{ id: ID; dia: string } | null>(null);
   const [elegir, setElegir] = useState(false);
-  const clase = mias.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
+  const clase = (seleccion?.dia === dia ? deHoy.find((c) => c.id === seleccion.id) : null) ?? claseSugerida(deHoy);
   const nombre1 = usuario.nombre.replace(/^Prof[ae]\.?\s+/i, '').split(' ')[0];
 
   if (!usuario.maestroId || !mias.length)
     return (
       <div className="px-4">
-        <Encabezado titulo={`Hola, ${nombre1}`} sub={fechaLarga(hoy())} />
+        <Encabezado titulo={`Hola, ${nombre1}`} sub={fechaLarga(dia)} />
         <Tarjeta>
           <Vacio icono={<CalendarDays size={36} />} titulo="Aún no tienes clases asignadas" texto="Pídele a la dirección que te asigne tus clases en Ajustes → Clases y horarios." />
         </Tarjeta>
@@ -41,9 +45,10 @@ export function PantallaMaestro() {
   return (
     <div className="px-4 pb-8 lg:mx-auto lg:max-w-4xl">
       <div className="-mx-4 flex items-end justify-between lg:mx-0">
-        <Encabezado titulo={`Hola, ${nombre1}`} sub={fechaLarga(hoy())} />
+        <Encabezado titulo={`Hola, ${nombre1}`} sub={fechaLarga(dia)} />
         <button
           onClick={() => void sincronizar()}
+          disabled={sync.fase === 'sincronizando'}
           className="mr-4 mb-4 flex items-center gap-1.5 rounded-full px-3 py-2.5 text-sm font-semibold text-ink-500 active:bg-ink-100 lg:mr-0"
           aria-label="Actualizar lista"
         >
@@ -52,7 +57,7 @@ export function PantallaMaestro() {
       </div>
 
       {/* como en Entrada: la clase sale una vez (en su tarjeta) y desde ahí se cambia si hoy da varias */}
-      {clase ? <MiClase clase={clase} onCambiar={deHoy.length > 1 ? () => setElegir(true) : undefined} /> : <ProximaClase mias={mias} />}
+      {clase ? <MiClase clase={clase} dia={dia} sede={nombreSede(clase.sedeId, sedes, academia)} onCambiar={deHoy.length > 1 ? () => setElegir(true) : undefined} /> : <ProximaClase mias={mias} dia={dia} />}
       <Hoja abierta={elegir} onCerrar={() => setElegir(false)} titulo="Tus clases de hoy">
         {elegir && (
           <div className="space-y-2">
@@ -61,7 +66,7 @@ export function PantallaMaestro() {
                 key={c.id}
                 type="button"
                 onClick={() => {
-                  setClaseId(c.id);
+                  setSeleccion({ id: c.id, dia });
                   setElegir(false);
                 }}
                 aria-current={clase?.id === c.id || undefined}
@@ -70,7 +75,7 @@ export function PantallaMaestro() {
                 <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: colorClase(c, disciplinas) }} aria-hidden="true" />
                 <span className="flex-1">
                   <span className="block font-bold">{nombreClase(c, disciplinas)}</span>
-                  <span className="block text-sm text-ink-500">{c.horaInicio}</span>
+                  <span className="block text-sm text-ink-500">{c.horaInicio} · {nombreSede(c.sedeId, sedes, academia)}</span>
                 </span>
               </button>
             ))}
@@ -110,9 +115,8 @@ function TestimoniosDeMisAlumnos({ mias }: { mias: Clase[] }) {
   );
 }
 
-function MiClase({ clase, onCambiar }: { clase: Clase; onCambiar?: () => void }) {
+function MiClase({ clase, dia, sede, onCambiar }: { clase: Clase; dia: string; sede: string; onCambiar?: () => void }) {
   const disciplinas = useDisciplinas();
-  const dia = hoy();
   const lista = useLiveQuery(
     async () => {
       const asis = (await db.asistencias.where('[claseId+fecha]').equals([clase.id, dia]).toArray())
@@ -146,16 +150,14 @@ function MiClase({ clase, onCambiar }: { clase: Clase; onCambiar?: () => void })
       >
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-wider text-white/75 uppercase">Hoy · {clase.horaInicio}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
-              <span className="truncate">{nombreClase(clase, disciplinas)}</span>
+            <p className="text-xs font-semibold text-white/90">{clase.horaInicio} · {sede}</p>
+            <p className="mt-0.5 break-words text-xl font-extrabold tracking-tight">{nombreClase(clase, disciplinas)}</p>
               {onCambiar && (
-                <button type="button" onClick={onCambiar} className="flex min-h-8 shrink-0 items-center gap-0.5 rounded-full bg-white/20 py-0.5 pr-1.5 pl-2.5 text-xs font-bold tracking-normal active:bg-white/30" aria-label="Cambiar a otra de tus clases de hoy">
+                <button type="button" onClick={onCambiar} className="mt-1 flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-bold active:bg-white/30" aria-label="Cambiar a otra de tus clases de hoy">
                   Otra clase <ChevronDown size={13} aria-hidden="true" />
                 </button>
               )}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-white/85">{nuevos ? `${nuevos} ${nuevos === 1 ? 'viene' : 'vienen'} por primera vez` : 'Lista en vivo'}</p>
+            {nuevos > 0 && <p className="mt-1 text-sm font-semibold text-white/90">{nuevos} {nuevos === 1 ? 'viene' : 'vienen'} por primera vez</p>}
           </div>
           <div className="text-right">
             <p key={lista.length} className="text-5xl leading-none font-extrabold tracking-tight animate-pop">
@@ -166,31 +168,28 @@ function MiClase({ clase, onCambiar }: { clase: Clase; onCambiar?: () => void })
         </div>
       </div>
 
-      <Seccion titulo="Quién llegó · en orden de llegada">
+      <Seccion titulo="Quién llegó">
         {lista.length === 0 ? (
           <Tarjeta>
             <Vacio icono={<Users size={36} />} titulo="Aún no llega nadie" texto="La lista se llena sola conforme recepción les da entrada." />
           </Tarjeta>
         ) : (
           <Tarjeta className="divide-y divide-ink-100 lg:grid lg:grid-cols-2 lg:divide-y-0">
-            {lista.map(({ a, nombre, notas, primera, visitante }, i) => (
+            {lista.map(({ a, nombre, notas, primera, visitante }) => (
               <div key={a.id} className={cx('flex items-center gap-3 px-3 py-2.5', primera && 'bg-brand-50/60', 'lg:border-b lg:border-ink-100')}>
-                <span className="w-5 text-right text-xs text-ink-300">{i + 1}</span>
                 <Avatar nombre={nombre} tam={38} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{nombre}</span>
-                  <span className="mt-0.5 flex min-w-0 items-center gap-2">
+                  <span className="block break-words font-semibold">{nombre}</span>
+                  {(primera || visitante || notas) && <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
                     {primera ? (
                       <Etiqueta tono="marca">
                         <Sparkles size={12} className="mr-1" /> Primera clase
                       </Etiqueta>
                     ) : visitante ? (
                       <Etiqueta>Visitante</Etiqueta>
-                    ) : (
-                      <Etiqueta tono={a.membresiaId ? 'ok' : 'neutro'}>{a.membresiaId ? 'Plan' : 'Pagó clase'}</Etiqueta>
-                    )}
-                    {notas && <span className="truncate text-xs text-ink-500">{notas}</span>}
-                  </span>
+                    ) : null}
+                    {notas && <span className="break-words text-xs text-ink-500">{notas}</span>}
+                  </span>}
                 </span>
                 <span className="w-11 text-right text-xs text-ink-500">{horaDe(a.createdAt)}</span>
               </div>
@@ -203,18 +202,28 @@ function MiClase({ clase, onCambiar }: { clase: Clase; onCambiar?: () => void })
   );
 }
 
-function ProximaClase({ mias }: { mias: Clase[] }) {
+function ProximaClase({ mias, dia }: { mias: Clase[]; dia: string }) {
   const disciplinas = useDisciplinas();
-  const dias = mias.flatMap((c) => c.dias.map((d) => ({ c, d })));
-  const hoyDia = new Date().getDay();
-  const prox = dias.sort((x, y) => ((x.d - hoyDia + 7) % 7 || 7) - ((y.d - hoyDia + 7) % 7 || 7) || x.c.horaInicio.localeCompare(y.c.horaInicio))[0];
+  const { academia } = useSesion();
+  const sedes = useSedes();
+  let prox: { fecha: string; clase: Clase } | undefined;
+  for (let n = 1; n <= 28 && !prox; n++) {
+    const fecha = sumarDias(dia, n);
+    const [clase] = clasesDelDia(mias, deFecha(fecha));
+    if (clase) prox = { fecha, clase };
+  }
   return (
-    <Tarjeta>
-      <Vacio
-        icono={<CalendarDays size={36} />}
-        titulo="Hoy no tienes clase"
-        texto={prox ? `Tu próxima clase: ${nombreClase(prox.c, disciplinas)}, ${DIAS_CORTOS[prox.d]} a las ${prox.c.horaInicio}.` : undefined}
-      />
+    <Tarjeta className="flex items-start gap-3 p-4">
+      <CalendarDays size={20} className="mt-0.5 shrink-0 text-brand-600" aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="text-sm text-ink-500">Hoy no tienes clase</p>
+        {prox && <>
+          <p className="mt-2 text-xs font-semibold text-ink-500">Próxima clase</p>
+          <h2 className="mt-1 font-extrabold">{nombreClase(prox.clase, disciplinas)}</h2>
+          <p className="text-sm text-ink-600">{fechaLarga(prox.fecha)} · {prox.clase.horaInicio}</p>
+          <p className="text-sm text-ink-600">{nombreSede(prox.clase.sedeId, sedes, academia)}</p>
+        </>}
+      </div>
     </Tarjeta>
   );
 }
