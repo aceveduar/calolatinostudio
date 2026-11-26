@@ -52,18 +52,21 @@ await page.getByRole('link', { name: 'Listas' }).click();
 await page.getByText('Listas del mes').waitFor();
 const disciplinas = await todos('disciplinas');
 const c = clases.find((x) => x.id === fiada.claseId);
-const nom = `${disciplinas.find((d) => d.id === c.disciplinaId).nombre} ${c.nivel}`;
-await page.getByRole('button', { name: new RegExp(`^${nom} ${c.horaInicio}`) }).first().click();
+await page.getByRole('combobox', { name: 'Clase de la lista' }).selectOption(c.id);
 if (!fiada.fecha.startsWith(local().slice(0, 7))) await page.getByRole('button', { name: 'Mes anterior' }).click();
 await page.waitForTimeout(400);
 let t = await body();
 const filaTxt = (await page.locator('tr').filter({ hasText: deudor }).innerText()).replace(/\s+/g, ' ');
 console.log('2) libreta: marca "debe" y recordatorio:', ok(/Debe \$\d+/.test(filaTxt) && (await page.getByRole('link', { name: `Recordarle a ${deudor} lo que debe` }).count()) === (a1.telefono ? 1 : 0)), 'tel:' + !!a1.telefono, filaTxt);
 await page.screenshot({ path: `${OUT}libreta-${P}-1.png`, fullPage: true });
+await page.getByRole('checkbox', { name: 'Solo adeudos' }).check();
+const filasFiltradas = await page.locator('tbody tr').allInnerTexts();
+console.log('   solo adeudos conserva únicamente las filas con saldo:', ok(filasFiltradas.length > 0 && filasFiltradas.every((fila) => /Debe \$/.test(fila))));
 
 // 3) cobrar lo que debe desde su ficha
-await page.getByRole('link', { name: deudor }).first().click();
+await page.getByRole('link', { name: `Ver adeudo de ${deudor}:`, exact: false }).first().click();
 await page.getByText(/Debe 1 clase/).waitFor();
+console.log('   el importe lleva directamente a la sección de adeudos:', ok(new URL(page.url()).hash === '#adeudos'));
 const vender = page.getByRole('button', { name: 'Vender plan', exact: true });
 console.log('   con adeudo, cobrar es la acción principal:', ok(
   !(await vender.getAttribute('class')).includes('bg-brand-500'),
