@@ -11,6 +11,6 @@ export const METODOS: { valor: MetodoPago; texto: string }[] = [
 export function describirPlan(p: Plan): string {
   if (esBeca(p)) return `Clases ilimitadas por ${p.vigenciaDias} días, sin costo`;
   if (p.tipo === 'mensual') return p.grupos ? `${p.grupos === 1 ? 'Un grupo' : `${p.grupos} grupos`} por un mes` : 'Clases ilimitadas por un mes';
-  if (p.tipo === 'paquete') return `${p.clases} clases · vigencia ${p.vigenciaDias} días`;
+  if (p.tipo === 'paquete') return `${p.clases} ${p.clases === 1 ? 'clase' : 'clases'} · vigencia ${p.vigenciaDias} ${p.vigenciaDias === 1 ? 'día' : 'días'}`;
   return 'Una clase';
 }

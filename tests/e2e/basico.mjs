@@ -87,6 +87,18 @@ console.log('   se guarda con el nombre sugerido:', ok((await db('planes')).some
 const posRecargo = await p.getByText('Ajustes de cobro').boundingBox();
 const posPlan = await p.getByText('Mensual 2 grupos').first().boundingBox();
 console.log('   el recargo queda después de los planes:', ok(posRecargo && posPlan && posRecargo.y > posPlan.y));
+await p.getByRole('button', { name: /^Mensual 2 grupos/ }).click();
+await dlg.getByRole('button', { name: 'Paquete', exact: true }).click();
+const paqueteLimpio = await dlg.getByLabel('Nombre (opcional)').inputValue() === ''
+  && await dlg.getByLabel('Precio', { exact: true }).inputValue() === ''
+  && await dlg.getByLabel('Clases', { exact: true }).inputValue() === '8';
+await dlg.getByRole('button', { name: 'Beca', exact: true }).click();
+const becaIndependiente = await dlg.getByLabel('Vigencia (días)').inputValue() === '180';
+await dlg.getByRole('button', { name: 'Mensual', exact: true }).click();
+const mensualIntacto = await dlg.getByLabel('Nombre (opcional)').inputValue() === 'Mensual 2 grupos'
+  && await dlg.getByLabel('Precio', { exact: true }).inputValue() === '450';
+console.log('   cada tipo conserva su nombre, precio y vigencia durante la edición:', ok(paqueteLimpio && becaIndependiente && mensualIntacto));
+await p.keyboard.press('Escape');
 
 // 5) usuario: dice qué falta
 await ir('/ajustes/usuarios');

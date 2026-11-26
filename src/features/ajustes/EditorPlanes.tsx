@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useDisciplinas, usePlanes } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
-import { Boton, Campo, Entrada, Etiqueta, Interruptor, Segmentos, Selector, Tarjeta, cx } from '../../components/ui';
+import { Boton, Campo, Entrada, Etiqueta, Interruptor, Segmentos, Selector, Tarjeta } from '../../components/ui';
 import { actualizar, crear } from '../../db/repo';
 import { type ID, type Plan, type TipoPlan } from '../../db/types';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
@@ -20,21 +21,22 @@ export function EditorPlanes() {
   const orden: Record<TipoPlan, number> = { suelta: 0, mensual: 1, paquete: 2 };
   return (
     <>
-    <p className="mb-3 text-sm text-ink-500">Lo que puede pagar un alumno: la clase suelta, mensualidades, paquetes y becas.</p>
     <Catalogo
       items={[...planes].sort((a, b) => (esBeca(a) ? 3 : orden[a.tipo]) - (esBeca(b) ? 3 : orden[b.tipo]))}
       textoNuevo="Nuevo plan"
+      arriba={(nuevo) => <Boton className="mb-3" onClick={nuevo}><Plus size={18} aria-hidden="true" /> Nuevo plan</Boton>}
       titulo={(p) => (p ? p.nombre : 'Nuevo plan')}
       fila={(p) => (
         <>
-          <span className={cx('flex-1', !p.activo && 'opacity-40')}>
+          <span className="min-w-0 flex-1">
             <span className="block font-semibold">{p.nombre}</span>
             <span className="block text-sm text-ink-500">
               {describirPlan(p)}
               {sedes.length > 0 && ` · ${p.sedeId ? `solo ${p.sedeId === PRINCIPAL ? nombreSede(null, sedes, academia) : nombreSede(p.sedeId, sedes, academia)}` : 'todas las sedes'}`}
             </span>
+            {!p.activo && <Etiqueta>Inactivo</Etiqueta>}
           </span>
-          {esBeca(p) ? <Etiqueta tono="ok">Beca</Etiqueta> : <span className="font-bold">{dinero(p.precio)}</span>}
+          <span className="shrink-0 text-sm font-bold">{esBeca(p) ? 'Sin costo' : dinero(p.precio)}</span>
         </>
       )}
       vacio="Aún no hay planes. Empieza por la clase suelta y la mensualidad."
@@ -60,21 +62,33 @@ export function Recargo() {
   return (
     <Tarjeta className="p-4">
       <Campo etiqueta="Recargo por día de atraso (mensualidades)" ayuda="Se suma al renovar una mensualidad vencida; en cada cobro se puede quitar. Vacío = sin recargo.">
-        <Entrada inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} onBlur={guardar} placeholder="Ej. 10" />
+        <Entrada inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Ej. 10" />
       </Campo>
+      {aCentavos(txt) !== (academia.recargoDiario ?? 0) && (
+        <Boton variante="secundario" className="mt-3" onClick={guardar}>Guardar recargo</Boton>
+      )}
     </Tarjeta>
   );
 }
 
+type TipoEditable = TipoPlan | 'beca';
+
 export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => void }) {
   const avisar = useAvisos();
   const disciplinas = useDisciplinas();
-  const [nombre, setNombre] = useState(plan?.nombre ?? '');
   // 'beca' solo existe en el formulario: se guarda como paquete de $0 con clases ilimitadas
-  const [tipo, setTipo] = useState<TipoPlan | 'beca'>(esBeca(plan) ? 'beca' : (plan?.tipo ?? 'mensual'));
-  const [precio, setPrecio] = useState(plan ? aPesosTexto(plan.precio) : '');
-  const [clases, setClases] = useState(String(plan?.clases ?? 8));
-  const [vigencia, setVigencia] = useState(String(plan?.vigenciaDias ?? (esBeca(plan) ? VIGENCIA_BECA : 30)));
+  const tipoOriginal: TipoEditable = esBeca(plan) ? 'beca' : (plan?.tipo ?? 'mensual');
+  const [tipo, setTipo] = useState(tipoOriginal);
+  const [nombres, setNombres] = useState<Partial<Record<TipoEditable, string>>>(() => ({ [tipoOriginal]: plan?.nombre ?? '' }));
+  const [precios, setPrecios] = useState<Partial<Record<TipoEditable, string>>>(() => ({ [tipoOriginal]: plan ? aPesosTexto(plan.precio) : '' }));
+  const [clases, setClases] = useState(String(tipoOriginal === 'paquete' ? plan?.clases ?? 8 : 8));
+  const [vigencias, setVigencias] = useState<Partial<Record<TipoEditable, string>>>(() => ({
+    paquete: String(tipoOriginal === 'paquete' ? plan?.vigenciaDias ?? 30 : 30),
+    beca: String(tipoOriginal === 'beca' ? plan?.vigenciaDias ?? VIGENCIA_BECA : VIGENCIA_BECA),
+  }));
+  const nombre = nombres[tipo] ?? '';
+  const precio = precios[tipo] ?? '';
+  const vigencia = vigencias[tipo] ?? '';
   const [disciplinaId, setDisciplinaId] = useState<ID | ''>(plan?.disciplinaId ?? '');
   const [activo, setActivo] = useState(plan?.activo ?? true);
   const { academia } = useSesion();
@@ -84,29 +98,32 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
 
   const g = tipo === 'mensual' ? Number(grupos) || 0 : 0;
   // si no le pone nombre, se usa uno claro según lo elegido
+  const cantidad = Number(clases) || 1;
   const sugerido =
-    tipo === 'suelta' ? 'Clase suelta' : tipo === 'beca' ? 'Beca' : tipo === 'paquete' ? `Paquete ${Number(clases) || 1} clases` : g ? `Mensual ${g} ${g === 1 ? 'grupo' : 'grupos'}` : 'Mensualidad';
+    tipo === 'suelta' ? 'Clase suelta' : tipo === 'beca' ? 'Beca' : tipo === 'paquete' ? `Paquete ${cantidad} ${cantidad === 1 ? 'clase' : 'clases'}` : g ? `Mensual ${g} ${g === 1 ? 'grupo' : 'grupos'}` : 'Mensualidad';
   const vista: Plan = {
     ...(plan ?? ({} as Plan)),
     nombre: nombre.trim() || sugerido,
     tipo: tipo === 'beca' ? 'paquete' : tipo,
     precio: tipo === 'beca' ? 0 : aCentavos(precio),
-    clases: tipo === 'paquete' ? Number(clases) || 1 : tipo === 'suelta' ? 1 : null,
+    clases: tipo === 'paquete' ? cantidad : tipo === 'suelta' ? 1 : null,
     vigenciaDias: tipo === 'paquete' ? Number(vigencia) || 30 : tipo === 'beca' ? Number(vigencia) || VIGENCIA_BECA : null,
     grupos: g || null,
   };
-  const falta = tipo === 'beca' ? (Number(vigencia) > 0 ? '' : 'Escribe cuántos días dura') : aCentavos(precio) > 0 ? '' : 'Escribe el precio';
+  const falta = tipo !== 'beca' && vista.precio <= 0 ? 'Escribe el precio'
+    : tipo === 'paquete' && Number(clases) <= 0 ? 'Escribe cuántas clases incluye'
+      : (tipo === 'beca' || tipo === 'paquete') && Number(vigencia) <= 0 ? 'Escribe cuántos días dura' : '';
 
   const guardar = async () => {
     const datos = {
       ...(g ? { grupos: g } : plan?.grupos ? { grupos: null } : {}),
       ...conSede(alcance, plan?.sedeId),
-      nombre: nombre.trim() || sugerido,
-      tipo: tipo === 'beca' ? ('paquete' as const) : tipo,
-      precio: tipo === 'beca' ? 0 : aCentavos(precio),
-      clases: tipo === 'paquete' ? Number(clases) || 1 : tipo === 'suelta' ? 1 : null,
-      vigenciaDias: tipo === 'paquete' ? Number(vigencia) || 30 : tipo === 'beca' ? Number(vigencia) || VIGENCIA_BECA : null,
-      disciplinaId: disciplinaId || null,
+      nombre: vista.nombre,
+      tipo: vista.tipo,
+      precio: vista.precio,
+      clases: vista.clases,
+      vigenciaDias: vista.vigenciaDias,
+      disciplinaId: tipo === 'suelta' ? (tipoOriginal === 'suelta' ? plan?.disciplinaId ?? null : null) : disciplinaId || null,
       activo,
     };
     if (plan) await actualizar('planes', plan.id, datos);
@@ -125,36 +142,32 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
           { valor: 'beca', texto: 'Beca' },
         ]}
         valor={tipo}
-        onChange={(t) => {
-          setTipo(t);
-          if (t === 'beca' && !plan) setVigencia(String(VIGENCIA_BECA));
-          if (t === 'paquete' && !plan) setVigencia('30');
-        }}
+        onChange={setTipo}
       />
       {tipo !== 'beca' && (
         <p className="-mt-2 px-1 text-xs text-ink-500">
-          {tipo === 'suelta' ? 'Lo que paga quien viene a una sola clase.' : tipo === 'mensual' ? 'Un mes de clases, desde el día en que paga.' : 'Cierto número de clases para usar en un plazo.'}
+          {tipo === 'suelta' ? 'Pago por una clase.' : tipo === 'mensual' ? 'Un mes de clases por cada vigencia.' : 'Las clases se descuentan conforme el alumno asiste.'}
         </p>
       )}
       {tipo === 'beca' && (
         <p className="rounded-xl bg-ok-50 px-3 py-2 text-sm text-ok-600">
-          El alumno becado entra a sus clases sin pagar. Solo la dirección puede dar becas; al terminar la vigencia se renueva desde su ficha.
+          Dirección puede otorgar la beca desde la ficha del alumno.
         </p>
       )}
       <Campo etiqueta="Nombre (opcional)" ayuda={nombre.trim() ? undefined : `Si lo dejas vacío se llamará “${sugerido}”.`}>
-        <Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={sugerido} />
+        <Entrada value={nombre} onChange={(e) => setNombres({ ...nombres, [tipo]: e.target.value })} placeholder={sugerido} />
       </Campo>
       {tipo === 'beca' ? (
         <Campo etiqueta="Vigencia (días)" ayuda="180 días ≈ un semestre.">
-          <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencia(e.target.value.replace(/\D/g, ''))} />
+          <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencias({ ...vigencias, [tipo]: e.target.value.replace(/\D/g, '') })} />
         </Campo>
       ) : (
         <Campo etiqueta="Precio">
-          <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="$" />
+          <Entrada inputMode="decimal" value={precio} onChange={(e) => setPrecios({ ...precios, [tipo]: e.target.value })} placeholder="$" />
         </Campo>
       )}
       {tipo === 'mensual' && (
-        <Campo etiqueta="¿A cuántos grupos puede ir?" ayuda="Ej. mensualidad de 1 grupo $300 y de 2 grupos $450. Al cobrarla se elige a cuáles va." grupo>
+        <Campo etiqueta="Grupos que cubre" ayuda="Si eliges un límite, recepción selecciona los grupos al vender el plan." grupo>
           <Segmentos<string>
             opciones={[
               { valor: '', texto: 'Todos' },
@@ -173,13 +186,13 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
             <Entrada inputMode="numeric" value={clases} onChange={(e) => setClases(e.target.value.replace(/\D/g, ''))} />
           </Campo>
           <Campo etiqueta="Vigencia (días)">
-            <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencia(e.target.value.replace(/\D/g, ''))} />
+            <Entrada inputMode="numeric" value={vigencia} onChange={(e) => setVigencias({ ...vigencias, [tipo]: e.target.value.replace(/\D/g, '') })} />
           </Campo>
         </div>
       )}
       {sedes.length > 0 && (
         <Campo
-          etiqueta={tipo === 'suelta' ? '¿En qué sede aplica este precio?' : '¿En qué sedes sirve?'}
+          etiqueta={tipo === 'suelta' ? 'Sede de la tarifa' : 'Sedes que cubre'}
           ayuda={tipo === 'suelta' ? 'Puedes tener un precio de clase suelta distinto en cada sede.' : undefined}
         >
           <Selector value={alcance} onChange={(e) => setAlcance(e.target.value)}>
@@ -194,7 +207,7 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
         </Campo>
       )}
       {tipo !== 'suelta' && (
-        <Campo etiqueta="¿Para qué clases sirve?">
+        <Campo etiqueta="Disciplina que cubre">
           <Selector value={disciplinaId} onChange={(e) => setDisciplinaId(e.target.value)}>
             <option value="">Todas las disciplinas</option>
             {disciplinas.map((d) => (
@@ -205,7 +218,8 @@ export function FormPlan({ plan, onHecho }: { plan: Plan | null; onHecho: () => 
           </Selector>
         </Campo>
       )}
-      {plan && <Interruptor valor={activo} onChange={setActivo} texto="Disponible para vender" />}
+      {plan && <Interruptor valor={activo} onChange={setActivo} texto={tipo === 'beca' ? 'Disponible para otorgar' : 'Disponible para vender'} />}
+      {plan && tipo !== tipoOriginal && <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm text-warn-600">Estás cambiando el tipo de un plan existente. Crea otro plan si quieres conservar esta opción para seguir vendiéndola.</p>}
       {/* cómo se verá al cobrar */}
       {!falta && (
         <p className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-sm">
