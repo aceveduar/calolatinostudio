@@ -164,7 +164,9 @@ await page.getByRole('button', { name: 'Cambiar solo esta fecha', exact: true })
 const cambioPuntual = page.getByRole('dialog', { name: 'Cambiar solo esta fecha' });
 const elegirClasePuntual = cambioPuntual.locator(`select:has(option[value="${puntual}"])`);
 await elegirClasePuntual.selectOption(puntual);
-await cambioPuntual.getByRole('button', { name: 'Guardar solo esta fecha' }).click();
+if (!await cambioPuntual.getByRole('button', { name: 'Guardar solo esta fecha' }).isDisabled()) throw new Error('La cancelación requiere elegir una acción.');
+await cambioPuntual.getByLabel('Qué quieres hacer').selectOption('cancelar');
+await cambioPuntual.getByRole('button', { name: 'Confirmar cancelación de esta sesión' }).click();
 await page.getByText(/Prueba puntual · Cancelada/).waitFor();
 await page.getByRole('button', { name: 'Cambiar solo esta fecha', exact: true }).click();
 await elegirClasePuntual.selectOption(puntual);

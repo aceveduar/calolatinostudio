@@ -45,10 +45,16 @@ await diasAnteriores.click();
 await verRentas();
 t = await txt();
 console.log('2) Laura pagada, Jackson por cobrar:', ok(/Yoga con Laura .{0,60}\$3,000/.test(t) && /Cobrar \$3,200/.test(t)));
+await page.getByRole('button', { name: 'Mes anterior' }).click();
+await page.getByRole('heading', { name: /Rentas de octubre/i }).waitFor();
+await page.getByRole('button', { name: 'Volver al mes actual', exact: true }).click();
+await page.getByRole('heading', { name: /Rentas de noviembre/i }).waitFor();
+console.log('   Rentas y meta navega por meses:', ok(!await page.getByRole('button', { name: 'Semana siguiente' }).count()));
 
 // 3) apartar encima de una clase → bloqueado
 const dlg = page.getByRole('dialog');
 await page.getByRole('button', { name: 'Apartar', exact: true }).click();
+await dlg.getByText('Escribe quién renta.', { exact: true }).waitFor();
 await dlg.getByPlaceholder(/Profe Ana/).fill('Profe Beto (Salsa)');
 await dlg.getByRole('button', { name: DIAS[clase.dia], exact: true }).click();
 await dlg.locator('input[type="time"]').fill(clase.hora);

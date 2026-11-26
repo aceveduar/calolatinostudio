@@ -17,7 +17,7 @@ export function CambiarFechaClase({ clases, fechaInicial, claseInicial, onListo 
   const sedes = useSedes();
   const [fecha, setFecha] = useState(fechaInicial);
   const [id, setId] = useState(claseInicial?.id ?? '');
-  const [accion, setAccion] = useState('cancelar');
+  const [accion, setAccion] = useState('');
   const [hora, setHora] = useState(claseInicial?.horaInicio ?? '');
   const [sede, setSede] = useState(claseInicial?.sedeId ?? '');
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export function CambiarFechaClase({ clases, fechaInicial, claseInicial, onListo 
   const excepcion = clase?.excepciones?.[fecha];
 
   async function guardar() {
-    if (!clase || guardando) return;
+    if (!clase || !accion || guardando) return;
     setGuardando(true);
     setError('');
     try {
@@ -79,14 +79,15 @@ export function CambiarFechaClase({ clases, fechaInicial, claseInicial, onListo 
   return (
     <div className="space-y-3">
       <Campo etiqueta="Fecha">
-        <Entrada type="date" min={hoy()} value={fecha} onChange={(e) => { setFecha(e.target.value); setId(''); setAccion('cancelar'); }} />
+        <Entrada type="date" min={hoy()} value={fecha} onChange={(e) => { setFecha(e.target.value); setId(''); setAccion(''); setError(''); }} />
       </Campo>
       <Campo etiqueta="Clase">
         <Selector value={id} onChange={(e) => {
           const c = candidatas.find((x) => x.id === e.target.value);
           const actual = c?.excepciones?.[fecha];
           setId(e.target.value);
-          setAccion('cancelar');
+          setAccion('');
+          setError('');
           setHora(actual && !('cancelada' in actual) ? actual.hora : c?.horaInicio ?? '');
           setSede((actual && !('cancelada' in actual) ? actual.sede : c?.sedeId) ?? '');
         }}>
@@ -95,13 +96,14 @@ export function CambiarFechaClase({ clases, fechaInicial, claseInicial, onListo 
         </Selector>
       </Campo>
       {excepcion && <p className="text-sm text-warn-600">{'cancelada' in excepcion ? 'Esta fecha está cancelada.' : `Esta fecha se cambió a las ${excepcion.hora} en ${nombreSede(excepcion.sede, sedes, academia)}.`}</p>}
-      <Campo etiqueta="Qué quieres hacer">
-        <Selector value={accion} onChange={(e) => setAccion(e.target.value)}>
-          <option value="cancelar">Cancelar esta fecha</option>
+      {clase && <Campo etiqueta="Qué quieres hacer">
+        <Selector value={accion} onChange={(e) => { setAccion(e.target.value); setError(''); }}>
+          <option value="">Elige un cambio</option>
           <option value="mover">Cambiar hora o sede</option>
+          <option value="cancelar">Cancelar esta sesión</option>
           {excepcion && <option value="restaurar">Volver al horario habitual</option>}
         </Selector>
-      </Campo>
+      </Campo>}
       {accion === 'mover' && (
         <>
           <Campo etiqueta="Hora nueva"><Entrada type="time" value={hora} onChange={(e) => setHora(e.target.value)} /></Campo>
@@ -114,8 +116,8 @@ export function CambiarFechaClase({ clases, fechaInicial, claseInicial, onListo 
         </>
       )}
       {error && <p role="alert" className="text-sm text-bad-600">{error}</p>}
-      <Boton bloque disabled={!clase || fecha < hoy() || guardando || (accion === 'mover' && !hora)} onClick={() => void guardar()}>
-        {guardando ? 'Guardando…' : 'Guardar solo esta fecha'}
+      <Boton bloque disabled={!clase || !accion || fecha < hoy() || guardando || (accion === 'mover' && !hora)} onClick={() => void guardar()}>
+        {guardando ? 'Guardando…' : accion === 'cancelar' ? 'Confirmar cancelación de esta sesión' : 'Guardar solo esta fecha'}
       </Boton>
     </div>
   );

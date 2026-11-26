@@ -13,7 +13,7 @@ import type { Clase, CobroRenta, Disciplina, Fecha, ID, MetodoPago, Renta, Salon
 import { TODO_EL_DIA, bloquesDelDia, cobrarRenta, cobrosDelMes, diaSemana, empalmes, horaTexto, huecos, rangoHora, type Empalme } from '../../domain/agenda';
 import { aCentavos, aPesosTexto, dinero } from '../../domain/dinero';
 import { DIAS_CORTOS, deFecha, fechaCorta, hoy, sumarDias } from '../../domain/fechas';
-import { mesDe, nombreMes, rangoMes, type Mes } from '../../domain/gastos';
+import { mesDe, nombreMes, rangoMes, sumarMes, type Mes } from '../../domain/gastos';
 import { waLink } from '../../domain/reportes';
 import { METODOS } from '../../domain/planes';
 import { CambiarFechaClase } from './CambiarFechaClase';
@@ -44,6 +44,7 @@ export function PantallaAgenda() {
   const disciplinas = useDisciplinas();
   const rentas = useRentas();
   const [lunes, setLunes] = useState(lunesDe(hoy()));
+  const [mes, setMes] = useState(() => mesDe(hoy()));
   // 'nueva' | una renta | { extraDe } = hora extra (ensayo) de un maestro que ya renta
   const [editar, setEditar] = useState<Renta | 'nueva' | { extraDe: Renta } | null>(null);
   const [cobrar, setCobrar] = useState<{ renta: Renta; monto: number } | null>(null);
@@ -66,8 +67,6 @@ export function PantallaAgenda() {
   const estaSemana = lunes === lunesDe(hoy());
   const diasPasados = estaSemana ? dias.slice(0, dias.indexOf(hoy())) : [];
   const diasVisibles = dias.slice(diasPasados.length);
-  // El mes de los cobros: el de la semana que se ve (el jueves decide si la semana cruza de mes)
-  const mes: Mes = mesDe(sumarDias(lunes, 3));
   const { desde, hasta } = rangoMes(mes);
   const pagos = useLiveQuery(() => db.pagos.where('rentaId').above('').toArray(), [], []);
   // asistencias del mes: para la comisión por alumno
@@ -113,7 +112,7 @@ export function PantallaAgenda() {
         />
       </div>
 
-      <div className="mb-3 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
+      {vista === 'semana' ? <div className="mb-3 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setLunes(sumarDias(lunes, -7))} aria-label="Semana anterior">
           <ChevronLeft />
         </button>
@@ -124,7 +123,18 @@ export function PantallaAgenda() {
         <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setLunes(sumarDias(lunes, 7))} aria-label="Semana siguiente">
           <ChevronRight />
         </button>
-      </div>
+      </div> : <div className="mb-3 flex items-center justify-between rounded-2xl bg-superficie p-1 ring-1 ring-ink-100">
+        <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setMes((m) => sumarMes(m, -1))} aria-label="Mes anterior">
+          <ChevronLeft />
+        </button>
+        <button className="rounded-xl px-4 py-2.5 font-semibold first-letter:uppercase disabled:text-ink-900" aria-label={esMesActual ? undefined : 'Volver al mes actual'} disabled={esMesActual} onClick={() => setMes(mesDe(hoy()))}>
+          {nombreMes(mes)}
+          {!esMesActual && <span className="ml-2 text-sm text-brand-600">Este mes</span>}
+        </button>
+        <button className="rounded-xl p-2.5 active:bg-ink-100" onClick={() => setMes((m) => sumarMes(m, 1))} aria-label="Mes siguiente">
+          <ChevronRight />
+        </button>
+      </div>}
 
       {vista === 'semana' && (
         <>
@@ -411,7 +421,11 @@ function FormRenta({
   const fechasMal = !evento && datos.hasta !== null && datos.hasta < datos.desde;
   const sePasaDeMedianoche = !porAlumno && !(evento && todoDia) && Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3)) + horario.duracionMin > 24 * 60;
   const pagoListo = evento || cobro === 'fijo' ? datos.monto > 0 : tarifaC > 0 && (!porAlumno || !!maestroId);
-  const listo = datos.nombre && (porAlumno || datos.dias.length) && pagoListo && !choques.length && !fechasMal && !sePasaDeMedianoche;
+  const faltanDatos = !datos.nombre ? 'Escribe quién renta.'
+    : !porAlumno && !datos.dias.length ? 'Elige al menos un día.'
+      : porAlumno && !maestroId ? 'Elige al maestro del acuerdo.'
+        : !pagoListo ? 'Escribe el importe.' : '';
+  const listo = !faltanDatos && !choques.length && !fechasMal && !sePasaDeMedianoche;
   // estimado por hora: horas que ocuparía en un mes típico (4.3 semanas)
   const horasMes = Math.round(((datos.dias.length * horario.duracionMin) / 60) * 4.3 * 10) / 10;
 
@@ -571,8 +585,9 @@ function FormRenta({
       {sePasaDeMedianoche && <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">El horario pasa de la medianoche.</p>}
 
       <Boton grande bloque onClick={guardar} disabled={ocupado || !listo}>
-        {renta ? 'Guardar cambios' : extraDe ? 'Apartar hora extra' : evento ? 'Apartar evento' : porAlumno ? 'Guardar acuerdo' : 'Apartar horario'}
+        {ocupado ? 'Guardando…' : renta ? 'Guardar cambios' : extraDe ? 'Apartar hora extra' : evento ? 'Apartar evento' : porAlumno ? 'Guardar acuerdo' : 'Apartar horario'}
       </Boton>
+      {faltanDatos && <p className="-mt-2 text-center text-sm text-ink-500">{faltanDatos}</p>}
       {renta && renta.tipo === 'mensual' && renta.activo && (
         <Boton bloque variante="secundario" onClick={() => onHoraExtra(renta)}>
           <Plus size={18} /> Hora extra (ensayo) para {renta.nombre.split(' (')[0]}
