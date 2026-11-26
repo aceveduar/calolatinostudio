@@ -82,6 +82,9 @@ const reg = dlg.getByRole('button', { name: /^Registrar a .* como alumno$/ }).fi
 const nombre = (await reg.getAttribute('aria-label')).replace(/^Registrar a /, '').replace(/ como alumno$/, '');
 await reg.click();
 await page.getByRole('button', { name: /Vender plan/ }).waitFor();
+await page.getByRole('dialog', { name: /^La ficha de .+ está lista$/ }).waitFor();
+await dlg.getByRole('link', { name: 'Abrir WhatsApp' }).waitFor();
+await page.getByText('Sin asistencias registradas', { exact: true }).waitFor({ state: 'attached' });
 t = await body();
 console.log('5) registrar como alumno abre su ficha:', ok(t.includes(nombre) && /Se inscribió en la página/.test(t)), nombre);
 

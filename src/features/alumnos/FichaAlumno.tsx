@@ -321,7 +321,7 @@ export function FichaAlumno() {
       <Hoja abierta={pasePersonal && alumno.activo} onCerrar={() => setPasePersonal(false)} titulo="Compartir Mi pase">
         {pasePersonal && alumno.activo && <AccesoPaseAlumno alumno={alumno} />}
       </Hoja>
-      <Hoja abierta={bienvenida} onCerrar={cerrarBienvenida} titulo={`¡${nombre1} ya es alumno!`}>
+      <Hoja abierta={bienvenida} onCerrar={cerrarBienvenida} titulo={`La ficha de ${nombre1} está lista`}>
         {bienvenida && <Bienvenida alumno={alumno} onCerrar={cerrarBienvenida} />}
       </Hoja>
       <Hoja abierta={qr} onCerrar={() => setQr(false)} titulo="Credencial">
@@ -352,7 +352,7 @@ function Resumen({ perfil, clase }: { perfil: PerfilAlumno; clase: string }) {
   const desde = deFecha(perfil.desde).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }).replace('.', '');
   const datos = [
     { titulo: 'Alumno desde', valor: desde },
-    { titulo: 'Viene', valor: perfil.porMes ? `~${perfil.porMes} al mes` : 'No en 3 meses', alerta: !perfil.porMes },
+    { titulo: 'Asistencia', valor: perfil.porMes ? `~${perfil.porMes} al mes` : perfil.clase ? 'Sin visitas en 3 meses' : 'Sin asistencias registradas', alerta: !!perfil.clase && !perfil.porMes },
     ...(perfil.clase ? [{ titulo: 'Su clase', valor: clase, pie: perfil.dia !== null ? `los ${DIAS_PLURAL[perfil.dia]}` : undefined }] : []),
     { titulo: 'Pagó en 12 meses', valor: dinero(perfil.pagadoAnio) },
   ];

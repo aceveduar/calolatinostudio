@@ -90,8 +90,8 @@ await page.getByRole('button', { name: /Nuevo/ }).first().click();
 await dlg.getByPlaceholder('Nombre y apellido').fill('Lucía Prueba');
 await dlg.getByPlaceholder('10 dígitos').fill('5512340000');
 await dlg.getByRole('button', { name: 'Registrar alumno' }).click();
-await page.getByText('¡Lucía ya es alumno!').waitFor();
-const acceso = page.getByRole('link', { name: 'Mandar por WhatsApp' });
+await page.getByText('La ficha de Lucía está lista').waitFor();
+const acceso = page.getByRole('link', { name: 'Abrir WhatsApp' });
 await acceso.waitFor();
 const hrefA = decodeURIComponent(await acceso.getAttribute('href'));
 console.log('6) al registrarla sale "Mandar por WhatsApp" con su portal:', ok(/wa\.me\/525512340000/.test(hrefA) && /\/p\/[A-Za-z0-9]{26}/.test(hrefA) && /poner tu foto/.test(hrefA)));
@@ -101,15 +101,17 @@ await page.waitForTimeout(400);
 await page.reload();
 await page.getByText('Lucía Prueba').first().waitFor().catch(() => {});
 await page.waitForTimeout(800);
-const reabre = await page.getByText('¡Lucía ya es alumno!').count();
+const reabre = await page.getByText('La ficha de Lucía está lista').count();
 console.log('   al recargar no vuelve a salir:', ok(reabre === 0));
 
 // 7) desde Interesados también
 await page.goto('http://localhost:4173/');
 await entrar('Monse', '1111').catch(() => {});
 await ir('/alumnos/interesados');
-await page.getByRole('button', { name: /^Registrar a .+ como alumno/ }).first().click();
-await page.getByText(/ya es alumno!$/).waitFor();
+await page.getByRole('button', { name: /^Opciones de / }).first().click();
+await dlg.getByRole('button', { name: /^Registrar a .+ como alumno/ }).click();
+await page.getByText(/^La ficha de .+ está lista$/).waitFor();
+await page.getByText('Sin asistencias registradas', { exact: true }).waitFor({ state: 'attached' });
 console.log('7) registrar interesado → misma hoja:', 'OK');
 await page.keyboard.press('Escape');
 

@@ -166,7 +166,6 @@ export function PantallaInteresados() {
             )}
             <Boton bloque variante="secundario" aria-label={`Registrar a ${interesado.nombre} como alumno`} onClick={async () => {
               const alumno = await registrarComoAlumno(interesado);
-              avisar(`${interesado.nombre.split(' ')[0]} ya es alumno`);
               nav(`/alumnos/${alumno.id}`, { state: { recien: true } });
             }}><UserPlus size={18} aria-hidden="true" /> Registrar como alumno</Boton>
             <Boton bloque variante="fantasma" onClick={async () => {

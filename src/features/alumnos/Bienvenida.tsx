@@ -27,7 +27,7 @@ export function Bienvenida({ alumno, onCerrar }: { alumno: Alumno; onCerrar: () 
   return (
     <div className="space-y-4">
       <p className="text-ink-700">
-        Mándale su acceso: ahí ve <b>su credencial con QR</b> para entrar, su plan y sus clases, y puede <b>poner su foto</b> para que lo reconozcan.
+        Comparte su pase para que pueda mostrar el <b>QR en recepción</b>, consultar su plan y agregar su foto.
       </p>
       {link ? (
         <a
@@ -35,12 +35,11 @@ export function Bienvenida({ alumno, onCerrar }: { alumno: Alumno; onCerrar: () 
           target="_blank"
           rel="noreferrer"
           onClick={() => {
-            avisar(`Acceso enviado a ${nombre1}`);
             onCerrar();
           }}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-ok-600 text-lg font-bold text-white shadow-sm active:brightness-95"
         >
-          <MessageCircle size={22} /> Mandar por WhatsApp
+          <MessageCircle size={22} aria-hidden="true" /> Abrir WhatsApp
         </a>
       ) : (
         <>
@@ -66,7 +65,7 @@ export function Bienvenida({ alumno, onCerrar }: { alumno: Alumno; onCerrar: () 
       <Boton bloque variante="fantasma" onClick={onCerrar}>
         Ahora no
       </Boton>
-      <p className="px-1 text-xs text-ink-500">Siempre puedes mandarlo después desde su ficha → WhatsApp → “Su portal”.</p>
+      <p className="px-1 text-xs text-ink-500">Puedes hacerlo después desde <b>Compartir pase</b> en su ficha.</p>
     </div>
   );
 }
