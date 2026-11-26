@@ -137,15 +137,17 @@ export function CampanaAlta() {
       {campana && (
         <Tarjeta className="mt-4 space-y-4 p-5">
           <div>
-            <h2 className="font-extrabold">Altas recientes</h2>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="font-extrabold">Altas recientes</h2>
+              {nuevas > 0 && (
+                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600">
+                  {nuevas.toLocaleString('es-MX')} {nuevas === 1 ? 'nueva' : 'nuevas'}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-ink-600">
               {campana.altas.toLocaleString('es-MX')} {campana.altas === 1 ? 'alta' : 'altas'} en esta campaña
             </p>
-            {nuevas > 0 && (
-              <span className="mt-1 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600">
-                {nuevas.toLocaleString('es-MX')} {nuevas === 1 ? 'nueva' : 'nuevas'}
-              </span>
-            )}
             {actualizado !== null && (
               <p className="mt-1 text-xs text-ink-600">
                 Última consulta{' '}
@@ -157,10 +159,10 @@ export function CampanaAlta() {
             {error && <p role="alert" className="mt-2 text-sm text-warn-600">{error} Mostramos el último conteo disponible.</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}><RefreshCw size={16} aria-hidden="true" /> {error ? 'Reintentar' : 'Actualizar altas'}</Boton>
+            <Boton variante="secundario" className="min-h-11 gap-1.5 px-2.5 text-sm" aria-label={error ? 'Reintentar consulta de altas' : 'Actualizar altas'} disabled={cargando} onClick={() => void gestionar('estado')}><RefreshCw size={14} aria-hidden="true" /> {error ? 'Reintentar' : 'Actualizar'}</Boton>
             {!error && nuevas > 0 && campana.recientes && (
-              <Boton variante="fantasma" aria-label="Marcar como vistas todas las altas nuevas" disabled={cargando} onClick={marcarVistas}>
-                <CheckCheck size={16} aria-hidden="true" /> Marcar como vistas
+              <Boton variante="fantasma" className="min-h-11 gap-1.5 px-2.5 text-sm" aria-label="Marcar como vistas todas las altas nuevas" disabled={cargando} onClick={marcarVistas}>
+                <CheckCheck size={14} aria-hidden="true" /> Marcar como vistas
               </Boton>
             )}
           </div>
