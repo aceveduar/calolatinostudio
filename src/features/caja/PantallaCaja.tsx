@@ -548,7 +548,11 @@ function FormCorte({ fecha, sedeId, sede, efectivo, salidas, transferencia, tarj
               </p>}
             </div>
             {faltaNota ? <p className="text-xs font-medium text-warn-600">Escribe el motivo del faltante para guardar.</p>
-              : listo && contado > fondo && <p className="text-xs text-ink-500">Guarda {dinero(contado - fondo)} y deja {dinero(fondo)} de feria.</p>}
+              : listo && contado > fondo && (
+                <p className="text-xs text-ink-500">
+                  Guarda {dinero(contado - fondo)}{fondo > 0 ? ` y deja ${dinero(fondo)} de feria` : ''}.
+                </p>
+              )}
           </div>
         )}
         <Boton
