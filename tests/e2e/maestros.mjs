@@ -92,8 +92,13 @@ await pin('482915');
 await busca.waitFor();
 
 // Alta de maestro desde Ajustes > Maestros
-await page.getByRole('link', { name: 'Más' }).first().click();
-await page.getByText('Maestros', { exact: true }).click();
+const abrirCatalogo = async (nombre) => {
+  await page.getByRole('link', { name: 'Más' }).first().click();
+  const enlace = page.getByRole('link', { name: new RegExp('^' + nombre) });
+  if (!await enlace.isVisible()) await page.getByText('Clases y precios', { exact: true }).click();
+  await enlace.click();
+};
+await abrirCatalogo('Maestros');
 await btn('Nuevo maestro').click();
 await page.getByPlaceholder('Ej. Profe Luis').fill('Profe Luis');
 await page.getByPlaceholder('10 dígitos').fill('5512345678');
@@ -101,24 +106,22 @@ await btn('Guardar').click();
 await page.getByText('Maestro guardado').waitFor();
 
 // Asignar en Clases: Salsa 1 → Profe Luis; Salsa 0 → nuevo "Profa Karla" desde el selector
-await page.getByRole('link', { name: 'Más' }).first().click();
-await page.getByText('Clases y horarios').click();
+await abrirCatalogo('Clases y horarios');
 await page.getByRole('button', { name: /Salsa 1/ }).click();
 await page.getByRole('dialog').locator('select').nth(1).selectOption({ label: 'Profe Luis' });
-await btn('Guardar').click();
+await btn('Guardar horario habitual').click();
 await page.getByText('Clase guardada').waitFor();
 await page.getByRole('button', { name: /Salsa 0/ }).click();
 await page.getByRole('dialog').locator('select').nth(1).selectOption({ label: '+ Nuevo maestro…' });
 await page.getByPlaceholder('Ej. Profe Luis').fill('Profa Karla');
-await btn('Guardar').click();
+await btn('Guardar horario habitual').click();
 await page.getByText('Clase guardada').waitFor();
 await page.waitForTimeout(300);
 await shot('1-clases');
 const filasClases = await page.locator('main').innerText();
 console.log('B1) clases muestran maestro:', ok(filasClases.includes('Profe Luis') && filasClases.includes('Profa Karla')));
 
-await page.getByRole('link', { name: 'Más' }).first().click();
-await page.getByText('Maestros', { exact: true }).click();
+await abrirCatalogo('Maestros');
 await page.waitForTimeout(300);
 await shot('2-maestros');
 const lista = await page.locator('main').innerText();

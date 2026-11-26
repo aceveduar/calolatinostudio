@@ -41,13 +41,21 @@ await ir('/ajustes/maestros');
 console.log('2) sin maestros: mensaje en vez de caja vacía:', ok((await p.getByText(/Aún no hay maestros/).count()) === 1));
 await p.getByRole('button', { name: /Nuevo maestro/ }).first().click();
 await dlg.getByPlaceholder('Ej. Profe Luis').fill('Profe Luis');
-await dlg.getByRole('button', { name: /Salsa 1/ }).click();
-await dlg.getByRole('button', { name: /Salsa 2/ }).click();
+await dlg.getByRole('button', { name: /^Salsa .*clases/ }).click();
+await dlg.locator('button[aria-pressed]').filter({ hasText: 'Salsa 1' }).click();
+await dlg.locator('button[aria-pressed]').filter({ hasText: 'Salsa 2' }).click();
 await dlg.getByRole('button', { name: 'Guardar' }).click();
 await p.getByText('Maestro guardado').waitFor();
 const luis = (await db('maestros')).find((m) => m.nombre === 'Profe Luis');
 const suyas = (await db('clases')).filter((c) => c.maestroId === luis.id).length;
 console.log('   las 2 clases elegidas quedan con Profe Luis:', ok(suyas === 2), suyas);
+await p.getByRole('button', { name: /Profe Luis/ }).click();
+const visibles = await dlg.getByRole('button', { name: /^Quitar Salsa/ }).count();
+await dlg.getByPlaceholder('Ej. cobra por clase').fill('Nota de prueba');
+await dlg.getByRole('button', { name: 'Guardar' }).click();
+await dlg.waitFor({ state: 'hidden' });
+const conservadas = (await db('clases')).filter((c) => c.maestroId === luis.id).length;
+console.log('   las clases asignadas se ven de inmediato y editar notas las conserva:', ok(visibles === 2 && conservadas === 2));
 
 // 3) clase: dice qué falta, crea disciplina nueva, dice cuándo termina y resume
 await ir('/ajustes/clases');
