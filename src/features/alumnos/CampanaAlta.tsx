@@ -70,13 +70,13 @@ export function CampanaAlta() {
     }
   }
 
-  function marcarRevisadas() {
+  function marcarVistas() {
     if (!campana) return;
     if (marcarAltasVistas(campana, academia.id, usuario.id)) {
       setNuevas(0);
-      setAvisoAltas('Altas marcadas como revisadas.');
+      setAvisoAltas('Altas marcadas como vistas en este navegador.');
     } else {
-      setAvisoAltas('Este navegador no pudo guardar la revisión.');
+      setAvisoAltas('Este navegador no pudo guardar las altas vistas.');
     }
   }
 
@@ -140,8 +140,12 @@ export function CampanaAlta() {
             <h2 className="font-extrabold">Altas recientes</h2>
             <p className="text-sm text-ink-600">
               {campana.altas.toLocaleString('es-MX')} {campana.altas === 1 ? 'alta' : 'altas'} en esta campaña
-              {nuevas > 0 && ` · ${nuevas.toLocaleString('es-MX')} sin revisar`}
             </p>
+            {nuevas > 0 && (
+              <span className="mt-1 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600">
+                {nuevas.toLocaleString('es-MX')} {nuevas === 1 ? 'nueva' : 'nuevas'}
+              </span>
+            )}
             {actualizado !== null && (
               <p className="mt-1 text-xs text-ink-600">
                 Última consulta{' '}
@@ -155,8 +159,8 @@ export function CampanaAlta() {
           <div className="flex flex-wrap gap-2">
             <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}><RefreshCw size={16} aria-hidden="true" /> {error ? 'Reintentar' : 'Actualizar altas'}</Boton>
             {!error && nuevas > 0 && campana.recientes && (
-              <Boton variante="fantasma" aria-label="Marcar todas las altas como revisadas" disabled={cargando} onClick={marcarRevisadas}>
-                <CheckCheck size={16} aria-hidden="true" /> Marcar revisadas
+              <Boton variante="fantasma" aria-label="Marcar como vistas todas las altas nuevas" disabled={cargando} onClick={marcarVistas}>
+                <CheckCheck size={16} aria-hidden="true" /> Marcar como vistas
               </Boton>
             )}
           </div>
