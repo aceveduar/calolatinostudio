@@ -47,7 +47,7 @@ await buscar.fill('Mariana');
 console.log('   la búsqueda deja el espacio para los resultados:', ok(!await interesados.isVisible() && !await registro.isVisible()));
 await buscar.clear();
 await interesados.click();
-await page.getByText(/Ya se les escribió \(2\)/).waitFor();
+await page.getByText(/Contactados \(2\)/).waitFor();
 let t = await txt();
 console.log('2) interesados juntos por clase:', ok(/Salsa 0 · .{0,20}· 3/i.test(t) && /Bachata 0 · .{0,20}· 3/i.test(t) && /Cualquier clase · 2/i.test(t)), (t.match(/SALSA 0[^·]*·[^·]*· \d/) || [])[0]);
 await page.screenshot({ path: `${OUT}publica-1-interesados.png`, fullPage: true });
@@ -58,17 +58,27 @@ const enlaces = dlg.getByRole('link');
 const n = await enlaces.count();
 const href = decodeURIComponent(await enlaces.first().getAttribute('href'));
 await enlaces.first().click();
-await page.waitForTimeout(300);
+await dlg.getByText(/0 de \d+ avisados/).waitFor();
+await dlg.getByRole('button', { name: /^Marcar a .* como contactado$/ }).first().click();
+await dlg.getByText(/1 de \d+ avisados/).waitFor();
 const contador = await dlg.getByText(/1 de \d+ avisados/).count();
 console.log('3) avisar a todos: mensaje con clase y horario, se marca:', ok(n >= 3 && /Abrimos grupo de Salsa 0 en Calo Latino Studio: .+ a las \d\d:\d\d\. ¿Te apartamos lugar\?/.test(href) && contador === 1), n);
 // cerrar las pestañas que abrió WhatsApp
 for (const p of ctx.pages()) if (p !== page) await p.close();
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
-console.log('   pasa a "ya se les escribió":', ok((await page.getByText(/Ya se les escribió \(3\)/).count()) === 1));
+console.log('   pasa a Contactados al confirmar:', ok((await page.getByText(/Contactados \(3\)/).count()) === 1));
+
+const whatsapp = page.getByRole('link', { name: /^Escribirle a .* por WhatsApp$/ }).first();
+await whatsapp.click();
+await dlg.getByRole('button', { name: 'Marcar como contactado' }).waitFor();
+console.log('   abrir WhatsApp desde la lista conserva el estado hasta confirmar:', ok(await page.getByText('Contactados (3)', { exact: true }).isVisible()));
+for (const p of ctx.pages()) if (p !== page) await p.close();
+await page.keyboard.press('Escape');
 
 // 4) registrar a uno como alumno
-const reg = page.getByRole('button', { name: /^Registrar a .* como alumno$/ }).first();
+await page.getByRole('button', { name: /^Opciones de / }).first().click();
+const reg = dlg.getByRole('button', { name: /^Registrar a .* como alumno$/ }).first();
 const nombre = (await reg.getAttribute('aria-label')).replace(/^Registrar a /, '').replace(/ como alumno$/, '');
 await reg.click();
 await page.getByRole('button', { name: /Vender plan/ }).waitFor();

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, Globe, Megaphone, MessageCircle, Plus, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, Check, Ellipsis, Globe, Megaphone, MessageCircle, Plus, UserPlus, Users } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -28,6 +28,7 @@ export function PantallaInteresados() {
   const disciplinas = useDisciplinas();
   const [filtro, setFiltro] = useState<Filtro>('nuevos');
   const [anotar, setAnotar] = useState(false);
+  const [seleccion, setSeleccion] = useState<string | null>(null);
   const [grupo, setGrupo] = useState<{ clase: Clase | null; lista: Interesado[] } | null>(null);
   const todos = useLiveQuery(() => db.interesados.filter((i) => !i.deletedAt && (i.estado === 'nuevo' || i.estado === 'contactado')).toArray(), [], []);
   // quién invitó a cada uno (enlace de invitación del portal de un alumno)
@@ -36,6 +37,7 @@ export function PantallaInteresados() {
     return new Map((await db.alumnos.bulkGet(ids)).flatMap((a) => (a ? [[a.id, a] as const] : [])));
   }, [todos]);
   const lista = todos.filter((i) => (filtro === 'nuevos' ? i.estado === 'nuevo' : i.estado === 'contactado')).sort((a, b) => b.createdAt - a.createdAt);
+  const interesado = todos.find((i) => i.id === seleccion);
   // agrupados por clase (las que ya no existen, como "cualquiera")
   const grupos = new Map<string, Interesado[]>();
   for (const i of lista) {
@@ -71,7 +73,7 @@ export function PantallaInteresados() {
       <Segmentos<Filtro>
         opciones={[
           { valor: 'nuevos', texto: `Nuevos (${todos.filter((i) => i.estado === 'nuevo').length})` },
-          { valor: 'contactados', texto: `Ya se les escribió (${todos.filter((i) => i.estado === 'contactado').length})` },
+          { valor: 'contactados', texto: `Contactados (${todos.filter((i) => i.estado === 'contactado').length})` },
         ]}
         valor={filtro}
         onChange={setFiltro}
@@ -104,7 +106,7 @@ export function PantallaInteresados() {
                     <div key={i.id} className="px-3 py-2.5">
                       <div className="flex items-center gap-3">
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-semibold">{i.nombre}</span>
+                          <span className="block break-words font-semibold">{i.nombre}</span>
                           <span className="block truncate text-xs text-ink-500">
                             {fechaCorta(new Date(i.createdAt).toISOString().slice(0, 10))}
                             {i.contactadoAt ? ` · se le escribió ${fechaCorta(new Date(i.contactadoAt).toISOString().slice(0, 10))}` : ''}
@@ -115,23 +117,19 @@ export function PantallaInteresados() {
                             href={wa}
                             target="_blank"
                             rel="noreferrer"
-                            onClick={() => void marcarContactado(i.id)}
-                            className="rounded-full bg-ok-50 p-3 text-ok-600"
+                            onClick={() => { if (i.estado === 'nuevo') setSeleccion(i.id); }}
+                            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-ok-50 px-2.5 text-xs font-semibold text-ok-600"
                             aria-label={`Escribirle a ${i.nombre} por WhatsApp`}
                           >
-                            <MessageCircle size={18} />
+                            <MessageCircle size={16} aria-hidden="true" /> WhatsApp
                           </a>
                         )}
                         <button
-                          onClick={async () => {
-                            const a = await registrarComoAlumno(i);
-                            avisar(`${i.nombre.split(' ')[0]} ya es alumno`);
-                            nav(`/alumnos/${a.id}`, { state: { recien: true } });
-                          }}
-                          className="rounded-full bg-brand-50 p-3 text-brand-600"
-                          aria-label={`Registrar a ${i.nombre} como alumno`}
+                          onClick={() => setSeleccion(i.id)}
+                          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-ink-500 active:bg-ink-100"
+                          aria-label={`Opciones de ${i.nombre}`}
                         >
-                          <UserPlus size={18} />
+                          <Ellipsis size={20} aria-hidden="true" />
                         </button>
                       </div>
                       {i.invitoAlumnoId && invitaron?.get(i.invitoAlumnoId) && (
@@ -145,15 +143,6 @@ export function PantallaInteresados() {
                         </p>
                       )}
                       {i.mensaje && <p className="mt-1 rounded-lg bg-ink-50 px-2 py-1 text-sm text-ink-700">“{i.mensaje}”</p>}
-                      <button
-                        className="-ml-2 min-h-10 rounded-lg px-2 text-xs font-semibold text-ink-500 active:bg-ink-100"
-                        onClick={async () => {
-                          await descartar(i.id);
-                          avisar('Quitado de la lista', 'ok', { texto: 'Deshacer', fn: () => actualizar('interesados', i.id, { estado: i.contactadoAt ? 'contactado' : 'nuevo' }).then(() => undefined) });
-                        }}
-                      >
-                        Ya no le interesa
-                      </button>
                     </div>
                   );
                 })}
@@ -163,6 +152,31 @@ export function PantallaInteresados() {
         })
       )}
 
+      <Hoja abierta={!!interesado} onCerrar={() => setSeleccion(null)} titulo={interesado?.nombre ?? ''}>
+        {interesado && (
+          <div className="space-y-3">
+            {interesado.estado === 'nuevo' && (
+              <>
+                <p className="text-sm text-ink-500">Si ya enviaste el mensaje o hablaste con esta persona, marca el contacto.</p>
+                <Boton bloque onClick={async () => {
+                  await marcarContactado(interesado.id);
+                  setSeleccion(null);
+                }}><Check size={18} aria-hidden="true" /> Marcar como contactado</Boton>
+              </>
+            )}
+            <Boton bloque variante="secundario" aria-label={`Registrar a ${interesado.nombre} como alumno`} onClick={async () => {
+              const alumno = await registrarComoAlumno(interesado);
+              avisar(`${interesado.nombre.split(' ')[0]} ya es alumno`);
+              nav(`/alumnos/${alumno.id}`, { state: { recien: true } });
+            }}><UserPlus size={18} aria-hidden="true" /> Registrar como alumno</Boton>
+            <Boton bloque variante="fantasma" onClick={async () => {
+              await descartar(interesado.id);
+              setSeleccion(null);
+              avisar('Quitado de la lista', 'ok', { texto: 'Deshacer', fn: () => actualizar('interesados', interesado.id, { estado: interesado.estado }).then(() => undefined) });
+            }}>Ya no le interesa</Boton>
+          </div>
+        )}
+      </Hoja>
       <Hoja abierta={anotar} onCerrar={() => setAnotar(false)} titulo="Anotar interesado">
         {anotar && <FormInteresado clases={clases} onHecho={() => setAnotar(false)} />}
       </Hoja>
@@ -180,30 +194,28 @@ function AvisarGrupo({ clase, nombre, gente }: { clase: Clase; nombre: string; g
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-500">
-        Toca cada nombre para abrir WhatsApp con el mensaje listo ({horarioDe(clase)}). Al regresar, sigue con el siguiente.
+        Abre WhatsApp con el mensaje listo ({horarioDe(clase)}). Marca cada contacto después de enviarle el mensaje.
       </p>
       <Tarjeta className="divide-y divide-ink-100">
         {gente.map((i) => {
           const wa = waLink(i.telefono, armarMensaje(plantilla(academia, 'grupo'), { nombre: i.nombre.split(' ')[0], academia: academia.nombre, clase: nombre, horario: horarioDe(clase) }));
           const listo = enviados.has(i.id);
           return (
-            <a
+            <div
               key={i.id}
-              href={wa ?? undefined}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                setEnviados(new Set(enviados).add(i.id));
-                void marcarContactado(i.id);
-              }}
-              className={cx('flex items-center gap-3 px-4 py-3 active:bg-ink-50', listo && 'opacity-50')}
+              className="flex items-center gap-2 px-3 py-2"
             >
-              <span className={cx('flex h-7 w-7 items-center justify-center rounded-full ring-2', listo ? 'bg-ok-600 text-white ring-ok-600' : 'text-transparent ring-ink-100')}>
-                <Check size={16} />
-              </span>
-              <span className="flex-1 font-semibold">{i.nombre}</span>
-              <MessageCircle size={18} className="text-ok-600" />
-            </a>
+              <span className="min-w-0 flex-1 break-words text-sm font-semibold">{i.nombre}</span>
+              {wa && <a href={wa} target="_blank" rel="noreferrer" aria-label={`Escribirle a ${i.nombre} por WhatsApp`} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-ok-600">
+                <MessageCircle size={18} aria-hidden="true" />
+              </a>}
+              <button type="button" disabled={listo} onClick={async () => {
+                await marcarContactado(i.id);
+                setEnviados((anteriores) => new Set(anteriores).add(i.id));
+              }} aria-label={`Marcar a ${i.nombre} como contactado`} className={cx('min-h-11 shrink-0 rounded-lg px-2 text-xs font-semibold', listo ? 'text-ok-600' : 'text-brand-600')}>
+                {listo ? 'Contactado' : 'Marcar'}
+              </button>
+            </div>
           );
         })}
       </Tarjeta>
