@@ -419,6 +419,11 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
         </div>
 
         <ProximaClaseTarjeta horario={datos.horario ?? []} slug={datos.academia.slug ?? null} />
+        {datos.academia.slug && (
+          <a href={`/a/${datos.academia.slug}?reglamentos`} referrerPolicy="no-referrer" className="mx-auto flex min-h-11 w-fit items-center gap-2 px-3 text-sm font-semibold text-brand-600">
+            <BookOpen size={16} aria-hidden="true" /> Reglamentos de la academia
+          </a>
+        )}
 
         {!!datos.eventos?.length && <ProximosEventos eventos={datos.eventos} hoy={hoy} nombre={datos.alumno.nombre} codigo={datos.alumno.codigo} whatsapp={wa} />}
 
@@ -535,11 +540,6 @@ function Vista({ datos: crudos, guardadoEl, actualizacion, token, recargar }: { 
           <button type="button" onClick={() => ocultarOpinar(false)} className="mx-auto flex min-h-11 items-center gap-1.5 px-3 text-sm font-semibold text-brand-600">
             <MessageCircle size={16} aria-hidden="true" /> Contar mi experiencia
           </button>
-        )}
-        {datos.academia.slug && (
-          <a href={`/a/${datos.academia.slug}?reglamentos`} referrerPolicy="no-referrer" className="mx-auto flex min-h-11 w-fit items-center gap-2 px-3 text-sm font-semibold text-brand-600">
-            <BookOpen size={16} aria-hidden="true" /> Reglamentos de la academia
-          </a>
         )}
         <p className="pt-2 text-center text-xs text-ink-500">Este enlace es solo tuyo · Compás</p>
       </div>

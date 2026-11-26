@@ -18,6 +18,6 @@ Los originales de Salsa Casino y Salsa en Línea están en `produccion/`. Las co
 ## Cómo se consulta y edita
 
 - Dirección usa **Más → Página pública → Reglamentos**. Agrega un documento por modalidad y guarda desde el editor de la página. Los textos se renderizan como texto plano.
-- El sitio muestra **Consultar reglamentos** arriba de la solicitud de primera clase cuando la academia tiene reglamentos publicados.
-- **Mi pase** enlaza a los reglamentos de la misma academia si existe página pública. Si aún no hay textos, la pantalla de consulta lo indica. Abrir el pase no inicia una consulta adicional de reglamentos.
+- El pie del sitio muestra **Consultar reglamentos** cuando la academia tiene reglamentos publicados.
+- **Mi pase** enlaza a los reglamentos de la misma academia junto a la sección del horario si existe página pública. Si aún no hay textos, la pantalla de consulta lo indica. Abrir el pase no inicia una consulta adicional de reglamentos.
 - Se usa el contenido JSON existente de la página pública. La edición no necesita una migración SQL. La publicación de los textos reales se hace al guardarlos en la academia de Calo.

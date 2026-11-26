@@ -161,11 +161,12 @@ await tarjeta.click();
 const mensajeNuevo = new URL(await consulta.getAttribute('href')).searchParams.get('text');
 console.log('11) tienda: volver a abrir permite consultar sin variante:', ok(!mensajeNuevo.includes('(M)')));
 await page.keyboard.press('Escape');
-await page.getByRole('link', { name: 'Consultar reglamentos' }).click();
+await page.locator('footer').getByRole('link', { name: 'Consultar reglamentos' }).click();
 await page.getByRole('heading', { name: 'Reglamentos', exact: true }).waitFor();
 await page.getByText('Salsa en Línea', { exact: true }).click();
 console.log('12) consulta móvil: cada modalidad abre su propio texto:', ok(
   await page.getByText('Consulta los bloques en recepción.', { exact: false }).isVisible()
+  && await page.getByRole('heading', { name: '2. Pagos', exact: true }).isVisible()
   && !await page.getByText('Llega a tiempo.', { exact: false }).isVisible(),
 ));
 console.log('errores:', errores.length ? errores : 'ninguno');

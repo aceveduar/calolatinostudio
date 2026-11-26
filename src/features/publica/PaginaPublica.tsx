@@ -78,7 +78,18 @@ export function PaginaPublica({ slug }: { slug: string }) {
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold [&::-webkit-details-marker]:hidden">
                   {r.titulo}<ChevronDown size={16} aria-hidden="true" className="shrink-0 group-open:rotate-180" />
                 </summary>
-                <div className="whitespace-pre-wrap break-words border-t border-ink-100 px-4 py-3 text-sm leading-relaxed">{r.texto}</div>
+                <div className="space-y-3 break-words border-t border-ink-100 px-4 py-4 text-sm leading-relaxed">
+                  {r.texto.trim().split(/\r?\n\s*\r?\n|\r?\n(?=\d+\.\s)/).map((parrafo, i) => {
+                    if (!/^\d+\.\s/.test(parrafo)) return <p key={i} className="whitespace-pre-line">{parrafo}</p>;
+                    const [encabezado, ...lineas] = parrafo.split(/\r?\n/);
+                    return (
+                      <div key={i} className="space-y-2 pt-2">
+                        <h2 className="font-bold">{encabezado}</h2>
+                        {lineas.length > 0 && <p className="whitespace-pre-line">{lineas.join('\n')}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
               </details>
             ))}
           </div>
@@ -499,7 +510,6 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         <section className="bg-panel text-white">
           <div className="mx-auto grid max-w-5xl gap-4 px-5 py-10 md:grid-cols-[1fr_1.1fr] md:items-start md:gap-8 md:py-14">
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900 md:order-2">
-              {!!p.reglamentos?.length && <a href={`/a/${slug}?reglamentos`} className="mb-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-white underline underline-offset-4">Consultar reglamentos</a>}
               <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
             </div>
             <div className="md:sticky md:top-24 md:order-1">
@@ -605,7 +615,9 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
           )}
         </div>
         <p className="mx-auto mt-8 max-w-5xl px-5 text-xs text-white/60">
-          © {new Date().getFullYear()} {d.academia.nombre} · <AvisoPrivacidad texto={privacidad} academia={d.academia.nombre} className="underline underline-offset-2 hover:text-white" /> · Hecho con Compás
+          © {new Date().getFullYear()} {d.academia.nombre} · <AvisoPrivacidad texto={privacidad} academia={d.academia.nombre} className="underline underline-offset-2 hover:text-white" />
+          {!!p.reglamentos?.length && <> · <a href={`/a/${slug}?reglamentos`} className="underline underline-offset-2 hover:text-white">Consultar reglamentos</a></>}
+          {' · Hecho con Compás'}
         </p>
       </footer>
 
