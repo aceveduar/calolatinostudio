@@ -66,6 +66,13 @@ export interface ContenidoPagina {
   testimonios?: { texto: string; nombre: string; detalle?: string }[];
   /** aviso de privacidad propio (vacío = la base general de domain/privacidad.ts) */
   privacidad?: string;
+  reglamentos?: Reglamento[];
+}
+
+export interface Reglamento {
+  id: ID;
+  titulo: string;
+  texto: string;
 }
 
 export type Rol = 'dueno' | 'recepcion' | 'maestro';

@@ -40,9 +40,17 @@ await page.getByPlaceholder('Ej. Tu primera clase es gratis').fill('Tu primera c
 await page.getByPlaceholder('Calle, número, colonia, ciudad').first().fill('Av. Juárez 123, Centro, Toluca, Méx.');
 await page.getByPlaceholder(/Segundo piso/).first().fill('Segundo piso, junto a la farmacia');
 await page.getByPlaceholder('@usuario').first().fill('@calolatino');
+await abrir('Reglamentos');
+await page.getByRole('button', { name: 'Agregar reglamento' }).click();
+await page.getByRole('textbox', { name: 'Modalidad' }).fill('Salsa Casino');
+await page.getByRole('textbox', { name: 'Texto del reglamento' }).fill('1. Asistencia\nLlega a tiempo.');
+await page.getByRole('button', { name: 'Agregar reglamento' }).click();
+await page.getByRole('textbox', { name: 'Modalidad' }).last().fill('Salsa en Línea');
+await page.getByRole('textbox', { name: 'Texto del reglamento' }).last().fill('2. Pagos\nConsulta los bloques en recepción.');
 await page.getByRole('button', { name: 'Guardar cambios' }).click();
 await page.getByText('Página actualizada').waitFor();
 const pag = await page.evaluate(async () => (await window.compasDev.db.academias.toArray())[0].pagina);
+console.log('   guarda dos reglamentos independientes:', ok(pag.reglamentos?.length === 2 && pag.reglamentos[1].titulo === 'Salsa en Línea'));
 console.log('1) contenido guardado (portada WebP ligera, frase, ubicación, 5 preguntas, redes):', ok(sugeridas === 5 && /^data:image\/(webp|jpeg)/.test(pag?.portada ?? '') && pag.portada.length < 200000 && pag.frase && pag.ubicaciones?.principal?.direccion && pag.preguntas?.length === 5 && pag.redes?.instagram), pag?.portada?.length);
 console.log('   sin cambios → no hay botón de guardar (aparece solo al cambiar algo):', ok((await page.getByRole('button', { name: 'Guardar cambios' }).count()) === 0));
 
@@ -151,5 +159,13 @@ await page.keyboard.press('Escape');
 await tarjeta.click();
 const mensajeNuevo = new URL(await consulta.getAttribute('href')).searchParams.get('text');
 console.log('11) tienda: volver a abrir permite consultar sin variante:', ok(!mensajeNuevo.includes('(M)')));
+await page.keyboard.press('Escape');
+await page.getByRole('link', { name: 'Consultar reglamentos' }).click();
+await page.getByRole('heading', { name: 'Reglamentos', exact: true }).waitFor();
+await page.getByText('Salsa en Línea', { exact: true }).click();
+console.log('12) consulta móvil: cada modalidad abre su propio texto:', ok(
+  await page.getByText('Consulta los bloques en recepción.', { exact: false }).isVisible()
+  && !await page.getByText('Llega a tiempo.', { exact: false }).isVisible(),
+));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

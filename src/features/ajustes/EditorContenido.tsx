@@ -36,6 +36,10 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
   const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}) }));
   if (te.length) o.testimonios = te;
   if (c.privacidad?.trim()) o.privacidad = c.privacidad.trim();
+  const reglamentos = (c.reglamentos ?? [])
+    .filter((r) => r.titulo.trim() && r.texto.trim())
+    .map((r) => ({ id: r.id, titulo: r.titulo.trim(), texto: r.texto.trim() }));
+  if (reglamentos.length) o.reglamentos = reglamentos;
   return o;
 }
 
@@ -64,10 +68,12 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const galeria = useRef<HTMLInputElement>(null);
   const cambiosContenido = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
   const cambios = cambiosContenido || !!enlace?.cambios;
-  const valido = enlace ? enlace.valido : true;
+  const reglamentos = c.reglamentos ?? [];
+  const reglamentosCompletos = reglamentos.every((r) => r.titulo.trim() && r.texto.trim());
+  const valido = (enlace?.valido ?? true) && reglamentosCompletos;
   // "editó algo": las preguntas sugeridas que se precargan cuentan para Guardar, pero no para avisar al salir
   const [inicial] = useState(() => JSON.stringify(limpio(c)));
-  const editado = cambiosContenido && JSON.stringify(limpio(c)) !== inicial;
+  const editado = !reglamentosCompletos || (cambiosContenido && JSON.stringify(limpio(c)) !== inicial);
   // con cambios sin guardar: pregunta antes de salir por un enlace de la app o al cerrar la pestaña
   // y, por si sale con el botón atrás del teléfono o se cierra la app, un borrador en este teléfono
   const claveBorrador = `compas:borradorPagina:${academia.id}`;
@@ -296,6 +302,27 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
             <Entrada value={c.redes?.[r] ?? ''} onChange={(e) => pon({ redes: { ...(c.redes ?? {}), [r]: e.target.value } })} placeholder={r === 'youtube' ? '@canal' : '@usuario'} autoCapitalize="off" />
           </Campo>
         ))}
+      </Bloque>
+
+      <Bloque id="reglamentos" {...plegable('reglamentos')} resumen={reglamentos.length ? n(reglamentos.length, 'reglamento', 'reglamentos') : 'Sin reglamentos'} titulo="Reglamentos" ayuda="Agrega un reglamento por modalidad. Al guardar, los alumnos podrán consultarlos desde la página pública y su pase.">
+        {reglamentos.map((r, indice) => (
+          <fieldset key={r.id} className="space-y-2 rounded-xl bg-ink-50 p-3">
+            <legend className="px-1 text-sm font-semibold">Reglamento {indice + 1}</legend>
+            <Campo etiqueta="Modalidad">
+              <Entrada value={r.titulo} placeholder="Ej. Salsa Casino" onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, titulo: e.target.value } : a) })} />
+            </Campo>
+            <Campo etiqueta="Texto del reglamento">
+              <textarea value={r.texto} rows={9} className={areaTexto} onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, texto: e.target.value } : a) })} />
+            </Campo>
+            <Boton variante="fantasma" onClick={() => pon({ reglamentos: reglamentos.filter((a) => a.id !== r.id) })}>
+              <Trash2 size={16} aria-hidden="true" /> Quitar reglamento
+            </Boton>
+          </fieldset>
+        ))}
+        <Boton variante="secundario" onClick={() => pon({ reglamentos: [...reglamentos, { id: crypto.randomUUID(), titulo: '', texto: '' }] })}>
+          <Plus size={16} aria-hidden="true" /> Agregar reglamento
+        </Boton>
+        {!reglamentosCompletos && <p className="text-sm text-warn-600">Completa la modalidad y el texto de cada reglamento para guardar.</p>}
       </Bloque>
 
       <Bloque id="privacidad" {...plegable('privacidad')} resumen={c.privacidad?.trim() ? 'Personalizado' : 'Usa la base general'} titulo="Aviso de privacidad" ayuda="Obligatorio en México porque la página pide nombre y teléfono. Si lo dejas vacío se usa una base general con el nombre y el WhatsApp de tu academia. Revísalo, de preferencia con quien lleve tus asuntos legales.">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DetalleEvento } from '../../components/DetalleEvento';
-import { ArrowLeft, ArrowRight, AtSign, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, AtSign, ChevronDown, MapPin, MessageCircle, Navigation, ShoppingBag, Sparkle } from 'lucide-react';
 import { nubePublica as supabase } from '../../app/rpcPublica';
 import { LogoAcademia } from '../../components/LogoAcademia';
 import { cx, Hoja } from '../../components/ui';
@@ -63,6 +63,29 @@ export function PaginaPublica({ slug }: { slug: string }) {
         Revisa tu conexión e inténtalo de nuevo.
       </Centro>
     );
+  if (new URLSearchParams(location.search).has('reglamentos')) {
+    const reglamentos = datos.pagina?.reglamentos ?? [];
+    return (
+      <main className="mx-auto min-h-dvh max-w-2xl px-5 py-6">
+        <a href={`/a/${slug}`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-600">
+          <ArrowLeft size={16} aria-hidden="true" /> {datos.academia.nombre}
+        </a>
+        <h1 className="mb-4 text-2xl font-extrabold">Reglamentos</h1>
+        {reglamentos.length ? (
+          <div className="space-y-3">
+            {reglamentos.map((r) => (
+              <details key={r.id} className="group rounded-2xl bg-superficie ring-1 ring-ink-100">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold [&::-webkit-details-marker]:hidden">
+                  {r.titulo}<ChevronDown size={16} aria-hidden="true" className="shrink-0 group-open:rotate-180" />
+                </summary>
+                <div className="whitespace-pre-wrap break-words border-t border-ink-100 px-4 py-3 text-sm leading-relaxed">{r.texto}</div>
+              </details>
+            ))}
+          </div>
+        ) : <p className="text-sm text-ink-500">La academia aún no ha publicado sus reglamentos.</p>}
+      </main>
+    );
+  }
   return <Vista d={datos} slug={slug} />;
 }
 
@@ -476,6 +499,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         <section className="bg-panel text-white">
           <div className="mx-auto grid max-w-5xl gap-4 px-5 py-10 md:grid-cols-[1fr_1.1fr] md:items-start md:gap-8 md:py-14">
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900 md:order-2">
+              {!!p.reglamentos?.length && <a href={`/a/${slug}?reglamentos`} className="mb-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-white underline underline-offset-4">Consultar reglamentos</a>}
               <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
             </div>
             <div className="md:sticky md:top-24 md:order-1">
