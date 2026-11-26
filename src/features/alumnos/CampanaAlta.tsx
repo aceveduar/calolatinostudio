@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, CheckCheck, ChevronRight, Copy, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSesion } from '../../app/sesion';
 import { Boton, Encabezado, Tarjeta } from '../../components/ui';
@@ -13,13 +14,17 @@ export function CampanaAlta() {
   const [confirmar, setConfirmar] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
+  const [avisoAltas, setAvisoAltas] = useState('');
   const [nuevas, setNuevas] = useState(0);
   const [actualizado, setActualizado] = useState<number | null>(null);
+  const opcionesEnlace = useRef<HTMLDetailsElement>(null);
+  const campoEnlace = useRef<HTMLInputElement>(null);
 
   const gestionar = useCallback(async (accion: 'estado' | 'abrir' | 'cerrar') => {
     setCargando(true);
     setError('');
     setAviso('');
+    setAvisoAltas('');
     try {
       if (!supabase) {
         setError('Vincula este equipo a la nube de la academia para habilitar el registro por enlace.');
@@ -59,7 +64,9 @@ export function CampanaAlta() {
       await navigator.clipboard.writeText(mensaje);
       setAviso('Mensaje copiado. Pégalo en el grupo de WhatsApp.');
     } catch {
-      setAviso('Selecciona y copia el enlace del campo de abajo.');
+      if (opcionesEnlace.current) opcionesEnlace.current.open = true;
+      campoEnlace.current?.focus();
+      setAviso('Copia el enlace seleccionado y pégalo en WhatsApp.');
     }
   }
 
@@ -67,34 +74,39 @@ export function CampanaAlta() {
     if (!campana) return;
     if (marcarAltasVistas(campana, academia.id, usuario.id)) {
       setNuevas(0);
-      setAviso('Altas marcadas como revisadas.');
+      setAvisoAltas('Altas marcadas como revisadas.');
     } else {
-      setAviso('Este navegador no pudo guardar la revisión.');
+      setAvisoAltas('Este navegador no pudo guardar la revisión.');
     }
   }
 
   return (
     <div className="mx-auto max-w-xl px-4 pb-8">
-      <Link to="/alumnos" className="mt-4 inline-block text-sm font-semibold text-brand-600">← Alumnos</Link>
+      <Link to="/alumnos" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-600"><ArrowLeft size={16} aria-hidden="true" /> Alumnos</Link>
       <div className="-mx-4"><Encabezado titulo="Registro por enlace" /></div>
       <Tarjeta className="space-y-4 p-5">
-        <p className="text-sm text-ink-600">Comparte un solo enlace en el grupo de WhatsApp. Cada alumno se registra y recibe su pase al momento.</p>
         {error && !campana && <p role="alert" className="text-sm text-brand-600">{error}</p>}
         {cargando && <p role="status" className="text-sm text-ink-600">Consultando el registro…</p>}
         {!error && campana?.abierta && (
           <>
-            <div>
-              <p className="font-bold">{campana.altas >= 1000 ? 'Cupo alcanzado' : 'Registro abierto'}</p>
-              <p className="text-sm text-ink-600">Cierra el {fecha}</p>
+            <div className="space-y-1">
+              <p className={campana.altas >= 1000 ? 'font-bold text-warn-600' : 'font-bold text-ok-600'}>{campana.altas >= 1000 ? 'Cupo alcanzado' : 'Registro abierto'}</p>
+              <p className="text-sm text-ink-600">Cierra el <time dateTime={new Date(campana.vence).toISOString()}>{fecha}</time></p>
             </div>
             {campana.altas < 1000 && (
-              <div className="space-y-2">
-                <Boton disabled={cargando} onClick={() => void copiarMensaje()}>Copiar mensaje para WhatsApp</Boton>
-                <label className="block text-sm font-semibold">
-                  Enlace para alumnos
-                  <input readOnly value={enlace} onFocus={(e) => e.currentTarget.select()} className="mt-1 w-full rounded-xl bg-brand-50 p-3 font-normal" />
-                </label>
-                <a href={enlace} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand-600 underline">Ver formulario del alumno</a>
+              <div className="space-y-1">
+                <Boton bloque disabled={cargando} onClick={() => void copiarMensaje()}><Copy size={16} aria-hidden="true" /> Copiar mensaje para WhatsApp</Boton>
+                <details ref={opcionesEnlace} className="group">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-brand-600 [&::-webkit-details-marker]:hidden">
+                    Ver enlace y formulario
+                    <ChevronRight size={16} className="group-open:rotate-90" aria-hidden="true" />
+                  </summary>
+                  <label className="block text-sm font-semibold">
+                    Enlace para alumnos
+                    <input ref={campoEnlace} readOnly value={enlace} onFocus={(e) => e.currentTarget.select()} className="mt-1 w-full rounded-xl bg-ink-50 p-3 font-normal" />
+                  </label>
+                  <a href={enlace} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-600 underline">Ver formulario del alumno</a>
+                </details>
               </div>
             )}
             {confirmar ? (
@@ -113,7 +125,11 @@ export function CampanaAlta() {
           </>
         )}
         {!error && !cargando && !campana?.abierta && (
-          <Boton onClick={() => void gestionar('abrir')}>Abrir registro por 7 días</Boton>
+          <div className="space-y-3">
+            <p className="font-bold">Registro cerrado</p>
+            <p className="text-sm text-ink-600">Abre el registro para compartir un enlace en WhatsApp. Cada alumno recibe su pase al registrarse.</p>
+            <Boton bloque onClick={() => void gestionar('abrir')}>Abrir registro por 7 días</Boton>
+          </div>
         )}
         {error && !campana && <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>Reintentar</Boton>}
         {aviso && <p role="status" className="text-sm font-semibold">{aviso}</p>}
@@ -136,15 +152,27 @@ export function CampanaAlta() {
             )}
             {error && <p role="alert" className="mt-2 text-sm text-warn-600">{error} Mostramos el último conteo disponible.</p>}
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}><RefreshCw size={16} aria-hidden="true" /> {error ? 'Reintentar' : 'Actualizar altas'}</Boton>
+            {!error && nuevas > 0 && campana.recientes && (
+              <Boton variante="fantasma" aria-label="Marcar todas las altas como revisadas" disabled={cargando} onClick={marcarRevisadas}>
+                <CheckCheck size={16} aria-hidden="true" /> Marcar revisadas
+              </Boton>
+            )}
+          </div>
+          {avisoAltas && <p role="status" className="text-sm font-semibold">{avisoAltas}</p>}
           {campana.recientes?.length ? (
             <ul className="divide-y divide-ink-100">
               {campana.recientes.map((alta) => (
                 <li key={alta.id}>
-                  <Link to={`/alumnos/${alta.id}`} className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 py-2">
-                    <span className="font-semibold text-brand-600">{alta.nombre}</span>
-                    <time dateTime={new Date(alta.alta).toISOString()} className="text-sm text-ink-600">
-                      {new Date(alta.alta).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
-                    </time>
+                  <Link to={`/alumnos/${alta.id}`} className="flex min-h-12 items-center justify-between gap-2 py-2">
+                    <span className="min-w-0 break-words">
+                      <span className="block text-sm font-semibold">{alta.nombre}</span>
+                      <time dateTime={new Date(alta.alta).toISOString()} className="block text-xs text-ink-600">
+                        {new Date(alta.alta).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                      </time>
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-ink-500" aria-hidden="true" />
                   </Link>
                 </li>
               ))}
@@ -152,12 +180,6 @@ export function CampanaAlta() {
           ) : (
             <p className="text-sm text-ink-600">{campana.altas ? 'Actualiza para consultar las altas recientes.' : 'Aquí aparecerán los alumnos que se registren.'}</p>
           )}
-          <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" disabled={cargando} onClick={() => void gestionar('estado')}>{error ? 'Reintentar' : 'Actualizar altas'}</Boton>
-            {!error && nuevas > 0 && campana.recientes && (
-              <Boton variante="secundario" disabled={cargando} onClick={marcarRevisadas}>Marcar todas como revisadas</Boton>
-            )}
-          </div>
         </Tarjeta>
       )}
     </div>
