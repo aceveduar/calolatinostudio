@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { CalendarDays, ChevronDown, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useRentas } from '../../app/datos';
 import { clasesQueChocan, rentasQueChocanConClase } from '../../domain/agenda';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros, usePlanes } from '../../app/datos';
@@ -24,22 +26,30 @@ export function EditorClases() {
   const maestros = useMaestros();
   const ordenadas = [...clases].sort((a, b) => nombreClase(a, disciplinas).localeCompare(nombreClase(b, disciplinas)) || a.horaInicio.localeCompare(b.horaInicio));
   return (
-    <>
-    <p className="mb-3 text-sm text-ink-500">Cada clase con sus días, hora y maestro. Con esto, Entrada sabe sola qué clase toca a cada hora.</p>
     <Catalogo
       items={ordenadas}
       vacio="Aún no hay clases. Agrega la primera con sus días y hora."
       textoNuevo="Nueva clase"
+      arriba={(nueva) => (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Boton onClick={nueva}><Plus size={18} aria-hidden="true" /> Nueva clase</Boton>
+          <Link to="/agenda" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-brand-600">
+            <CalendarDays size={16} aria-hidden="true" /> Ver agenda
+          </Link>
+        </div>
+      )}
       titulo={(c) => (c ? nombreClase(c, disciplinas) : 'Nueva clase')}
       fila={(c) => (
         <>
-          <span className="h-3 w-3 rounded-full" style={{ background: colorClase(c, disciplinas) }} />
-          <span className={cx('flex-1', !c.activo && 'opacity-40')}>
+          <span className="size-2.5 shrink-0 rounded-full" style={{ background: colorClase(c, disciplinas) }} />
+          <span className="min-w-0 flex-1">
             <span className="block font-semibold">{nombreClase(c, disciplinas)}</span>
             <span className="block text-sm text-ink-500">
-              {sedes.length > 0 && `${nombreSede(c.sedeId, sedes, academia)} · `}
-              {c.dias.map((d) => DIAS_CORTOS[d]).join(', ') || 'Sin días'} · {c.horaInicio}
-              {nombreMaestro(c, maestros) ? ` · ${nombreMaestro(c, maestros)}` : <span className="text-warn-600"> · sin maestro</span>}
+              {listaDias(c.dias) || 'Sin días'} · {c.horaInicio}
+              {sedes.length > 0 && ` · ${nombreSede(c.sedeId, sedes, academia)}`}
+            </span>
+            <span className={cx('block text-xs', nombreMaestro(c, maestros) ? 'text-ink-500' : 'text-warn-600')}>
+              {nombreMaestro(c, maestros) || 'Sin maestro'}
             </span>
           </span>
           {!c.activo && <Etiqueta>Pausada</Etiqueta>}
@@ -47,7 +57,6 @@ export function EditorClases() {
       )}
       form={(c, cerrar) => <FormClase clase={c} disciplinas={disciplinas} onHecho={cerrar} />}
     />
-    </>
   );
 }
 
@@ -115,8 +124,6 @@ export function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null
     onHecho();
   };
 
-  const nombreDisc = disciplinaId === NUEVO ? discNueva.trim() : (disciplinas.find((d) => d.id === disciplinaId)?.nombre ?? '');
-  const nombreMaestroSel = maestroId === NUEVO ? maestroNuevo.trim() : (maestros.find((m) => m.id === maestroId)?.nombre ?? '');
   const termina = sumarMinutos(hora, Number(duracion) || 60);
   // lo que falta para guardar, dicho con palabras (antes el botón solo se apagaba)
   const falta =
@@ -217,38 +224,46 @@ export function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null
           </Selector>
         </Campo>
       )}
-      <Campo etiqueta="¿Cuándo pueden entrar alumnos nuevos?" grupo>
-        <Segmentos<'siempre' | 'curso'>
-          opciones={[
-            { valor: 'siempre', texto: 'Cuando sea' },
-            { valor: 'curso', texto: 'Por curso' },
-          ]}
-          valor={porCurso ? 'curso' : 'siempre'}
-          onChange={(v) => setPorCurso(v === 'curso')}
-        />
-      </Campo>
-      {porCurso && (
-        <div className="space-y-3 rounded-2xl bg-ink-50 p-3 ring-1 ring-ink-100">
-          <div className="grid grid-cols-2 gap-3">
-            <Campo etiqueta="Inicia">
-              <Entrada type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-            </Campo>
-            <Campo etiqueta="Termina (opcional)">
-              <Entrada type="date" value={fin ?? ''} min={inicio || undefined} onChange={(e) => setFin(e.target.value)} />
-            </Campo>
-          </div>
-          <Campo etiqueta="Aún pueden entrar hasta… semanas después de iniciar">
-            <Entrada inputMode="numeric" value={semanas} onChange={(e) => setSemanas(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+      <details className="group rounded-xl bg-superficie ring-1 ring-ink-100">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+          Inscripción y precio
+          <ChevronDown size={16} className="text-ink-500 group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="space-y-3 px-3 pb-3">
+          <Campo etiqueta="¿Cuándo pueden entrar alumnos nuevos?" grupo>
+            <Segmentos<'siempre' | 'curso'>
+              opciones={[
+                { valor: 'siempre', texto: 'Cuando sea' },
+                { valor: 'curso', texto: 'Por curso' },
+              ]}
+              valor={porCurso ? 'curso' : 'siempre'}
+              onChange={(v) => setPorCurso(v === 'curso')}
+            />
           </Campo>
-          <p className="text-xs text-ink-500">
-            En la página pública se ve “Nuevo grupo: inicia…”, y después de esas semanas “Grupo en curso”. Quien se inscriba entonces queda en Interesados para avisarle cuando abra el siguiente grupo.
-          </p>
+          {porCurso && (
+            <div className="space-y-3 rounded-2xl bg-ink-50 p-3 ring-1 ring-ink-100">
+              <div className="grid grid-cols-2 gap-3">
+                <Campo etiqueta="Inicia">
+                  <Entrada type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+                </Campo>
+                <Campo etiqueta="Termina (opcional)">
+                  <Entrada type="date" value={fin ?? ''} min={inicio || undefined} onChange={(e) => setFin(e.target.value)} />
+                </Campo>
+              </div>
+              <Campo etiqueta="Aún pueden entrar hasta… semanas después de iniciar">
+                <Entrada inputMode="numeric" value={semanas} onChange={(e) => setSemanas(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+              </Campo>
+              <p className="text-xs text-ink-500">
+                En la página pública se ve “Nuevo grupo: inicia…”, y después de esas semanas “Grupo en curso”. Quien se inscriba entonces queda en Interesados para avisarle cuando abra el siguiente grupo.
+              </p>
+            </div>
+          )}
+          <Campo etiqueta="Precio de clase suelta (opcional)" ayuda={`Solo si esta clase cuesta distinto. Vacío = el precio normal${precioSede ? ` (${dinero(precioSede)})` : ''}.`}>
+            <Entrada inputMode="decimal" value={precioPropio} onChange={(e) => setPrecioPropio(e.target.value)} placeholder={precioSede ? aPesosTexto(precioSede) : '$'} />
+          </Campo>
         </div>
-      )}
-      <Campo etiqueta="Precio de clase suelta (opcional)" ayuda={`Solo si esta clase cuesta distinto. Vacío = el precio normal${precioSede ? ` (${dinero(precioSede)})` : ''}.`}>
-        <Entrada inputMode="decimal" value={precioPropio} onChange={(e) => setPrecioPropio(e.target.value)} placeholder={precioSede ? aPesosTexto(precioSede) : '$'} />
-      </Campo>
-      {clase && <Interruptor valor={activo} onChange={setActivo} texto="Se sigue dando" />}
+      </details>
+      {clase && <Interruptor valor={activo} onChange={setActivo} texto="Clase activa" />}
       {chocaCon.length > 0 && (
         <p className="rounded-xl bg-warn-50 px-3 py-2 text-sm font-medium text-warn-600">
           Ojo: a esa hora el salón está rentado a {chocaCon.map((r) => r.nombre).join(', ')}. Revisa la Agenda antes de guardar.
@@ -264,22 +279,14 @@ export function FormClase({ clase, disciplinas, onHecho }: { clase: Clase | null
           </ul>
         </div>
       )}
-      {/* cómo queda, en una línea: lo mismo que verá en Entrada y en la página */}
-      {nombreDisc && dias.length > 0 && (
-        <p className="rounded-2xl bg-brand-50 px-4 py-3 text-sm text-ink-700">
-          <b className="text-ink-900">
-            {nombreDisc}
-            {nivel.trim() && ` ${nivel.trim()}`}
-          </b>{' '}
-          · {listaDias(dias)} · {hora} a {termina}
-          {nombreMaestroSel ? ` · ${nombreMaestroSel}` : ' · sin maestro'}
-        </p>
-      )}
       <div>
         <Boton grande bloque onClick={guardar} disabled={!!falta}>
-          Guardar
+          {clase ? 'Guardar horario habitual' : 'Crear clase'}
         </Boton>
         {falta && <p className="mt-2 text-center text-sm text-ink-500">{falta}</p>}
+        {clase && (
+          <p className="mt-2 text-center text-xs text-ink-500">Para mover una sola sesión, usa «Cambiar solo esta fecha» en Agenda.</p>
+        )}
       </div>
     </div>
   );

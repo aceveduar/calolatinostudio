@@ -52,7 +52,7 @@ console.log('   las 2 clases elegidas quedan con Profe Luis:', ok(suyas === 2), 
 // 3) clase: dice qué falta, crea disciplina nueva, dice cuándo termina y resume
 await ir('/ajustes/clases');
 await p.getByRole('button', { name: /Nueva clase/ }).first().click();
-const falta = (await dlg.getByText('Elige al menos un día').count()) === 1 && (await dlg.getByRole('button', { name: 'Guardar' }).isDisabled());
+const falta = (await dlg.getByText('Elige al menos un día').count()) === 1 && (await dlg.getByRole('button', { name: 'Crear clase' }).isDisabled());
 await dlg.getByLabel('Disciplina').selectOption({ label: '+ Nueva disciplina…' });
 await dlg.getByPlaceholder('Ej. Cumbia').fill('Cumbia');
 await dlg.getByPlaceholder('0, 1, 2…').fill('1');
@@ -63,14 +63,14 @@ await dlg.locator('input[type=time]').fill('18:30');
 await dlg.getByLabel(/Dura/).fill('90');
 const t3 = (await dlg.innerText()).replace(/\s+/g, ' ');
 await p.screenshot({ path: `${OUT}basico-clase.png` });
-console.log('3) clase: dice qué falta, a qué hora termina y cómo queda:', ok(falta && /Termina a las 20:00/.test(t3) && /Cumbia 1 · Mar y Jue · 18:30 a 20:00 · Profe Luis/.test(t3)));
-await dlg.getByRole('button', { name: 'Guardar' }).click();
+console.log('3) clase: dice qué falta y a qué hora termina:', ok(falta && /Termina a las 20:00/.test(t3)));
+await dlg.getByRole('button', { name: 'Crear clase' }).click();
 await p.getByText('Clase guardada').waitFor();
 const cumbia = (await db('disciplinas')).find((d) => d.nombre === 'Cumbia');
 const usados = (await db('disciplinas')).filter((d) => d.color === cumbia?.color).length;
 const clase = (await db('clases')).find((c) => c.disciplinaId === cumbia?.id);
 console.log('   disciplina nueva desde la clase, con un color que nadie usa:', ok(!!cumbia && usados === 1 && clase?.duracionMin === 90 && clase?.maestroId === luis.id));
-console.log('   la lista avisa qué clases no tienen maestro:', ok((await p.getByText(/sin maestro/).count()) > 0));
+console.log('   la lista avisa qué clases no tienen maestro:', ok((await p.getByText(/sin maestro/i).count()) > 0));
 
 // 4) plan: nombre opcional (se sugiere), "grupos" y resumen de cómo se verá
 await ir('/ajustes/planes');

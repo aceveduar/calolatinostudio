@@ -122,7 +122,7 @@ const n = await opciones.count();
 for (let i = 0; i < n; i++) if ((await opciones.nth(i).getAttribute('aria-pressed')) === 'false') { await opciones.nth(i).click(); break; }
 await page.screenshot({ path: `${OUT}libreta-${P}-3-mensual2.png` });
 await dlg.getByRole('button', { name: /Cobrar \$450 y dar entrada/ }).click();
-await page.getByText(/Mensual 2 clases cobrada/).waitFor();
+await page.getByText(/Venta cobrada · \$450/).waitFor();
 const mem = (await todos('membresias')).find((m) => m.alumnoId === sinPlan[1].id);
 console.log('5) mensual 2 clases pide elegir y guarda las 2:', ok(pide && mem?.claseIds?.length === 2), yaElegida);
 
@@ -139,7 +139,7 @@ await page.getByRole('button', { name: /Vender plan/ }).click();
 await dlg.getByRole('button', { name: /Mensual 1 clase/ }).click();
 await page.waitForTimeout(300);
 t = await body();
-console.log('6) atraso: 5 días, recargo $50, conserva corte:', ok(/5 días de atraso/.test(t) && /Recargo \$10 por día: \$50/.test(t) && t.includes(`Vigencia: ${new Date(f(-4) + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`)), (t.match(/Vigencia: [^A-Z]{0,30}/) || [])[0]);
+console.log('6) atraso: 5 días, recargo $50, conserva corte:', ok(/5 días de atraso/.test(t) && /Recargo \$10 por día: \$50/.test(t) && t.includes(`Vigencia ${new Date(f(-4) + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`)), (t.match(/Vigencia [^A-Z]{0,30}/) || [])[0]);
 await page.screenshot({ path: `${OUT}libreta-${P}-4-recargo.png` });
 // quitar el recargo baja el total
 await dlg.getByRole('switch', { name: /Recargo/ }).click();
@@ -152,8 +152,9 @@ await page.getByRole('button', { name: /cambiar usuario/i }).first().click();
 await entrar('Dirección Calo', '1234');
 await ir('/ajustes/clases');
 await page.getByText(/Cumbia 0/).first().click();
+await dlg.getByText('Inscripción y precio', { exact: true }).click();
 await dlg.getByPlaceholder('60').fill('80');
-await dlg.getByRole('button', { name: 'Guardar', exact: true }).click();
+await dlg.getByRole('button', { name: 'Guardar horario habitual', exact: true }).click();
 await page.waitForTimeout(300);
 const cumbia = (await todos('clases')).find((x) => x.nivel === '0' && disciplinas.find((d) => d.id === x.disciplinaId)?.nombre === 'Cumbia');
 console.log('7) clase con su propio precio:', ok(cumbia?.precioSuelta === 8000));

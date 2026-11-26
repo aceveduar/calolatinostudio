@@ -58,10 +58,11 @@ console.log('   sin cambios → no hay botón de guardar (aparece solo al cambia
 await ir('/ajustes/clases');
 await page.locator('main button').filter({ hasText: /Salsa 1/ }).first().click();
 const dlg = page.getByRole('dialog');
+await dlg.getByText('Inscripción y precio', { exact: true }).click();
 await dlg.getByRole('button', { name: 'Por curso' }).click();
 await dlg.locator('input[type=date]').nth(0).fill('2026-11-02');
 await dlg.locator('input[type=date]').nth(1).fill('2027-01-25');
-await dlg.getByRole('button', { name: 'Guardar' }).click();
+await dlg.getByRole('button', { name: 'Guardar horario habitual' }).click();
 await page.waitForTimeout(500);
 const curso = await page.evaluate(async () => {
   const ds = await window.compasDev.db.disciplinas.toArray();
