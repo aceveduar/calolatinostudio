@@ -23,15 +23,25 @@ await page.reload();
 // 1) Dueño da acceso a Profe Luis
 await entrarComo('Dirección Calo', '1234');
 await page.getByRole('link', { name: 'Más' }).first().click();
-await page.getByText('Usuarios y PIN').click();
+const usuarios = page.getByRole('link', { name: /^Usuarios y PIN/ });
+if (!await usuarios.isVisible()) await page.getByText('Tu academia', { exact: true }).click();
+await usuarios.click();
 await btn('Nuevo usuario').click();
 await page.getByRole('dialog').getByRole('button', { name: 'Maestro' }).click();
-await page.getByRole('dialog').locator('select').selectOption({ label: 'Profe Luis Herrera' });
+await page.getByRole('dialog').getByLabel('Ficha del maestro').selectOption({ label: 'Profe Luis Herrera' });
 await page.getByPlaceholder('••••').fill('582736');
 await page.screenshot({ path: `${OUT}m-0-alta-maestro.png` });
 await btn('Guardar').click();
 await page.getByText('Usuario guardado').waitFor();
 console.log('1) acceso de maestro creado: OK');
+await page.getByRole('button', { name: /Profe Luis Herrera/ }).click();
+const fichaAcceso = page.getByRole('dialog').getByLabel('Ficha del maestro');
+const vinculada = await fichaAcceso.inputValue();
+await page.getByRole('dialog').getByRole('button', { name: 'Recepción' }).click();
+const oculta = !await fichaAcceso.isVisible();
+await page.getByRole('dialog').getByRole('button', { name: 'Maestro' }).click();
+console.log('   ficha vinculada visible solo para Maestro:', ok(oculta && !!vinculada && await fichaAcceso.inputValue() === vinculada));
+await page.keyboard.press('Escape');
 
 // 2) Monse cobra en Salsa 0 (clase de Luis)
 await bloquear();
