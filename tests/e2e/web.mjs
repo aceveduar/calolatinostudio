@@ -47,6 +47,11 @@ await page.getByRole('textbox', { name: 'Texto del reglamento' }).fill('1. Asist
 await page.getByRole('button', { name: 'Agregar reglamento' }).click();
 await page.getByRole('textbox', { name: 'Modalidad' }).last().fill('Salsa en Línea');
 await page.getByRole('textbox', { name: 'Texto del reglamento' }).last().fill('2. Pagos\nConsulta los bloques en recepción.');
+await page.getByRole('button', { name: 'Salsa Casino', exact: true }).click();
+console.log('   abrir un reglamento a la vez conserva sus borradores:', ok(
+  await page.getByRole('textbox', { name: 'Texto del reglamento' }).count() === 1
+  && await page.getByRole('textbox', { name: 'Texto del reglamento' }).inputValue() === '1. Asistencia\nLlega a tiempo.',
+));
 await page.getByRole('button', { name: 'Guardar cambios' }).click();
 await page.getByText('Página actualizada').waitFor();
 const pag = await page.evaluate(async () => (await window.compasDev.db.academias.toArray())[0].pagina);

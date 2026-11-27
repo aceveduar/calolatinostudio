@@ -64,6 +64,7 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const guardado = limpio(academia.pagina ?? {});
   const [c, setC] = useState<ContenidoPagina>(() => ({ ...guardado, preguntas: guardado.preguntas ?? PREGUNTAS_SUGERIDAS.map((x) => ({ ...x })) }));
   const [ocupado, setOcupado] = useState(false);
+  const [reglamentoAbierto, setReglamentoAbierto] = useState<string | null>(null);
   const archivo = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
   const cambiosContenido = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
@@ -305,21 +306,36 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
       </Bloque>
 
       <Bloque id="reglamentos" {...plegable('reglamentos')} resumen={reglamentos.length ? n(reglamentos.length, 'reglamento', 'reglamentos') : 'Sin reglamentos'} titulo="Reglamentos" ayuda="Agrega un reglamento por modalidad. Al guardar, los alumnos podrán consultarlos desde la página pública y su pase.">
-        {reglamentos.map((r, indice) => (
-          <fieldset key={r.id} className="space-y-2 rounded-xl bg-ink-50 p-3">
-            <legend className="px-1 text-sm font-semibold">Reglamento {indice + 1}</legend>
-            <Campo etiqueta="Modalidad">
-              <Entrada value={r.titulo} placeholder="Ej. Salsa Casino" onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, titulo: e.target.value } : a) })} />
-            </Campo>
-            <Campo etiqueta="Texto del reglamento">
-              <textarea value={r.texto} rows={9} className={areaTexto} onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, texto: e.target.value } : a) })} />
-            </Campo>
-            <Boton variante="fantasma" onClick={() => pon({ reglamentos: reglamentos.filter((a) => a.id !== r.id) })}>
-              <Trash2 size={16} aria-hidden="true" /> Quitar reglamento
-            </Boton>
-          </fieldset>
-        ))}
-        <Boton variante="secundario" onClick={() => pon({ reglamentos: [...reglamentos, { id: crypto.randomUUID(), titulo: '', texto: '' }] })}>
+        {reglamentos.map((r) => {
+          const abierto = reglamentoAbierto === r.id;
+          return (
+            <div key={r.id} className="rounded-xl bg-ink-50">
+              <button type="button" aria-expanded={abierto} onClick={() => setReglamentoAbierto(abierto ? null : r.id)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold">
+                <span className="min-w-0 break-words">{r.titulo.trim() || 'Nuevo reglamento'}</span>
+                <ChevronDown size={16} aria-hidden="true" className={cx('shrink-0 text-ink-500', abierto && 'rotate-180')} />
+              </button>
+              {abierto && <div className="space-y-2 px-3 pb-3">
+                <Campo etiqueta="Modalidad">
+                  <Entrada value={r.titulo} placeholder="Ej. Salsa Casino" onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, titulo: e.target.value } : a) })} />
+                </Campo>
+                <Campo etiqueta="Texto del reglamento">
+                  <textarea value={r.texto} rows={9} className={areaTexto} onChange={(e) => pon({ reglamentos: reglamentos.map((a) => a.id === r.id ? { ...a, texto: e.target.value } : a) })} />
+                </Campo>
+                <Boton variante="fantasma" onClick={() => {
+                  pon({ reglamentos: reglamentos.filter((a) => a.id !== r.id) });
+                  setReglamentoAbierto(null);
+                }}>
+                  <Trash2 size={16} aria-hidden="true" /> Quitar reglamento
+                </Boton>
+              </div>}
+            </div>
+          );
+        })}
+        <Boton variante="secundario" onClick={() => {
+          const id = crypto.randomUUID();
+          pon({ reglamentos: [...reglamentos, { id, titulo: '', texto: '' }] });
+          setReglamentoAbierto(id);
+        }}>
           <Plus size={16} aria-hidden="true" /> Agregar reglamento
         </Boton>
         {!reglamentosCompletos && <p className="text-sm text-warn-600">Completa la modalidad y el texto de cada reglamento para guardar.</p>}
