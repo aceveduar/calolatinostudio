@@ -90,7 +90,11 @@ await page.getByRole('button', { name: /cambiar de clase|Elegir clase/ }).first(
 await page.getByRole('dialog').waitFor();
 if (await page.getByRole('button', { name: 'Ver todas las clases' }).count()) await page.getByRole('button', { name: 'Ver todas las clases' }).click();
 await page.getByRole('dialog').getByRole('button', { name: /Salsa 0/ }).first().click();
-await page.getByRole('button', { name: /Diana P\./ }).click();
+const diana = page.getByRole('button', { name: /Diana P\./ });
+await diana.click();
+await diana.getByText('Ya entró', { exact: true }).waitFor();
+await diana.waitFor({ state: 'hidden' });
+console.log('6a) la tarjeta confirma la entrada y después se retira: OK');
 await page.getByText('Cobrar en efectivo').waitFor();
 await btn('Pagó por transferencia').click();
 await page.getByText(/por transferencia/).waitFor();

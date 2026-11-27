@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno } from '../../app/datos';
 import { Avatar, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -9,6 +10,7 @@ import { membresiaQueCubre } from '../../domain/membresias';
 import { nombresSinRepetir } from '../../domain/nombres';
 
 const MAX = 30;
+const CONFIRMACION_MS = 900;
 
 /**
  * Alumnos que suelen venir a esta clase y todavía no han entrado.
@@ -28,11 +30,40 @@ export function Frecuentes({
   adentro: Set<ID>;
   /** alumnos con entrada hoy en cualquier clase, en orden de llegada */
   vinieronHoy: ID[];
-  onToque: (a: Alumno) => void;
+  onToque: (a: Alumno) => Promise<boolean>;
   onOpciones: (a: Alumno) => void;
 }) {
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
+  const [confirmadas, setConfirmadas] = useState<ReadonlySet<ID>>(new Set());
+  const tocadas = useRef(new Map<ID, ReturnType<typeof setTimeout> | null>());
+  useEffect(() => {
+    const activas = tocadas.current;
+    return () => {
+      activas.forEach((timer) => { if (timer !== null) clearTimeout(timer); });
+      activas.clear();
+    };
+  }, []);
+
+  async function entrar(alumno: Alumno) {
+    const activas = tocadas.current;
+    if (activas.has(alumno.id)) return;
+    activas.set(alumno.id, null);
+    if (!await onToque(alumno)) {
+      activas.delete(alumno.id);
+      return;
+    }
+    if (!activas.has(alumno.id)) return;
+    setConfirmadas((ids) => new Set(ids).add(alumno.id));
+    activas.set(alumno.id, setTimeout(() => {
+      activas.delete(alumno.id);
+      setConfirmadas((ids) => {
+        const siguientes = new Set(ids);
+        siguientes.delete(alumno.id);
+        return siguientes;
+      });
+    }, CONFIRMACION_MS));
+  }
 
   // Ranking con la historia ANTERIOR a hoy, calculado una vez por clase (no en vivo):
   // así el orden no se mueve mientras se cobra y no se recorre el historial en cada toque.
@@ -88,7 +119,7 @@ export function Frecuentes({
   const enLista = new Set(historicos.map((a) => a.id));
   const porId = new Map(alumnos.map((a) => [a.id, a]));
   const todos = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
-  const mostrar = todos.filter((a) => !adentro.has(a.id));
+  const mostrar = todos.filter((a) => !adentro.has(a.id) || confirmadas.has(a.id));
 
   // hay alumnos pero nadie con historial ni plan para esta clase (los primeros días): decir qué hacer
   if (!mostrar.length)
@@ -109,14 +140,14 @@ export function Frecuentes({
         const accion = plan ? 'Plan'
           : precioClase === undefined ? 'Sin tarifa' : `Cobrar ${dinero(precioClase)}`;
         return (
-          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} plan={plan} accion={accion} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
+          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} plan={plan} accion={accion} confirmada={confirmadas.has(a.id)} onToque={() => void entrar(a)} onOpciones={() => onOpciones(a)} />
         );
       })}
     </div>
   );
 }
 
-function Ficha({ alumno, etiqueta, plan, accion, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; plan: boolean; accion: string; onToque: () => void; onOpciones: () => void }) {
+function Ficha({ alumno, etiqueta, plan, accion, confirmada, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; plan: boolean; accion: string; confirmada: boolean; onToque: () => void; onOpciones: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const largo = useRef(false);
 
@@ -132,19 +163,23 @@ function Ficha({ alumno, etiqueta, plan, accion, onToque, onOpciones }: { alumno
 
   return (
     <button
-      onPointerDown={inicio}
+      onPointerDown={confirmada ? undefined : inicio}
       onPointerUp={fin}
       onPointerLeave={fin}
       onPointerCancel={fin}
       onContextMenu={(e) => e.preventDefault()}
-      onClick={() => !largo.current && onToque()}
-      className="relative flex flex-col items-center gap-1.5 rounded-2xl bg-superficie px-1 pt-3 pb-2.5 ring-1 ring-ink-100 transition select-none active:scale-95 [-webkit-touch-callout:none]"
+      onClick={() => !confirmada && !largo.current && onToque()}
+      aria-disabled={confirmada || undefined}
+      className={cx(
+        'relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 motion-safe:transition select-none [-webkit-touch-callout:none]',
+        confirmada ? 'bg-ok-50 ring-ok-600/25' : 'bg-superficie ring-ink-100 active:scale-95',
+      )}
     >
       <Avatar nombre={alumno.nombre} foto={alumno.foto} tam={48} />
       {/* hasta 2 renglones: si se agrega el apellido para distinguir, que no se corte justo esa parte */}
       <span className="line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold break-words">{etiqueta}</span>
-      <span className={cx('text-center text-[11px] font-bold', plan ? 'text-ok-600' : 'text-brand-600')}>
-        {accion}
+      <span aria-live="polite" className={cx('inline-flex items-center gap-1 text-center text-[11px] font-bold', confirmada || plan ? 'text-ok-600' : 'text-brand-600')}>
+        {confirmada ? <><Check size={14} aria-hidden="true" /> Ya entró</> : accion}
       </span>
     </button>
   );
