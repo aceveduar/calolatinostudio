@@ -577,7 +577,7 @@ export function PantallaEntrada() {
             </div>
             {vista === 'llegan' || esc ? (
               <>
-                <Frecuentes clase={clase} precioClase={suelta?.precio} adentro={adentro} vinieronHoy={vinieronHoy} soloPorLlegar={!esc} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                <Frecuentes clase={clase} precioClase={suelta?.precio} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
                 {totalAlumnos === 0 ? (
                   // el primer día: todavía no hay a quién tocar, así que se dice cómo se registra al primero
                   <Vacio

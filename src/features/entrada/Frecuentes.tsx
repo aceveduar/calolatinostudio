@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check } from 'lucide-react';
 import { useAlumnos, useEstadosPorAlumno } from '../../app/datos';
 import { Avatar, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -12,9 +11,8 @@ import { nombresSinRepetir } from '../../domain/nombres';
 const MAX = 30;
 
 /**
- * Los alumnos que suelen venir a esta clase, en un orden que no cambia mientras se cobra
- * (memoria muscular: Monse aprende dónde está cada quien, y un toque nunca cae en otra persona).
- * Solo en momentos seguros (al abrir la Entrada o cambiar de clase) quienes ya entraron pasan al final.
+ * Alumnos que suelen venir a esta clase y todavía no han entrado.
+ * El ranking usa el historial previo a hoy para conservar el orden relativo.
  * Toque = entrada/cobro rápido · mantener presionado = todas las opciones.
  */
 export function Frecuentes({
@@ -22,14 +20,12 @@ export function Frecuentes({
   precioClase,
   adentro,
   vinieronHoy,
-  soloPorLlegar,
   onToque,
   onOpciones,
 }: {
   clase: Clase;
   precioClase?: number;
   adentro: Set<ID>;
-  soloPorLlegar: boolean;
   /** alumnos con entrada hoy en cualquier clase, en orden de llegada */
   vinieronHoy: ID[];
   onToque: (a: Alumno) => void;
@@ -40,10 +36,7 @@ export function Frecuentes({
 
   // Ranking con la historia ANTERIOR a hoy, calculado una vez por clase (no en vivo):
   // así el orden no se mueve mientras se cobra y no se recorre el historial en cada toque.
-  const [ranking, setRanking] = useState<{ claseId: ID; enClase: Map<ID, number>; general: Map<ID, number>; yaAdentro: Set<ID> } | null>(null);
-  // quiénes estaban adentro al abrir: esos van al final; los que se marcan después se quedan en su lugar
-  const adentroAhora = useRef(adentro);
-  adentroAhora.current = adentro;
+  const [ranking, setRanking] = useState<{ claseId: ID; enClase: Map<ID, number>; general: Map<ID, number> } | null>(null);
   useEffect(() => {
     let vivo = true;
     const dia = hoy();
@@ -59,7 +52,7 @@ export function Frecuentes({
           general.set(a.alumnoId!, (general.get(a.alumnoId!) ?? 0) + 1);
           if (a.claseId === clase.id) enClase.set(a.alumnoId!, (enClase.get(a.alumnoId!) ?? 0) + 1);
         }
-        if (vivo) setRanking({ claseId: clase.id, enClase, general, yaAdentro: new Set(adentroAhora.current) });
+        if (vivo) setRanking({ claseId: clase.id, enClase, general });
       });
     return () => {
       vivo = false;
@@ -95,9 +88,7 @@ export function Frecuentes({
   const enLista = new Set(historicos.map((a) => a.id));
   const porId = new Map(alumnos.map((a) => [a.id, a]));
   const todos = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
-  const mostrar = soloPorLlegar
-    ? todos.filter((a) => !adentro.has(a.id))
-    : [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
+  const mostrar = todos.filter((a) => !adentro.has(a.id));
 
   // hay alumnos pero nadie con historial ni plan para esta clase (los primeros días): decir qué hacer
   if (!mostrar.length)
@@ -114,19 +105,18 @@ export function Frecuentes({
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">
       {mostrar.map((a) => {
-        const entro = adentro.has(a.id);
         const plan = !!membresiaQueCubre(estados.get(a.id) ?? [], clase);
-        const accion = entro ? 'Adentro' : plan ? 'Plan'
+        const accion = plan ? 'Plan'
           : precioClase === undefined ? 'Sin tarifa' : `Cobrar ${dinero(precioClase)}`;
         return (
-          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} entro={entro} plan={plan} accion={accion} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
+          <Ficha key={a.id} alumno={a} etiqueta={etiquetas.get(a.id) ?? a.nombre} plan={plan} accion={accion} onToque={() => onToque(a)} onOpciones={() => onOpciones(a)} />
         );
       })}
     </div>
   );
 }
 
-function Ficha({ alumno, etiqueta, entro, plan, accion, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; entro: boolean; plan: boolean; accion: string; onToque: () => void; onOpciones: () => void }) {
+function Ficha({ alumno, etiqueta, plan, accion, onToque, onOpciones }: { alumno: Alumno; etiqueta: string; plan: boolean; accion: string; onToque: () => void; onOpciones: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const largo = useRef(false);
 
@@ -148,22 +138,12 @@ function Ficha({ alumno, etiqueta, entro, plan, accion, onToque, onOpciones }: {
       onPointerCancel={fin}
       onContextMenu={(e) => e.preventDefault()}
       onClick={() => !largo.current && onToque()}
-      className={cx(
-        'relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 transition select-none active:scale-95 [-webkit-touch-callout:none]',
-        entro ? 'bg-ok-50/60 ring-ok-600/15' : 'bg-superficie ring-ink-100',
-      )}
+      className="relative flex flex-col items-center gap-1.5 rounded-2xl bg-superficie px-1 pt-3 pb-2.5 ring-1 ring-ink-100 transition select-none active:scale-95 [-webkit-touch-callout:none]"
     >
-      <span className={cx('relative', entro && 'opacity-50')}>
-        <Avatar nombre={alumno.nombre} foto={alumno.foto} tam={48} />
-        {entro && (
-          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 animate-pop items-center justify-center rounded-full bg-ok-600 text-white ring-2 ring-ok-50">
-            <Check size={14} strokeWidth={3} />
-          </span>
-        )}
-      </span>
+      <Avatar nombre={alumno.nombre} foto={alumno.foto} tam={48} />
       {/* hasta 2 renglones: si se agrega el apellido para distinguir, que no se corte justo esa parte */}
-      <span className={cx('line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold break-words', entro && 'text-ink-500')}>{etiqueta}</span>
-      <span className={cx('text-center text-[11px] font-bold', entro || plan ? 'text-ok-600' : 'text-brand-600')}>
+      <span className="line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold break-words">{etiqueta}</span>
+      <span className={cx('text-center text-[11px] font-bold', plan ? 'text-ok-600' : 'text-brand-600')}>
         {accion}
       </span>
     </button>

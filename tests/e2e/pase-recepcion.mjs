@@ -68,6 +68,10 @@ console.log('2a) el alumno escaneado queda fuera de Por llegar:', (await tarjeta
 await page.getByRole('button', { name: /^Adentro · 1$/ }).click();
 await page.getByText('Alumno del escáner', { exact: true }).waitFor();
 console.log('2b) el alumno aparece en Adentro:', 'OK');
+await page.setViewportSize({ width: 1366, height: 900 });
+await page.getByRole('button', { name: 'Corregir entrada de Alumno del escáner' }).waitFor();
+console.log('2c) en escritorio el alumno aparece solo en el panel de asistencia:', (await tarjetaAdentro.count()) === 0 && (await page.getByText('Alumno del escáner', { exact: true }).count()) === 1 ? 'OK' : 'MAL');
+await page.setViewportSize({ width: 360, height: 780 });
 
 const token = 'AbCdEfGhJkLmNpQrStUvWxYz23';
 await ctx.route('**/rest/v1/rpc/estado_alta_grupal', (r) => r.fulfill({ json: { abierta: true, nombre: 'Calo de prueba' } }));
