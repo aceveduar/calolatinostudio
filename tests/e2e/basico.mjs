@@ -118,5 +118,21 @@ await p.keyboard.press('Escape');
 
 const r = await revisarPagina(p);
 console.log('6) sin desbordes, botones con nombre y buen contraste:', ok(!r.ancho && !r.sinNombre.length && !r.contraste?.length), JSON.stringify({ ancho: r.ancho, sinNombre: r.sinNombre, contraste: r.contraste }));
+await p.getByRole('link', { name: 'Más', exact: true }).first().click();
+await p.getByText('Tu academia', { exact: true }).click();
+const mensajes = p.getByRole('link', { name: /^Mensajes de WhatsApp/ });
+await mensajes.scrollIntoViewIfNeeded();
+const posicionMas = await p.evaluate(() => window.scrollY);
+await mensajes.click();
+await p.getByRole('button', { name: 'Volver a Más' }).click();
+await mensajes.waitFor();
+console.log('7) la flecha de Ajustes recupera el grupo abierto y su posición en Más:', ok(
+  new URL(p.url()).pathname === '/mas' && Math.abs(await p.evaluate(() => window.scrollY) - posicionMas) < 32,
+));
+await mensajes.click();
+await p.getByRole('button', { name: 'Volver a Más' }).waitFor();
+await p.goBack();
+await mensajes.waitFor();
+console.log('   Atrás del navegador recupera el grupo abierto:', ok(await mensajes.isVisible()));
 console.log('errores:', errores.length ? errores : 'ninguno');
 await b.close();

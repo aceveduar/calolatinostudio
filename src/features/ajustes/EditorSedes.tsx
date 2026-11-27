@@ -71,7 +71,7 @@ export function EditorSedes() {
           { ruta: '/ajustes/planes', texto: 'Tarifas de clase suelta', Icono: Tag },
           { ruta: '/ajustes/pagina', texto: 'Direcciones en la página pública', Icono: MapPin },
         ].map(({ ruta, texto, Icono }) => (
-          <Link key={ruta} to={ruta} className="flex min-h-11 items-center gap-3 px-4 py-2 text-sm font-semibold">
+          <Link key={ruta} to={ruta} state={{ desdeAjustes: true }} className="flex min-h-11 items-center gap-3 px-4 py-2 text-sm font-semibold">
             <Icono size={17} className="shrink-0 text-brand-600" aria-hidden="true" />
             <span className="flex-1">{texto}</span>
             <ChevronRight size={16} className="shrink-0 text-ink-500" aria-hidden="true" />

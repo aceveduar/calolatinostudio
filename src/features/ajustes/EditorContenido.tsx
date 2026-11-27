@@ -271,7 +271,7 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
       <Bloque id="ubicacion" {...plegable('ubicacion')} resumen={conDireccion === lugares.length ? (lugares.length > 1 ? 'Todas con dirección' : 'Con dirección') : `${conDireccion} de ${lugares.length} con dirección`} falta={!c.ubicaciones?.principal?.direccion?.trim()} titulo="Dónde estamos" ayuda="Con la dirección aparece el mapa y el botón “Cómo llegar”.">
         <p className="rounded-xl bg-ink-50 px-3 py-2 text-xs text-ink-500">
           Los lugares son tus sedes. ¿Das clases en otro lugar? Agrégalo en{' '}
-          <Link to="/ajustes/sedes" className="font-semibold text-brand-600 underline underline-offset-2">
+          <Link to="/ajustes/sedes" state={{ desdeAjustes: true }} className="font-semibold text-brand-600 underline underline-offset-2">
             Sedes
           </Link>
           . Si dejas la dirección vacía, ese lugar no se muestra.

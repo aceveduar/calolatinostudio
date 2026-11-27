@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useNavigationType, useParams } from 'react-router-dom';
 import { ArrowLeft, Building2, ChevronRight, Cloud, LockKeyhole, Music2, Tags, Users, CalendarClock, GraduationCap, MessageCircle, ShoppingBag, MapPin, Globe, LifeBuoy } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
@@ -41,6 +41,12 @@ export function PantallaAjustes() {
   const { seccion } = useParams();
   const { esDueno, bloquear, usuario } = useSesion();
   const nav = useNavigate();
+  const { pathname, state } = useLocation();
+  const tipoNavegacion = useNavigationType();
+  const tieneOrigen = state?.desdeMas === true || state?.desdeAjustes === true;
+  useLayoutEffect(() => {
+    if (tipoNavegacion !== 'POP') window.scrollTo(0, 0);
+  }, [pathname, tipoNavegacion]);
 
   const visibles: Clave[] = esDueno ? ['sedes', 'clases', 'maestros', 'planes', 'productos', 'disciplinas', 'usuarios', 'academia', 'mensajes', 'pagina', 'nube', 'ayuda'] : ['nube', 'ayuda'];
   // Permiso por sección: también si se llega por enlace directo
@@ -52,7 +58,7 @@ export function PantallaAjustes() {
     return (
       <div className="px-4 pb-8 lg:mx-auto lg:max-w-3xl">
         <div className="flex items-center gap-2 pt-4 pb-3">
-          <button onClick={() => nav('/mas')} className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label="Volver a Más">
+          <button onClick={() => tieneOrigen ? nav(-1) : nav('/mas', { replace: true, state: { ajusteOrigen: pathname } })} className="-ml-2.5 rounded-full p-2.5 active:bg-ink-100" aria-label={state?.desdeAjustes ? 'Volver a la pantalla anterior' : 'Volver a Más'}>
             <ArrowLeft size={22} />
           </button>
           <h1 className="flex-1 text-2xl font-extrabold tracking-tight">{s.titulo}</h1>
@@ -72,7 +78,7 @@ export function PantallaAjustes() {
           const s = SECCIONES[k];
           const Icono = s.icono;
           return (
-            <Link key={k} to={`/ajustes/${k}`} className="flex items-center gap-3 px-4 py-3.5 active:bg-ink-50">
+            <Link key={k} to={`/ajustes/${k}`} state={{ desdeAjustes: true }} className="flex items-center gap-3 px-4 py-3.5 active:bg-ink-50">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                 <Icono size={18} />
               </span>
