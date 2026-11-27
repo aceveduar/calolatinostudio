@@ -33,7 +33,7 @@ function limpio(c: ContenidoPagina): ContenidoPagina {
   if (Object.keys(redes).length) o.redes = redes;
   if (c.galeria?.length) o.galeria = c.galeria.slice(0, MAX_GALERIA);
   if (c.creditos?.trim()) o.creditos = c.creditos.trim();
-  const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}) }));
+  const te = (c.testimonios ?? []).filter((x) => x.texto.trim() && x.nombre.trim()).map((x) => ({ texto: x.texto.trim(), nombre: x.nombre.trim(), ...(x.detalle?.trim() ? { detalle: x.detalle.trim() } : {}), ...(x.testimonioId ? { testimonioId: x.testimonioId } : {}) }));
   if (te.length) o.testimonios = te;
   if (c.privacidad?.trim()) o.privacidad = c.privacidad.trim();
   const reglamentos = (c.reglamentos ?? [])

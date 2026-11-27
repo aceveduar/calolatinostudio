@@ -63,7 +63,7 @@ export interface ContenidoPagina {
   /** crédito de las fotos si no son propias (p. ej. licencias Creative Commons) */
   creditos?: string;
   /** lo que dicen los alumnos */
-  testimonios?: { texto: string; nombre: string; detalle?: string }[];
+  testimonios?: { texto: string; nombre: string; detalle?: string; testimonioId?: ID }[];
   /** aviso de privacidad propio (vacío = la base general de domain/privacidad.ts) */
   privacidad?: string;
   reglamentos?: Reglamento[];

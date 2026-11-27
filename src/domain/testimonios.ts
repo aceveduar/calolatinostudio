@@ -17,8 +17,8 @@ export const MAX_EN_PAGINA = 8;
 export const esEjemplo = (t: { texto: string }) => /^ejemplo\s*:/i.test(t.texto.trim());
 
 /** La página con el testimonio nuevo primero: sin repetidos, sin los de ejemplo y con un máximo. */
-export function conTestimonio(pagina: ContenidoPagina | null | undefined, nuevo: { texto: string; nombre: string; detalle?: string }): ContenidoPagina {
-  const antes = (pagina?.testimonios ?? []).filter((x) => !esEjemplo(x) && x.texto.trim() !== nuevo.texto.trim());
+export function conTestimonio(pagina: ContenidoPagina | null | undefined, nuevo: NonNullable<ContenidoPagina['testimonios']>[number]): ContenidoPagina {
+  const antes = (pagina?.testimonios ?? []).filter((x) => !esEjemplo(x) && x.texto.trim() !== nuevo.texto.trim() && (!nuevo.testimonioId || x.testimonioId !== nuevo.testimonioId));
   return { ...(pagina ?? {}), testimonios: [nuevo, ...antes].slice(0, MAX_EN_PAGINA) };
 }
 
@@ -33,7 +33,9 @@ export async function publicarTestimonio(t: Testimonio, usuarioId: ID): Promise<
     const alumno = await db.alumnos.get(t.alumnoId);
     const academia = (await db.academias.get(t.academiaId)) as Academia | undefined;
     if (!alumno || !academia) throw new Error('No se encontró al alumno');
-    await actualizar('academias', academia.id, { pagina: conTestimonio(academia.pagina, paraPagina(t, alumno)) });
+    const actual = await db.testimonios.get(t.id);
+    if (actual?.estado !== 'pendiente' || actual.deletedAt) throw new Error('Este testimonio ya fue revisado.');
+    await actualizar('academias', academia.id, { pagina: conTestimonio(academia.pagina, { ...paraPagina(actual, alumno), testimonioId: t.id }) });
     await actualizar('testimonios', t.id, { estado: 'aprobado', revisadoAt: Date.now(), revisadoPor: usuarioId });
   });
 }
@@ -45,4 +47,23 @@ export function noPublicar(t: Testimonio, usuarioId: ID) {
 
 export function volverAPendiente(t: Testimonio) {
   return actualizar('testimonios', t.id, { estado: 'pendiente', revisadoAt: null, revisadoPor: null });
+}
+
+export async function retirarTestimonio(t: Testimonio, usuarioId: ID): Promise<void> {
+  await db.transaction('rw', [db.academias, db.testimonios, db.alumnos, db.outbox], async () => {
+    const actual = await db.testimonios.get(t.id);
+    if (actual?.estado !== 'aprobado' || actual.deletedAt) throw new Error('El estado del testimonio ya cambió.');
+    const academia = await db.academias.get(actual.academiaId);
+    if (!academia) throw new Error('No se encontró la academia.');
+    const alumno = await db.alumnos.get(actual.alumnoId);
+    const anterior = academia.pagina?.testimonios ?? [];
+    const tieneIdentificador = anterior.some((x) => x.testimonioId === actual.id);
+    const testimonios = anterior.filter((x) => tieneIdentificador
+      ? x.testimonioId !== actual.id
+      : !!x.testimonioId || !alumno || x.nombre !== nombrePublico(alumno.nombre) || x.texto.trim() !== actual.texto.trim());
+    if (testimonios.length !== anterior.length) {
+      await actualizar('academias', academia.id, { pagina: { ...academia.pagina, testimonios } });
+    }
+    await noPublicar(actual, usuarioId);
+  });
 }

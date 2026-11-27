@@ -7,7 +7,7 @@ import { Avatar, Boton, Tarjeta } from '../../components/ui';
 import type { Alumno, Testimonio } from '../../db/types';
 import { fechaCorta } from '../../domain/fechas';
 import { nombrePublico } from '../../domain/nombres';
-import { noPublicar, publicarTestimonio, volverAPendiente } from '../../domain/testimonios';
+import { noPublicar, publicarTestimonio, retirarTestimonio, volverAPendiente } from '../../domain/testimonios';
 
 /**
  * Un testimonio por revisar: el texto, quién lo escribió y cómo se verá en la página, con Publicar / No publicar.
@@ -66,10 +66,21 @@ export function TarjetaTestimonio({ t, alumno, conFicha = true }: { t: Testimoni
           </div>
         </>
       ) : (
-        <p className="mt-2 text-xs font-semibold text-ink-500">
-          {t.estado === 'aprobado' ? 'Publicado' : 'Oculto: no se publicó'}
-          {t.revisadoAt ? ` · ${fechaCorta(new Date(t.revisadoAt).toISOString().slice(0, 10))}` : ''}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2">
+          <p className="text-xs font-semibold text-ink-500">
+            {t.estado === 'aprobado' ? 'Publicado' : 'Oculto'}
+            {t.revisadoAt ? ` · ${fechaCorta(new Date(t.revisadoAt).toISOString().slice(0, 10))}` : ''}
+          </p>
+          {t.estado === 'aprobado' ? (
+            <Boton variante="fantasma" className="min-h-11 px-2 text-sm" disabled={ocupado} onClick={() => accion(() => retirarTestimonio(t, usuario.id), 'Testimonio movido a Ocultos')}>
+              Retirar del sitio
+            </Boton>
+          ) : (
+            <Boton variante="fantasma" className="min-h-11 px-2 text-sm" disabled={ocupado} onClick={() => accion(() => volverAPendiente(t), 'Testimonio devuelto a Por revisar')}>
+              Volver a revisar
+            </Boton>
+          )}
+        </div>
       )}
     </Tarjeta>
   );

@@ -103,6 +103,17 @@ console.log('2c) no publicar: sale de "Por revisar":', ok((await page.getByText(
 await page.getByRole('button', { name: 'Deshacer' }).click();
 await page.getByText(/Por revisar \(2\)/).waitFor({ timeout: 3000 }).catch(() => {});
 console.log('2d) y se puede deshacer:', ok((await page.getByText(/Por revisar \(2\)/).count()) === 1));
+await page.getByRole('button', { name: /^Publicados/ }).click();
+await page.locator('blockquote').filter({ hasText: primero.trim() }).locator('..').getByRole('button', { name: 'Retirar del sitio' }).click();
+await page.getByText('Testimonio movido a Ocultos').waitFor();
+const retirado = await page.evaluate(async (texto) => !(await window.compasDev.db.academias.toArray())[0].pagina.testimonios.some((t) => t.texto === texto), primero.trim());
+await page.getByRole('button', { name: /^Ocultos/ }).click();
+await page.locator('blockquote').filter({ hasText: primero.trim() }).locator('..').getByRole('button', { name: 'Volver a revisar' }).click();
+await page.getByText('Testimonio devuelto a Por revisar').waitFor();
+console.log('2e) retirar quita la cita y volver a revisar devuelve el testimonio a la bandeja:', ok(retirado && await page.getByRole('button', { name: 'Por revisar (3)' }).isVisible()));
+await page.getByRole('button', { name: 'Por revisar (3)' }).click();
+await page.locator('blockquote').filter({ hasText: primero.trim() }).locator('..').getByRole('button', { name: 'Publicar', exact: true }).click();
+await page.getByRole('button', { name: 'Por revisar (2)' }).waitFor();
 await salir();
 
 // 3) el maestro ve los de sus alumnos; 4) recepción también tiene la pantalla
