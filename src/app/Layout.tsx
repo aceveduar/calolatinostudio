@@ -4,12 +4,12 @@ import { pestanaActiva, pestanasDe } from './modulos';
 import { useContadores } from './contadores';
 import { useAvisosEnVivo } from './avisosEnVivo';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, Sparkles, LockKeyhole } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle, Smartphone, LockKeyhole } from 'lucide-react';
 import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
 import { HojaTicket } from '../features/alumnos/HojaTicket';
-import { aplicarActualizacion, useActualizacionPendiente } from './actualizacion';
+import { aplicarActualizacion, useEstadoActualizacion } from './actualizacion';
 import { useHoy } from './reloj';
 import { Avatar, cx } from '../components/ui';
 import { Tropiezo } from '../components/Tropiezo';
@@ -126,13 +126,24 @@ function BarraLateral({ tabs, activa, pendientesMas }: { tabs: Pestana[]; activa
 
 function BarraSuperior() {
   const { academia, usuario, bloquear } = useSesion();
-  const nueva = useActualizacionPendiente();
+  const actualizacion = useEstadoActualizacion();
   return (
     <>
-      {nueva && (
-        <button onClick={aplicarActualizacion} className="flex w-full items-center justify-center gap-2 bg-brand-500 px-4 pt-safe py-2 text-sm font-semibold text-white">
-          <Sparkles size={16} /> Hay una versión nueva · Toca para actualizar
-        </button>
+      {actualizacion !== 'sin-aviso' && (
+        <div className="flex items-center justify-between gap-3 border-b border-ink-100 bg-ink-50 px-4 py-1 text-sm lg:px-6">
+          <div role="status" className="flex items-center gap-2 font-medium text-ink-700">
+            <RefreshCw size={16} aria-hidden="true" className={cx('shrink-0', actualizacion === 'actualizando' && 'motion-safe:animate-spin')} />
+            {actualizacion === 'ocupada' ? 'Puedes actualizar al terminar la cuenta.'
+              : actualizacion === 'actualizando' ? 'Actualizando…'
+              : actualizacion === 'reintentar' ? 'La actualización tardó más de lo esperado. Reintenta o recarga la página.'
+              : 'Nueva versión disponible'}
+          </div>
+          {(actualizacion === 'disponible' || actualizacion === 'reintentar') && (
+            <button type="button" onClick={aplicarActualizacion} className="min-h-11 shrink-0 rounded-lg px-2 font-semibold text-brand-600 hover:bg-brand-50">
+              {actualizacion === 'reintentar' ? 'Reintentar' : 'Actualizar'}
+            </button>
+          )}
+        </div>
       )}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 bg-ink-50/95 px-4 pt-safe backdrop-blur lg:hidden">
         <span className="flex min-w-0 items-center gap-2 py-2">
