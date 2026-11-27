@@ -44,26 +44,22 @@ export function PantallaMas() {
       {GRUPOS.map((g) => {
         const lista = modulos.filter((m) => m.grupo === g.id);
         if (!lista.length) return null;
-        const enlaces = (
-          <Tarjeta className="divide-y divide-ink-100">
-            {lista.map((m) => <Fila key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} onAbrir={recordar} />)}
-          </Tarjeta>
-        );
+        const enlaces = lista.map((m) => <Fila key={m.id} m={m} n={m.contador ? contadores[m.contador] : 0} onAbrir={recordar} />);
         if (g.id === 'clases' || g.id === 'config') {
           return (
-            <details key={g.id} data-grupo-mas={g.id} open={anterior?.abiertas.includes(g.id) || modulo?.grupo === g.id} className="group mb-3 rounded-2xl bg-superficie ring-1 ring-inset ring-ink-100">
+            <details key={g.id} data-grupo-mas={g.id} open={anterior?.abiertas.includes(g.id) || modulo?.grupo === g.id} className="group mb-3 overflow-hidden rounded-2xl bg-superficie ring-1 ring-inset ring-ink-100">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                 {g.titulo}
                 <ChevronDown size={18} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
               </summary>
-              <div className="px-1 pb-1">{enlaces}</div>
+              <div className="divide-y divide-ink-100 border-t border-ink-100">{enlaces}</div>
             </details>
           );
         }
         return (
           <section key={g.id} className="mb-5">
             <h2 className="mb-2 px-1 text-xs font-bold tracking-wider text-ink-500 uppercase">{g.titulo}</h2>
-            {enlaces}
+            <Tarjeta className="divide-y divide-ink-100">{enlaces}</Tarjeta>
           </section>
         );
       })}
