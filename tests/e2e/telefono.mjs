@@ -63,6 +63,29 @@ await page.waitForURL(`**/alumnos/${alguien.id}`);
 const reactivado = await page.evaluate((id) => window.compasDev.db.alumnos.get(id), alguien.id);
 console.log('3) el alta recupera la ficha de baja:', ok(reactivado.activo && reactivado.codigo === alguien.codigo));
 
+// Editar el celular conserva la ficha y requiere confirmación si se comparte.
+const fichaActual = () => page.evaluate((id) => window.compasDev.db.alumnos.get(id), alguien.id);
+const editar = page.getByRole('button', { name: 'Editar', exact: true });
+const edicion = page.getByRole('dialog', { name: 'Editar alumno' });
+const celular = edicion.getByPlaceholder('10 dígitos');
+const guardarCambios = edicion.getByRole('button', { name: 'Guardar cambios' });
+await editar.click();
+await celular.fill('5500000001');
+await guardarCambios.click();
+await page.getByText(/Celular actualizado/).waitFor();
+const actualizado = await fichaActual();
+console.log('3a) cambia el celular y conserva ficha, código y portal:', ok(actualizado.telefono === '5500000001' && actualizado.id === reactivado.id && actualizado.codigo === reactivado.codigo && actualizado.portal === reactivado.portal));
+await editar.click();
+await celular.fill(hermana.telefono);
+await edicion.getByText(/Este celular ya aparece.*Hermana Prueba/).waitFor();
+await guardarCambios.click();
+const confirmarCompartido = edicion.getByRole('button', { name: 'Confirmar celular compartido' });
+await confirmarCompartido.waitFor();
+console.log('3b) editar con un celular compartido pide confirmar antes de guardar:', ok((await fichaActual()).telefono === actualizado.telefono));
+await confirmarCompartido.click();
+await edicion.waitFor({ state: 'hidden' });
+console.log('3c) recepción puede guardar un celular compartido:', ok((await fichaActual()).telefono === hermana.telefono));
+
 // 4) Una ficha archivada sale en la búsqueda de Entrada.
 await page.evaluate((id) => window.compasDev.actualizar('alumnos', id, { createdAt: Date.now() - 200 * 86_400_000 }), hermana.id);
 await page.getByRole('link', { name: 'Entrada', exact: true }).click();

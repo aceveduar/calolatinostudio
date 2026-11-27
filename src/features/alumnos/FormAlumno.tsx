@@ -6,6 +6,7 @@ import { Boton, Campo, Entrada, Etiqueta } from '../../components/ui';
 import { actualizar, crear } from '../../db/repo';
 import type { Alumno } from '../../db/types';
 import { generarCodigo } from '../../domain/operaciones';
+import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
 import { ConfirmarReactivacion } from './ConfirmarReactivacion';
 
 export function FormAlumno({
@@ -24,6 +25,8 @@ export function FormAlumno({
   const [notas, setNotas] = useState(alumno?.notas ?? '');
   const alumnos = useAlumnos();
   const mismoTel = useMemo(() => mismoTelefono(telefono, alumnos, alumno?.id), [telefono, alumnos, alumno?.id]);
+  const cambioTelefono = !!alumno && consultaTelefono(telefono) !== consultaTelefono(alumno.telefono);
+  const telefonoCompartido = cambioTelefono && mismoTel.length > 0;
   const coincidencias = useMemo(() => {
     if (alumno) return [];
     const similares = parecidos(nombre, alumnos.filter((a) => a.nombre !== NOMBRE_ANONIMO));
@@ -35,23 +38,27 @@ export function FormAlumno({
   const [guardando, setGuardando] = useState(false);
   const enCurso = useRef(false);
   const avisar = useAvisos();
-  const firma = JSON.stringify([nombre, telefono, coincidencias.map((a) => a.id)]);
-  const porConfirmar = coincidencias.length > 0 && confirmacion === firma;
+  const requiereConfirmacion = coincidencias.length > 0 || telefonoCompartido;
+  const firma = JSON.stringify([nombre, telefono, (alumno ? mismoTel : coincidencias).map((a) => a.id)]);
+  const porConfirmar = requiereConfirmacion && confirmacion === firma;
 
   const guardar = async () => {
     if (enCurso.current || !nombre.trim()) return;
-    if (coincidencias.length && confirmacion !== firma) {
+    if (requiereConfirmacion && confirmacion !== firma) {
       setConfirmacion(firma);
       return;
     }
     enCurso.current = true;
     setGuardando(true);
-    const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: telefono.replace(/\D/g, ''), notas: notas.trim() };
+    const datos = { nombre: nombre.trim().replace(/\s+/g, ' '), telefono: digitosTelefono(telefono), notas: notas.trim() };
     try {
       const a = alumno
         ? await actualizar('alumnos', alumno.id, datos)
         : await crear('alumnos', { ...datos, codigo: generarCodigo(), activo: true });
       onGuardado(a, !alumno);
+      if (cambioTelefono) {
+        avisar(a.telefono ? 'Celular actualizado. Puedes reenviar su enlace desde Compartir pase.' : 'Celular quitado de la ficha.');
+      }
     } catch {
       avisar('No se pudo guardar la ficha. Intenta de nuevo.', 'error');
     } finally {
@@ -75,13 +82,13 @@ export function FormAlumno({
       <Campo etiqueta="Nombre completo">
         <Entrada autoFocus value={nombre} onChange={(e) => { setNombre(e.target.value); setConfirmacion(null); }} placeholder="Nombre y apellido" required />
       </Campo>
-      <Campo etiqueta="WhatsApp (opcional)" ayuda="Para mandarle recordatorios de pago.">
+      <Campo etiqueta="Celular o WhatsApp (opcional)" ayuda="Para compartir su pase y enviarle avisos.">
         <Entrada type="tel" inputMode="tel" value={telefono} onChange={(e) => { setTelefono(e.target.value); setConfirmacion(null); }} placeholder="10 dígitos" />
       </Campo>
-      {alumno && mismoTel.length > 0 && (
-        <p className="-mt-2 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">
-          Este teléfono ya lo tiene {mismoTel.slice(0, 3).map((a) => a.nombre).join(', ')}
-          {mismoTel.length > 3 ? ` y ${mismoTel.length - 3} más` : ''}. Si es familiar está bien; si es la misma persona, búscala en lugar de registrarla otra vez.
+      {telefonoCompartido && (
+        <p className="-mt-2 rounded-xl bg-warn-50 px-3 py-2 text-sm text-warn-600">
+          Este celular ya aparece en la ficha de {mismoTel.slice(0, 3).map((a) => a.nombre).join(', ')}
+          {mismoTel.length > 3 ? ` y ${mismoTel.length - 3} más` : ''}. Verifica el número antes de guardar.
         </p>
       )}
       {coincidencias.length > 0 && (
@@ -105,10 +112,14 @@ export function FormAlumno({
         <Entrada value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Ej. viene con su pareja" />
       </Campo>
       {porConfirmar && (
-        <p role="status" className="text-sm text-warn-600">Confirma que es otra persona antes de crear la ficha.</p>
+        <p role="status" className="text-sm text-warn-600">
+          {alumno ? 'Confirma que las personas comparten este celular.' : 'Confirma que es otra persona antes de crear la ficha.'}
+        </p>
       )}
       <Boton grande bloque type={porConfirmar ? 'button' : 'submit'} onClick={porConfirmar ? guardar : undefined} disabled={guardando || !nombre.trim()}>
-        {alumno ? 'Guardar cambios' : coincidencias.length === 0 ? 'Registrar alumno' : porConfirmar ? 'Confirmar nueva ficha' : 'Registrar a otra persona'}
+        {alumno
+          ? porConfirmar ? 'Confirmar celular compartido' : 'Guardar cambios'
+          : coincidencias.length === 0 ? 'Registrar alumno' : porConfirmar ? 'Confirmar nueva ficha' : 'Registrar a otra persona'}
       </Boton>
     </form>
   );
