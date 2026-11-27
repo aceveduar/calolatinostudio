@@ -16,7 +16,7 @@ addEventListener('unhandledrejection', (e) => anotarError(e.reason, `${location.
 // Versión nueva: se avisa y se aplica sin interrumpir un cobro (ver app/actualizacion.ts)
 const actualizarSW = registerSW({
   immediate: true,
-  onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true)),
+  onNeedRefresh: () => hayActualizacion(() => void actualizarSW(true), true),
   // Instalada en el teléfono, la app casi nunca se recarga (despierta de memoria), y el navegador solo busca
   // versión nueva al cargar. Por eso se pregunta al volver a la pantalla y cada 30 min.
   onRegisteredSW: (_url, r) => {

@@ -5,6 +5,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 let aplicar: (() => void) | null = null;
+let usarRegistro = false;
 const subs = new Set<() => void>();
 let ocupadas = 0;
 let estado = 'sin-aviso';
@@ -20,23 +21,38 @@ function cambiarEstado(nuevo: string) {
 
 const abierta = Date.now();
 
-export function hayActualizacion(fn: () => void) {
+export function hayActualizacion(fn: () => void, real = false) {
   // Recién abierta (nadie está cobrando todavía): se pone al día de una vez, sin aviso.
-  if (Date.now() - abierta < 8000 && ocupadas === 0) return fn();
   aplicar = fn;
+  usarRegistro = real;
+  if (Date.now() - abierta < 8000 && ocupadas === 0) {
+    if (real) void aplicarActualizacion();
+    else fn();
+    return;
+  }
   if (estado === 'sin-aviso') cambiarEstado('disponible');
 }
 
 export async function aplicarActualizacion() {
   if (!aplicar || ocupadas > 0 || estado === 'actualizando') return;
   cambiarEstado('actualizando');
-  const registro = await navigator.serviceWorker?.getRegistration().catch(() => undefined);
+  const registro = usarRegistro ? await navigator.serviceWorker?.getRegistration().catch(() => undefined) : undefined;
   if (ocupadas > 0) {
     cambiarEstado('disponible');
     return;
   }
   const nuevo = registro?.waiting ?? registro?.installing;
-  aplicar();
+  if (nuevo) {
+    // Usa el worker que Chrome reporta para este registro, también si
+    // la instalación se inició desde otra pestaña.
+    nuevo.postMessage({ type: 'SKIP_WAITING' });
+  } else if (registro?.active) {
+    // Otra pestaña pudo activar la versión después de mostrarse el aviso.
+    window.location.reload();
+    return;
+  } else {
+    aplicar();
+  }
   // Workbox suele recargar al cambiar el controlador. La activación también
   // permite completar el cambio cuando ese evento no llega a esta pestaña.
   function alActivar() {
