@@ -5,7 +5,7 @@ import { useSesion } from '../../app/sesion';
 import { Boton, Encabezado, Tarjeta } from '../../components/ui';
 import { sincronizar } from '../../sync/engine';
 import { supabase } from '../../sync/supabase';
-import { altasNuevas, marcarAltasVistas, type Campana } from './seguimientoAlta';
+import { actualizarConteoDeCampana, altasNuevas, marcarAltasVistas, type Campana } from './seguimientoAlta';
 
 export function CampanaAlta() {
   const { academia, usuario } = useSesion();
@@ -39,6 +39,7 @@ export function CampanaAlta() {
         return;
       }
       const actual = data as Campana | null;
+      actualizarConteoDeCampana(academia.id, actual);
       setCampana((anterior) => actual && anterior?.token === actual.token && !actual.recientes
         ? { ...actual, recientes: anterior.recientes } : actual);
       setNuevas(actual ? altasNuevas(actual, academia.id, usuario.id) : 0);

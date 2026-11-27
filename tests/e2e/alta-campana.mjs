@@ -63,7 +63,9 @@ try {
   await formulario.getByRole('button', { name: 'Mostrar mi pase', exact: true }).waitFor();
 
   const antes = consultas;
-  await monse.clock.fastForward(15_000);
+  await monse.clock.fastForward(30_000);
+  assert.equal(consultas, antes);
+  await monse.clock.fastForward(30_000);
   const conAlta = () => monse.locator('a[aria-description="1 alta nueva"]:visible');
   await conAlta().waitFor();
   assert.equal(consultas, antes + 1);
@@ -85,6 +87,10 @@ try {
   await monse.getByRole('button', { name: 'Cerrar registro', exact: true }).click();
   await monse.getByRole('button', { name: 'Confirmar cierre' }).click();
   await monse.getByText('Registro cerrado', { exact: true }).waitFor();
+  const consultasAlCerrar = consultas;
+  await monse.clock.fastForward(180_000);
+  assert.equal(consultas, consultasAlCerrar);
+  console.log('1d) el conteo consulta al minuto y se detiene al cerrar la campaña: OK');
   await llenar(formularioAbierto, 'Otra persona de prueba', '5500000002');
   await crear(formularioAbierto).click();
   await formularioAbierto.getByText(/El registro por este enlace está cerrado/).waitFor();

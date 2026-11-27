@@ -16,6 +16,7 @@ const entrar = async (nombre, pin) => {
   await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
 };
 
+await ctx.route('**/rest/v1/rpc/gestionar_alta_grupal', (r) => r.fulfill({ json: { token: 'prueba', altas: 3, abierta: true } }));
 await page.goto('http://localhost:4173/');
 await page.waitForFunction(() => !!window.compasDev);
 console.log('demo:', JSON.stringify(await page.evaluate(async () => { await window.compasDev.sembrar(); await window.compasDev.agregarClasesDemo(); return window.compasDev.agregarInteresadosDemo(); })));
@@ -31,7 +32,6 @@ const abrir = await page.getByRole('link', { name: /Abrir/ }).getAttribute('href
 console.log('1) página pública configurada:', ok(slug === 'calo-latino' && abrir.endsWith('/a/calo-latino')), abrir);
 
 // 2) Alumnos avisa de interesados nuevos
-await ctx.route('**/rest/v1/rpc/gestionar_alta_grupal', (r) => r.fulfill({ json: { token: 'prueba', altas: 3, abierta: true } }));
 await page.getByRole('link', { name: 'Alumnos', exact: true }).first().click();
 await page.setViewportSize({ width: 360, height: 780 });
 const interesados = page.getByRole('link', { name: 'Interesados 9 por contactar' });
