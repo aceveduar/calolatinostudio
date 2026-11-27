@@ -109,6 +109,14 @@ await page.screenshot({ path: `${OUT}reportes-movil.png`, animations: 'disabled'
 await page.evaluate(() => { history.pushState(null, '', '/ajustes/sedes'); dispatchEvent(new PopStateEvent('popstate')); });
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}sede-5-ajustes.png`, fullPage: true });
+const sedeAjustes = page.getByRole('button', { name: /^Casa de Cultura .*Tarifa base/ });
+console.log('   Ajustes de Sedes muestra tarifas y accesos de configuración:', ok(
+  /Tarifa base \$40/.test(await sedeAjustes.innerText())
+  && await page.getByRole('link', { name: 'Direcciones en la página pública' }).getAttribute('href') === '/ajustes/pagina',
+));
+await sedeAjustes.click();
+await page.getByRole('dialog', { name: 'Casa de Cultura' }).getByRole('switch', { name: 'Sede activa' }).waitFor();
+await page.keyboard.press('Escape');
 
 // 9) dos clases simultáneas y traslado cuando solo queda una sede con clase.
 const clasesDePrueba = await page.evaluate(async () => {
