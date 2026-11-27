@@ -9,7 +9,7 @@ import { ERRORES_INSCRIPCION, type DatosPublica } from '../../domain/publica';
 import { type Estados } from './comun';
 
 /** `de`: huella de quien lo invitó (enlace de invitación de un alumno); se manda solo si existe. */
-export function Inscripcion({ academia, slug, clases, primera, estados, claseId, onClase, de = null, origen = null, privacidad }: { academia: string; slug: string; clases: DatosPublica['clases']; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null; origen?: string | null; privacidad: string }) {
+export function Inscripcion({ academia, slug, clases, nombreSede, primera, estados, claseId, onClase, de = null, origen = null, privacidad }: { academia: string; slug: string; clases: DatosPublica['clases']; nombreSede: (id: string | null) => string | undefined; primera: string | null; estados: Estados; claseId: string; onClase: (id: string) => void; de?: string | null; origen?: string | null; privacidad: string }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -26,7 +26,9 @@ export function Inscripcion({ academia, slug, clases, primera, estados, claseId,
   const verTel = (intento || tocado.tel) && errTel;
   // clase a medio curso: se anota igual, como lista de espera para el siguiente grupo
   const espera = claseId && estados.get(claseId)?.aceptaNuevos === false ? clases.find((c) => c.id === claseId) : null;
+  const claseElegida = clases.find((c) => c.id === claseId);
   const [esperaEnviada, setEsperaEnviada] = useState<string | null>(null);
+  const [claseEnviada, setClaseEnviada] = useState<{ clase: string; sede?: string } | null>(null);
   const campo = 'h-12 w-full rounded-xl bg-ink-50 px-4 ring-1 ring-ink-100 outline-none placeholder:text-ink-300 focus:ring-2 focus:ring-brand-500';
 
   if (estado === 'enviado')
@@ -39,8 +41,9 @@ export function Inscripcion({ academia, slug, clases, primera, estados, claseId,
         <p className="mt-1 text-ink-700">
           {esperaEnviada
             ? `Ese grupo ya va avanzado: te escribimos por WhatsApp en cuanto abra el siguiente grupo de ${esperaEnviada}. 💃🕺`
-            : 'Te escribiremos por WhatsApp para confirmar la clase y tu lugar.'}
+            : 'Tu lugar queda pendiente. La academia te escribirá por WhatsApp para confirmarlo.'}
         </p>
+        {claseEnviada && <p className="mt-3 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700"><strong>{claseEnviada.clase}</strong>{claseEnviada.sede && ` · ${claseEnviada.sede}`}</p>}
       </section>
     );
 
@@ -62,7 +65,7 @@ export function Inscripcion({ academia, slug, clases, primera, estados, claseId,
             document.getElementById(errNombre ? 'pp-nombre' : 'pp-tel')?.focus();
             return;
           }
-          if (!supabase) return;
+          if (!supabase || estado === 'enviando') return;
           setEstado('enviando');
           setError(null);
           const { data, error: err } = await supabase.rpc('inscribir_interesado', { p_slug: slug, p_nombre: nombre.trim(), p_telefono: tel, p_clase: claseId || null, p_mensaje: mensaje.trim(), ...(de ? { p_de: de } : {}), ...(origen ? { p_origen: origen } : {}) });
@@ -72,6 +75,7 @@ export function Inscripcion({ academia, slug, clases, primera, estados, claseId,
             return;
           }
           setEsperaEnviada(espera ? espera.clase : null);
+          setClaseEnviada(claseElegida ? { clase: claseElegida.clase, sede: nombreSede(claseElegida.sede_id) } : null);
           setEstado('enviado');
         }}
       >
@@ -120,6 +124,7 @@ export function Inscripcion({ academia, slug, clases, primera, estados, claseId,
             {clases.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.clase} · {c.dias.map((x) => DIAS_CORTOS[x]).join(' ')} {c.hora}
+                {nombreSede(c.sede_id) && ` · ${nombreSede(c.sede_id)}`}
                 {estados.get(c.id)?.aceptaNuevos === false ? ' · próximo grupo' : estados.get(c.id)?.tipo === 'pronto' ? ' · grupo nuevo' : ''}
               </option>
             ))}

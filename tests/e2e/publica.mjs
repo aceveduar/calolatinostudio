@@ -86,7 +86,7 @@ await page.getByRole('dialog', { name: /^La ficha de .+ está lista$/ }).waitFor
 await dlg.getByRole('link', { name: 'Abrir WhatsApp' }).waitFor();
 await page.getByText('Sin asistencias registradas', { exact: true }).waitFor({ state: 'attached' });
 t = await body();
-console.log('5) registrar como alumno abre su ficha:', ok(t.includes(nombre) && /Se inscribió en la página/.test(t)), nombre);
+console.log('5) registrar como alumno abre su ficha:', ok(t.includes(nombre)), nombre);
 
 // 5) anotar a mano
 await ir('/alumnos/interesados');
@@ -148,14 +148,54 @@ await boton.click();
 const bloqueado = (await page.getByText('Escribe un número mexicano de 10 dígitos').isVisible()) && llamadas === 0 && (await page.getByLabel('WhatsApp (10 dígitos)').getAttribute('aria-invalid')) === 'true';
 await page.getByLabel('WhatsApp (10 dígitos)').fill('+52 55 1234 5678');
 await page.getByLabel('¿Qué clase te interesa?').selectOption('c3');
+await page.getByText('Clase de prueba: $40', { exact: true }).waitFor();
 respuesta = { error: 'muchos' };
 await boton.click();
 await page.getByText(/Ya recibimos tu registro/).waitFor();
 respuesta = { ok: true };
 await boton.click();
 await page.getByRole('heading', { name: 'Solicitud recibida' }).waitFor();
+await page.getByText(/Tu lugar queda pendiente/).waitFor();
+await page.getByText(/Salsa Lady Style · Casa de Cultura/, { exact: true }).waitFor();
 console.log('10) inscripción: valida teléfono, avisa errores y confirma:', ok(bloqueado && inscripcion.p_slug === 'calo-latino' && inscripcion.p_telefono === '5512345678' && inscripcion.p_clase === 'c3'));
 await page.screenshot({ path: `${OUT}publica-3-listo.png` });
+
+// La nube de prueba entrega a recepción la misma solicitud que envió el formulario.
+await page.goto('http://localhost:4173/alumnos/interesados');
+await page.waitForFunction(() => window.compasDev);
+const inicioRecepcion = page.getByText('Dirección Calo', { exact: true }).filter({ visible: true });
+const tituloInteresados = page.getByRole('heading', { name: 'Interesados', exact: true });
+await inicioRecepcion.or(tituloInteresados).first().waitFor();
+if (await inicioRecepcion.isVisible()) {
+  await inicioRecepcion.click();
+  for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click();
+}
+await tituloInteresados.waitFor();
+await page.evaluate(async (solicitud) => {
+  const { db } = window.compasDev;
+  const academia = await db.academias.toCollection().first();
+  const disciplina = (await db.disciplinas.toArray()).find((d) => d.nombre === 'Salsa');
+  const salsa = (await db.clases.toArray()).find((c) => c.disciplinaId === disciplina?.id);
+  if (!salsa) throw new Error('Falta una clase de Salsa en los datos de la prueba.');
+  const ahora = Date.now();
+  await db.sedes.put({ academiaId: academia.id, id: 's1', nombre: 'Casa de Cultura', color: '#7c4ddb', activo: true, createdAt: ahora, updatedAt: ahora });
+  await db.clases.put({ ...salsa, id: solicitud.p_clase, nivel: 'Lady Style', sedeId: 's1', dias: [6], horaInicio: '11:00' });
+  await db.interesados.add({ academiaId: academia.id, id: crypto.randomUUID(), estado: 'nuevo', nombre: solicitud.p_nombre, telefono: solicitud.p_telefono, claseId: solicitud.p_clase, mensaje: solicitud.p_mensaje, createdAt: ahora, updatedAt: ahora });
+}, inscripcion);
+const claseRecibida = page.getByRole('heading', { name: /Salsa Lady Style.*11:00.*Casa de Cultura/i });
+await claseRecibida.waitFor({ timeout: 5000 });
+const contactar = page.getByRole('link', { name: 'Escribirle a Laura Nueva por WhatsApp' });
+const destino = new URL(await contactar.getAttribute('href'));
+console.log('11a) recepción recibe clase, horario, sede y WhatsApp de la solicitud:', ok(destino.pathname.endsWith(inscripcion.p_telefono) && destino.searchParams.get('text').includes('Salsa Lady Style')));
+await page.getByRole('button', { name: 'Opciones de Laura Nueva' }).click();
+await page.getByRole('dialog').getByRole('button', { name: 'Registrar a Laura Nueva como alumno' }).click();
+const bienvenidaLaura = page.getByRole('dialog', { name: 'La ficha de Laura está lista' });
+const enlaceLaura = bienvenidaLaura.getByRole('link', { name: 'Abrir WhatsApp' });
+await enlaceLaura.waitFor();
+const textoPase = new URL(await enlaceLaura.getAttribute('href')).searchParams.get('text');
+await bienvenidaLaura.getByRole('button', { name: 'Ahora no' }).click();
+await page.getByText(/Solicitó Salsa Lady Style.*Casa de Cultura/).waitFor();
+console.log('11b) la ficha conserva la clase y sede solicitadas y prepara el pase para WhatsApp:', ok(/\/p\/[a-z0-9]{20,}/i.test(textoPase)));
 
 // enlace corto no es página pública
 await page.goto('http://localhost:4173/a/xy');

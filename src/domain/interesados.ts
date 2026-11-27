@@ -1,5 +1,6 @@
 /** Interesados: gente que se inscribió en la página pública (o que recepción anotó) y aún no es alumno. */
 import { actualizar, crear, enTransaccion } from '../db/repo';
+import { db } from '../db/db';
 import type { Alumno, Clase, ID, Interesado } from '../db/types';
 import { DIAS_CORTOS } from './fechas';
 import { generarCodigo } from './operaciones';
@@ -31,9 +32,19 @@ export function descartar(id: ID) {
 }
 
 /** Ya vino: se da de alta como alumno (con su teléfono) y deja de estar en la lista. */
-export async function registrarComoAlumno(i: Interesado): Promise<Alumno> {
+export async function registrarComoAlumno(i: Interesado, contextoClase = ''): Promise<Alumno> {
   return enTransaccion(async () => {
-    const alumno = await crear('alumnos', { nombre: i.nombre, telefono: i.telefono, notas: i.mensaje ? `Se inscribió en la página: “${i.mensaje}”` : 'Se inscribió en la página', codigo: generarCodigo(), activo: true });
+    const actual = await db.interesados.get(i.id);
+    if (!actual || actual.deletedAt || actual.estado === 'descartado') throw new Error('La solicitud ya no está disponible.');
+    if (actual.alumnoId) {
+      const existente = await db.alumnos.get(actual.alumnoId);
+      if (existente && !existente.deletedAt) return existente;
+      throw new Error('La ficha vinculada ya no está disponible.');
+    }
+    if (actual.estado === 'inscrito') throw new Error('La solicitud ya fue registrada.');
+    const nota = actual.mensaje ? `“${actual.mensaje}”` : '';
+    const notas = [contextoClase ? `Solicitó ${contextoClase}.` : '', nota].filter(Boolean).join(' ');
+    const alumno = await crear('alumnos', { nombre: actual.nombre, telefono: actual.telefono, notas, codigo: generarCodigo(), activo: true });
     await actualizar('interesados', i.id, { estado: 'inscrito', alumnoId: alumno.id });
     return alumno;
   });

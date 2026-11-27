@@ -144,13 +144,13 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
   // los planes "solo de la sede principal" llevan un id fijo (no hay registro de la sede principal)
   const planesSede = d.planes.filter((x) => !x.sede_id || x.sede_id === (sede ?? PRINCIPAL));
-  const suelta = planesSede.find((x) => x.tipo === 'suelta' && x.sede_id) ?? planesSede.find((x) => x.tipo === 'suelta');
+  const tarifaSuelta = (id: string | null) => d.planes.find((x) => x.tipo === 'suelta' && x.sede_id === (id ?? PRINCIPAL))
+    ?? d.planes.find((x) => x.tipo === 'suelta' && !x.sede_id);
+  const suelta = tarifaSuelta(sede);
   const wa = d.academia.whatsapp ? `https://wa.me/52${d.academia.whatsapp}?text=${encodeURIComponent(`Hola, vi la página de ${d.academia.nombre} y quiero información.`)}` : null;
 
   // la oferta de la primera clase: la que escribió la academia o el precio de la clase suelta
-  const esPrincipal = (x: { sede_id: string | null }) => !x.sede_id || x.sede_id === PRINCIPAL;
-  const sueltaGeneral =
-    d.planes.find((x) => x.tipo === 'suelta' && x.sede_id === PRINCIPAL) ?? d.planes.find((x) => x.tipo === 'suelta' && esPrincipal(x)) ?? d.planes.find((x) => x.tipo === 'suelta');
+  const sueltaGeneral = tarifaSuelta(null);
   const primera = p.primera || (sueltaGeneral ? `Clase de prueba: ${dinero(sueltaGeneral.precio)}` : null);
   const privacidad = textoAvisoPrivacidad(p.privacidad, { academia: d.academia.nombre, direccion: p.ubicaciones?.principal?.direccion, whatsapp: d.academia.whatsapp });
   const lugares = sedes.flatMap((s) => {
@@ -242,6 +242,10 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   // tocar una clase del horario: queda elegida en el formulario
   const [claseSel, setClaseSel] = useState('');
   const opcionesClase = clasesSede.length ? d.clases.filter((c) => (c.sede_id ?? null) === sede || c.id === claseSel) : d.clases;
+  const claseSolicitada = opcionesClase.find((c) => c.id === claseSel);
+  const sedeSolicitud = claseSolicitada ? claseSolicitada.sede_id ?? null : sede;
+  const precioSolicitud = claseSolicitada?.precio ?? tarifaSuelta(sedeSolicitud)?.precio;
+  const ofertaSolicitud = p.primera || (precioSolicitud == null ? null : `Clase de prueba: ${dinero(precioSolicitud)}`);
   const apartar = (id: string) => {
     setClaseSel(id);
     document.getElementById('inscribete')?.scrollIntoView({ block: 'start' });
@@ -509,7 +513,7 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         <section className="bg-panel text-white">
           <div className="mx-auto max-w-xl px-5 py-10 md:py-14">
             <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
-              <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
+              <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} nombreSede={(id) => sedes.find((s) => s.id === (id ?? null))?.nombre} primera={ofertaSolicitud} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
             </div>
             {wa && (
               <div className="mt-4 md:text-center">

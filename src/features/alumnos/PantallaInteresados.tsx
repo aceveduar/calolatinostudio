@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check, Ellipsis, Globe, Megaphone, MessageCircle, Plus, UserPlus, Users } from 'lucide-react';
 import { nombreClase, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { nombreSede, useSedes } from '../../app/sedes';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Hoja, Segmentos, Selector, Tarjeta, Vacio, cx } from '../../components/ui';
 import { db } from '../../db/db';
@@ -26,9 +27,11 @@ export function PantallaInteresados() {
   const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
+  const sedes = useSedes();
   const [filtro, setFiltro] = useState<Filtro>('nuevos');
   const [anotar, setAnotar] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
+  const [registrando, setRegistrando] = useState(false);
   const [grupo, setGrupo] = useState<{ clase: Clase | null; lista: Interesado[] } | null>(null);
   const todos = useLiveQuery(() => db.interesados.filter((i) => !i.deletedAt && (i.estado === 'nuevo' || i.estado === 'contactado')).toArray(), [], []);
   // quién invitó a cada uno (enlace de invitación del portal de un alumno)
@@ -46,6 +49,9 @@ export function PantallaInteresados() {
   }
   const claseDe = (id: string) => clases.find((c) => c.id === id) ?? null;
   const nombreDe = (c: Clase | null) => (c ? nombreClase(c, disciplinas) : 'Cualquier clase');
+  const sedeDe = (c: Clase) => sedes.length ? nombreSede(c.sedeId, sedes, academia) : '';
+  const claseInteresada = interesado?.claseId ? claseDe(interesado.claseId) : null;
+  const contextoClase = claseInteresada ? [nombreDe(claseInteresada), horarioCorto(claseInteresada), sedeDe(claseInteresada)].filter(Boolean).join(' · ') : '';
   const msjInteresado = (i: Interesado) => {
     const c = i.claseId ? claseDe(i.claseId) : null;
     return armarMensaje(plantilla(academia, 'interesado'), { nombre: i.nombre.split(' ')[0], academia: academia.nombre, clase: c ? nombreClase(c, disciplinas) : 'baile' });
@@ -91,7 +97,7 @@ export function PantallaInteresados() {
               <div className="mb-2 flex items-center justify-between gap-2 px-1">
                 <h2 className="text-xs font-bold tracking-wider text-ink-500 uppercase">
                   {nombreDe(c)}
-                  {c && <span className="font-normal normal-case"> · {horarioCorto(c)}</span>} · {gente.length}
+                  {c && <span className="font-normal normal-case"> · {horarioCorto(c)}{sedeDe(c) && ` · ${sedeDe(c)}`}</span>} · {gente.length}
                 </h2>
                 {c && (
                   <button className="-mr-2 flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-brand-600 active:bg-brand-50" onClick={() => setGrupo({ clase: c, lista: gente })}>
@@ -155,6 +161,7 @@ export function PantallaInteresados() {
       <Hoja abierta={!!interesado} onCerrar={() => setSeleccion(null)} titulo={interesado?.nombre ?? ''}>
         {interesado && (
           <div className="space-y-3">
+            {contextoClase && <p className="rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">{contextoClase}</p>}
             {interesado.estado === 'nuevo' && (
               <>
                 <p className="text-sm text-ink-500">Si ya enviaste el mensaje o hablaste con esta persona, marca el contacto.</p>
@@ -164,10 +171,17 @@ export function PantallaInteresados() {
                 }}><Check size={18} aria-hidden="true" /> Marcar como contactado</Boton>
               </>
             )}
-            <Boton bloque variante="secundario" aria-label={`Registrar a ${interesado.nombre} como alumno`} onClick={async () => {
-              const alumno = await registrarComoAlumno(interesado);
-              nav(`/alumnos/${alumno.id}`, { state: { recien: true } });
-            }}><UserPlus size={18} aria-hidden="true" /> Registrar como alumno</Boton>
+            <Boton bloque variante="secundario" disabled={registrando} aria-label={`Registrar a ${interesado.nombre} como alumno`} onClick={async () => {
+              setRegistrando(true);
+              try {
+                const alumno = await registrarComoAlumno(interesado, contextoClase);
+                nav(`/alumnos/${alumno.id}`, { state: { recien: true } });
+              } catch {
+                avisar('No se pudo registrar al alumno. Actualiza la lista e inténtalo de nuevo.', 'error');
+              } finally {
+                setRegistrando(false);
+              }
+            }}><UserPlus size={18} aria-hidden="true" /> {registrando ? 'Registrando…' : 'Registrar como alumno'}</Boton>
             <Boton bloque variante="fantasma" onClick={async () => {
               await descartar(interesado.id);
               setSeleccion(null);
