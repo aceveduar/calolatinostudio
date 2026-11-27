@@ -7,6 +7,8 @@ import { db } from '../db/db';
 import { actualizar, borrar, enTransaccion } from '../db/repo';
 import type { Alumno, Asistencia, ID, MetodoPago } from '../db/types';
 import { anularPago, generarCodigo } from './operaciones';
+import { estadoMembresia, membresiaQueCubre } from './membresias';
+import { claseEnFecha } from './clases';
 
 /** Quita una entrada. Si se cobró, también anula el cobro (el dinero se devuelve y la caja cuadra). */
 export async function quitarEntrada(a: Asistencia, usuarioId: ID, motivo = 'Entrada quitada'): Promise<() => Promise<void>> {
@@ -42,15 +44,27 @@ export async function cambiarMetodoPago(pagoId: ID, metodo: MetodoPago): Promise
 
 /** Se registró en la clase equivocada. */
 export async function moverDeClase(a: Asistencia, claseId: ID): Promise<void> {
-  if (a.alumnoId) {
-    const ya = await db.asistencias
-      .where('[claseId+fecha]')
-      .equals([claseId, a.fecha])
-      .filter((x) => x.alumnoId === a.alumnoId && !x.anuladaAt && !x.deletedAt)
-      .count();
-    if (ya) throw new Error('Ya tiene entrada en esa clase');
-  }
-  await actualizar('asistencias', a.id, { claseId });
+  await enTransaccion(async () => {
+    const destino = await db.clases.get(claseId);
+    const clase = destino && claseEnFecha(destino, a.fecha);
+    if (!destino?.activo || destino.deletedAt || !clase) throw new Error('La clase elegida no está disponible para esa fecha.');
+    if (a.membresiaId) {
+      const membresia = await db.membresias.get(a.membresiaId);
+      const otras = await db.asistencias.where('membresiaId').equals(a.membresiaId).filter((x) => x.id !== a.id).toArray();
+      if (!membresia || !membresiaQueCubre([estadoMembresia(membresia, otras, a.fecha)], clase)) {
+        throw new Error('Su plan no cubre esa clase. Quita esta entrada y regístrala en la clase correcta.');
+      }
+    }
+    if (a.alumnoId) {
+      const ya = await db.asistencias
+        .where('[claseId+fecha]')
+        .equals([claseId, a.fecha])
+        .filter((x) => x.alumnoId === a.alumnoId && x.id !== a.id && !x.anuladaAt && !x.deletedAt)
+        .count();
+      if (ya) throw new Error('Ya tiene entrada en esa clase');
+    }
+    await actualizar('asistencias', a.id, { claseId });
+  });
 }
 
 /**

@@ -55,10 +55,10 @@ await irSalsa1();
 for (const n of ['Ana López', 'Carlos Ruiz']) {
   await busca.fill(n);
   await page.getByText(`Nuevo: ${n}`).click();
-  await btn('Listo').click();
+  await btn('Cerrar cuenta').click();
 }
 await btn(/sin nombre/).click();
-await btn('Listo').click();
+await btn('Cerrar cuenta').click();
 console.log('inicio, caja:', await caja());
 
 // 0) Aviso de clase equivocada
@@ -75,10 +75,11 @@ await page.evaluate(async (foto) => {
   const ana = await db.alumnos.where('nombre').equals('Ana López').first();
   await actualizar('alumnos', ana.id, { foto });
 }, fotoAna);
-const avatarAna = page.getByRole('button', { name: /Ana López/ }).locator('img');
+const corregir = (nombre) => page.getByRole('button', { name: `Corregir entrada de ${nombre}`, exact: true });
+const avatarAna = corregir('Ana López').locator('../..').locator('img');
 await avatarAna.waitFor();
 console.log('   la lista de asistencia muestra la foto actual de Ana:', ok(await avatarAna.getAttribute('src') === fotoAna));
-await page.getByRole('button', { name: /Ana López/ }).click();
+await corregir('Ana López').click();
 await page.getByRole('dialog').getByRole('button', { name: 'Transferencia' }).click();
 await espera();
 await shot('1-corregir');
@@ -88,9 +89,12 @@ console.log('1) cambiar método:', c1, ok(c1.includes('Efectivo $80') && c1.incl
 
 // 2) Clase equivocada + deshacer
 await irSalsa1(); await adentro();
-await page.getByRole('button', { name: /Carlos Ruiz/ }).click();
+await corregir('Carlos Ruiz').click();
 await btn(/Era otra clase/).click();
 await page.getByRole('dialog').getByRole('button', { name: /Salsa 2/ }).click();
+await page.getByText(/El cobro de \$40 queda en la caja/).waitFor();
+console.log('   elegir otra clase permite revisar antes de cambiar:', ok(await cuenta() === 3));
+await btn('Confirmar cambio de clase').click();
 await espera();
 const tras = await cuenta();
 await deshacer();
@@ -99,22 +103,59 @@ const despues = await cuenta();
 console.log('2) mover de clase y deshacer:', `${tras} → ${despues}`, ok(tras === 2 && despues === 3));
 
 // 3) "Sin nombre" en realidad era Jorge (registrado)
-await page.getByRole('button').filter({ hasText: 'Visitante' }).filter({ hasText: '$40' }).click();
+await corregir('Visitante').click();
 await btn(/Era otra persona/).click();
 await page.getByPlaceholder('¿Quién era?').fill('jorge');
 await page.getByRole('dialog').getByRole('button', { name: /Jorge Mendoza/ }).click();
+await page.getByText(/La asistencia y el cobro de \$40 pasarán/).waitFor();
+await btn('Confirmar cambio de alumno').click();
 await espera();
 const t3 = await texto();
-console.log('3) reasignar cobro a Jorge:', ok(t3.includes('Jorge Mendoza') && (await page.getByRole('button').filter({ hasText: 'Visitante' }).filter({ hasText: '$40' }).count()) === 0));
+console.log('3) reasignar cobro a Jorge:', ok(t3.includes('Jorge Mendoza') && (await corregir('Visitante').count()) === 0));
 
 // 4) Quitar entrada (devuelve dinero) y deshacer
-await page.getByRole('button', { name: /Carlos Ruiz/ }).click();
-await btn(/Quitar entrada y devolver/).click();
+await corregir('Carlos Ruiz').click();
+await btn('Quitar entrada').click();
+await page.getByText(/Se anularán la asistencia y el cobro/).waitFor();
+await btn('Confirmar anulación').click();
 await espera();
 const sinCarlos = await cuenta();
 await deshacer();
 await espera(500);
 console.log('4) quitar y deshacer:', `${sinCarlos} → ${await cuenta()}`, ok(sinCarlos === 2 && (await cuenta()) === 3));
+
+// Un plan restringido solo cubre la clase de origen. Anular libera su asistencia.
+const usoPlan = await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const ana = await db.alumnos.where('nombre').equals('Ana López').first();
+  const entrada = await db.asistencias.where('alumnoId').equals(ana.id).first();
+  const pago = await db.pagos.get(entrada.pagoId);
+  const alumnoId = crypto.randomUUID();
+  const membresiaId = crypto.randomUUID();
+  const asistenciaId = crypto.randomUUID();
+  await db.alumnos.add({ ...ana, id: alumnoId, nombre: 'Alumno con plan de prueba', codigo: 'PLTEST' });
+  await db.membresias.add({
+    id: membresiaId, academiaId: ana.academiaId, alumnoId, planId: pago.planId, pagoId: pago.id,
+    disciplinaId: null, inicio: entrada.fecha, fin: entrada.fecha, clasesTotal: 1,
+    anuladaAt: null, claseIds: [entrada.claseId], createdAt: Date.now(), updatedAt: Date.now(),
+  });
+  await db.asistencias.add({ ...entrada, id: asistenciaId, alumnoId, pagoId: null, membresiaId });
+  return { asistenciaId, claseId: entrada.claseId, pagoId: pago.id };
+});
+await corregir('Alumno con plan de prueba').click();
+await btn(/Era otra clase/).click();
+await page.getByRole('dialog').getByRole('button', { name: /Salsa 2/ }).click();
+await btn('Confirmar cambio de clase').click();
+await page.getByText(/Su plan no cubre esa clase/).waitFor();
+const leerUso = () => page.evaluate((id) => window.compasDev.db.asistencias.get(id), usoPlan.asistenciaId);
+console.log('4a) un plan restringido conserva la entrada si la clase no está cubierta:', ok((await leerUso()).claseId === usoPlan.claseId));
+await btn('Volver').click();
+await btn('Volver').click();
+await btn('Quitar entrada').click();
+await page.getByText(/dejará de contar en su plan/).waitFor();
+await btn('Confirmar anulación').click();
+await corregir('Alumno con plan de prueba').waitFor({ state: 'hidden' });
+console.log('4b) anular una entrada con plan libera el uso sin tocar Caja:', ok(Boolean((await leerUso()).anuladaAt) && !await page.evaluate(async (id) => (await window.compasDev.db.pagos.get(id)).anuladoAt, usoPlan.pagoId)));
 
 // 5) Prevención de duplicados
 await busca.fill('ana lopes');
@@ -174,10 +215,10 @@ const fichaJorge = () => page.evaluate(() => window.compasDev.db.alumnos.where('
 const [baja] = await fichaJorge();
 await page.getByRole('link', { name: 'Entrada' }).click();
 await busca.fill('jorge mendoza');
-await btn(/Jorge Mendoza.*De baja/).click();
+await btn(/Jorge Mendoza.*Revisar ficha/).click();
 await btn('Cancelar').click();
 console.log('8b) cancelar conserva la baja:', ok(!(await fichaJorge())[0].activo));
-await btn(/Jorge Mendoza.*De baja/).click();
+await btn(/Jorge Mendoza.*Revisar ficha/).click();
 await btn('Reactivar ficha').click();
 await page.getByRole('dialog').getByText('Jorge Mendoza', { exact: true }).waitFor();
 const jorge = await fichaJorge();
@@ -186,6 +227,7 @@ await page.getByRole('dialog').getByRole('link', { name: 'Ver ficha' }).click();
 
 // 9) Monto tecleado de más
 await btn('Vender plan').click();
+await page.getByRole('dialog').getByText('Ajustar precio', { exact: true }).click();
 await page.getByRole('dialog').locator('input[inputmode="decimal"]').fill('4000');
 const t9 = await page.getByRole('dialog').innerText();
 await shot('9-monto');
@@ -194,7 +236,7 @@ console.log('9) aviso de ceros de más:', ok(t9.includes('¿Se teclearon ceros d
 // 10) Un fallo al guardar no deja bloqueado el cobro del visitante.
 await page.keyboard.press('Escape');
 await page.getByRole('link', { name: 'Entrada', exact: true }).click();
-await adentro();
+if (await btn(/^Por llegar$/).count()) await btn(/^Por llegar$/).click();
 await btn('Visitante con nombre').click();
 const visitante = page.getByRole('dialog', { name: 'Visitante sin registro' });
 await visitante.getByPlaceholder('Visitante').fill('Visitante de reintento');

@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { ArrowRightLeft, CalendarRange, Search, Trash2, UserRoundPen } from 'lucide-react';
 import { nombreClase, useAlumnos, useClases, useDisciplinas } from '../../app/datos';
 import { useSesion } from '../../app/sesion';
+import { nombreSede, useSedes } from '../../app/sedes';
 import { useAvisos } from '../../components/avisos';
 import { Avatar, Boton, Etiqueta, Segmentos, Tarjeta, cx } from '../../components/ui';
 import { db, esDeuda } from '../../db/db';
 import type { Asistencia, MetodoPago, Pago } from '../../db/types';
 import { cambiarMetodoPago, cambiarPersona, moverDeClase, quitarEntrada } from '../../domain/correcciones';
+import { claseEnFecha } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { horaDe } from '../../domain/fechas';
 import { METODOS } from '../../domain/planes';
@@ -26,30 +28,40 @@ type Vista = 'menu' | 'clase' | 'persona' | 'quitar';
 
 /** Todo lo que se puede corregir de una entrada, en un solo lugar. Cada acción se puede deshacer. */
 export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: Asistencia; nombre: string; onHecho: () => void }) {
-  const { usuario } = useSesion();
+  const { usuario, academia } = useSesion();
   const avisar = useAvisos();
   const clases = useClases();
   const disciplinas = useDisciplinas();
   const alumnos = useAlumnos();
+  const sedes = useSedes();
   const pago = useLiveQuery(() => (asistencia.pagoId ? db.pagos.get(asistencia.pagoId) : undefined), [asistencia.pagoId]);
   const [vista, setVista] = useState<Vista>('menu');
   const [q, setQ] = useState('');
-  const [quitando, setQuitando] = useState(false);
-  const clase = clases.find((c) => c.id === asistencia.claseId);
+  const [destino, setDestino] = useState<{ id: string; nombre: string } | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const guardadoEnCurso = useRef(false);
+  const claseBase = clases.find((c) => c.id === asistencia.claseId);
+  const clase = claseBase ? claseEnFecha(claseBase, asistencia.fecha) ?? claseBase : undefined;
   const n1 = nombre.split(' ')[0];
 
-  const intentar = async (fn: () => Promise<void>) => {
+  const intentar = async (fn: () => Promise<void>, cerrar = true) => {
+    if (guardadoEnCurso.current) return;
+    guardadoEnCurso.current = true;
+    setGuardando(true);
     try {
       await fn();
-      onHecho();
+      if (cerrar) onHecho();
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo corregir', 'error');
+    } finally {
+      guardadoEnCurso.current = false;
+      setGuardando(false);
     }
   };
 
   const candidatos = useMemo(() => {
     const t = normalizar(q.trim());
-    return alumnos.filter((a) => a.activo && a.id !== asistencia.alumnoId && (!t || normalizar(a.nombre).includes(t))).slice(0, 6);
+    return t ? alumnos.filter((a) => a.activo && a.id !== asistencia.alumnoId && normalizar(a.nombre).includes(t)).slice(0, 6) : [];
   }, [q, alumnos, asistencia.alumnoId]);
 
   return (
@@ -78,9 +90,13 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
               <Segmentos<MetodoPago>
                 opciones={METODOS}
                 valor={pago.metodo}
-                onChange={async (m) => {
-                  const antes = await cambiarMetodoPago(pago.id, m);
-                  avisar(`Ahora: ${m}`, 'ok', { texto: 'Deshacer', fn: () => cambiarMetodoPago(pago.id, antes).then(() => undefined) });
+                onChange={(m) => {
+                  if (m === pago.metodo) return;
+                  void intentar(async () => {
+                    const antes = await cambiarMetodoPago(pago.id, m);
+                    const metodo = METODOS.find((metodo) => metodo.valor === m)?.texto ?? m;
+                    avisar(`Pago actualizado a ${metodo.toLowerCase()}`, 'ok', { texto: 'Deshacer', fn: () => cambiarMetodoPago(pago.id, antes).then(() => undefined) });
+                  }, false);
                 }}
               />
             </div>
@@ -113,45 +129,32 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
           </p>
           {pago && <p className="text-sm text-ink-700">Si ya recibiste el pago, devuelve {dinero(pago.monto)} al alumno.</p>}
           <div className="flex flex-wrap gap-2">
-            <Boton variante="secundario" disabled={quitando} onClick={() => setVista('menu')}>Cancelar</Boton>
-            <Boton variante="peligro" disabled={quitando} onClick={async () => {
-              setQuitando(true);
-              try {
-                await intentar(async () => {
-                  const deshacer = await quitarEntrada(asistencia, usuario.id);
-                  avisar(`Entrada de ${n1} anulada`, 'ok', { texto: 'Deshacer', fn: deshacer });
-                });
-              } finally {
-                setQuitando(false);
-              }
-            }}>{quitando ? 'Anulando…' : 'Confirmar anulación'}</Boton>
+            <Boton variante="secundario" disabled={guardando} onClick={() => setVista('menu')}>Cancelar</Boton>
+            <Boton variante="peligro" disabled={guardando} onClick={() => {
+              void intentar(async () => {
+                const deshacer = await quitarEntrada(asistencia, usuario.id);
+                avisar(`Entrada de ${n1} anulada`, 'ok', { texto: 'Deshacer', fn: deshacer });
+              });
+            }}>{guardando ? 'Anulando…' : 'Confirmar anulación'}</Boton>
           </div>
         </div>
       )}
 
-      {vista === 'clase' && (
+      {vista === 'clase' && !destino && (
         <div className="space-y-2">
           <p className="px-1 text-sm text-ink-500">¿A qué clase entró {n1}?</p>
           {clases
             .filter((c) => c.activo && c.id !== asistencia.claseId)
+            .flatMap((c) => claseEnFecha(c, asistencia.fecha) ?? [])
             .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
             .map((c) => (
               <Tarjeta
                 key={c.id}
-                onClick={() =>
-                  intentar(async () => {
-                    const origen = asistencia.claseId;
-                    await moverDeClase(asistencia, c.id);
-                    avisar(`${n1} pasó a ${nombreClase(c, disciplinas)}`, 'ok', {
-                      texto: 'Deshacer',
-                      fn: () => moverDeClase({ ...asistencia, claseId: c.id }, origen),
-                    });
-                  })
-                }
+                onClick={() => setDestino({ id: c.id, nombre: [nombreClase(c, disciplinas), c.horaInicio, sedes.length ? nombreSede(c.sedeId, sedes, academia) : ''].filter(Boolean).join(' · ') })}
                 className="flex items-center justify-between p-4"
               >
                 <span className="font-semibold">{nombreClase(c, disciplinas)}</span>
-                <span className="text-sm text-ink-500">{c.horaInicio}</span>
+                <span className="text-right text-sm text-ink-500">{c.horaInicio}{sedes.length > 0 && <span className="block">{nombreSede(c.sedeId, sedes, academia)}</span>}</span>
               </Tarjeta>
             ))}
           <Boton bloque variante="fantasma" onClick={() => setVista('menu')}>
@@ -160,7 +163,7 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
         </div>
       )}
 
-      {vista === 'persona' && (
+      {vista === 'persona' && !destino && (
         <div className="space-y-2">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-300" size={20} />
@@ -169,30 +172,54 @@ export function CorregirEntrada({ asistencia, nombre, onHecho }: { asistencia: A
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="¿Quién era?"
+              aria-label="Buscar alumno por nombre"
               className="h-12 w-full rounded-xl bg-superficie pr-4 pl-11 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           {candidatos.map((a) => (
             <Tarjeta
               key={a.id}
-              onClick={() =>
-                intentar(async () => {
-                  const antes = asistencia.alumnoId;
-                  await cambiarPersona(asistencia, a.id);
-                  avisar(`Cobro pasado a ${a.nombre.split(' ')[0]}`, 'ok', antes
-                    ? { texto: 'Deshacer', fn: () => cambiarPersona({ ...asistencia, alumnoId: a.id }, antes) }
-                    : undefined);
-                })
-              }
+              onClick={() => setDestino({ id: a.id, nombre: a.nombre })}
               className="flex items-center gap-3 p-3"
             >
               <Avatar nombre={a.nombre} foto={a.foto} tam={36} />
               <span className="font-semibold">{a.nombre}</span>
             </Tarjeta>
           ))}
+          {q.trim() && !candidatos.length && <p role="status" className="px-1 text-sm text-ink-600">No encontramos un alumno activo con ese nombre.</p>}
           <Boton bloque variante="fantasma" onClick={() => setVista('menu')}>
             Volver
           </Boton>
+        </div>
+      )}
+      {destino && (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-ink-50 p-3">
+            <p className="text-xs font-semibold text-ink-600">{vista === 'clase' ? 'Clase correcta' : 'Alumno correcto'}</p>
+            <p className="break-words font-semibold">{destino.nombre}</p>
+          </div>
+          <p className="text-sm text-ink-700">
+            {vista === 'persona' ? `La asistencia y el cobro${pago ? ` de ${dinero(pago.monto)}` : ''} pasarán a este alumno.`
+              : pago ? `La asistencia cambia de clase. El cobro de ${dinero(pago.monto)} queda en la caja donde se registró.`
+                : asistencia.membresiaId ? 'El plan debe cubrir la clase correcta. La asistencia seguirá contando en el plan.' : 'Se actualiza la clase de esta asistencia.'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" disabled={guardando} onClick={() => setDestino(null)}>Volver</Boton>
+            <Boton disabled={guardando} onClick={() => void intentar(async () => {
+              if (vista === 'clase') {
+                await moverDeClase(asistencia, destino.id);
+                avisar(`Clase de ${n1} corregida`, 'ok', {
+                  texto: 'Deshacer', fn: () => moverDeClase({ ...asistencia, claseId: destino.id }, asistencia.claseId),
+                });
+              } else {
+                await cambiarPersona(asistencia, destino.id);
+                const antes = asistencia.alumnoId;
+                avisar(`Entrada y cobro reasignados a ${destino.nombre}`, 'ok', antes
+                  ? { texto: 'Deshacer', fn: () => cambiarPersona({ ...asistencia, alumnoId: destino.id }, antes) }
+                  : undefined);
+              }
+            })}>{guardando ? 'Guardando…' : vista === 'clase' ? 'Confirmar cambio de clase' : 'Confirmar cambio de alumno'}</Boton>
+          </div>
         </div>
       )}
     </div>
