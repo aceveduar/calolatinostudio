@@ -187,6 +187,28 @@ await metodos.getByRole('button', { name: /Todos por transferencia/ }).click();
 await metodos.waitFor({ state: 'hidden' });
 await page.getByText(/\$120 por transferencia/).waitFor();
 console.log('11b) todos cambia el efectivo restante:', ok((await page.getByText('transf.', { exact: true }).count()) === 3));
+await listo();
+
+// 12) Importe personalizado, con centavos y control de efectivo insuficiente.
+await btn(/sin nombre/).click();
+await btn('Otro importe').click();
+const otro = page.getByRole('dialog', { name: 'Efectivo recibido' });
+const recibido = otro.getByRole('textbox', { name: '¿Con cuánto pagó?' });
+await recibido.fill('30');
+await otro.getByText('Faltan $10', { exact: true }).waitFor();
+console.log('12a) un importe insuficiente indica cuánto falta:', ok(await otro.getByRole('button', { name: 'Usar importe' }).isDisabled()));
+await recibido.fill('70,50');
+await otro.getByText('Cambio $30.5', { exact: true }).waitFor();
+await otro.getByRole('button', { name: 'Usar importe' }).click();
+await page.getByText('Cambio $30.5', { exact: true }).waitFor();
+console.log('12b) otro importe calcula y conserva el cambio en la cuenta: OK');
+for (let i = 0; i < 4; i++) {
+  await btn(/sin nombre/).click();
+  await page.getByText(`${i + 2} pagos en efectivo`, { exact: true }).waitFor();
+}
+await billete('$200').click();
+await page.getByText('Cambio $0', { exact: true }).waitFor();
+console.log('12c) un billete igual al total aparece entre las sugerencias: OK');
 
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

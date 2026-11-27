@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, X, ArrowRightLeft } from 'lucide-react';
-import { Boton, Hoja, cx } from '../../components/ui';
-import { dinero } from '../../domain/dinero';
+import { Boton, Campo, Entrada, Hoja, cx } from '../../components/ui';
+import { aCentavos, dinero } from '../../domain/dinero';
 import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
 import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
 
@@ -33,6 +33,7 @@ export function Cuenta({
   onCerrar: () => void;
 }) {
   const [pagoCon, setPagoCon] = useState<number | null>(null);
+  const [otroImporte, setOtroImporte] = useState<string | null>(null);
   const [corregir, setCorregir] = useState<Movimiento | null>(null);
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [errorCorreccion, setErrorCorreccion] = useState(false);
@@ -42,7 +43,11 @@ export function Cuenta({
   const [errorMetodo, setErrorMetodo] = useState(false);
   const pagosEfectivo = movs.filter((m) => m.metodo === 'efectivo' && m.pagoId);
   const efectivo = pagosEfectivo.reduce((s, m) => s + m.monto, 0);
-  const billete = pagoCon !== null && pagoCon >= efectivo ? pagoCon : null;
+  const recibido = pagoCon !== null && pagoCon >= efectivo ? pagoCon : null;
+  const textoImporte = otroImporte?.trim() ?? '';
+  const importe = /^\d{1,12}(?:[.,]\d{0,2})?$/.test(textoImporte)
+    ? aCentavos(textoImporte.replace(',', '.'))
+    : null;
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
   const sinCobro = movs.length > 0 && movs.every((m) => !m.monto);
   // la llave cambia con cada alumno que entra: el tiempo vuelve a empezar si llega otro
@@ -184,29 +189,52 @@ export function Cuenta({
                 {pagosEfectivo.length > 1 && <p className="text-xs text-white/70">{pagosEfectivo.length} pagos en efectivo</p>}
               </div>
               <div aria-live="polite" className="text-right">
-                {billete !== null && (
+                {recibido !== null && (
                   <>
-                    <p className="text-xs font-semibold text-white/75">Pagó con {dinero(billete)}</p>
-                    <p className="text-3xl leading-tight font-extrabold text-[#7ee2a8]"><span className="text-sm">Cambio</span> {dinero(billete - efectivo)}</p>
+                    <p className="text-xs font-semibold text-white/75">Pagó con {dinero(recibido)}</p>
+                    <p className="text-3xl leading-tight font-extrabold text-[#7ee2a8]"><span className="text-sm">Cambio</span> {dinero(recibido - efectivo)}</p>
                   </>
                 )}
               </div>
             </div>
-            <div className="mt-2.5 grid grid-cols-4 gap-2">
+            <div className="mt-2.5 flex gap-1.5 sm:gap-2">
               {billetesSugeridos(efectivo).map((b) => (
                 <button
                   key={b}
+                  type="button"
                   onClick={() => {
-                    const v = billete === b ? null : b;
+                    const v = recibido === b ? null : b;
                     setPagoCon(v);
                   }}
-                  aria-pressed={billete === b}
-                  className={cx('h-11 rounded-xl text-[15px] font-bold transition', billete === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
+                  aria-pressed={recibido === b}
+                  className={cx('min-h-11 min-w-0 flex-1 rounded-xl px-0.5 text-sm font-bold transition', recibido === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
                 >
                   {dinero(b)}
                 </button>
               ))}
+              <button type="button" onClick={() => setOtroImporte('')} className="min-h-11 min-w-0 flex-1 rounded-xl px-0.5 text-xs leading-tight font-semibold text-white/85 ring-1 ring-white/20 ring-inset active:bg-white/10">
+                Otro importe
+              </button>
             </div>
+            <Hoja abierta={otroImporte !== null} titulo="Efectivo recibido" onCerrar={() => setOtroImporte(null)}>
+              {otroImporte !== null && (
+                <form className="space-y-3" onSubmit={(e) => {
+                  e.preventDefault();
+                  if (importe === null || importe < efectivo) return;
+                  setPagoCon(importe);
+                  setOtroImporte(null);
+                }}>
+                  <p className="text-sm text-ink-700">Efectivo a recibir <strong>{dinero(efectivo)}</strong></p>
+                  <Campo etiqueta="¿Con cuánto pagó?">
+                    <Entrada autoFocus inputMode="decimal" placeholder="Ej. 70" value={otroImporte} onChange={(e) => setOtroImporte(e.target.value)} />
+                  </Campo>
+                  <p aria-live="polite" className={cx('min-h-6 text-sm font-semibold', importe !== null && importe >= efectivo ? 'text-ok-600' : 'text-warn-600')}>
+                    {importe !== null ? (importe < efectivo ? `Faltan ${dinero(efectivo - importe)}` : `Cambio ${dinero(importe - efectivo)}`) : textoImporte ? 'Escribe un importe con hasta dos decimales.' : ''}
+                  </p>
+                  <Boton bloque type="submit" disabled={importe === null || importe < efectivo}>Usar importe</Boton>
+                </form>
+              )}
+            </Hoja>
             <div className="mt-2 flex gap-2">
               <button type="button" disabled={cambiandoMetodo} onClick={() => {
                 setErrorMetodo(false);
