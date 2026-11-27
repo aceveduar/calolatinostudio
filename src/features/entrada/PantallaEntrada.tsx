@@ -213,7 +213,7 @@ export function PantallaEntrada() {
     if (!r) return { tono: 'error', titulo: nombre, detalle: 'No se pudo guardar la entrada' };
     if (r.tipo === 'ya-entro') return { tono: 'aviso', titulo: nombre, detalle: 'Ya está en esta clase. Sin nuevo cobro.' };
     if (r.tipo === 'sin-precio') return { tono: 'error', titulo: 'Falta el precio', detalle: 'Configura la clase suelta en Ajustes' };
-    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Por cobrar ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Entró con su beca' : 'Entró con su plan' };
+    return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Entrada registrada · ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Entró con su beca' : 'Entró con su plan' };
   };
 
   const cerrarCuenta = useCallback(() => setMovs([]), []);
@@ -577,7 +577,7 @@ export function PantallaEntrada() {
             </div>
             {vista === 'llegan' || esc ? (
               <>
-                <Frecuentes clase={clase} precioClase={suelta?.precio} adentro={adentro} vinieronHoy={vinieronHoy} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
+                <Frecuentes clase={clase} precioClase={suelta?.precio} adentro={adentro} vinieronHoy={vinieronHoy} soloPorLlegar={!esc} onToque={entrarAlumno} onOpciones={setAlumnoSel} />
                 {totalAlumnos === 0 ? (
                   // el primer día: todavía no hay a quién tocar, así que se dice cómo se registra al primero
                   <Vacio
@@ -833,7 +833,7 @@ function HeroClase({ titulo, color, detalle, sede, adentro, cobrado, onCambiar }
               <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </span>
             <span className="mt-0.5 block break-words text-xl leading-tight font-extrabold tracking-tight sm:text-2xl">{titulo}</span>
-            <span className="block mt-0.5 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} cobrados` : 'Aún sin cobros'}</span>
+            <span className="block mt-0.5 text-sm font-semibold text-white/85">{cobrado > 0 ? `${dinero(cobrado)} en cobros registrados` : 'Aún sin cobros'}</span>
           </span>
           <span className="block text-right">
             <span key={adentro} className="block text-5xl leading-none font-extrabold tracking-tight animate-pop">

@@ -22,12 +22,14 @@ export function Frecuentes({
   precioClase,
   adentro,
   vinieronHoy,
+  soloPorLlegar,
   onToque,
   onOpciones,
 }: {
   clase: Clase;
   precioClase?: number;
   adentro: Set<ID>;
+  soloPorLlegar: boolean;
   /** alumnos con entrada hoy en cualquier clase, en orden de llegada */
   vinieronHoy: ID[];
   onToque: (a: Alumno) => void;
@@ -93,13 +95,15 @@ export function Frecuentes({
   const enLista = new Set(historicos.map((a) => a.id));
   const porId = new Map(alumnos.map((a) => [a.id, a]));
   const todos = [...historicos, ...vinieronHoy.filter((id) => !enLista.has(id)).flatMap((id) => (porId.get(id)?.activo ? [porId.get(id)!] : []))];
-  const mostrar = [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
+  const mostrar = soloPorLlegar
+    ? todos.filter((a) => !adentro.has(a.id))
+    : [...todos.filter((a) => !ranking.yaAdentro.has(a.id)), ...todos.filter((a) => ranking.yaAdentro.has(a.id))];
 
   // hay alumnos pero nadie con historial ni plan para esta clase (los primeros días): decir qué hacer
   if (!mostrar.length)
     return alumnos.length ? (
       <p className="rounded-2xl bg-superficie px-4 py-5 text-center text-sm text-ink-500 ring-1 ring-ink-100">
-        Aquí aparecen solos quienes suelen venir a esta clase o tienen plan para ella.
+        {todos.length ? 'Por ahora, todos los alumnos habituales de la lista ya entraron.' : 'Aquí aparecen solos quienes suelen venir a esta clase o tienen plan para ella.'}
         <br />
         Mientras tanto, escribe arriba el nombre de quien llegó.
       </p>
