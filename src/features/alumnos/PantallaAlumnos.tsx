@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 import { ClipboardList, FileSpreadsheet, Megaphone, Plus, Search, Users } from 'lucide-react';
@@ -11,7 +11,6 @@ import { Avatar, Boton, Chips, Encabezado, Etiqueta, Hoja, Tarjeta, Vacio } from
 import { semaforoAlumno, type Semaforo } from '../../domain/membresias';
 import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
 import { FormAlumno } from './FormAlumno';
-import { useAltasNuevas } from './seguimientoAlta';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
@@ -19,8 +18,8 @@ type Filtro = 'todos' | Semaforo | 'beca' | 'debe';
 const TANDA = 60;
 
 export function PantallaAlumnos() {
-  const { esDueno, academia, usuario } = useSesion();
-  const altasNuevas = useAltasNuevas(academia.id, usuario.id);
+  const { esDueno } = useSesion();
+  const altasNuevas = useOutletContext<number>();
   const alumnos = useAlumnos();
   const estados = useEstadosPorAlumno();
   const planesBeca = new Set(usePlanes().filter(esBeca).map((p) => p.id));

@@ -9,6 +9,7 @@ import { db } from '../db/db';
 import { useEstadoSync } from '../sync/engine';
 import { useSesion } from './sesion';
 import { HojaTicket } from '../features/alumnos/HojaTicket';
+import { useAltasNuevas } from '../features/alumnos/seguimientoAlta';
 import { aplicarActualizacion, useEstadoActualizacion } from './actualizacion';
 import { useHoy } from './reloj';
 import { Avatar, cx } from '../components/ui';
@@ -23,9 +24,10 @@ type Pestana = ReturnType<typeof pestanasDe>[number];
  * Laptop/PC (≥1024 px): barra lateral fija y contenido a todo lo ancho.
  */
 export function Layout() {
-  const { usuario } = useSesion();
+  const { academia, usuario } = useSesion();
   const dia = useHoy();
   const tabs = pestanasDe(usuario.rol);
+  const nuevas = useAltasNuevas(academia.id, usuario.id, tabs.some((m) => m.id === 'alumnos'));
   const ruta = useLocation().pathname;
   const activa = pestanaActiva(usuario.rol, ruta);
   const c = useContadores();
@@ -35,7 +37,7 @@ export function Layout() {
   useAvisosEnVivo(usuario.rol !== 'maestro');
   return (
     <div className="min-h-dvh lg:flex">
-      <BarraLateral tabs={tabs} activa={activa} pendientesMas={pendientesMas} />
+      <BarraLateral tabs={tabs} activa={activa} pendientesMas={pendientesMas} nuevas={nuevas} />
       <div className="mx-auto flex min-h-dvh w-full max-w-2xl min-w-0 flex-col lg:max-w-none lg:flex-1">
         <BarraSuperior />
         <main className={cx('mx-auto w-full flex-1 lg:max-w-6xl lg:px-6 lg:pb-10', tabs.length < 2 ? 'pb-8' : 'pb-24')}>
@@ -44,7 +46,7 @@ export function Layout() {
             {/* si una pantalla falla, solo esa muestra el aviso; al cambiar de pantalla se reintenta */}
             <Tropiezo nivel="pantalla" key={ruta}>
               <Suspense fallback={null}>
-                <Outlet />
+                <Outlet context={nuevas} />
               </Suspense>
               {/* solo en compilaciones de prueba: ?romper simula una pantalla que falla */}
               {import.meta.env.VITE_SEMILLA === '1' && new URLSearchParams(location.search).has('romper') && <Romper />}
@@ -64,11 +66,13 @@ export function Layout() {
                 key={m.id}
                 to={m.ruta}
                 aria-current={on ? 'page' : undefined}
+                aria-description={m.id === 'alumnos' ? descripcionAltas(nuevas) : undefined}
                 className={cx('relative flex flex-col items-center gap-0.5 pt-2.5 pb-1 text-[11px] font-semibold', on ? 'text-brand-600' : 'text-ink-500')}
               >
                 <span className={cx('relative rounded-full px-4 py-1 transition', on && 'bg-brand-50')}>
                   <Icono size={22} strokeWidth={on ? 2.4 : 2} />
                   {m.id === 'mas' && pendientesMas > 0 && <span className="absolute top-0 right-2 h-2.5 w-2.5 rounded-full bg-brand-500 ring-2 ring-superficie" aria-label={`${pendientesMas} pendientes`} />}
+                  {m.id === 'alumnos' && nuevas > 0 && <ContadorAltas nuevas={nuevas} clase="absolute -top-1 -right-1 h-[18px] min-w-[18px] px-1 text-[10px] ring-2 ring-superficie" />}
                 </span>
                 {m.corto ?? m.titulo}
               </Link>
@@ -80,7 +84,15 @@ export function Layout() {
   );
 }
 
-function BarraLateral({ tabs, activa, pendientesMas }: { tabs: Pestana[]; activa: string | null; pendientesMas: number }) {
+function descripcionAltas(nuevas: number) {
+  return nuevas ? `${nuevas} ${nuevas === 1 ? 'alta nueva' : 'altas nuevas'}` : undefined;
+}
+
+function ContadorAltas({ nuevas, clase }: { nuevas: number; clase: string }) {
+  return <span aria-hidden="true" className={cx('inline-flex items-center justify-center rounded-full bg-brand-500 font-extrabold text-white tabular-nums', clase)}>{nuevas > 99 ? '99+' : nuevas}</span>;
+}
+
+function BarraLateral({ tabs, activa, pendientesMas, nuevas }: { tabs: Pestana[]; activa: string | null; pendientesMas: number; nuevas: number }) {
   const { academia, usuario, bloquear } = useSesion();
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-ink-100 bg-superficie px-4 py-5 lg:flex">
@@ -99,10 +111,12 @@ function BarraLateral({ tabs, activa, pendientesMas }: { tabs: Pestana[]; activa
               key={m.id}
               to={m.ruta}
               aria-current={activa === m.id ? 'page' : undefined}
+              aria-description={m.id === 'alumnos' ? descripcionAltas(nuevas) : undefined}
               className={cx('flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition', activa === m.id ? 'bg-brand-50 text-brand-600' : 'text-ink-700 hover:bg-ink-50')}
             >
               <Icono size={20} /> <span className="flex-1">{m.corto ?? m.titulo}</span>
               {m.id === 'mas' && pendientesMas > 0 && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-500 px-1.5 text-xs font-extrabold text-white">{pendientesMas}</span>}
+              {m.id === 'alumnos' && nuevas > 0 && <ContadorAltas nuevas={nuevas} clase="h-6 min-w-6 px-1.5 text-xs" />}
             </Link>
           );
         })}
