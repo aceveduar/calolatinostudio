@@ -13,7 +13,7 @@ import { ImagenProducto } from '../../components/ImagenProducto';
 import type { CategoriaProducto, ID, Producto } from '../../db/types';
 import { dinero } from '../../domain/dinero';
 import { deshacer, type Movimiento } from '../../domain/rapido';
-import { estadoExistencia, productoPorCodigo, venderProducto } from '../../domain/tienda';
+import { estadoExistencia, productoPorCodigo, venderEnMostrador } from '../../domain/tienda';
 
 const GRUPOS: { cat: CategoriaProducto; titulo: string }[] = [
   { cat: 'consumo', titulo: 'Snacks y bebidas' },
@@ -43,7 +43,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
       return;
     }
     try {
-      onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
+      onAgregar(await venderEnMostrador({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
       setAviso(`${p.nombre} · ${dinero(p.precio)}`);
       navigator.vibrate?.(20);
     } catch (e) {
@@ -136,7 +136,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
     if (ocupado) return;
     setOcupado(true);
     try {
-      onAgregar(await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
+      onAgregar(await venderEnMostrador({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
       navigator.vibrate?.(20);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo vender', 'error');
@@ -146,9 +146,16 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
   };
   const quitar = async (p: Producto) => {
     const ultimo = enCuenta(p)[0];
-    if (!ultimo) return;
-    await deshacer(ultimo);
-    onQuitar(ultimo);
+    if (!ultimo || ocupado) return;
+    setOcupado(true);
+    try {
+      await deshacer(ultimo);
+      onQuitar(ultimo);
+    } catch {
+      avisar('No se pudo quitar el producto. Intenta de nuevo.', 'error');
+    } finally {
+      setOcupado(false);
+    }
   };
 
   return (
@@ -180,26 +187,27 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {lista.map((p) => {
                 const d = stock.get(p.id) ?? null;
-                // descontar lo que ya está en esta cuenta para que el aviso sea inmediato
                 const est = estadoExistencia(p, d);
                 const n = enCuenta(p).length;
+                const agotado = est === 'agotado';
                 return (
                   <div key={p.id} className="relative">
                     <button
                       type="button"
+                      disabled={agotado || ocupado}
                       onClick={() => agregar(p)}
                       className={cx(
-                        'flex w-full flex-col items-center gap-0.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 transition select-none active:scale-95',
-                        n ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-superficie ring-ink-100',
+                        'flex h-full w-full flex-col items-center gap-0.5 rounded-2xl px-1 pt-3 pb-2.5 ring-1 transition select-none enabled:active:scale-95',
+                        n ? 'bg-brand-50 ring-2 ring-brand-500' : agotado ? 'bg-ink-100/60 text-ink-600 ring-ink-100' : 'bg-superficie ring-ink-100',
                       )}
-                      aria-label={`Agregar ${p.nombre}, ${dinero(p.precio)}`}
+                      aria-label={`Agregar ${p.nombre}, ${dinero(p.precio)}${agotado ? n ? ', sin más piezas disponibles' : ', agotado' : ''}${n ? `, ${n} en cuenta` : ''}`}
                     >
                       <ImagenProducto foto={p.foto} tam={52} />
                       <span className="mt-1 line-clamp-2 w-full px-1 text-center text-sm leading-tight font-semibold">{p.nombre}</span>
                       <span className="text-sm font-bold">{dinero(p.precio)}</span>
                       {est !== 'libre' && (
-                        <span className={cx('text-[11px] font-semibold', est === 'agotado' ? 'text-bad-600' : est === 'pocas' ? 'text-warn-600' : 'text-ink-500')}>
-                          {est === 'agotado' ? 'Agotado' : `Quedan ${d}`}
+                        <span className={cx('text-center text-[11px] font-semibold', agotado && !n ? 'text-bad-600' : est === 'pocas' ? 'text-warn-600' : 'text-ink-600')}>
+                          {agotado ? n ? 'Sin más piezas' : 'Agotado' : `Quedan ${d}`}
                         </span>
                       )}
                     </button>
@@ -210,11 +218,12 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
                         </span>
                         <button
                           type="button"
+                          disabled={ocupado}
                           onClick={() => quitar(p)}
-                          className="absolute -top-2 -left-1 flex h-7 w-7 items-center justify-center rounded-full bg-superficie text-ink-700 shadow ring-1 ring-ink-100"
+                          className="absolute -top-3 -left-2 flex size-11 items-center justify-center text-ink-700"
                           aria-label={`Quitar un ${p.nombre}`}
                         >
-                          <Minus size={16} />
+                          <span className="flex size-7 items-center justify-center rounded-full bg-superficie shadow ring-1 ring-ink-100"><Minus size={16} /></span>
                         </button>
                       </>
                     )}
@@ -225,9 +234,13 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
           </section>
         );
       })}
-      <Boton grande bloque onClick={onListo}>
-        {total ? `Listo · cuenta ${dinero(total)}` : 'Listo'}
-      </Boton>
+      {movs.length > 0 && (
+        <div className="sticky bottom-0 z-10 -mx-5 border-t border-ink-100 bg-ink-50/95 px-5 py-2 backdrop-blur">
+          <Boton grande bloque onClick={onListo}>
+            {total ? `Ver cuenta · ${dinero(total)}` : 'Ver cuenta'}
+          </Boton>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,7 +38,7 @@ await fila('Playera Calo (M)').getByRole('button', { name: 'Entregar' }).click()
 await page.waitForTimeout(500);
 t = await body();
 console.log('3) entregado y en la cuenta:', ok(/Apartados por recoger · 2/i.test(t) && /Playera Calo \(M\) \$250/.test(t)));
-await dlg.getByRole('button', { name: /Listo · cuenta \$250/ }).click();
+await dlg.getByRole('button', { name: /Ver cuenta · \$250/ }).click();
 await page.getByRole('button', { name: /Quitar Playera Calo \(M\)|Deshacer Playera/ }).first().click();
 await page.waitForTimeout(500);
 console.log('4) deshacer reabre el apartado:', ok((await page.getByRole('button', { name: 'Tienda, 3 apartados por recoger' }).count()) === 1));
@@ -47,8 +47,8 @@ console.log('4) deshacer reabre el apartado:', ok((await page.getByRole('button'
 await page.getByRole('button', { name: /^Tienda/ }).click();
 await fila('Playera Calo (M)').getByRole('button', { name: 'Entregar' }).click();
 await page.waitForTimeout(400);
-await dlg.getByRole('button', { name: /Listo · cuenta/ }).click();
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await dlg.getByRole('button', { name: /Ver cuenta ·/ }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 await page.getByRole('link', { name: 'Caja' }).click();
 await page.waitForTimeout(500);
 t = await body();

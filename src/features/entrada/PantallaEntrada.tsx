@@ -32,7 +32,7 @@ import { Tienda } from './Tienda';
 import { usePedidosPendientes } from '../../app/datos';
 import { sincronizar } from '../../sync/engine';
 import { useLectorUSB } from '../../app/codigos';
-import { productoPorCodigo, venderProducto } from '../../domain/tienda';
+import { productoPorCodigo, venderEnMostrador } from '../../domain/tienda';
 import { leerQR } from '../../domain/qr';
 import { HojaEntrada } from './HojaEntrada';
 import { CorregirEntrada, EstadoEntrada } from './CorregirEntrada';
@@ -249,7 +249,7 @@ export function PantallaEntrada() {
       setQ('');
       const p = await productoPorCodigo(codigo);
       if (p) {
-        const mov = await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
+        const mov = await venderEnMostrador({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
         agregarMovimiento(mov);
         avisar(`${p.nombre} · ${dinero(p.precio)}`);
         return;

@@ -50,7 +50,7 @@ await page.waitForTimeout(300);
 let t = await body();
 // el agua pudo leerse más de una vez (2 s entre lecturas del mismo código); al menos una
 console.log('4) en la cuenta: agua y electrolit:', ok(/Agua 600 ml/.test(t) && /Electrolit/.test(t)));
-await dlg.getByRole('button', { name: /Listo/ }).first().click();
+await dlg.getByRole('button', { name: /^Ver cuenta/ }).click();
 await page.waitForTimeout(300);
 
 // 5) lector USB en Entrada (sin abrir nada): producto a la cuenta
@@ -59,6 +59,20 @@ await lector('7501000000036');
 t = await body();
 const buscador = await page.getByPlaceholder(/Quién llegó|Buscar…/).inputValue();
 console.log('5) lector USB suma el refresco y no deja basura en el buscador:', ok(/Refresco/.test(t) && buscador === ''), JSON.stringify(buscador));
+const ventasRefresco = () => page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const producto = await db.productos.where('codigo').equals('7501000000036').first();
+  return db.pagos.where('productoId').equals(producto.id).count();
+});
+const antesDeAgotarse = await ventasRefresco();
+await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const producto = await db.productos.where('codigo').equals('7501000000036').first();
+  await db.productos.update(producto.id, { inventario: 0, inventarioAt: Date.now() });
+});
+await lector('7501000000036');
+await page.getByText(/Refresco está agotado o apartado/).waitFor();
+console.log('5a) escanear un producto agotado conserva la cuenta y Caja:', ok(await ventasRefresco() === antesDeAgotarse));
 
 // 6) lector USB con el QR de un alumno
 const alumno = await page.evaluate(() => new Promise((res) => { const q = indexedDB.open('compas'); q.onsuccess = () => { q.result.transaction('alumnos').objectStore('alumnos').getAll().onsuccess = (e) => res(e.target.result.find((a) => a.activo && !a.deletedAt)); }; }));

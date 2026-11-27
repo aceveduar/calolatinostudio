@@ -1,6 +1,6 @@
 /** Punto de venta: productos de la academia (aguas, snacks, artículos). */
 import { db } from '../db/db';
-import { crear } from '../db/repo';
+import { crear, enTransaccion } from '../db/repo';
 import type { ID, MetodoPago, Pago, Producto } from '../db/types';
 import { hoy } from './fechas';
 import { conSede } from './sedes';
@@ -26,6 +26,25 @@ export function estadoExistencia(p: Producto, disponibles: number | null): Estad
 /** Ventas de productos (todas las que tienen producto), para calcular existencias. */
 export function ventasDeProductos(): Promise<Pago[]> {
   return db.pagos.where('productoId').above('').toArray();
+}
+
+/** Lee el inventario vigente del equipo para el cobro directo, sin ocupar piezas apartadas. */
+export async function venderEnMostrador(datos: Parameters<typeof venderProducto>[0]): Promise<Movimiento> {
+  return enTransaccion(async () => {
+    const producto = await db.productos.get(datos.producto.id);
+    if (!producto?.activo || producto.deletedAt) throw new Error('Este producto ya no está disponible.');
+    if (producto.inventario != null) {
+      const [ventas, pedidos] = await Promise.all([
+        db.pagos.where('productoId').equals(producto.id).toArray(),
+        db.pedidos.where('estado').equals('pendiente').filter((p) => p.productoId === producto.id && !p.deletedAt).toArray(),
+      ]);
+      const reservado = pedidos.reduce((total, p) => total + p.cantidad, 0);
+      if ((existencias(producto, ventas) ?? 0) - reservado < (datos.cantidad ?? 1)) {
+        throw new Error(`${producto.nombre} está agotado o apartado.`);
+      }
+    }
+    return venderProducto({ ...datos, producto });
+  });
 }
 
 export async function venderProducto(p: { producto: Producto; cantidad?: number; monto?: number; metodo: MetodoPago; usuarioId: ID; alumnoId?: ID | null; sedeId?: ID | null }): Promise<Movimiento> {

@@ -9,14 +9,21 @@ await page.clock.install({ time: new Date('2026-11-13T19:30:00') }); // viernes 
   page.on('pageerror', (e) => errores.push(e.message));
   await page.goto('http://localhost:4173/');
   await page.waitForFunction(() => !!window.compasDev);
-  console.log(modo, 'tienda demo:', JSON.stringify(await page.evaluate(async () => { await window.compasDev.sembrar(); return window.compasDev.agregarTiendaDemo(); })));
+  console.log(modo, 'tienda demo:', JSON.stringify(await page.evaluate(async () => {
+    const dev = window.compasDev;
+    await dev.sembrar();
+    const resultado = await dev.agregarTiendaDemo();
+    const barrita = await dev.db.productos.filter((p) => p.nombre === 'Barrita').first();
+    await dev.db.productos.update(barrita.id, { inventario: 1, inventarioAt: Date.now() });
+    return resultado;
+  })));
   await page.reload();
   await page.getByText('Monse', { exact: true }).click();
   for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
   await page.getByPlaceholder(/Quién llegó|Buscar…/).waitFor();
   await page.waitForTimeout(600);
   // alumno que paga clase
-  await page.locator('main button').filter({ hasText: /Paga$/ }).first().click();
+  await page.locator('main button').filter({ hasText: /Cobrar \$[\d,]+$/ }).first().click();
   await page.waitForTimeout(300);
   // tienda: 2 aguas, 1 galleta, 1 barrita y quitar la barrita
   await page.getByRole('button', { name: 'Tienda', exact: true }).click();
@@ -26,13 +33,18 @@ await page.clock.install({ time: new Date('2026-11-13T19:30:00') }); // viernes 
   await dlg.getByRole('button', { name: /Agregar Agua 600 ml/ }).click();
   await dlg.getByRole('button', { name: /Agregar Galletas/ }).click();
   await dlg.getByRole('button', { name: /Agregar Barrita/ }).click();
-  await page.waitForTimeout(400);
-  const despues = await dlg.getByRole('button', { name: /Agregar Barrita/ }).innerText();
-  console.log(modo, 'existencias bajan al vender (Barrita):', antes.match(/Quedan \d+|Agotado/)?.[0], '→', despues.match(/Quedan \d+|Agotado/)?.[0]);
+  const barrita = dlg.getByRole('button', { name: /Agregar Barrita/ });
+  await barrita.getByText('Sin más piezas').waitFor();
+  console.log(modo, 'última pieza en la cuenta bloquea otra venta:', ok(antes.includes('Quedan 1') && await barrita.isDisabled()));
+  const verCuenta = dlg.getByRole('button', { name: /^Ver cuenta · / });
+  const cajaVisible = await verCuenta.boundingBox();
+  console.log(modo, 'Ver cuenta es visible desde arriba:', ok(cajaVisible && cajaVisible.y + cajaVisible.height <= vp.height));
   await page.screenshot({ path: `${OUT}tienda-${modo}-hoja.png` });
   await dlg.getByRole('button', { name: 'Quitar un Barrita' }).click();
   await page.waitForTimeout(300);
-  await dlg.getByRole('button', { name: /^Listo · cuenta/ }).click();
+  await barrita.getByText('Quedan 1').waitFor();
+  console.log(modo, 'quitar la última pieza vuelve a dejarla disponible:', ok(await barrita.isEnabled()));
+  await verCuenta.click();
   await page.waitForTimeout(400);
   const cuenta = (await page.locator(movil ? 'body' : 'aside.sticky.top-6').innerText()).replace(/\s+/g, ' ');
   console.log(modo, 'cuenta: clase + Agua ×2 + Galletas = $85:', ok(/Agua 600 ml\s*×2\s*\$30/.test(cuenta) && /Galletas\s*\$15/.test(cuenta) && /\$85/.test(cuenta) && !/Barrita/.test(cuenta)));
@@ -40,7 +52,7 @@ await page.clock.install({ time: new Date('2026-11-13T19:30:00') }); // viernes 
   await page.getByText('Cambio $15').waitFor({ timeout: 3000 });
   console.log(modo, 'cambio de $100: $15: OK');
   await page.screenshot({ path: `${OUT}tienda-${modo}-cuenta.png` });
-  await page.getByRole('button', { name: 'Listo', exact: true }).click();
+  await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
   await page.getByRole('link', { name: 'Caja' }).first().click();
   const caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
   console.log(modo, 'caja separa:', caja, ok(/Clases \$40 · Tienda \$45/.test(caja)));
