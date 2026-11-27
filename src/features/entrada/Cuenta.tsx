@@ -198,7 +198,7 @@ export function Cuenta({
               </div>
             </div>
             <div className="mt-2.5 flex gap-1.5 sm:gap-2">
-              {billetesSugeridos(efectivo).map((b) => (
+              {[efectivo, ...billetesSugeridos(efectivo)].map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -207,8 +207,10 @@ export function Cuenta({
                     setPagoCon(v);
                   }}
                   aria-pressed={recibido === b}
+                  aria-label={b === efectivo ? `Pago exacto · ${dinero(b)}` : undefined}
                   className={cx('min-h-11 min-w-0 flex-1 rounded-xl px-0.5 text-sm font-bold transition', recibido === b ? 'bg-[#1f9d55] text-white' : 'bg-white/10 active:bg-white/20')}
                 >
+                  {b === efectivo && <span className="block text-[10px] leading-tight">Exacto</span>}
                   {dinero(b)}
                 </button>
               ))}

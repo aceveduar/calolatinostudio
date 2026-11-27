@@ -206,9 +206,9 @@ for (let i = 0; i < 4; i++) {
   await btn(/sin nombre/).click();
   await page.getByText(`${i + 2} pagos en efectivo`, { exact: true }).waitFor();
 }
-await billete('$200').click();
+await btn('Pago exacto · $200').click();
 await page.getByText('Cambio $0', { exact: true }).waitFor();
-console.log('12c) un billete igual al total aparece entre las sugerencias: OK');
+console.log('12c) el pago exacto calcula cambio cero: OK');
 
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

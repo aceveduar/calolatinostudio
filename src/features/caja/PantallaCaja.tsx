@@ -328,6 +328,9 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho, onVerTicket 
   const { usuario } = useSesion();
   const avisar = useAvisos();
   const pago = useLiveQuery(() => db.pagos.get(inicial.id), [inicial.id]) ?? inicial;
+  const producto = useLiveQuery(() => pago.productoId ? db.productos.get(pago.productoId) : undefined, [pago.productoId]);
+  const devuelveExistencias = producto?.inventario != null && pago.createdAt >= (producto.inventarioAt ?? 0);
+  const piezas = pago.cantidad ?? 1;
   const respaldo = useRespaldoMovimientos([pago.id])(pago.id);
   const [motivo, setMotivo] = useState('');
   return (
@@ -382,7 +385,13 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho, onVerTicket 
               ))}
             </div>
             <Entrada value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="u otro motivo…" />
-            <p className="text-xs text-ink-500">Se quita el cobro y la entrada o el plan que generó. Queda registrado quién lo hizo y se puede restaurar.</p>
+            {pago.productoId ? (
+              <p className="text-sm text-ink-700">
+                Se anula la venta de {dinero(pago.monto)} en Caja. {devuelveExistencias && (piezas === 1 ? 'Una pieza vuelve al inventario. ' : `Vuelven ${piezas} piezas al inventario. `)} La devolución del dinero se hace por separado.
+              </p>
+            ) : (
+              <p className="text-xs text-ink-500">Se quita el cobro y la entrada o el plan que generó. Queda registrado quién lo hizo y se puede restaurar.</p>
+            )}
             <Boton
               bloque
               variante="peligro"

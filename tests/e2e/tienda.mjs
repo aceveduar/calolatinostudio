@@ -29,6 +29,7 @@ await page.clock.install({ time: new Date('2026-11-13T19:30:00') }); // viernes 
   await page.getByRole('button', { name: 'Tienda', exact: true }).click();
   const dlg = page.getByRole('dialog');
   const antes = await dlg.getByRole('button', { name: /Agregar Barrita/ }).innerText();
+  const stockGalletas = await dlg.getByRole('button', { name: /Agregar Galletas/ }).getByText(/Quedan \d+/).innerText();
   await dlg.getByRole('button', { name: /Agregar Agua 600 ml/ }).click();
   await dlg.getByRole('button', { name: /Agregar Agua 600 ml/ }).click();
   await dlg.getByRole('button', { name: /Agregar Galletas/ }).click();
@@ -57,6 +58,22 @@ await page.clock.install({ time: new Date('2026-11-13T19:30:00') }); // viernes 
   const caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
   console.log(modo, 'caja separa:', caja, ok(/Clases \$40 · Tienda \$45/.test(caja)));
   await page.screenshot({ path: `${OUT}tienda-${modo}-caja.png`, fullPage: true });
+  await page.getByRole('button', { name: /Galletas.*efectivo.*\$15/ }).click();
+  const cobro = page.getByRole('dialog', { name: 'Cobro' });
+  await cobro.getByText(/Una pieza vuelve al inventario/).waitFor();
+  await cobro.getByRole('button', { name: 'Se cobró dos veces' }).click();
+  await cobro.getByRole('button', { name: 'Anular cobro', exact: true }).click();
+  await cobro.waitFor({ state: 'hidden' });
+  await page.getByText('$70', { exact: true }).first().waitFor();
+  await page.getByRole('link', { name: 'Entrada', exact: true }).click();
+  await page.getByRole('button', { name: 'Tienda', exact: true }).click();
+  await dlg.getByRole('button', { name: /Agregar Galletas/ }).getByText(stockGalletas, { exact: true }).waitFor();
+  console.log(modo, 'anular una venta de tienda actualiza Caja y devuelve la pieza:', 'OK');
+  await dlg.getByRole('button', { name: /Agregar Dulces/ }).click();
+  await dlg.getByRole('button', { name: 'Ver cuenta · $5' }).click();
+  await page.getByRole('button', { name: 'Pago exacto · $5' }).click();
+  await page.getByText('Cambio $0', { exact: true }).waitFor();
+  console.log(modo, 'el pago exacto funciona con monedas:', 'OK');
 }
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
