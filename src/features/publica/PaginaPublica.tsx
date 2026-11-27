@@ -9,7 +9,7 @@ import { dinero } from '../../domain/dinero';
 import { fechaCorta, hoy, sumarDias } from '../../domain/fechas';
 import { estadoCurso } from '../../domain/cursos';
 import { PRINCIPAL } from '../../domain/sedes';
-import { comoLlegar, urlRed, type DatosPublica, REDES, NOMBRE_RED } from '../../domain/publica';
+import { comoLlegar, esTestimonioDeEjemplo, urlRed, type DatosPublica, REDES, NOMBRE_RED } from '../../domain/publica';
 import { leerHuella } from '../../domain/invitar';
 import { recordarOrigen } from '../../domain/origen';
 import { textoAvisoPrivacidad } from '../../domain/privacidad';
@@ -121,7 +121,7 @@ function Reintentar() {
 
 function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
   const p = d.pagina ?? {};
-  const testimonios = (p.testimonios ?? []).filter((t) => !/^ejemplo\s*:/i.test(t.nombre.trim()));
+  const testimonios = (p.testimonios ?? []).filter((t) => !esTestimonioDeEjemplo(t.nombre));
   const sedes = useMemo(() => [{ id: null as string | null, nombre: d.academia.sede_principal, color: d.academia.color ?? '#d6304a' }, ...d.sedes], [d]);
   const conSedes = d.sedes.length > 0;
   const [sede, setSede] = useState<string | null>(null);

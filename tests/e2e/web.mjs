@@ -40,6 +40,15 @@ await page.getByPlaceholder('Ej. Tu primera clase es gratis').fill('Tu primera c
 await page.getByPlaceholder('Calle, número, colonia, ciudad').first().fill('Av. Juárez 123, Centro, Toluca, Méx.');
 await page.getByPlaceholder(/Segundo piso/).first().fill('Segundo piso, junto a la farmacia');
 await page.getByPlaceholder('@usuario').first().fill('@calolatino');
+await abrir('Testimonios');
+await page.getByRole('button', { name: 'Agregar testimonio' }).click();
+await page.getByPlaceholder('¿Qué dijo?').fill('Cita de prueba del editor.');
+await page.getByPlaceholder('Nombre', { exact: true }).fill('Ejemplo: Prueba del editor');
+console.log('   testimonios: solo se edita una cita y el ejemplo se identifica como oculto:', ok(
+  await page.getByPlaceholder('¿Qué dijo?').count() === 1
+  && await page.getByRole('button', { name: /Ejemplo: Prueba del editor.*Ejemplo oculto en el sitio/ }).isVisible(),
+));
+await page.getByRole('button', { name: /^Quitar testimonio/ }).click();
 await abrir('Reglamentos');
 await page.getByRole('button', { name: 'Agregar reglamento' }).click();
 await page.getByRole('textbox', { name: 'Modalidad' }).fill('Salsa Casino');

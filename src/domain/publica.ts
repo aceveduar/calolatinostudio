@@ -74,3 +74,4 @@ export function urlRed(red: (typeof REDES)[number], valor: string | undefined): 
 /** Mapa de Google sin clave (se muestra en un iframe) y enlace para llegar. */
 export const mapaEmbed = (direccion: string) => `https://maps.google.com/maps?q=${encodeURIComponent(direccion)}&z=16&output=embed`;
 export const comoLlegar = (direccion: string) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(direccion)}`;
+export const esTestimonioDeEjemplo = (nombre: string) => /^ejemplo\s*:/i.test(nombre.trim());

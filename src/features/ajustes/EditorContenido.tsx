@@ -10,7 +10,7 @@ import { useAvisos } from '../../components/avisos';
 import { Boton, Campo, Entrada, Tarjeta, cx } from '../../components/ui';
 import { actualizar } from '../../db/repo';
 import type { ContenidoPagina } from '../../db/types';
-import { PREGUNTAS_SUGERIDAS, REDES, NOMBRE_RED } from '../../domain/publica';
+import { esTestimonioDeEjemplo, PREGUNTAS_SUGERIDAS, REDES, NOMBRE_RED } from '../../domain/publica';
 
 const areaTexto =
   'w-full rounded-xl bg-superficie px-4 py-3 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-ink-300 resize-y';
@@ -65,6 +65,9 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
   const [c, setC] = useState<ContenidoPagina>(() => ({ ...guardado, preguntas: guardado.preguntas ?? PREGUNTAS_SUGERIDAS.map((x) => ({ ...x })) }));
   const [ocupado, setOcupado] = useState(false);
   const [reglamentoAbierto, setReglamentoAbierto] = useState<string | null>(null);
+  const [testimonioAbierto, setTestimonioAbierto] = useState<number | null>(null);
+  const testimonios = c.testimonios ?? [];
+  const visibles = testimonios.filter((t) => t.texto.trim() && t.nombre.trim() && !esTestimonioDeEjemplo(t.nombre)).length;
   const archivo = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
   const cambiosContenido = JSON.stringify(limpio(c)) !== JSON.stringify(guardado);
@@ -233,24 +236,34 @@ export function EditorContenido({ enlace }: { enlace?: EnlaceYWhats }) {
         </Campo>
       </Bloque>
 
-      <Bloque id="testimonios" {...plegable('testimonios')} resumen={(c.testimonios?.length ?? 0) ? n(c.testimonios!.length, 'testimonio', 'testimonios') : 'Ninguno todavía'} falta={!(c.testimonios?.length ?? 0)} titulo="Testimonios" ayuda="Lo que dicen tus alumnos (por ejemplo, de tus reseñas de Facebook). Es lo que más confianza da a quien no te conoce.">
+      <Bloque id="testimonios" {...plegable('testimonios')} resumen={n(visibles, 'visible al guardar', 'visibles al guardar')} falta={!visibles} titulo="Testimonios" ayuda="Edita las citas que se muestran en el sitio. Los testimonios enviados por alumnos se revisan en la bandeja de Testimonios.">
+        <Link to="/alumnos/testimonios" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-600">Ir a la bandeja de Testimonios</Link>
         {(c.testimonios ?? []).map((x, i) => {
           const lista = c.testimonios ?? [];
           const ponT = (p: Partial<typeof x>) => pon({ testimonios: lista.map((y, j) => (j === i ? { ...y, ...p } : y)) });
           return (
-            <Tarjeta key={i} className="space-y-2 p-3">
-              <textarea className={areaTexto} rows={2} value={x.texto} onChange={(e) => ponT({ texto: e.target.value })} maxLength={240} placeholder="¿Qué dijo?" aria-label={`Testimonio ${i + 1}`} />
+            <Tarjeta key={i} className="p-3">
+              <button type="button" aria-expanded={testimonioAbierto === i} onClick={() => setTestimonioAbierto(testimonioAbierto === i ? null : i)} className="flex min-h-11 w-full items-center justify-between gap-2 text-left">
+                <span className="min-w-0">
+                  <span className="block break-words text-sm font-semibold">{x.nombre || 'Nuevo testimonio'}</span>
+                  <span className="block text-xs text-ink-500">{esTestimonioDeEjemplo(x.nombre) ? 'Ejemplo oculto en el sitio' : !x.texto.trim() || !x.nombre.trim() ? 'Falta completar' : x.texto.slice(0, 72) + (x.texto.length > 72 ? '…' : '')}</span>
+                </span>
+                <ChevronDown size={16} aria-hidden="true" className={cx('shrink-0 text-ink-500', testimonioAbierto === i && 'rotate-180')} />
+              </button>
+              {testimonioAbierto === i && <div className="mt-2 space-y-2">
+              <textarea className={areaTexto} rows={4} value={x.texto} onChange={(e) => ponT({ texto: e.target.value })} maxLength={240} placeholder="¿Qué dijo?" aria-label={`Testimonio ${i + 1}`} />
               <div className="flex items-center gap-2">
                 <Entrada value={x.nombre} onChange={(e) => ponT({ nombre: e.target.value })} placeholder="Nombre" aria-label={`Nombre ${i + 1}`} />
                 <Entrada value={x.detalle ?? ''} onChange={(e) => ponT({ detalle: e.target.value })} placeholder="Ej. Alumna de bachata" aria-label={`Detalle ${i + 1}`} />
-                <button onClick={() => pon({ testimonios: lista.filter((_, j) => j !== i) })} className="rounded-xl p-3 text-ink-500 active:bg-ink-100" aria-label={`Quitar testimonio ${i + 1}`}>
+                <button type="button" onClick={() => { pon({ testimonios: lista.filter((_, j) => j !== i) }); setTestimonioAbierto(null); }} className="rounded-xl p-3 text-ink-500 active:bg-ink-100" aria-label={`Quitar testimonio ${i + 1}`}>
                   <Trash2 size={18} />
                 </button>
               </div>
+              </div>}
             </Tarjeta>
           );
         })}
-        <Boton variante="secundario" bloque onClick={() => pon({ testimonios: [...(c.testimonios ?? []), { texto: '', nombre: '' }] })}>
+        <Boton variante="secundario" bloque onClick={() => { setTestimonioAbierto(testimonios.length); pon({ testimonios: [...testimonios, { texto: '', nombre: '' }] }); }}>
           <Plus size={18} /> Agregar testimonio
         </Boton>
       </Bloque>
