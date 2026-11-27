@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useSesion } from '../../app/sesion';
 import { useAvisos } from '../../components/avisos';
 import { Boton, Tarjeta } from '../../components/ui';
 import { actualizar } from '../../db/repo';
-import { MENSAJES, MENSAJES_INTERESADOS, VARIABLES, armarMensaje, plantilla, type ClaveMensaje } from '../../domain/mensajes';
+import { MENSAJES, MENSAJES_INTERESADOS, armarMensaje, plantilla, variablesMensaje, type ClaveMensaje } from '../../domain/mensajes';
 
 const EJEMPLO = { nombre: 'Ana', academia: '', plan: 'Mensualidad', vence: 'viernes 20 nov', vigencia: '13 nov al 12 dic', monto: '$400', codigo: 'K7P2QX', enlace: 'calolatinostudio.pages.dev/p/Xb7…', clase: 'Salsa 1', horario: 'lunes y miércoles 8:00 pm' };
 
@@ -14,6 +14,21 @@ export function EditorMensajes() {
   const avisar = useAvisos();
   const [abierto, setAbierto] = useState<ClaveMensaje | null>(null);
   const [texto, setTexto] = useState('');
+  const campo = useRef<HTMLTextAreaElement>(null);
+
+  function insertar(clave: string) {
+    const entrada = campo.current;
+    if (!entrada) return;
+    const variable = `{${clave}}`;
+    const desde = entrada.selectionStart;
+    const hasta = entrada.selectionEnd;
+    setTexto(texto.slice(0, desde) + variable + texto.slice(hasta));
+    requestAnimationFrame(() => {
+      if (entrada !== campo.current) return;
+      entrada.focus();
+      entrada.setSelectionRange(desde + variable.length, desde + variable.length);
+    });
+  }
 
   const guardar = async (clave: ClaveMensaje, valor: string | null) => {
     const actuales = { ...(academia.mensajes ?? {}) };
@@ -31,6 +46,9 @@ export function EditorMensajes() {
         const actual = plantilla(academia, m.clave);
         const propio = !!academia.mensajes?.[m.clave];
         const editando = abierto === m.clave;
+        const variables = variablesMensaje(m.clave);
+        const ejemplo = Object.fromEntries(variables.map(({ clave }) => [clave, clave === 'academia' ? academia.nombre : EJEMPLO[clave as keyof typeof EJEMPLO]]));
+        const sinDatos = editando ? [...new Set(Array.from(texto.matchAll(/\{(\w+)\}/g), ([, clave]) => clave))].filter((clave) => !variables.some((v) => v.clave === clave)) : [];
         return (
           <Tarjeta key={m.clave} className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -55,28 +73,31 @@ export function EditorMensajes() {
             {editando ? (
               <div className="mt-3 space-y-2">
                 <textarea
+                  ref={campo}
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
                   rows={4}
                   aria-label={`Mensaje: ${m.titulo}`}
                   className="w-full rounded-xl bg-superficie px-3 py-2 ring-1 ring-ink-100 outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                <p className="text-xs font-semibold text-ink-600">Insertar un dato</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {VARIABLES.map((v) => (
+                  {variables.map((v) => (
                     <button
                       key={v.clave}
                       type="button"
                       title={v.texto}
-                      onClick={() => setTexto((t) => `${t}{${v.clave}}`)}
-                      className="rounded-full bg-brand-50 px-2.5 py-1 font-mono text-xs text-brand-600"
+                      onClick={() => insertar(v.clave)}
+                      className="min-h-9 rounded-full bg-brand-50 px-2.5 py-1 font-mono text-xs text-brand-600"
                     >
                       {`{${v.clave}}`}
                     </button>
                   ))}
                 </div>
-                <div className="rounded-xl bg-[#e7f8df] p-3 text-sm text-[#1c1a24]">
-                  <p className="mb-1 text-[11px] font-semibold text-[#3a7a2c]">Así se verá</p>
-                  {armarMensaje(texto, { ...EJEMPLO, academia: academia.nombre })}
+                {sinDatos.length > 0 && <p className="text-sm text-warn-600">Estos datos pueden quedar en blanco al enviar el mensaje. {sinDatos.map((clave) => `{${clave}}`).join(', ')}</p>}
+                <div className="rounded-xl bg-[#e7f8df] p-3 text-sm break-words whitespace-pre-wrap text-[#1c1a24]">
+                  <p className="mb-1 text-[11px] font-semibold text-[#3a7a2c]">Vista previa con datos de ejemplo</p>
+                  {armarMensaje(texto, ejemplo)}
                 </div>
                 <div className="flex gap-2">
                   <Boton variante="fantasma" onClick={() => setAbierto(null)}>
@@ -94,7 +115,9 @@ export function EditorMensajes() {
               </div>
             ) : (
               // 2 renglones para reconocerlo; "Editar" muestra el texto completo (antes 9 mensajes completos = ~2,200 px)
-              <p className="mt-2 line-clamp-2 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">{armarMensaje(actual, { ...EJEMPLO, academia: academia.nombre })}</p>
+              <div className="mt-2 rounded-xl bg-ink-50 px-3 py-2 text-sm text-ink-700">
+                <p className="line-clamp-2 break-words">{armarMensaje(actual, ejemplo)}</p>
+              </div>
             )}
           </Tarjeta>
         );

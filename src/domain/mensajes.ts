@@ -76,12 +76,29 @@ export const VARIABLES: { clave: string; texto: string }[] = [
   { clave: 'plan', texto: 'Plan (Mensualidad…)' },
   { clave: 'vence', texto: 'Fecha en que vence' },
   { clave: 'vigencia', texto: 'Del … al …' },
-  { clave: 'monto', texto: 'Monto cobrado' },
+  { clave: 'monto', texto: 'Importe' },
   { clave: 'codigo', texto: 'Código de credencial' },
   { clave: 'enlace', texto: 'Enlace a su portal' },
   { clave: 'clase', texto: 'Clase (interesados)' },
   { clave: 'horario', texto: 'Días y hora de la clase' },
 ];
+
+const camposMensaje: Record<ClaveMensaje, readonly string[]> = {
+  bienvenida: ['nombre', 'academia'],
+  credencial: ['nombre', 'academia', 'codigo'],
+  portal: ['nombre', 'academia', 'codigo', 'enlace'],
+  vence: ['nombre', 'academia', 'plan', 'vence'],
+  vencio: ['nombre', 'academia', 'plan', 'vence'],
+  adeudo: ['nombre', 'academia', 'monto'],
+  extrañamos: ['nombre', 'academia'],
+  recibo: ['nombre', 'academia', 'monto', 'plan', 'vigencia', 'vence'],
+  interesado: ['nombre', 'academia', 'clase'],
+  grupo: ['nombre', 'academia', 'clase', 'horario'],
+};
+
+export function variablesMensaje(clave: ClaveMensaje) {
+  return VARIABLES.filter((v) => camposMensaje[clave].includes(v.clave));
+}
 
 export function plantilla(academia: Pick<Academia, 'mensajes'>, clave: ClaveMensaje): string {
   return academia.mensajes?.[clave]?.trim() || [...MENSAJES, ...MENSAJES_INTERESADOS].find((m) => m.clave === clave)!.base;
