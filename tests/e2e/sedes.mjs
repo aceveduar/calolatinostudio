@@ -25,10 +25,12 @@ if (await page.getByText('Hoy no hay clases programadas').count()) {
   await page.waitForTimeout(300);
 }
 await page.getByRole('button', { name: /sin nombre/ }).click();
-await page.getByText('Termina la cuenta para cambiar de sede.').waitFor();
 const selectorSede = page.getByRole('button', { name: /^Cambiar sede:/ });
-console.log('   con una cuenta abierta no se cambia de sede:', ok(await selectorSede.isDisabled()));
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).waitFor();
+await selectorSede.click();
+await page.getByText('Cierra la cuenta para cambiar de sede.').waitFor();
+console.log('   con una cuenta abierta no se cambia de sede:', ok((await page.getByRole('dialog', { name: 'Cambiar sede' }).count()) === 0));
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 // cambiar a Casa de Cultura
 await selectorSede.click();
 const hojaSede = page.getByRole('dialog', { name: 'Cambiar sede' });
@@ -43,13 +45,13 @@ console.log('   el selector del encabezado muestra la nueva sede:', ok(await pag
 console.log('2) en Casa de Cultura: precio $40 y solo sus clases:', ok(t.includes('Casa de Cultura') && t.includes('+$40') && /Lady Style|Salsa 0|Bachata 0/.test(t) && !/Cumbia/.test(t)));
 await page.screenshot({ path: `${OUT}sede-3-cdc.png` });
 await page.getByRole('button', { name: /sin nombre/ }).click();
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 // un alumno con mensualidad general entra sin pagar también aquí
 await page.locator('main button').filter({ hasText: /Plan$/ }).first().click().catch(() => {});
 await page.waitForTimeout(400);
 const cuentaPlan = await page.locator('body').innerText();
 console.log('3) mensualidad general sirve en Casa de Cultura:', ok(/Plan/.test(cuentaPlan)));
-await page.getByRole('button', { name: 'Listo', exact: true }).click().catch(() => {});
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click().catch(() => {});
 // Caja de Casa de Cultura (Monse no ve "Todas")
 await page.getByRole('link', { name: 'Caja' }).click();
 let caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
@@ -140,7 +142,7 @@ await page.evaluate((id) => window.compasDev.db.clases.update(id, { activo: fals
 await sugerencia.click();
 await page.getByRole('button', { name: /Clase: .*Casa de Cultura/ }).waitFor();
 await page.getByRole('button', { name: /Cobrar \$40 sin nombre/ }).click();
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 const registro = await page.evaluate(async (clase) => {
   const { db } = window.compasDev;
   const asistencias = await db.asistencias.where('[claseId+fecha]').equals([clase, '2026-11-14']).filter((a) => !!a.pagoId && !a.alumnoId).sortBy('createdAt');
@@ -186,7 +188,7 @@ await page.getByText(/Prueba puntual · 19:00 · Casa de Cultura/).waitFor();
 await page.getByRole('link', { name: 'Entrada', exact: true }).click();
 await page.getByRole('button', { name: /Clase: .*Prueba puntual.*19:00.*Casa de Cultura/ }).waitFor();
 await page.getByRole('button', { name: /Cobrar \$40 sin nombre/ }).click();
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 const cambioGuardado = await page.evaluate(async (id) => {
   const { db } = window.compasDev;
   const base = await db.clases.get(id);

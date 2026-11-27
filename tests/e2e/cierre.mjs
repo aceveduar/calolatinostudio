@@ -54,5 +54,28 @@ await page.getByRole('button', { name: /Vender mensualidad o paquete/ }).waitFor
 await page.screenshot({ path: `${OUT}cierre-opciones.png` });
 console.log('5) tocar su nombre en la cuenta abre sus opciones:', ok((await page.getByRole('button', { name: /Vender mensualidad o paquete/ }).count()) === 1));
 await page.keyboard.press('Escape');
+await listo.click();
+
+// La clase sugerida se mantiene durante el cobro aunque cambie la hora.
+await page.evaluate(async () => {
+  const { db } = window.compasDev;
+  const clases = await db.clases.toArray();
+  const [primera, segunda] = clases.filter((c) => c.activo && !c.sedeId);
+  await db.clases.bulkPut(clases.map((c) => c.id === primera.id || c.id === segunda.id
+    ? { ...c, dias: [3], horaInicio: c.id === primera.id ? '19:00' : '20:00', duracionMin: 60, curso: null }
+    : { ...c, activo: false }));
+});
+const clase = (hora) => page.getByRole('button', { name: new RegExp('^Clase: .*' + hora) });
+await clase('19:00').waitFor();
+await page.getByRole('button', { name: /Cobrar .* sin nombre/ }).click();
+await listo.waitFor();
+await clase('19:00').click();
+await page.getByText('Cierra la cuenta para cambiar de clase.').waitFor();
+console.log('6) cambiar de clase con la cuenta abierta muestra el aviso:', ok((await page.getByRole('dialog', { name: 'Clases de hoy' }).count()) === 0));
+await page.clock.fastForward('01:00:00');
+await clase('19:00').waitFor();
+await listo.click();
+await clase('20:00').waitFor();
+console.log('7) la clase cambia por horario al cerrar la cuenta:', 'OK');
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

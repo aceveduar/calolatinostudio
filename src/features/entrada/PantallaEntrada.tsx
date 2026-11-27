@@ -18,7 +18,7 @@ import type { Alumno, Clase, ID, MetodoPago } from '../../db/types';
 import { claseEnFecha, claseEnOtraSede, claseSugerida, clasesDelDia } from '../../domain/clases';
 import { dinero } from '../../domain/dinero';
 import { consultaTelefono, digitosTelefono } from '../../domain/telefono';
-import { DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
+import { aFecha, DIAS_CORTOS, fechaLarga, horaDe, hoy } from '../../domain/fechas';
 import { membresiaQueCubre } from '../../domain/membresias';
 import { cobrarClaseSuelta } from '../../domain/operaciones';
 import { cambiarMetodo, deshacer, entradaRapida, entradaSinNombre, nuevoYCobrar, type Movimiento, type Resultado } from '../../domain/rapido';
@@ -57,7 +57,17 @@ export function PantallaEntrada() {
   const sedes = useSedes();
   const [sedeActual, cambiarSede] = useSedeActual();
   // Solo las clases de la sede donde está este equipo
-  const fechaEntrada = hoy();
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const actualizarHora = () => setAhora(new Date());
+    const intervalo = window.setInterval(actualizarHora, 30_000);
+    document.addEventListener('visibilitychange', actualizarHora);
+    return () => {
+      window.clearInterval(intervalo);
+      document.removeEventListener('visibilitychange', actualizarHora);
+    };
+  }, []);
+  const fechaEntrada = aFecha(ahora);
   const clases = useMemo(() => todasLasClases
     .flatMap((c) => {
       const efectiva = c.activo ? claseEnFecha(c, fechaEntrada) : null;
@@ -72,7 +82,7 @@ export function PantallaEntrada() {
   const totalAlumnos = useLiveQuery(() => db.alumnos.count(), [], null);
   const estados = useEstadosPorAlumno();
   const planes = usePlanes();
-  const deHoy = useMemo(() => clasesDelDia(clases), [clases]);
+  const deHoy = useMemo(() => clasesDelDia(clases, ahora), [clases, ahora]);
 
   // la clase elegida a mano se recuerda al ir y volver de otras pantallas (90 min; luego vuelve a sugerir la de la hora)
   const [claseId, setClaseIdEstado] = useState<ID | null>(leerClaseElegida);
@@ -81,7 +91,19 @@ export function PantallaEntrada() {
     guardarClaseElegida(id);
   }, []);
   const [verTodas, setVerTodas] = useState(false);
-  const clase: Clase | null = clases.find((c) => c.id === claseId) ?? claseSugerida(deHoy);
+  const [estadoCuenta, setEstadoCuenta] = useState<{ movs: Movimiento[]; clase: Clase | null }>({ movs: [], clase: null });
+  const { movs } = estadoCuenta;
+  const sugerida = claseSugerida(deHoy, ahora);
+  const clase = movs.length ? estadoCuenta.clase : clases.find((c) => c.id === claseId) ?? sugerida;
+  function agregarMovimiento(mov: Movimiento, claseDelMovimiento = clase) {
+    setEstadoCuenta((actual) => ({
+      movs: [mov, ...actual.movs],
+      clase: actual.movs.length ? actual.clase : claseDelMovimiento,
+    }));
+  }
+  function actualizarMovimientos(cambiar: (actuales: Movimiento[]) => Movimiento[]) {
+    setEstadoCuenta((actual) => ({ ...actual, movs: cambiar(actual.movs) }));
+  }
   // precio de la clase elegida (cada maestro puede tener su tarifa); si no hay clase, el de la sede
   const suelta = clase ? sueltaDeClase(planes, clase) : sueltaPara(planes, sedeActual);
 
@@ -96,7 +118,6 @@ export function PantallaEntrada() {
   const [tienda, setTienda] = useState(false);
   const porRecoger = usePedidosPendientes().length;
   const pendientes = usePendientes(false)?.total ?? 0;
-  const [movs, setMovs] = useState<Movimiento[]>([]);
   // con una cuenta abierta la app no se actualiza sola (se perdería el total que se está cobrando)
   useNoActualizarMientras(movs.length > 0);
   const enCurso = useRef(new Set<string>());
@@ -111,7 +132,7 @@ export function PantallaEntrada() {
   }, [cambiandoA, sedeActual, sedes]);
   const busca = useRef<HTMLInputElement>(null);
 
-  const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(hoy()).toArray().then((xs) => xs.filter((a) => !a.anuladaAt && !a.deletedAt)), [], []);
+  const hoyAsis = useLiveQuery(() => db.asistencias.where('fecha').equals(fechaEntrada).toArray().then((xs) => xs.filter((a) => !a.anuladaAt && !a.deletedAt)), [fechaEntrada], []);
   const conteo = useMemo(() => {
     const m = new Map<ID, number>();
     for (const a of hoyAsis) m.set(a.claseId, (m.get(a.claseId) ?? 0) + 1);
@@ -174,7 +195,7 @@ export function PantallaEntrada() {
       // tiene plan pero esta clase se cobra: decir por qué (si no, parece un error)
       if (!silencioso && r.mov.aviso) avisar(`${nombre.split(' ')[0]} paga esta clase: ${r.mov.aviso}`);
       // La cuenta junta todo hasta que recepción toca "Listo": nada se cierra sin confirmar
-      setMovs((m) => [r.mov, ...m]);
+      agregarMovimiento(r.mov, clase);
       if (q) {
         setQ('');
         busca.current?.blur();
@@ -216,7 +237,7 @@ export function PantallaEntrada() {
     return { tono: 'ok', titulo: nombre, detalle: r.mov.monto ? `Entrada registrada · ${dinero(r.mov.monto)}${r.mov.aviso ? ` · ${r.mov.aviso}` : ''}` : r.mov.beca ? 'Entró con su beca' : 'Entró con su plan' };
   };
 
-  const cerrarCuenta = useCallback(() => setMovs([]), []);
+  const cerrarCuenta = useCallback(() => setEstadoCuenta({ movs: [], clase: null }), []);
 
   // Lector de códigos USB/Bluetooth (PC): un producto se suma a la cuenta; el QR de un alumno le da entrada.
   // Si hay una hoja abierta (p. ej. la Tienda), esa hoja lo atiende.
@@ -229,7 +250,7 @@ export function PantallaEntrada() {
       const p = await productoPorCodigo(codigo);
       if (p) {
         const mov = await venderProducto({ producto: p, metodo: 'efectivo', usuarioId: usuario.id, sedeId: sedeActual });
-        setMovs((x) => [mov, ...x]);
+        agregarMovimiento(mov);
         avisar(`${p.nombre} · ${dinero(p.precio)}`);
         return;
       }
@@ -276,13 +297,13 @@ export function PantallaEntrada() {
         }}
         onDeshacer={async (m) => {
           await deshacer(m);
-          setMovs((x) => x.filter((y) => y.key !== m.key));
+          actualizarMovimientos((x) => x.filter((y) => y.key !== m.key));
           avisar(`Se deshizo: ${m.nombre}`);
         }}
         onTransferencia={async (seleccion) => {
           const ids = new Set(seleccion.map((m) => m.key));
           await cambiarMetodo(seleccion, 'transferencia');
-          setMovs((x) => x.map((m) => (ids.has(m.key) ? { ...m, metodo: 'transferencia' } : m)));
+          actualizarMovimientos((x) => x.map((m) => (ids.has(m.key) ? { ...m, metodo: 'transferencia' } : m)));
         }}
       />
   );
@@ -302,11 +323,30 @@ export function PantallaEntrada() {
   };
 
   // Prevención: avisar si se cobra en una clase que no es la de ahora
-  const sugerida = claseSugerida(deHoy);
   const claseRara = clase && sugerida && clase.id !== sugerida.id ? sugerida : null;
   const claseNoEsHoy = clase && !deHoy.some((c) => c.id === clase.id);
+  const puedeCambiar = (destino: 'clase' | 'sede') => {
+    if (movs.length) {
+      avisar(`Cierra la cuenta para cambiar de ${destino}.`);
+      return false;
+    }
+    if (enCurso.current.size || cambioSede.current) {
+      avisar('Espera a que termine el registro.');
+      return false;
+    }
+    return true;
+  };
+  const abrirClases = () => {
+    if (puedeCambiar('clase')) setElegirClase(true);
+  };
+  const abrirSedes = () => {
+    if (!puedeCambiar('sede')) return;
+    setElegirClase(false);
+    setVerTodas(false);
+    setElegirSede(true);
+  };
   const cambiarSedeEntrada = async (id: ID | null, claseSugeridaId?: ID) => {
-    if (movs.length || enCurso.current.size || cambioSede.current) return;
+    if (!puedeCambiar('sede')) return;
     if (id === sedeActual) {
       setElegirSede(false);
       return;
@@ -335,8 +375,7 @@ export function PantallaEntrada() {
             <span className="first-letter:uppercase">{fechaLarga(hoy()).replace(/,? de [a-záéíóú]+$/i, '').replace(',', '')}</span>
             <button
               type="button"
-              disabled={sedeOcupada}
-              onClick={() => setElegirSede(true)}
+              onClick={abrirSedes}
               aria-label={`Cambiar sede: ${nombreSede(sedeActual, sedes, academia)}`}
               aria-haspopup="dialog"
               className="flex min-h-11 items-center gap-1 rounded-lg px-1 text-left font-semibold text-brand-600 active:bg-brand-50 disabled:text-ink-500"
@@ -367,11 +406,9 @@ export function PantallaEntrada() {
           nombreDeSede={(id) => nombreSede(id, sedes, academia)}
           nombreDeClase={(c) => nombreClase(c, disciplinas)}
           ocupado={sedeOcupada}
+          ahora={ahora}
           cambiar={cambiarSedeEntrada}
         />
-      )}
-      {sedes.length > 0 && movs.length > 0 && (
-        <p className="mx-4 text-sm text-ink-500">Termina la cuenta para cambiar de sede.</p>
       )}
 
       {/* academia nueva: lo que falta configurar (solo el dueño; se va sola al terminar) */}
@@ -382,7 +419,7 @@ export function PantallaEntrada() {
           Se toca para cambiar de clase (y de sede, si hay varias). */}
       {q && clase && (
         <div className="px-4 pt-3">
-          <button type="button" onClick={() => setElegirClase(true)} className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-superficie px-3 text-left text-sm ring-1 ring-ink-100" aria-label={`Clase: ${nombreClase(clase, disciplinas)}. Tocar para cambiar de clase`}>
+          <button type="button" onClick={abrirClases} className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-superficie px-3 text-left text-sm ring-1 ring-ink-100" aria-label={`Clase: ${nombreClase(clase, disciplinas)}. Tocar para cambiar de clase`}>
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorClase(clase, disciplinas) }} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">
               <b>{nombreClase(clase, disciplinas)}</b> · {clase.horaInicio}
@@ -402,25 +439,25 @@ export function PantallaEntrada() {
             sede={sedes.length > 0 ? nombreSede(sedeActual, sedes, academia) : undefined}
             adentro={conteo.get(clase.id) ?? 0}
             cobrado={cobradoClase}
-            onCambiar={() => setElegirClase(true)}
+            onCambiar={abrirClases}
           />
         ) : (
           <div className="px-4 pt-3">
-            <button type="button" onClick={() => setElegirClase(true)} className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-ink-300 px-5 py-4 text-left font-semibold text-ink-700 active:bg-ink-50">
+            <button type="button" onClick={abrirClases} className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-ink-300 px-5 py-4 text-left font-semibold text-ink-700 active:bg-ink-50">
               <CalendarDays size={22} className="text-brand-600" aria-hidden="true" /> {deHoy.length ? 'Elegir clase' : 'Hoy no hay clases · Elegir clase'}
               <ChevronDown size={18} className="ml-auto text-ink-500" aria-hidden="true" />
             </button>
           </div>
         ))}
 
-      {clase && (claseNoEsHoy || claseRara) && (
+      {clase && !movs.length && (claseNoEsHoy || claseRara) && (
         <div className="mx-4 mt-3 flex items-center gap-3 rounded-2xl bg-warn-50 px-4 py-2.5 text-sm text-warn-600">
           <AlertTriangle size={18} className="shrink-0" />
           <span className="flex-1 font-medium">
             {claseNoEsHoy ? `${nombreClase(clase, disciplinas)} no es clase de hoy.` : `La clase de ahora es ${nombreClase(claseRara!, disciplinas)}.`}
           </span>
           {claseRara && (
-            <button onClick={() => setClaseId(claseRara.id)} className="shrink-0 rounded-lg bg-warn-600/15 px-2.5 py-1 font-bold">
+            <button onClick={() => { if (puedeCambiar('clase')) setClaseId(claseRara.id); }} className="shrink-0 rounded-lg bg-warn-600/15 px-2.5 py-1 font-bold">
               Cambiar
             </button>
           )}
@@ -660,6 +697,7 @@ export function PantallaEntrada() {
                   key={c.id}
                   type="button"
                   onClick={() => {
+                    if (!puedeCambiar('clase')) return;
                     setClaseId(c.id);
                     setElegirClase(false);
                     setVerTodas(false);
@@ -693,13 +731,9 @@ export function PantallaEntrada() {
             {sedes.length > 0 && (
               <button
                 type="button"
-                disabled={sedeOcupada}
                 aria-haspopup="dialog"
-                onClick={() => {
-                  setElegirClase(false);
-                  setElegirSede(true);
-                }}
-                className="flex min-h-11 w-full items-center gap-2 border-t border-ink-100 px-2 py-2 text-left text-sm disabled:opacity-50"
+                onClick={abrirSedes}
+                className="flex min-h-11 w-full items-center gap-2 border-t border-ink-100 px-2 py-2 text-left text-sm"
               >
                 <MapPin size={18} style={{ color: sedes.find((x) => x.id === sedeActual)?.color ?? 'var(--marca)' }} aria-hidden="true" />
                 <span className="flex-1">
@@ -724,7 +758,6 @@ export function PantallaEntrada() {
                   key={id ?? 'principal'}
                   type="button"
                   aria-current={actual || undefined}
-                  disabled={sedeOcupada}
                   onClick={() => void cambiarSedeEntrada(id)}
                   className={cx('flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-inset active:brightness-95 focus-visible:outline-2 focus-visible:-outline-offset-3 focus-visible:outline-brand-600', actual ? 'bg-brand-50 ring-brand-200' : 'bg-superficie ring-ink-100')}
                 >
@@ -749,8 +782,8 @@ export function PantallaEntrada() {
           <Tienda
             movs={movs}
             sedeId={sedeActual}
-            onAgregar={(m) => setMovs((x) => [m, ...x])}
-            onQuitar={(m) => setMovs((x) => x.filter((y) => y.key !== m.key))}
+            onAgregar={agregarMovimiento}
+            onQuitar={(m) => actualizarMovimientos((x) => x.filter((y) => y.key !== m.key))}
             onListo={() => setTienda(false)}
           />
         )}
@@ -774,24 +807,15 @@ export function PantallaEntrada() {
   );
 }
 
-function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupado, cambiar }: {
+function SugerenciaSede({ clases, sedeActual, nombreDeSede, nombreDeClase, ocupado, ahora, cambiar }: {
   clases: Clase[];
   sedeActual: ID | null;
   nombreDeSede: (id: ID | null) => string;
   nombreDeClase: (clase: Clase) => string;
   ocupado: boolean;
+  ahora: Date;
   cambiar: (id: ID | null, claseId: ID) => Promise<void>;
 }) {
-  const [ahora, setAhora] = useState(() => new Date());
-  useEffect(() => {
-    const actualizarHora = () => setAhora(new Date());
-    const intervalo = window.setInterval(actualizarHora, 30_000);
-    document.addEventListener('visibilitychange', actualizarHora);
-    return () => {
-      window.clearInterval(intervalo);
-      document.removeEventListener('visibilitychange', actualizarHora);
-    };
-  }, []);
   const sugerida = claseEnOtraSede(clases, sedeActual, ahora);
   if (!sugerida || ocupado) return null;
   const destino = sugerida.sedeId ?? null;
