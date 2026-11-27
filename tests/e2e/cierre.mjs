@@ -14,7 +14,7 @@ await page.reload();
 await page.getByText('Monse', { exact: true }).click();
 for (const d of '1111') await page.getByRole('button', { name: d, exact: true }).click();
 await page.waitForTimeout(800);
-const listo = page.getByRole('button', { name: 'Listo', exact: true });
+const listo = page.getByRole('button', { name: 'Cerrar cuenta', exact: true });
 
 // 1) alumno con plan: sin dinero, la cuenta se cierra sola
 await page.locator('main button').filter({ hasText: /^.*Plan$/ }).first().click();
@@ -27,8 +27,8 @@ await page.waitForTimeout(300);
 console.log('1) con plan: barrita de cuenta atrás y se cierra sin tocar Listo:', ok(habia && (await listo.count()) === 0));
 
 // 2) alguien que paga: espera Listo (para ver el total y dar cambio)
-await page.locator('main button').filter({ hasText: /Paga$/ }).first().click();
-await page.getByText('Cobrar en efectivo').waitFor({ timeout: 3000 });
+await page.locator('main button').filter({ hasText: /Cobrar \$[\d,]+$/ }).first().click();
+await page.getByText('Efectivo a recibir').waitFor({ timeout: 3000 });
 await page.clock.runFor(6000);
 await page.waitForTimeout(300);
 console.log('2) si hay que cobrar, la cuenta NO se cierra sola:', ok((await listo.count()) === 1));

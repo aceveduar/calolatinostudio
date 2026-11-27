@@ -60,16 +60,16 @@ const registros = await page.evaluate(async () => {
 console.log('1) el pase repetido conserva una sola entrada y un solo cobro:', registros.every((n) => n === 1) ? 'OK' : 'MAL');
 await cuenta.click();
 await lector.waitFor({ state: 'hidden' });
-await page.getByText('Cobrar en efectivo', { exact: true }).waitFor();
+await page.getByText('Efectivo a recibir', { exact: true }).waitFor();
 console.log('2) Ver cuenta cierra la cámara y muestra el cobro de recepción: OK');
-await page.getByRole('button', { name: 'Listo', exact: true }).click();
+await page.getByRole('button', { name: 'Cerrar cuenta', exact: true }).click();
 const tarjetaAdentro = page.getByRole('button', { name: /Alumno.*Adentro/ });
 console.log('2a) el alumno escaneado queda fuera de Por llegar:', (await tarjetaAdentro.count()) === 0 ? 'OK' : 'MAL');
 await page.getByRole('button', { name: /^Adentro · 1$/ }).click();
 await page.getByText('Alumno del escáner', { exact: true }).waitFor();
 console.log('2b) el alumno aparece en Adentro:', 'OK');
 await page.setViewportSize({ width: 1366, height: 900 });
-await page.getByRole('button', { name: 'Corregir entrada de Alumno del escáner' }).waitFor();
+await page.locator('aside').getByRole('button', { name: 'Corregir entrada de Alumno del escáner' }).waitFor();
 console.log('2c) en escritorio el alumno aparece solo en el panel de asistencia:', (await tarjetaAdentro.count()) === 0 && (await page.getByText('Alumno del escáner', { exact: true }).count()) === 1 ? 'OK' : 'MAL');
 await page.setViewportSize({ width: 360, height: 780 });
 

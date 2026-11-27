@@ -6,7 +6,7 @@ import { billetesSugeridos, type Movimiento } from '../../domain/rapido';
 import { useRespaldoMovimientos } from '../../sync/respaldoMovimiento';
 
 /**
- * Cuenta abierta: junta los cobros hasta que recepción toca "Listo". Sirve para cobrar juntos a una pareja o
+ * Cuenta abierta: junta los cobros hasta que recepción toca "Cerrar cuenta". Sirve para cobrar juntos a una pareja o
  * grupo: se toca el billete con que pagaron y se ve el cambio.
  * Si en la cuenta NO hay dinero (solo entradas con plan o beca), se cierra sola en un momento: no hay nada que
  * cobrar ni cambio que dar, y "Listo" era un toque de más con casi cada alumno. El aviso de abajo conserva
@@ -29,7 +29,7 @@ export function Cuenta({
   incrustado?: boolean;
   movs: Movimiento[];
   onDeshacer: (m: Movimiento) => Promise<void>;
-  onTransferencia: () => void;
+  onTransferencia: (pagos: Movimiento[]) => Promise<void>;
   onCerrar: () => void;
 }) {
   const [pagoCon, setPagoCon] = useState<number | null>(null);
@@ -37,7 +37,11 @@ export function Cuenta({
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [errorCorreccion, setErrorCorreccion] = useState(false);
   const respaldo = useRespaldoMovimientos(movs.flatMap((m) => [m.pagoId, m.asistenciaId, m.alumnoCreadoId]));
-  const efectivo = movs.filter((m) => m.metodo === 'efectivo').reduce((s, m) => s + m.monto, 0);
+  const [elegirTransferencia, setElegirTransferencia] = useState(false);
+  const [cambiandoMetodo, setCambiandoMetodo] = useState(false);
+  const [errorMetodo, setErrorMetodo] = useState(false);
+  const pagosEfectivo = movs.filter((m) => m.metodo === 'efectivo' && m.pagoId);
+  const efectivo = pagosEfectivo.reduce((s, m) => s + m.monto, 0);
   const billete = pagoCon !== null && pagoCon >= efectivo ? pagoCon : null;
   const transfer = movs.filter((m) => m.metodo === 'transferencia').reduce((s, m) => s + m.monto, 0);
   const sinCobro = movs.length > 0 && movs.every((m) => !m.monto);
@@ -52,6 +56,20 @@ export function Cuenta({
     return () => clearTimeout(t);
   }, [sinCobro, llave, onCerrar, pausada]);
 
+  async function registrarTransferencia(pagos: Movimiento[]) {
+    setCambiandoMetodo(true);
+    setErrorMetodo(false);
+    try {
+      await onTransferencia(pagos);
+      setPagoCon(null);
+      setElegirTransferencia(false);
+    } catch {
+      setErrorMetodo(true);
+    } finally {
+      setCambiandoMetodo(false);
+    }
+  }
+
   if (!movs.length) return null;
   // Productos iguales en una sola fila ("Agua ×2"); la ✕ quita una pieza (la más reciente)
   const filas: { m: Movimiento; cantidad: number; monto: number }[] = [];
@@ -62,8 +80,6 @@ export function Cuenta({
       f.monto += m.monto;
     } else filas.push({ m, cantidad: 1, monto: m.monto });
   }
-  const hayProductos = movs.some((m) => m.productoId);
-
   return (
     <div
       className={incrustado ? 'animate-sube' : 'fixed inset-x-0 z-40 mx-auto max-w-2xl px-3 animate-sube'}
@@ -138,14 +154,34 @@ export function Cuenta({
           )}
         </Hoja>
 
+        <Hoja abierta={elegirTransferencia} titulo="¿Qué pago fue por transferencia?" onCerrar={() => {
+          if (!cambiandoMetodo) setElegirTransferencia(false);
+        }}>
+          <div className="space-y-2">
+            <p className="text-sm text-ink-600">Elige un pago o cambia todos los que están en efectivo.</p>
+            {pagosEfectivo.map((m) => (
+              <button type="button" key={m.key} disabled={cambiandoMetodo} onClick={() => void registrarTransferencia([m])} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-superficie px-3 py-2 text-left text-sm font-semibold ring-1 ring-ink-100 active:bg-ink-50">
+                <span className="break-words">{m.nombre}</span>
+                <span className="shrink-0 tabular-nums">{dinero(m.monto)}</span>
+              </button>
+            ))}
+            {pagosEfectivo.length > 1 && (
+              <Boton bloque variante="secundario" disabled={cambiandoMetodo} onClick={() => void registrarTransferencia(pagosEfectivo)}>
+                Todos por transferencia · {dinero(efectivo)}
+              </Boton>
+            )}
+            {errorMetodo && <p role="alert" className="text-sm text-bad-600">No se pudo cambiar el método de pago. Intenta de nuevo.</p>}
+          </div>
+        </Hoja>
         {efectivo > 0 ? (
           <div className="border-t border-white/10 px-4 pt-3 pb-3">
             <div className="flex items-start justify-between gap-3 tabular-nums">
               <div>
                 <p className="text-xs font-semibold text-white/75">
-                  {hayProductos ? 'Total en efectivo' : movs.length > 1 ? `Pagan juntos · ${movs.length}` : 'Cobrar en efectivo'}
+                  Efectivo a recibir
                 </p>
                 <p className="text-3xl leading-tight font-extrabold">{dinero(efectivo)}</p>
+                {pagosEfectivo.length > 1 && <p className="text-xs text-white/70">{pagosEfectivo.length} pagos en efectivo</p>}
               </div>
               <div aria-live="polite" className="text-right">
                 {billete !== null && (
@@ -172,13 +208,18 @@ export function Cuenta({
               ))}
             </div>
             <div className="mt-2 flex gap-2">
-              <button onClick={onTransferencia} aria-label="Pagó por transferencia" className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-white/70 active:bg-white/10">
+              <button type="button" disabled={cambiandoMetodo} onClick={() => {
+                setErrorMetodo(false);
+                if (pagosEfectivo.length === 1) void registrarTransferencia(pagosEfectivo);
+                else setElegirTransferencia(true);
+              }} aria-label="Pagó por transferencia" className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-white/85 active:bg-white/10">
                 <ArrowRightLeft size={15} /> <span className="whitespace-nowrap">Transferencia</span>
               </button>
-              <button onClick={onCerrar} className="h-10 flex-1 rounded-xl bg-[#fff] text-[15px] font-bold text-[#1c1a24] active:bg-[#ecebf1]">
-                Listo
+              <button type="button" disabled={cambiandoMetodo} onClick={onCerrar} className="min-h-11 flex-1 rounded-xl bg-[#fff] px-2 text-sm font-bold text-[#1c1a24] active:bg-[#ecebf1]">
+                Cerrar cuenta
               </button>
             </div>
+            {errorMetodo && !elegirTransferencia && <p role="alert" className="mt-2 text-sm text-[#ffd48a]">No se pudo cambiar el método de pago. Intenta de nuevo.</p>}
           </div>
         ) : (
           <div className="relative border-t border-white/10">
@@ -195,7 +236,7 @@ export function Cuenta({
                 )}
               </span>
               <button onClick={onCerrar} className="h-10 rounded-xl bg-[#fff] px-5 text-[15px] font-bold text-[#1c1a24] active:bg-[#ecebf1]">
-                Listo
+                Cerrar cuenta
               </button>
             </div>
             {/* cuenta regresiva del cierre solo: la barrita lo dice sin palabras (se reinicia si entra alguien más; se va si la tocaron) */}

@@ -11,7 +11,7 @@ const shot = (n) => page.screenshot({ path: `${OUT}${process.env.ESQUEMA || 'lig
 const btn = (t) => page.getByRole('button', { name: t });
 const pin = async (p) => { for (const d of p) await page.getByRole('button', { name: d, exact: true }).click(); };
 const busca = page.getByPlaceholder(/Quién llegó|Buscar…/);
-const listo = async () => { await btn('Listo').click(); await page.waitForTimeout(150); };
+const listo = async () => { await btn('Cerrar cuenta').click(); await page.waitForTimeout(150); };
 const billete = (txt) => page.locator('button', { hasText: new RegExp('^\\' + txt + '$') });
 const filasCuenta = () => page.getByRole('button', { name: /^Corregir (?!entrada de )/ }).count();
 const ok = (c) => (c ? 'OK' : 'MAL');
@@ -58,7 +58,7 @@ console.log('2) doble entrada bloqueada: OK');
 // 3) Pareja sin nombre paga junta con $100
 await btn(/sin nombre/).click();
 await btn(/sin nombre/).click();
-await page.getByText('Pagan juntos · 2').waitFor();
+await page.getByText('2 pagos en efectivo').waitFor();
 await billete('$100').click();
 await page.getByText('Cambio $20').waitFor();
 await page.getByText('$80', { exact: true }).waitFor();
@@ -95,7 +95,7 @@ await diana.click();
 await diana.getByText('Ya entró', { exact: true }).waitFor();
 await diana.waitFor({ state: 'hidden' });
 console.log('6a) la tarjeta confirma la entrada y después se retira: OK');
-await page.getByText('Cobrar en efectivo').waitFor();
+await page.getByText('Efectivo a recibir').waitFor();
 await btn('Pagó por transferencia').click();
 await page.getByText(/por transferencia/).waitFor();
 await shot('r4-transferencia');
@@ -161,6 +161,32 @@ await busca.fill('5510009999');
 await page.getByText(/Revisa el celular o el código/).waitFor();
 if (await page.getByText('Nuevo: 5510009999').count()) throw new Error('Se ofreció registrar un teléfono como nombre');
 console.log('10) búsqueda por nombre, celular y pase sin cobro accidental: OK');
+
+// 11) En una cuenta con varios pagos, elegir un movimiento deja los demás en efectivo.
+await busca.clear();
+await btn('Visitante con nombre').click();
+const visitante = page.getByRole('dialog', { name: 'Visitante sin registro' });
+await visitante.waitFor();
+await page.keyboard.press('Escape');
+await visitante.waitFor({ state: 'hidden' });
+for (const nombre of ['Prueba Transferencia', 'Prueba Efectivo']) {
+  await busca.fill(nombre);
+  await page.getByText(`Nuevo: ${nombre}`).click();
+  await page.getByRole('button', { name: `Opciones de ${nombre}` }).waitFor();
+}
+await btn(/sin nombre/).click();
+await page.getByText('3 pagos en efectivo').waitFor();
+await btn('Pagó por transferencia').click();
+const metodos = page.getByRole('dialog', { name: '¿Qué pago fue por transferencia?' });
+await metodos.getByRole('button', { name: /Prueba Transferencia/ }).click();
+await metodos.waitFor({ state: 'hidden' });
+await page.getByText('2 pagos en efectivo').waitFor();
+console.log('11a) cambia solo el pago seleccionado:', ok((await page.getByText('transf.', { exact: true }).count()) === 1));
+await btn('Pagó por transferencia').click();
+await metodos.getByRole('button', { name: /Todos por transferencia/ }).click();
+await metodos.waitFor({ state: 'hidden' });
+await page.getByText(/\$120 por transferencia/).waitFor();
+console.log('11b) todos cambia el efectivo restante:', ok((await page.getByText('transf.', { exact: true }).count()) === 3));
 
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();

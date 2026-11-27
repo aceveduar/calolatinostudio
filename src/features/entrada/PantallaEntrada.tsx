@@ -279,12 +279,10 @@ export function PantallaEntrada() {
           setMovs((x) => x.filter((y) => y.key !== m.key));
           avisar(`Se deshizo: ${m.nombre}`);
         }}
-        onTransferencia={async () => {
-          await cambiarMetodo(
-            movs.filter((m) => m.metodo === 'efectivo'),
-            'transferencia',
-          );
-          setMovs((x) => x.map((m) => (m.metodo === 'efectivo' ? { ...m, metodo: 'transferencia' } : m)));
+        onTransferencia={async (seleccion) => {
+          const ids = new Set(seleccion.map((m) => m.key));
+          await cambiarMetodo(seleccion, 'transferencia');
+          setMovs((x) => x.map((m) => (ids.has(m.key) ? { ...m, metodo: 'transferencia' } : m)));
         }}
       />
   );
@@ -574,6 +572,7 @@ export function PantallaEntrada() {
                 valor={vista}
                 onChange={setVista}
               />
+              {vista === 'llegan' && <div className="mt-1 flex justify-end"><BotonVisitante onClick={() => setVisitante(true)} /></div>}
             </div>
             {vista === 'llegan' || esc ? (
               <>
@@ -594,7 +593,7 @@ export function PantallaEntrada() {
                 )}
               </>
             ) : (
-              <EnClase clase={clase} movs={movs} onVisitante={() => setVisitante(true)} />
+              <EnClase clase={clase} movs={movs} />
             )}
           </>
         )}
@@ -859,7 +858,15 @@ function DatosResultado({ alumno, archivado }: { alumno: Alumno; archivado: bool
   );
 }
 
-function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[]; onVisitante: () => void }) {
+function BotonVisitante({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-left text-sm font-semibold text-brand-600 active:bg-brand-50">
+      <Footprints size={16} className="shrink-0" aria-hidden="true" /> Visitante con nombre
+    </button>
+  );
+}
+
+function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[]; onVisitante?: () => void }) {
   const disciplinas = useDisciplinas();
   const [quitar, setQuitar] = useState<ID | null>(null);
   const lista = useLiveQuery(
@@ -886,11 +893,7 @@ function EnClase({ clase, movs, onVisitante }: { clase: Clase; movs: Movimiento[
 
   const sel = lista.find((x) => x.a.id === quitar);
   const enCuenta = new Set(movs.map((m) => m.asistenciaId));
-  const visitante = (
-    <button type="button" onClick={onVisitante} className="flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-left text-sm font-semibold text-brand-600 active:bg-brand-50">
-      <Footprints size={16} className="shrink-0" aria-hidden="true" /> Visitante con nombre
-    </button>
-  );
+  const visitante = onVisitante && <BotonVisitante onClick={onVisitante} />;
 
   if (!lista.length) return (
     <Tarjeta className="flex flex-wrap items-center justify-between gap-x-2 px-3 py-1.5">
