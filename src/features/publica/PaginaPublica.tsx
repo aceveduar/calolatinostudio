@@ -14,8 +14,8 @@ import { leerHuella } from '../../domain/invitar';
 import { recordarOrigen } from '../../domain/origen';
 import { textoAvisoPrivacidad } from '../../domain/privacidad';
 import { AvisoPrivacidad } from './AvisoPrivacidad';
-import { DIAS_LARGOS, MESES, disciplinaDe, diasTexto, DESDE_CERO, type Estados } from './comun';
-import { Seccion, Dato, Precio, Punto } from './piezas';
+import { DIAS_LARGOS, MESES, disciplinaDe, diasTexto, type Estados } from './comun';
+import { Seccion, Dato, Precio } from './piezas';
 import { Inscripcion } from './Inscripcion';
 import { Horario } from './Horario';
 import { Calculadora } from './Calculadora';
@@ -180,7 +180,6 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
       .sort((a, b) => b.veces - a.veces || a.nombre.localeCompare(b.nombre));
   }, [d.clases]);
   const clasesPorSemana = d.clases.reduce((s, c) => s + c.dias.length, 0);
-  const desdeCero = d.clases.some((c) => DESDE_CERO.test(c.clase));
 
   // clases por curso: quién acepta nuevos ahora y cuáles abren grupo pronto
   const dia = hoy();
@@ -508,18 +507,17 @@ function Vista({ d, slug }: { d: DatosPublica; slug: string }) {
         {/* ---------- inscripción (no para quien ya es alumno) ---------- */}
         {!yo && (
         <section className="bg-panel text-white">
-          <div className="mx-auto grid max-w-5xl gap-4 px-5 py-10 md:grid-cols-[1fr_1.1fr] md:items-start md:gap-8 md:py-14">
-            <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900 md:order-2">
+          <div className="mx-auto max-w-xl px-5 py-10 md:py-14">
+            <div ref={form} id="inscribete" className="scroll-mt-24 text-ink-900">
               <Inscripcion academia={d.academia.nombre} slug={slug} clases={opcionesClase} primera={primera} estados={estados} claseId={claseSel} onClase={setClaseSel} de={de} origen={origen} privacidad={privacidad} />
             </div>
-            <div className="md:sticky md:top-24 md:order-1">
-              {desdeCero && <ul className="hidden text-white/85 md:block"><Punto>Grupos desde cero, sin necesidad de pareja</Punto></ul>}
-              {wa && (
-                <a href={wa} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-white underline underline-offset-4 md:mt-3">
+            {wa && (
+              <div className="mt-4 md:text-center">
+                <a href={wa} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-white underline underline-offset-4">
                   <MessageCircle size={18} aria-hidden="true" /> Preguntar por WhatsApp
                 </a>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </section>
         )}

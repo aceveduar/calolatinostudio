@@ -174,5 +174,18 @@ console.log('12) consulta móvil: cada modalidad abre su propio texto:', ok(
   && await page.getByRole('heading', { name: '2. Pagos', exact: true }).isVisible()
   && !await page.getByText('Llega a tiempo.', { exact: false }).isVisible(),
 ));
+await page.setViewportSize({ width: 1920, height: 960 });
+await page.goto('http://localhost:4173/a/calo-latino#inscribete');
+const formulario = page.locator('#inscribete');
+await formulario.getByRole('button', { name: 'Solicitar lugar' }).waitFor();
+const tarjetaInscripcion = await formulario.boundingBox();
+const alternativaWhatsApp = await page.getByRole('link', { name: 'Preguntar por WhatsApp', exact: true }).boundingBox();
+const centro = await page.evaluate(() => document.documentElement.clientWidth / 2);
+console.log('13) escritorio: tarjeta centrada y WhatsApp debajo:', ok(
+  Math.abs(tarjetaInscripcion.x + tarjetaInscripcion.width / 2 - centro) < 2
+  && tarjetaInscripcion.width <= 576 && alternativaWhatsApp.y >= tarjetaInscripcion.y + tarjetaInscripcion.height,
+));
+await formulario.scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${OUT}web-inscripcion-escritorio.png` });
 console.log('errores:', errores.length ? errores : 'ninguno');
 await browser.close();
