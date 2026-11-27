@@ -49,8 +49,10 @@ await shot('r1-individual');
 
 // 2) Tocar a alguien que ya entró
 await shot('r2-cuadricula');
-await page.getByRole('button', { name: /Ana L\./ }).click();
+await busca.fill('Ana López');
+await page.getByRole('button', { name: /Ana López.*Adentro/ }).click();
 await page.getByText('Ana ya está adentro').waitFor();
+await busca.clear();
 console.log('2) doble entrada bloqueada: OK');
 
 // 3) Pareja sin nombre paga junta con $100
@@ -121,6 +123,7 @@ await shot('r6-caja');
 
 // 9) Color de la academia
 await page.getByRole('link', { name: 'Más' }).first().click();
+await page.getByText('Tu academia', { exact: true }).click();
 await page.getByText('Academia', { exact: true }).click();
 await btn('Morado').click();
 await page.waitForTimeout(300);
