@@ -56,6 +56,15 @@ export function PantallaEncargos() {
   };
   const lista = listaProveedor(pedidos, productos);
   const enCamino = pedidos.filter((p) => p.estado === 'pedido');
+  const registrarLlegada = async (id: ID) => {
+    try {
+      await cambiarEstado([id], 'llego');
+      seleccionar(id);
+      avisar('Listo para entregar');
+    } catch {
+      avisar('No se pudo registrar la llegada. Inténtalo de nuevo.', 'error');
+    }
+  };
   const listos = pedidos.filter((p) => listoParaEntregar(p, productos.get(p.productoId)));
   const texto = textoProveedor(lista, academia.nombre);
   const consulta = normalizar(buscar.trim());
@@ -135,7 +144,7 @@ export function PantallaEncargos() {
               <Tarjeta className="divide-y divide-ink-100">
                 {listos.map((p) => {
                   const saldo = restaPorPagar(p);
-                  return fila(p, <span className="shrink-0 text-right text-xs font-semibold text-ink-500">{saldo ? <>Saldo <b className="text-ink-900">{dinero(saldo)}</b></> : 'Sin saldo'}</span>);
+                  return fila(p, <span className="shrink-0 text-right text-xs font-semibold text-ink-500">{saldo ? <>Por cobrar <b className="text-ink-900">{dinero(saldo)}</b></> : 'Sin saldo'}</span>);
                 })}
               </Tarjeta>
             )}
@@ -146,22 +155,14 @@ export function PantallaEncargos() {
               <p className="px-1 text-sm text-ink-500">Aún no hay pedidos en camino.</p>
             ) : (
               <Tarjeta className="divide-y divide-ink-100">
-                {enCamino.map((p) => {
-                  const al = alumnos.get(p.alumnoId);
-                  return fila(p, (
+                {enCamino.map((p) => fila(p, (
                     <Boton
                       variante="secundario"
-                      onClick={async () => {
-                        await cambiarEstado([p.id], 'llego');
-                        const prod = productos.get(p.productoId);
-                        const wa = avisoLlegada(p, prod, al, academia.nombre);
-                        avisar('Marcado como llegó', 'ok', wa ? { texto: 'Avisarle', fn: () => void window.open(wa, '_blank', 'noopener') } : undefined);
-                      }}
+                      onClick={() => registrarLlegada(p.id)}
                     >
-                      Llegó
+                      Registrar llegada
                     </Boton>
-                  ));
-                })}
+                )))}
               </Tarjeta>
             )}
           </Seccion>
@@ -227,19 +228,20 @@ export function PantallaEncargos() {
         {nuevo && <FormEncargo sedeId={sedeActual} onHecho={() => setNuevo(false)} />}
       </Hoja>
       <Hoja abierta={!!sel} onCerrar={() => seleccionar()} titulo={sel ? nombrePedido(sel, productos.get(sel.productoId)) : ''}>
-        {sel && <DetalleEncargo key={sel.id} pedido={sel} producto={productos.get(sel.productoId)} alumno={alumnos.get(sel.alumnoId)} usuarioId={usuario.id} sedeId={sedeActual} onHecho={() => seleccionar()} />}
+        {sel && <DetalleEncargo key={sel.id} pedido={sel} producto={productos.get(sel.productoId)} alumno={alumnos.get(sel.alumnoId)} usuarioId={usuario.id} sedeId={sedeActual} onLlegada={() => registrarLlegada(sel.id)} onHecho={() => seleccionar()} />}
       </Hoja>
     </div>
   );
 }
 
-function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }: { pedido: Pedido; producto: Producto | undefined; alumno: Alumno | undefined; usuarioId: ID; sedeId: ID | null; onHecho: () => void }) {
+function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onLlegada, onHecho }: { pedido: Pedido; producto: Producto | undefined; alumno: Alumno | undefined; usuarioId: ID; sedeId: ID | null; onLlegada: () => Promise<void>; onHecho: () => void }) {
   const avisar = useAvisos();
   const { academia } = useSesion();
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo');
   const [anticipo, setAnticipo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
   const [entregando, setEntregando] = useState(false);
+  const [registrandoLlegada, setRegistrandoLlegada] = useState(false);
   const listo = listoParaEntregar(pedido, producto);
   const resto = restaPorPagar(pedido);
   const whatsapp = pedido.estado === 'llego' ? avisoLlegada(pedido, producto, alumno, academia.nombre) : null;
@@ -304,6 +306,16 @@ function DetalleEncargo({ pedido, producto, alumno, usuarioId, sedeId, onHecho }
           </div>
         )
       )}
+      {pedido.estado === 'pedido' && (
+        <Boton bloque disabled={registrandoLlegada} onClick={async () => {
+          setRegistrandoLlegada(true);
+          await onLlegada();
+          setRegistrandoLlegada(false);
+        }}>
+          Registrar llegada
+        </Boton>
+      )}
+      {pedido.estado === 'llego' && !whatsapp && <p className="text-sm text-ink-500">Agrega un teléfono a la ficha del alumno para avisarle por WhatsApp.</p>}
       {whatsapp && (
         <a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ok-50 px-4 font-semibold text-ok-600">
           <MessageCircle size={18} aria-hidden="true" /> Avisar por WhatsApp
@@ -353,6 +365,9 @@ function FormEncargo({ sedeId, onHecho }: { sedeId: ID | null; onHecho: () => vo
   if (!producto) return <p className="text-ink-500">Primero da de alta artículos en Ajustes → Productos.</p>;
   const opciones = producto.opciones ?? [];
   const falta = !alumno || (opciones.length > 0 && !opcion);
+  const total = producto.precio * cantidad;
+  const montoAnticipo = aCentavos(anticipo);
+  const anticipoExcedido = montoAnticipo > total;
 
   return (
     <div className="space-y-4">
@@ -420,17 +435,23 @@ function FormEncargo({ sedeId, onHecho }: { sedeId: ID | null; onHecho: () => vo
           <Entrada inputMode="decimal" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} placeholder="$" />
         </Campo>
       </div>
-      {aCentavos(anticipo) > 0 && <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />}
+      {montoAnticipo > 0 && !anticipoExcedido && <Segmentos opciones={METODOS} valor={metodo} onChange={setMetodo} />}
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 px-1 text-sm">
+        <dt>Total del encargo</dt><dd className="text-right font-semibold">{dinero(total)}</dd>
+        <dt>Se cobra hoy</dt><dd className="text-right font-semibold">{dinero(montoAnticipo)}</dd>
+        {!anticipoExcedido && <><dt>Queda por cobrar</dt><dd className="text-right font-semibold">{dinero(total - montoAnticipo)}</dd></>}
+      </dl>
+      {anticipoExcedido && <p className="text-sm text-bad-600">El anticipo no puede superar el total del encargo.</p>}
       <Boton
         grande
         bloque
-        disabled={ocupado || falta}
+        disabled={ocupado || falta || anticipoExcedido}
         onClick={async () => {
           if (!alumno) return;
           setOcupado(true);
           try {
-            await crearEncargo({ alumnoId: alumno.id, producto, opcion, nota, cantidad, anticipo: aCentavos(anticipo), metodo, usuarioId: usuario.id, sedeId });
-            avisar(`Encargo registrado · ${dinero(producto.precio * cantidad)}${aCentavos(anticipo) ? ` (anticipo ${dinero(aCentavos(anticipo))})` : ''}`);
+            await crearEncargo({ alumnoId: alumno.id, producto, opcion, nota, cantidad, anticipo: montoAnticipo, metodo, usuarioId: usuario.id, sedeId });
+            avisar(`Encargo registrado · ${dinero(total)}${montoAnticipo ? ` (anticipo ${dinero(montoAnticipo)})` : ''}`);
             onHecho();
           } catch (e) {
             avisar(e instanceof Error ? e.message : 'No se pudo registrar', 'error');
@@ -439,7 +460,7 @@ function FormEncargo({ sedeId, onHecho }: { sedeId: ID | null; onHecho: () => vo
           }
         }}
       >
-        {!alumno ? 'Elige al alumno' : opciones.length && !opcion ? 'Elige la talla' : `Registrar encargo · ${dinero(producto.precio * cantidad)}`}
+        {!alumno ? 'Elige al alumno' : opciones.length && !opcion ? 'Elige la talla' : montoAnticipo > 0 ? `Registrar encargo y cobrar ${dinero(montoAnticipo)}` : 'Registrar encargo'}
       </Boton>
     </div>
   );

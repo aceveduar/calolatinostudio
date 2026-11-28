@@ -329,6 +329,11 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho, onVerTicket 
   const avisar = useAvisos();
   const pago = useLiveQuery(() => db.pagos.get(inicial.id), [inicial.id]) ?? inicial;
   const producto = useLiveQuery(() => pago.productoId ? db.productos.get(pago.productoId) : undefined, [pago.productoId]);
+  const pedido = useLiveQuery(
+    () => db.pedidos.filter((p) => !p.deletedAt && p.pagoId === pago.id && p.estado === 'entregado').first(),
+    [pago.id],
+    null,
+  );
   const devuelveExistencias = producto?.inventario != null && pago.createdAt >= (producto.inventarioAt ?? 0);
   const piezas = pago.cantidad ?? 1;
   const respaldo = useRespaldoMovimientos([pago.id])(pago.id);
@@ -385,17 +390,19 @@ export function DetallePago({ pago: inicial, cobro, anulo, onHecho, onVerTicket 
               ))}
             </div>
             <Entrada value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="u otro motivo…" />
-            {pago.productoId ? (
+            {pedido || pago.productoId ? (
               <p className="text-sm text-ink-700">
-                Se anula la venta de {dinero(pago.monto)} en Caja. {devuelveExistencias && (piezas === 1 ? 'Una pieza vuelve al inventario. ' : `Vuelven ${piezas} piezas al inventario. `)} La devolución del dinero se hace por separado.
+                Se anula el cobro de {dinero(pago.monto)} en Caja. {pedido && 'El pedido seguirá marcado como entregado. '}
+                {devuelveExistencias && (piezas === 1 ? 'Una pieza vuelve al inventario. ' : `Vuelven ${piezas} piezas al inventario. `)}
+                La devolución del dinero se hace por separado.
               </p>
             ) : (
-              <p className="text-xs text-ink-500">Se quita el cobro y la entrada o el plan que generó. Queda registrado quién lo hizo y se puede restaurar.</p>
+              <p className="text-xs text-ink-500">Se anula el cobro en Caja y cualquier entrada o plan ligado a él. Queda registrado quién lo hizo y se puede restaurar.</p>
             )}
             <Boton
               bloque
               variante="peligro"
-              disabled={motivo.trim().length < 3}
+              disabled={pedido === null || motivo.trim().length < 3}
               onClick={async () => {
                 await anularPago(pago.id, motivo.trim(), usuario.id);
                 avisar('Cobro anulado', 'ok', { texto: 'Deshacer', fn: () => restaurarPago(pago.id) });

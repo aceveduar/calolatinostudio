@@ -54,6 +54,11 @@ await page.waitForTimeout(500);
 t = await body();
 console.log('5) caja: venta de la playera a nombre del alumno:', ok(/Tienda \$250/.test(t) && /Playera Calo \(M\) · efectivo \$250/.test(t)));
 
+await page.getByRole('button', { name: /Playera Calo \(M\) · efectivo/ }).click();
+await page.getByText(/El pedido seguirá marcado como entregado/).waitFor();
+console.log('   Caja explica el estado del pedido y la devolución del dinero:', ok(await page.getByText(/La devolución del dinero se hace por separado/).isVisible()));
+await page.keyboard.press('Escape');
+
 // 6) cancelar la gorra
 await page.getByRole('link', { name: 'Entrada' }).click();
 await page.getByRole('button', { name: /^Tienda/ }).click();

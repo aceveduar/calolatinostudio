@@ -20,8 +20,9 @@ await page.waitForFunction(() => !!window.compasDev);
 console.log('demo:', JSON.stringify(await page.evaluate(async () => { await window.compasDev.sembrar(); await window.compasDev.agregarClasesDemo(); await window.compasDev.agregarTiendaDemo(); return window.compasDev.agregarPedidosDemo(); })));
 await page.evaluate(async () => {
   const { db, actualizar } = window.compasDev;
-  const pedido = await db.pedidos.where('estado').equals('llego').first();
-  await actualizar('alumnos', pedido.alumnoId, { telefono: '5512345678' });
+  for (const encargo of await db.pedidos.toArray()) {
+    await actualizar('alumnos', encargo.alumnoId, { telefono: '5512345678' });
+  }
 });
 await page.reload();
 await entrar('Monse', '1111');
@@ -53,12 +54,16 @@ t = await txt();
 console.log('3) pasan a en camino (3 + 1):', ok(/Por pedir al proveedor · 0/i.test(t) && /En camino · 4/i.test(t)));
 
 // 4) llegó uno → listo para entregar y aviso por WhatsApp
-await page.getByRole('button', { name: 'Llegó' }).first().click();
-await page.getByText('Marcado como llegó').waitFor();
-const avisarle = await page.getByRole('button', { name: 'Avisarle' }).count();
+const registrarLlegada = page.getByRole('button', { name: 'Registrar llegada' }).first();
+await registrarLlegada.locator('..').getByRole('button').first().click();
+await dlg.getByRole('button', { name: 'Registrar llegada' }).click();
+const avisoRecogida = dlg.getByRole('link', { name: 'Avisar por WhatsApp' });
+await avisoRecogida.waitFor();
+console.log('   el detalle de llegada muestra el WhatsApp del alumno:', ok((await avisoRecogida.getAttribute('href')).includes('5512345678')));
+await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 t = await txt();
-console.log('4) llegó: pasa a listos y ofrece avisarle:', ok(/En camino · 3/i.test(t) && /Listos para entregar · 4/i.test(t)), 'avisarle:', avisarle);
+console.log('4) llegó: pasa a listos:', ok(/En camino · 3/i.test(t) && /Listos para entregar · 4/i.test(t)));
 const buscarPedidos = page.getByRole('textbox', { name: 'Buscar pedidos por alumno, producto o talla' });
 const quienRecoge = await page.evaluate(async () => {
   const { db } = window.compasDev;
@@ -82,7 +87,16 @@ await dlg.locator('select').selectOption({ label: /Zapatillas/ }).catch(async ()
 });
 await dlg.getByRole('button', { name: '25', exact: true }).click();
 await dlg.getByPlaceholder(/negras, tacón/).fill('Doradas');
+const resumenNuevo = dlg.locator('dl');
+console.log('   sin anticipo, registra el encargo con el total por cobrar:', ok(/Se cobra hoy\s+\$0/.test(await resumenNuevo.innerText())
+  && /Queda por cobrar\s+\$1,200/.test(await resumenNuevo.innerText())
+  && await dlg.getByRole('button', { name: 'Registrar encargo', exact: true }).isEnabled()));
+await dlg.getByPlaceholder('$').fill('1300');
+console.log('   impide registrar un anticipo superior al total:', ok(await dlg.getByText('El anticipo no puede superar el total del encargo.').isVisible()
+  && await dlg.getByRole('button', { name: /Registrar encargo y cobrar/ }).isDisabled()));
 await dlg.getByPlaceholder('$').fill('300');
+console.log('   muestra cuánto cobra hoy y cuánto queda pendiente:', ok(/Se cobra hoy\s+\$300/.test(await resumenNuevo.innerText())
+  && /Queda por cobrar\s+\$900/.test(await resumenNuevo.innerText())));
 await page.screenshot({ path: `${OUT}encargos-2-nuevo.png` });
 await dlg.getByRole('button', { name: /Registrar encargo/ }).click();
 await page.getByText(/Encargo registrado .* \(anticipo \$300\)/).waitFor();
