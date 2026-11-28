@@ -19,6 +19,7 @@ import { ResumenTienda } from './ResumenTienda';
 import { armarMensaje, plantilla } from '../../domain/mensajes';
 import { esBeca, resumenBecas } from '../../domain/becas';
 import { mesDe, nombreMes, rangoMes, resumenMes } from '../../domain/gastos';
+import { resumenCaja } from '../../domain/caja';
 
 type Rango = 7 | 30;
 
@@ -94,9 +95,11 @@ export function PantallaReportes() {
       if (!v.clases.includes(nombreClase(f.clase, disciplinas))) v.clases.push(nombreClase(f.clase, disciplinas));
       maestro.set(k, v);
     }
+    const pagosPeriodo = pagosS.filter((p) => p.fecha >= actual.desde && p.fecha <= actual.hasta);
     return {
       ahora: indicadores(actual, pagosS, asisS, altas),
-      pagosPeriodo: pagosS.filter((p) => p.fecha >= actual.desde && p.fecha <= actual.hasta),
+      pagosPeriodo,
+      cobrado: resumenCaja(pagosPeriodo),
       antes: indicadores(anterior, pagosS, asisS, altas),
       dias: ingresosPorDia(actual, pagosS),
       porSede: [PRINCIPAL, ...sedes.map((x) => x.id)].map((id) => {
@@ -154,6 +157,15 @@ export function PantallaReportes() {
         <Cifra titulo={verSede === 'todas' ? 'Alumnos nuevos' : 'Altas de la academia'} valor={r.ahora.nuevos.toLocaleString('es-MX')} cambio={variacion(r.ahora.nuevos, r.antes.nuevos)} pie={etiquetaAntes} />
       </div>
       <p className="mt-2 px-1 text-xs text-ink-500">{etiquetaAntes}</p>
+
+      <Tarjeta className="mt-3 px-4 py-3">
+        <h2 className="text-sm font-semibold">Cobrado por método de pago</h2>
+        <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+          <div><dt className="text-xs text-ink-500">Efectivo</dt><dd className="font-bold tabular-nums">{dinero(r.cobrado.efectivo)}</dd></div>
+          <div><dt className="text-xs text-ink-500">Transferencia</dt><dd className="font-bold tabular-nums">{dinero(r.cobrado.transferencia)}</dd></div>
+          <div><dt className="text-xs text-ink-500">Tarjeta</dt><dd className="font-bold tabular-nums">{dinero(r.cobrado.tarjeta)}</dd></div>
+        </dl>
+      </Tarjeta>
 
       <TarjetaUtilidad verSede={verSede} />
 
@@ -378,7 +390,7 @@ function TarjetaUtilidad({ verSede }: { verSede: string }) {
         <Wallet size={22} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold text-ink-500">Utilidad de {nombreMes(mes).split(' ')[0].toLowerCase()}</span>
+        <span className="block text-xs font-semibold text-ink-500">Utilidad de {nombreMes(mes).split(' ')[0].toLowerCase()} · mes en curso</span>
         <span className={cx('block text-xl font-extrabold', resumen.utilidad < 0 && 'text-bad-600')}>{dinero(resumen.utilidad)}</span>
         <span className="block text-xs text-ink-500">
           {resumen.gastos || resumen.pendiente ? `Ingresos ${dinero(resumen.ingresos)} − gastos ${dinero(resumen.gastos)}${resumen.pendiente ? ` · faltan fijos ~${dinero(resumen.pendiente)}` : ''}` : 'Registra renta, luz e internet para ver la utilidad real'}

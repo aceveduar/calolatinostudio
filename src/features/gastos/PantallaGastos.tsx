@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Repeat, Wallet } from 'lucide-react';
+import { ArrowLeft, Brush, Check, ChevronDown, ChevronLeft, ChevronRight, Droplet, FileSpreadsheet, House, Lightbulb, Plus, Receipt, Repeat, Users, Wallet, Wifi } from 'lucide-react';
 import { descargarArchivo } from '../../app/compartirImagen';
 import { VENTANA_DIAS } from '../../sync/engine';
 import { colorClase, nombreClase, nombreMaestro, useClases, useDisciplinas, useMaestros } from '../../app/datos';
@@ -231,7 +231,7 @@ export function PantallaGastos() {
               <Tarjeta className="divide-y divide-ink-100">
                 {estados.map(({ fijo, pagado, fecha }) => (
                   <div key={fijo.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="text-2xl leading-none">{categoria(fijo.categoria).emoji}</span>
+                    <IconoCategoria valor={fijo.categoria} />
                     <span className="min-w-0 flex-1">
                       {/* hasta 2 renglones: con el botón al lado, "Pago Profa Daniela" se cortaba en "Pago Profa D…" */}
                       <span className="line-clamp-2 leading-snug font-semibold">{fijo.concepto}</span>
@@ -268,11 +268,11 @@ export function PantallaGastos() {
               <Tarjeta className="divide-y divide-ink-100">
                 {gastos.map((g) => (
                   <button key={g.id} onClick={() => setBorrador({ gasto: g, fecha: g.fecha })} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-ink-50">
-                    <span className="text-xl leading-none">{categoria(g.categoria).emoji}</span>
+                    <IconoCategoria valor={g.categoria} />
                     <span className="min-w-0 flex-1">
                       <span className="block break-words font-medium">{g.concepto}</span>
                       <span className="block truncate text-xs text-ink-500">
-                        {fechaCorta(g.fecha)} · {g.metodo}
+                        {fechaCorta(g.fecha)} · {g.deCaja ? 'Salida de caja' : g.metodo}
                         {verSedes && verSede === 'todas' && ` · ${nombreSede(g.sedeId, sedes, academia)}`}
                       </span>
                     </span>
@@ -293,8 +293,8 @@ export function PantallaGastos() {
                     {r.porCategoria.map((c) => (
                       <div key={c.categoria}>
                         <div className="flex items-baseline justify-between text-sm">
-                          <span className="font-semibold">
-                            {categoria(c.categoria).emoji} {categoria(c.categoria).texto}
+                          <span className="inline-flex items-center gap-2 font-semibold">
+                            <IconoCategoria valor={c.categoria} /> {categoria(c.categoria).texto}
                           </span>
                           <span className="font-bold">{dinero(c.monto)}</span>
                         </div>
@@ -397,6 +397,13 @@ function SelectorMaestro({ valor, onChange, maestros }: { valor: string | null; 
   );
 }
 
+const ICONOS_CATEGORIA = { renta: House, luz: Lightbulb, agua: Droplet, internet: Wifi, maestros: Users, limpieza: Brush, otro: Receipt };
+
+function IconoCategoria({ valor }: { valor: CategoriaGasto }) {
+  const Icono = ICONOS_CATEGORIA[valor] ?? Receipt;
+  return <Icono size={18} className="shrink-0 text-ink-500" aria-hidden="true" />;
+}
+
 function Categorias({ valor, onChange }: { valor: CategoriaGasto; onChange: (c: CategoriaGasto) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -405,9 +412,9 @@ function Categorias({ valor, onChange }: { valor: CategoriaGasto; onChange: (c: 
           key={c.valor}
           type="button"
           onClick={() => onChange(c.valor)}
-          className={cx('rounded-full px-3 py-1.5 text-sm font-semibold ring-1', valor === c.valor ? 'bg-brand-50 text-brand-600 ring-brand-500' : 'bg-superficie ring-ink-100')}
+          className={cx('inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ring-1', valor === c.valor ? 'bg-brand-50 text-brand-600 ring-brand-500' : 'bg-superficie ring-ink-100')}
         >
-          {c.emoji} {c.texto}
+          <IconoCategoria valor={c.valor} /> {c.texto}
         </button>
       ))}
     </div>
@@ -515,7 +522,7 @@ function ListaFijos({ fijos, sedes, sedeInicial }: { fijos: GastoFijo[]; sedes: 
             .sort((a, b) => a.dia - b.dia)
             .map((f) => (
               <button key={f.id} onClick={() => setSel(f)} className={cx('flex w-full items-center gap-3 px-4 py-3 text-left active:bg-ink-50', !f.activo && 'opacity-40')}>
-                <span className="text-xl leading-none">{categoria(f.categoria).emoji}</span>
+                <IconoCategoria valor={f.categoria} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{f.concepto}</span>
                   <span className="block truncate text-xs text-ink-500">

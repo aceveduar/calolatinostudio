@@ -60,8 +60,10 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
     if (ocupado || !x.producto) return;
     setOcupado(true);
     try {
-      onAgregar(await entregarPedido({ pedido: x.pedido, producto: x.producto, metodo: 'efectivo', usuarioId: usuario.id, sedeId }));
-      avisar(`Entregado a ${x.alumno?.nombre.split(' ')[0] ?? 'el alumno'}: se sumó a la cuenta`);
+      const movimiento = await entregarPedido({ pedido: x.pedido, producto: x.producto, metodo: 'efectivo', usuarioId: usuario.id, sedeId });
+      onAgregar(movimiento);
+      const nombre = x.alumno?.nombre.split(' ')[0] ?? 'el alumno';
+      avisar(movimiento.monto ? `Entregado a ${nombre} · ${dinero(movimiento.monto)} agregado a la cuenta` : `Entregado a ${nombre} · Sin saldo por cobrar`);
     } catch (e) {
       avisar(e instanceof Error ? e.message : 'No se pudo entregar', 'error');
     } finally {
@@ -83,9 +85,10 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
                 {nombrePedido(x.pedido, x.producto)}
                 {x.pedido.cantidad > 1 && ` ×${x.pedido.cantidad}`}
               </span>
-              <span className="block truncate text-xs text-ink-500">
-                {x.alumno?.nombre ?? 'Alumno'} · {dinero(restaPorPagar(x.pedido))}
-                {x.pedido.anticipo ? ` (dejó ${dinero(x.pedido.anticipo)})` : ''}
+              <span className="block truncate text-xs text-ink-500">{x.alumno?.nombre ?? 'Alumno'}</span>
+              <span className="block text-xs text-ink-500">
+                <b className="text-ink-900">{restaPorPagar(x.pedido) ? `Por cobrar ${dinero(restaPorPagar(x.pedido))}` : 'Sin saldo por cobrar'}</b>
+                {x.pedido.anticipo ? ` · Anticipo ${dinero(x.pedido.anticipo)}` : ''}
               </span>
             </span>
             {cancelando === x.pedido.id ? (
@@ -117,7 +120,7 @@ export function Tienda({ movs, onAgregar, onQuitar, onListo, sedeId }: { sedeId:
           </div>
         ))}
       </div>
-      <p className="mt-1.5 px-1 text-xs text-ink-500">“Entregar” suma el apartado a la cuenta para cobrarlo.</p>
+      <p className="mt-1.5 px-1 text-xs text-ink-500">Al entregar, solo el saldo pendiente se suma a la cuenta.</p>
     </section>
   );
 

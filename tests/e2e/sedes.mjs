@@ -80,7 +80,7 @@ await sedeCaja.selectOption('todas');
 await page.waitForTimeout(400);
 caja = (await page.getByText('Total cobrado').locator('..').innerText()).replace(/\s+/g, ' ');
 console.log('7) dueño ve todas = $100:', ok(caja.includes('Total cobrado $100')));
-const desglose = page.getByText('Desglose del día', { exact: true });
+const desglose = page.locator('summary').filter({ hasText: /^Cobros (por concepto|y asistencias)$/ });
 console.log('   el desglose empieza plegado y los movimientos están visibles:', ok(
   await desglose.isVisible() && !(await page.getByText('Por concepto', { exact: true }).isVisible())
   && await page.getByRole('heading', { name: /^Movimientos/ }).isVisible(),
@@ -96,7 +96,14 @@ await page.screenshot({ path: `${OUT}sede-4-reportes.png`, fullPage: true });
 t = await main();
 console.log('8) reportes por sede:', ok(/Estudio Calo \$[\d,]+/.test(t) && /Casa de Cultura \$[\d,]+/.test(t)));
 const filtroReportes = page.getByRole('combobox', { name: 'Sede de Reportes' });
+const cobrado = page.getByRole('heading', { name: 'Cobrado por método de pago' }).locator('..');
+const pesos = (texto) => Number(texto.replace(/[^\d.]/g, ''));
+const valores = await cobrado.locator('dd').allTextContents();
+const ingreso = await page.getByText('Ingresos', { exact: true }).locator('..').locator('p').nth(1).innerText();
+console.log('   los tres métodos suman los ingresos de todas las sedes:', ok(valores.length === 3
+  && valores.reduce((total, valor) => total + pesos(valor), 0) === pesos(ingreso)));
 await filtroReportes.selectOption({ label: 'Casa de Cultura' });
+await cobrado.getByText('$40', { exact: true }).waitFor();
 const seguimiento = page.getByText('Seguimiento de alumnos', { exact: true });
 console.log('   el informe distingue la sede y deja el seguimiento plegado:', ok(
   await filtroReportes.locator('option:checked').textContent() === 'Casa de Cultura'

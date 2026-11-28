@@ -151,7 +151,7 @@ await page.getByText('Nuevo: Diana Pérez').click();
 await btn('Listo').click();
 
 await page.getByRole('link', { name: 'Caja' }).click();
-await page.getByText('Desglose del día', { exact: true }).click();
+await page.getByText('Cobros y asistencias', { exact: true }).click();
 await page.getByText('Por maestro').waitFor();
 await page.getByText('Por maestro').scrollIntoViewIfNeeded();
 await shot('4-caja');

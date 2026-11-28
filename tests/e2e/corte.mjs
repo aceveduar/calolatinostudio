@@ -68,6 +68,7 @@ await corte.getByRole('button', { name: 'Escribir el total' }).click();
 console.log('2e) al cambiar de modo se conserva el total contado:', ok(await corte.getByLabel('Efectivo contado').inputValue() === String((esperado - 2000) / 100)));
 await corte.getByRole('button', { name: 'Contar billete por billete' }).click();
 await corte.getByPlaceholder(/cambio de más/).fill('Se dio cambio de más');
+console.log('   distingue el efectivo para retirar de la feria que se queda:', ok(await corte.getByText(`Efectivo para retirar del cajón ${$(esperado - 52000)} · Feria que se queda $500.`, { exact: true }).isVisible()));
 await page.screenshot({ path: `${OUT}corte-nuevo.png`, fullPage: true });
 const r = await revisarPagina(page);
 console.log('2c) sin desbordes, campos con nombre:', ok(!r.ancho && !r.sinNombre.length), JSON.stringify({ ancho: r.ancho, sinNombre: r.sinNombre }));
@@ -83,6 +84,8 @@ await page.evaluate(async () => {
   await db.pagos.add({ ...pago, id: crypto.randomUUID(), concepto: 'Transferencia posterior', updatedAt: Date.now(), createdAt: Date.now() });
 });
 await page.getByText('Corte por actualizar').waitFor();
+console.log('   identifica el conteo anterior y pide volver a contar:', ok(await page.getByText(/Corte anterior.*faltó/).isVisible()
+  && await page.getByText(/Hubo movimientos después del corte.*Vuelve a contar el efectivo/).isVisible()));
 await page.getByRole('button', { name: 'Actualizar corte' }).click();
 const campoFeria = page.getByRole('dialog', { name: 'Corte de caja' }).getByLabel('Feria con la que abrió');
 await page.waitForFunction(() => document.querySelector('input[aria-label="Feria con la que abrió"]')?.value === '500', null, { timeout: 5000 }).catch(() => {});

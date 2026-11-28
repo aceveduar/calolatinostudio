@@ -155,11 +155,11 @@ export function PantallaCaja() {
             <div className="flex-1 text-sm">
               <p className="font-semibold">{datos.cambioTrasCorte ? 'Corte por actualizar' : `Corte hecho a las ${horaDe(datos.corte.createdAt)}`}</p>
               <p className="text-ink-500">
-                Contado {dinero(datos.corte.contadoEfectivo)} ·{' '}
+                {datos.cambioTrasCorte ? 'Corte anterior' : 'Contado'} {dinero(datos.corte.contadoEfectivo)} ·{' '}
                 {datos.corte.diferencia === 0 ? 'cuadró exacto' : `${datos.corte.diferencia > 0 ? 'sobró' : 'faltó'} ${dinero(Math.abs(datos.corte.diferencia))}`}
                 {!!datos.corte.fondo && ` · ${dinero(datos.corte.fondo)} de feria`}
               </p>
-              {datos.cambioTrasCorte && <p className="mt-1 text-warn-600">Hubo cambios después del corte de las {horaDe(datos.corte.createdAt)}.</p>}
+              {datos.cambioTrasCorte && <p className="mt-1 text-warn-600">Hubo movimientos después del corte de las {horaDe(datos.corte.createdAt)}. Vuelve a contar el efectivo.</p>}
             </div>
             <button className="min-h-11 shrink-0 rounded-lg px-1 text-sm font-semibold text-brand-600" onClick={() => setCorte(true)}>
               {datos.cambioTrasCorte ? 'Actualizar corte' : 'Rehacer'}
@@ -184,7 +184,8 @@ export function PantallaCaja() {
       {(porClase.length > 0 || r.porConcepto.length > 0) && (
         <details className="group mt-3">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 text-sm font-semibold text-ink-700 ring-1 ring-inset ring-ink-100 active:bg-ink-100 [&::-webkit-details-marker]:hidden">
-            Desglose del día <ChevronDown size={16} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
+            {porClase.length > 0 ? (r.porConcepto.length > 0 ? 'Cobros y asistencias' : 'Asistencias por clase') : 'Cobros por concepto'}
+            <ChevronDown size={16} className="shrink-0 text-ink-500 group-open:rotate-180" aria-hidden="true" />
           </summary>
           {porClase.length > 0 && (
             <Seccion titulo="Por clase">
@@ -566,7 +567,7 @@ function FormCorte({ fecha, sedeId, sede, efectivo, salidas, transferencia, tarj
             {faltaNota ? <p className="text-xs font-medium text-warn-600">Escribe el motivo del faltante para guardar.</p>
               : listo && contado > fondo && (
                 <p className="text-xs text-ink-500">
-                  Guarda {dinero(contado - fondo)}{fondo > 0 ? ` y deja ${dinero(fondo)} de feria` : ''}.
+                  Efectivo para retirar del cajón {dinero(contado - fondo)}{fondo > 0 ? ` · Feria que se queda ${dinero(fondo)}` : ''}.
                 </p>
               )}
           </div>
@@ -579,7 +580,7 @@ function FormCorte({ fecha, sedeId, sede, efectivo, salidas, transferencia, tarj
           setGuardando(true);
           try {
             await crear('cortes', { ...conSede(sedeId), fecha, esperadoEfectivo: esperado, contadoEfectivo: contado, diferencia: dif, totalOtros: transferencia + tarjeta, usuarioId: usuario.id, notas: notas.trim(), fondo, salidas: totalSalidas });
-            avisar(contado > fondo ? `Corte guardado · guarda ${dinero(contado - fondo)}` : 'Corte guardado');
+            avisar('Corte guardado');
             onHecho();
           } catch {
             avisar('No se pudo guardar el corte. Inténtalo de nuevo.', 'error');

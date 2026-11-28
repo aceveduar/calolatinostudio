@@ -31,7 +31,7 @@ await entrar('Monse', '1111');
 await page.getByRole('button', { name: /^Tienda/ }).click();
 await dlg.getByText(/Apartados por recoger · 3/i).waitFor();
 let t = (await dlg.innerText()).replace(/\s+/g, ' ');
-console.log('1) por recoger: 2 apartados + zapatillas que llegaron ($600 de resto):', ok(/Zapatillas de baile \(26\)/.test(t) && /\$600 \(dejó \$600\)/.test(t)));
+console.log('1) por recoger: 2 apartados + zapatillas que llegaron ($600 de resto):', ok(/Zapatillas de baile \(26\)/.test(t) && /Por cobrar \$600 · Anticipo \$600/.test(t)));
 await dlg.getByRole('link', { name: /Encargos/ }).click();
 await page.getByText('Por pedir al proveedor', { exact: false }).first().waitFor();
 await page.waitForTimeout(300);

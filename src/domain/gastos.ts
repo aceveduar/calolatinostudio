@@ -6,14 +6,14 @@ import { crear } from '../db/repo';
 import type { CategoriaGasto, Fecha, Gasto, GastoFijo, ID, MetodoPago, Pago } from '../db/types';
 import { conSede } from './sedes';
 
-export const CATEGORIAS: { valor: CategoriaGasto; texto: string; emoji: string }[] = [
-  { valor: 'renta', texto: 'Renta', emoji: '🏠' },
-  { valor: 'luz', texto: 'Luz', emoji: '💡' },
-  { valor: 'agua', texto: 'Agua', emoji: '🚰' },
-  { valor: 'internet', texto: 'Internet', emoji: '📶' },
-  { valor: 'maestros', texto: 'Maestros', emoji: '💃' },
-  { valor: 'limpieza', texto: 'Limpieza', emoji: '🧽' },
-  { valor: 'otro', texto: 'Otro', emoji: '🧾' },
+export const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
+  { valor: 'renta', texto: 'Renta' },
+  { valor: 'luz', texto: 'Luz' },
+  { valor: 'agua', texto: 'Agua' },
+  { valor: 'internet', texto: 'Internet' },
+  { valor: 'maestros', texto: 'Maestros' },
+  { valor: 'limpieza', texto: 'Limpieza' },
+  { valor: 'otro', texto: 'Otro' },
 ];
 export const categoria = (c: CategoriaGasto) => CATEGORIAS.find((x) => x.valor === c) ?? CATEGORIAS[CATEGORIAS.length - 1];
 
